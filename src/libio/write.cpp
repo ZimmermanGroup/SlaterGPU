@@ -1,4 +1,5 @@
 #include "write.h"
+#include "fp_def.h"
 
 #include <sstream>
 #define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(8) << scientific << x ) ).str()
@@ -75,7 +76,7 @@ void write_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
   printf("\n shouldn't be here (for now) \n"); 
 
   string filename = get_iarray_name(type1,type2,i1);
-  printf("  writing %8s \n",filename.c_str());
+  //printf("  writing %8s \n",filename.c_str());
 
   ofstream outfile;
   outfile.open(filename.c_str());
@@ -200,9 +201,68 @@ void get_nxyzr(int n1, int l1, int m1, int& nx, int& ny, int& nz, int& nr)
   return;
 }
 
-
-void write_molden(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &basis, FP2* jCA, int No, string fname)
+void write_molden_g(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &basis, FP2* jCA, int No, string fname)
 {
+  int N = basis.size();
+
+  string filename = fname;
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  FP2 B2A = 1./A2B;
+
+  outfile << fixed << setprecision(8);
+
+  outfile << "[Molden Format]" << endl;
+  outfile << "[Atoms] (Angs)" << endl;
+  for (int i=0;i<natoms;i++)
+  {
+    string aname = get_aname(atno[i]);
+    FP2 x1 = coords[3*i]*B2A; FP2 y1 = coords[3*i+1]*B2A; FP2 z1 = coords[3*i+2]*B2A;
+    outfile << " " << aname << "     " << i+1 << "   " << atno[i] << "   ";
+    outfile << x1 << "   " << y1 << "   " << z1 << endl;
+  }
+  
+
+  outfile << "[GTO]" << endl;
+
+  for (int i=0;i<natoms;i++)
+  {
+    //FP2 x1 = coords[3*i]; FP2 y1 = coords[3*i+1]; FP2 z1 = coords[3*i+2];
+
+    string aname = get_aname(atno[i]);
+    string b1 = read_basis_text(aname);
+    outfile << i+1 << "    0 " << endl;
+    outfile << b1 << endl;
+      //outfile << nr << " " << zeta << " " << norm << " " << endl;
+  }
+
+  outfile << "[MO]" << endl;
+  for (int i=0;i<N;i++)
+  {
+    int occ = 0; if (i<No) occ = 1;
+
+    outfile << "Sym=X" << endl;
+    outfile << "Ene=0.0" << endl;
+    outfile << "Spin=Alpha" << endl;
+    outfile << "Occup=" << occ << endl;
+
+    for (int j=0;j<N;j++)
+      outfile << " " << j+1 << "  " << jCA[j*N+i] << endl;
+  }
+
+  outfile << " [5D7F] " << endl;
+
+
+  outfile.close();
+  
+  return;
+}
+
+void write_molden(bool gbasis, int natoms, int* atno, FP2* coords, vector<vector<FP2> > &basis, FP2* jCA, int No, string fname)
+{
+  if (gbasis) return write_molden_g(natoms,atno,coords,basis,jCA,No,fname);
+
   int N = basis.size();
 
   for (int j=0;j<N;j++)
@@ -270,7 +330,26 @@ void write_molden(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &basi
   return;
 }
 
-#if !EVL64
+void write_gridpts(int s1, int s2, FP1* A, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(10);
+
+  outfile << filename << ":" << endl;
+  for (int i=0;i<s1;i++)
+  {
+    string line = "";
+    for (int j=0;j<s2;j++)
+      line += " " + SSTRF(A[i*s2+j]);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
 void write_square(int N, FP2* A, string fname, int prl)
 {
   if (prl>1) printf(" writing %s to file \n",fname.c_str());
@@ -293,8 +372,8 @@ void write_square(int N, FP2* A, string fname, int prl)
   outfile.close();
   return;
 }
-#endif
 
+#if !EVL64
 void write_square(int N, FP1* A, string fname, int prl)
 {
   if (prl>1) printf(" writing %s to file \n",fname.c_str());
@@ -317,6 +396,7 @@ void write_square(int N, FP1* A, string fname, int prl)
   outfile.close();
   return;
 }
+#endif
 
 void write_C(int Naux, int N2, FP1* C)
 {

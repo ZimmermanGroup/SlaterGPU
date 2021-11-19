@@ -2,27 +2,14 @@
 #define FDEBUG 0
 #define GDEBUG 0
 
-#include <stdio.h>
-#include <cstdlib>
-#include <stdlib.h>
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <cstdio>
-#include <string>
-#include <cstring>
-#include <algorithm>
-#include <math.h>
-#include <vector>
-#include "Vinr.h"
+#include "read.h"
+#include "fp_def.h"
 
 #include <sstream>
 #define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
 #define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
 
-using namespace std;
-
-// FP2 norm(int n, int l, int m, FP2 zeta);
+FP2 norm(int n, int l, int m, FP2 zeta);
 
 #define A2B 1.8897261
 
@@ -82,6 +69,7 @@ void print_square(int N, FP1* S)
   }
 }
 
+#if !EVL64
 void print_square(int M, int N, FP1* S) 
 {
   for (int n=0;n<M;n++)
@@ -91,8 +79,8 @@ void print_square(int M, int N, FP1* S)
     printf("\n");
   }
 }
+#endif
 
-#if !EVL64
 void print_square(int M, int N, FP2* S) 
 {
   for (int n=0;n<M;n++)
@@ -102,7 +90,6 @@ void print_square(int M, int N, FP2* S)
     printf("\n");
   }
 }
-#endif
 
 void print_square_ss(int N, FP2* S)
 {
@@ -115,7 +102,6 @@ void print_square_ss(int N, FP2* S)
   }
 }
 
-#if !EVL64
 void print_square_sm(int N, FP2* S)
 {
   for (int n=0;n<N;n++)
@@ -126,8 +112,8 @@ void print_square_sm(int N, FP2* S)
     printf("\n");
   }
 }
-#endif
 
+#if !EVL64
 void print_square_sm(int N, FP1* S)
 {
   for (int n=0;n<N;n++)
@@ -138,6 +124,7 @@ void print_square_sm(int N, FP1* S)
     printf("\n");
   }
 }
+#endif
 
 void print_square_ss_sm(int N, FP2* S)
 { 
@@ -194,6 +181,66 @@ vector<string> split1(const string &s, char delim)
   return tokens;
 }
 
+string read_basis_text(string aname)
+{
+  string filename = "basis";
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    printf("   couldn't open file: %s \n",filename.c_str());
+    return 0;
+  }
+
+  bool done = 0;
+  string text = "";
+  while (!infile.eof() && !done)
+  {  
+    string line;
+    getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
+    if (tok_line.size()>1 && tok_line[0].compare(aname)==0)
+    {
+      //printf("  found elem %2s \n",aname.c_str());
+      while (!infile.eof())
+      {
+        getline(infile, line);
+        vector<string> tok2 = split1(line,' ');
+        if (tok2.size() & tok2[0].compare("****")==0)
+        {
+          done = 1;
+          break;
+        }
+        text += line;
+        text += "\n";
+      }
+    }
+  }
+
+  infile.close();
+
+  return text;
+}
+
+FP2 read_FP1(string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0.;
+
+  string line;
+  bool success = (bool) getline(infile, line);
+
+  FP2 val = 0.;
+  if (success)
+    val = atof(line.c_str());
+
+  infile.close();
+
+  return val;
+}
+
 void read_thresh(FP1& no_thresh, FP1& occ_thresh)
 {
   string filename = "THRESH";
@@ -204,13 +251,13 @@ void read_thresh(FP1& no_thresh, FP1& occ_thresh)
     return;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   if (success)
   {
     no_thresh = atof(line.c_str());
 
-    success = (bool)getline(infile, line);
+    success = (bool) getline(infile, line);
     if (success)
       occ_thresh = atof(line.c_str());
   }
@@ -225,8 +272,8 @@ void read_eps(FP2& eps1, FP2& eps2, FP2& eps1s)
   string filename = "EPS";
 
   eps1 = 0.001;
-  eps2 = 0.000001;
-  eps1s = 0.0001;
+  eps2 = 0.0000001;
+  eps1s = 0.00005;
 
   ifstream infile;
   infile.open(filename.c_str());
@@ -234,17 +281,17 @@ void read_eps(FP2& eps1, FP2& eps2, FP2& eps1s)
     return;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   if (success)
   {
     eps1 = atof(line.c_str());
 
-    success = (bool)getline(infile, line);
+    success = (bool) getline(infile, line);
     if (success)
       eps2 = atof(line.c_str());
 
-    success = (bool)getline(infile, line);
+    success = (bool) getline(infile, line);
     if (success)
       eps1s = atof(line.c_str());
   }
@@ -274,13 +321,13 @@ void read_eps(FP2& eps1, FP2& eps2)
     return;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   if (success)
   {
     eps1 = atof(line.c_str());
 
-    success = (bool)getline(infile, line);
+    success = (bool) getline(infile, line);
     if (success)
       eps2 = atof(line.c_str());
   }
@@ -295,6 +342,40 @@ void read_eps(FP2& eps1, FP2& eps2)
   return;
 }
 
+bool read_dft(int& dt1, int& dt2)
+{
+  string filename = "DFT";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool) getline(infile, line);
+
+  dt1 = dt2 = -1;
+  if (success)
+  {
+   //exchange
+    dt1 = atoi(line.c_str());
+
+    success = (bool) getline(infile, line);
+    if (success)
+     //correlation
+      dt2 = atoi(line.c_str());
+  }
+  else
+  {
+    infile.close();
+    return 0;
+  }
+
+  infile.close();
+
+  return 1;
+}
+
 int read_esci()
 {
   string filename = "ESCI";
@@ -305,7 +386,7 @@ int read_esci()
     return 0;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   int default_val = 1;
   int do_esci;
@@ -317,6 +398,30 @@ int read_esci()
   infile.close();
 
   return do_esci;
+}
+
+int read_ri()
+{
+  string filename = "RI";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool) getline(infile, line);
+
+  int default_val = 1;
+  int do_ri;
+  if (success)
+    do_ri = atoi(line.c_str());
+  else
+    do_ri = default_val;
+
+  infile.close();
+
+  return do_ri;
 }
 
 int read_opt()
@@ -331,7 +436,7 @@ int read_opt()
     return default_val;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   int nopt;
   if (success)
@@ -356,7 +461,7 @@ int read_mbe()
     return default_val;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   int mbe;
   if (success)
@@ -410,7 +515,7 @@ int read_cas()
     return default_val;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   int cas_type;
   if (success)
@@ -421,6 +526,79 @@ int read_cas()
   infile.close();
 
   return cas_type;
+}
+
+bool read_cas_act(int& N, int& M)
+{
+  string filename = "CAS_ACT";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool) getline(infile, line);
+
+  if (success)
+  {
+    vector<string> tok_line = split1(line,' ');
+    N = atoi(tok_line[0].c_str());
+    M = atoi(tok_line[1].c_str());
+  }
+  else
+  {
+    printf("\n ERROR reading CAS_ACT \n");
+    exit(1);
+  }
+
+  infile.close();
+
+  return 1;
+}
+
+void read_rotate(int N, FP2* jCA)
+{
+  string filename = "ROT";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return;
+
+
+  int nrot = 0;
+  while (!infile.eof())
+  {
+    string line;
+    bool success = (bool) getline(infile, line);
+
+    if (success)
+    {
+      FP2 vec1[N];
+      FP2 vec2[N];
+      vector<string> tok_line = split1(line,' ');
+
+      if (tok_line.size()==2)
+      {
+        int i1 = atoi(tok_line[0].c_str())-1;
+        int i2 = atoi(tok_line[1].c_str())-1;
+
+        printf("   rotate %2i->%2i \n",i1+1,i2+1);
+        for (int i=0;i<N;i++) vec1[i] = jCA[i*N+i1];
+        for (int i=0;i<N;i++) vec2[i] = jCA[i*N+i2];
+        for (int i=0;i<N;i++) jCA[i*N+i1] = vec2[i];
+        for (int i=0;i<N;i++) jCA[i*N+i2] = vec1[i];
+        nrot++;
+      }
+    }
+  }
+
+  infile.close();
+
+  printf("\n  rotated %2i orbitals \n",nrot);
+
+  return;
 }
 
 int read_nsteps()
@@ -435,7 +613,7 @@ int read_nsteps()
     return default_nsteps;
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
 
   int nsteps;
   if (success)
@@ -448,6 +626,54 @@ int read_nsteps()
   return nsteps;
 }
 
+int read_spinref()
+{
+  string filename = "SPINREF";
+
+  int spinref;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return -1;
+  else
+  {
+    string line;
+    bool success = (bool) getline(infile, line);
+
+    if (success)
+      spinref = atoi(line.c_str());
+    else
+      spinref = 0;
+  }
+  infile.close();
+ 
+  return spinref;
+}
+
+int read_group()
+{
+  string filename = "GROUP";
+
+  int group_size;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+  else
+  {
+    string line;
+    bool success = (bool) getline(infile, line);
+
+    if (success)
+      group_size = atoi(line.c_str());
+    else
+      group_size = 1;
+  }
+  infile.close();
+ 
+  return group_size;
+}
+
 int read_restart()
 {
   string filename = "RESTART";
@@ -456,11 +682,11 @@ int read_restart()
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
-    is_restart = 0;
+    return 0;
   else
   {
     string line;
-    bool success = (bool)getline(infile, line);
+    bool success = (bool) getline(infile, line);
 
     if (success)
       is_restart = atoi(line.c_str());
@@ -469,6 +695,7 @@ int read_restart()
 
     //printf(" found restart: %i \n",is_restart);
   }
+  infile.close();
  
   return is_restart;
 }
@@ -487,11 +714,11 @@ void read_nrad_nang(int& nrad, int& nang, int type)
   }
   
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
   if (success)
     nrad = atoi(line.c_str());
 
-  success = (bool)getline(infile, line);
+  success = (bool) getline(infile, line);
   if (success)
     nang = atoi(line.c_str());
 
@@ -511,7 +738,7 @@ int read_tuples(vector<vector<int> >& tuples)
   printf(" TUPLES only reading one line (for now) \n");
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
   vector<string> tok_line = split1(line,' ');
   if (tok_line.size()>0)
   {
@@ -527,79 +754,109 @@ int read_tuples(vector<vector<int> >& tuples)
 }
 
 
-// string get_iarray_name(short type1, short type2, short i1);
+string get_iarray_name(short type1, short type2, short i1);
 
-// int read_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
-// {
-//   string filename = get_iarray_name(type1,type2,i1);
-//   //printf("  reading %8s \n",filename.c_str());
+int read_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
+{
+  string filename = get_iarray_name(type1,type2,i1);
+  //printf("  reading %8s \n",filename.c_str());
 
-//   ifstream infile;
-//   infile.open(filename.c_str());
-//   if (!infile)
-//   {
-//     printf("    couldn't open file (%s) \n",filename.c_str());
-//     return 0;
-//   }
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    printf("    couldn't open file (%s) \n",filename.c_str());
+    return 0;
+  }
 
-//   string line;
-//   int found = 1;
+  string line;
+  int found = 1;
 
-//   for (int i=0;i<s1;i++)
-//   {
-//     bool success = (bool)getline(infile, line);
-//     vector<string> tok_line = split1(line,' ');
+  for (int i=0;i<s1;i++)
+  {
+    bool success = (bool) getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
 
-//     int tks = tok_line.size();
-//     if (tks>=s2)
-//     {
-//       for (int m=0;m<s2;m++)
-//         A[i*s2+m] = atof(tok_line[m].c_str());
-//     }
-//     else
-//       found = 0;
-//   }
+    int tks = tok_line.size();
+    if (tks>=s2)
+    {
+      for (int m=0;m<s2;m++)
+        A[i*s2+m] = atof(tok_line[m].c_str());
+    }
+    else
+      found = 0;
+  }
 
-//   infile.close();
+  infile.close();
 
-//   return found;
-// }
+  return found;
+}
 
-// int read_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
-// {
-//   string filename = get_iarray_name(type1,type2,i1);
-//   //printf("  reading %8s \n",filename.c_str());
+#if !EVL64
+int read_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
+{
+  string filename = get_iarray_name(type1,type2,i1);
+  //printf("  reading %8s \n",filename.c_str());
 
-//   ifstream infile;
-//   infile.open(filename.c_str());
-//   if (!infile)
-//   {
-//     printf("    couldn't open file (%s) \n",filename.c_str());
-//     return 0;
-//   }
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    printf("    couldn't open file (%s) \n",filename.c_str());
+    return 0;
+  }
 
-//   string line;
-//   int found = 1;
+  string line;
+  int found = 1;
 
-//   for (int i=0;i<s1;i++)
-//   {
-//     bool success = (bool)getline(infile, line);
-//     vector<string> tok_line = split1(line,' ');
+  for (int i=0;i<s1;i++)
+  {
+    bool success = (bool) getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
 
-//     int tks = tok_line.size();
-//     if (tks>=s2)
-//     {
-//       for (int m=0;m<s2;m++)
-//         A[i*s2+m] = atof(tok_line[m].c_str());
-//     }
-//     else
-//       found = 0;
-//   }
+    int tks = tok_line.size();
+    if (tks>=s2)
+    {
+      for (int m=0;m<s2;m++)
+        A[i*s2+m] = atof(tok_line[m].c_str());
+    }
+    else
+      found = 0;
+  }
 
-//   infile.close();
+  infile.close();
 
-//   return found;
-// }
+  return found;
+}
+#endif
+
+int read_gridpts(int s1, int s2, FP1* A, string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool) getline(infile, line);
+  int wi = 0;
+  while (wi<s1)
+  {
+    success = (bool) getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
+    if (tok_line.size()>0)
+    {
+      if (tok_line.size()<s2) { printf(" ERROR: file size incorrect (read_gridpts) \n"); exit(1); }
+      for (int m=0;m<s2;m++)
+        A[wi*s2+m] = atof(tok_line[m+1].c_str());
+      wi++;
+    }
+  }
+  
+  infile.close();
+
+  return 1;
+}
 
 int read_square(int N, FP2* Pao, string filename)
 {
@@ -613,11 +870,11 @@ int read_square(int N, FP2* Pao, string filename)
   }
 
   string line;
-  bool success = (bool)getline(infile, line);
+  bool success = (bool) getline(infile, line);
   int wi = 0;
   while (wi<N)
   {
-    success = (bool)getline(infile, line);
+    success = (bool) getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -901,7 +1158,6 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
   return;
 }
 
-#if !EVL64
 FP2 nuclear_repulsion(int natoms, int* atno, FP2* coords)
 {
   FP2 Enn = 0;
@@ -918,8 +1174,8 @@ FP2 nuclear_repulsion(int natoms, int* atno, FP2* coords)
 
   return Enn;
 }
-#endif
 
+#if !EVL64
 FP2 nuclear_repulsion(int natoms, int* atno, FP1* coordsf)
 {
   FP2 Enn = 0;
@@ -936,6 +1192,7 @@ FP2 nuclear_repulsion(int natoms, int* atno, FP1* coordsf)
 
   return Enn;
 }
+#endif
 
 void add_s(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta)
 {
@@ -1230,6 +1487,24 @@ string get_aname(int Z)
   if (Z==16) return "S";
   if (Z==17) return "Cl";
   if (Z==18) return "Ar";
+  if (Z==19) return "K";
+  if (Z==20) return "Ca";
+  if (Z==21) return "Sc";
+  if (Z==22) return "Ti";
+  if (Z==23) return "V";
+  if (Z==24) return "Cr";
+  if (Z==25) return "Mn";
+  if (Z==26) return "Fe";
+  if (Z==27) return "Co";
+  if (Z==28) return "Ni";
+  if (Z==29) return "Cu";
+  if (Z==30) return "Zn";
+  if (Z==31) return "Ga";
+  if (Z==32) return "Ge";
+  if (Z==33) return "As";
+  if (Z==34) return "Se";
+  if (Z==35) return "Br";
+  if (Z==36) return "Kr";
   return "n/a";
 }
 
@@ -1306,6 +1581,20 @@ int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector
     {
       charge = atoi(tok_line[0].c_str());
       nup = atoi(tok_line[1].c_str());
+     //interpreting these as multiplicities
+      if (nup==1) nup = 0;
+      else if (nup==3) nup = 1;
+      else if (nup==5) nup = 2;
+      else if (nup==2 || nup==4) 
+      {
+        printf(" ERROR: FP2t/quartet not available \n");
+        exit(1);
+      }
+      else if (nup>5)
+      {
+        printf(" ERROR: spin>5 not available \n");
+        exit(1);
+      }
     }
     if (tok_line.size()>3) natoms++;
 
