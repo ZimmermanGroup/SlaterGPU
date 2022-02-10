@@ -34,6 +34,13 @@ auxiliary basis file named `aux` are required. These files
 should be in Gaussian format and include the specification for
 all atoms of interest.
 
+If running on multiple GPUs, it's advised to have the number of
+OpenMP threads equal to the number of GPUs. i.e. set the following
+environment variable
+```
+export OMP_NUM_THREADS=<ngpu>
+```
+
 An example for computing the integrals is provided in the 
 `examples` folder.
 
