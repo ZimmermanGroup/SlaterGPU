@@ -11,7 +11,7 @@
 // void print_duration(chrono::high_resolution_clock::time_point t1, chrono::high_resolution_clock::time_point t2, string name);
 
 #if USE_ACC
-void copy_to_all_gpu(int ngpu, int s1, FP2* A, int include_first)
+void copy_to_all_gpu2(int ngpu, int s1, FP2* A, int include_first)
 { 
   if (ngpu<1) return;
   if (include_first==0)
@@ -322,7 +322,7 @@ void compute_d_3c_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vect
 
  //distribute dC to all gpus
   #if USE_ACC
-  copy_to_all_gpu(nomp,N2a,dC,0);
+  copy_to_all_gpu2(nomp,N2a,dC,0);
   #endif
 
 #if USE_ACC
@@ -1147,7 +1147,7 @@ void compute_d_3c_para2(
 
  //distribute dC to all gpus
   #if USE_ACC
-  copy_to_all_gpu(nomp,N2a,dC,0);
+  copy_to_all_gpu2(nomp,N2a,dC,0);
   #endif
 
 #if USE_ACC

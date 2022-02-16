@@ -21,7 +21,7 @@ const FP1 bsradii[36] = {
   4.157, 3.402, 3.024, 2.646, 2.551, 2.646, 2.646, 2.646, 2.551, 2.551, 2.551, 2.551, 2.457, 2.362, 2.173, 2.173, 2.173, 1.984
  };
 
-FP1 get_radii(int Z1)
+FP1 get_radii2(int Z1)
 { 
  //units are Bohr
   FP1 val = 2.;
@@ -33,7 +33,8 @@ FP1 get_radii(int Z1)
 #if USE_ACC
 //#pragma acc routine seq
 #endif
-FP1 bsf(int a0, int a1, int a2)
+
+FP1 bsf2(int a0, int a1, int a2)
 {
   FP1 val = 0.35*a0 + 0.85*a1 + a2;
   return val;
@@ -42,7 +43,8 @@ FP1 bsf(int a0, int a1, int a2)
 #if USE_ACC
 //#pragma acc routine seq
 #endif
-FP1 get_radii_2(int Z)
+
+FP1 get_radii_2_2(int Z)
 {
   if (Z>36) { printf(" ERROR in Bragg-Slater radii \n"); exit(1); }
 
@@ -59,11 +61,11 @@ FP1 get_radii_2(int Z)
   FP1 val1 = 0.;
   if (Z==1) val1 = 0.;
   else if (Z==2) val1 = 0.3;
-  else if (Z<=10) val1 = bsf(Z-3,2,0);
-  else if (Z<=18) val1 = bsf(Z-11,8,2);
-  else if (Z<=20) val1 = bsf(Z-19,8,10);
-  else if (Z<=30) val1 = bsf(1,Z-12,10);
-  else if (Z<=36) val1 = bsf(Z-29,18,10);
+  else if (Z<=10) val1 = bsf2(Z-3,2,0);
+  else if (Z<=18) val1 = bsf2(Z-11,8,2);
+  else if (Z<=20) val1 = bsf2(Z-19,8,10);
+  else if (Z<=30) val1 = bsf2(1,Z-12,10);
+  else if (Z<=36) val1 = bsf2(Z-29,18,10);
 
   FP1 r1 = val0*val0/(Z-val1);
   return r1;

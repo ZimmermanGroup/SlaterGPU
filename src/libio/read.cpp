@@ -47,7 +47,8 @@ void print_square_fine(int N, FP2* S)
   }
 }
 
-#if !EVL64
+// !EVL64 commented out by Soumi
+//#if !EVL64
 void print_square(int N, FP2* S) 
 {
   for (int n=0;n<N;n++)
@@ -57,7 +58,7 @@ void print_square(int N, FP2* S)
     printf("\n");
   }
 }
-#endif
+//#endif
 
 void print_square(int N, FP1* S) 
 {

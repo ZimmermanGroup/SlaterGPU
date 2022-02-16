@@ -86,7 +86,7 @@ void print_array(int size, FP1* vec)
   printf("\n");
 }
 
-void clean_small_values(int N, FP1* S)
+void clean_small_values(int N, FP1* S) 
 {
   int N2 = N*N;
  #pragma acc parallel loop independent present(S[0:N2])
@@ -97,7 +97,8 @@ void clean_small_values(int N, FP1* S)
     S[i*N+j] = S[j*N+i] = 0.;
 }
 
-#if !EVL64
+// if !EVL64 commented out by Soumi
+//#if !EVL64
 void clean_small_values(int N, FP2* S)
 {
   int N2 = N*N;
@@ -108,9 +109,9 @@ void clean_small_values(int N, FP2* S)
   if (fabs(S[i*N+j])<CL_THRESH)
     S[i*N+j] = S[j*N+i] = 0.;
 }
-#endif
+//#endif
 
-void acc_assign(int size, FP1* vec, FP1 v1)
+void acc_assign(int size, FP1* vec, FP1 v1) 
 {
 #if USE_ACC
  #pragma acc parallel loop independent present(vec[0:size])
@@ -119,7 +120,8 @@ void acc_assign(int size, FP1* vec, FP1 v1)
     vec[j] = v1;
 }
 
-#if !EVL64
+// if !EVL64 commented out by Soumi
+//#if !EVL64
 void acc_assign(int size, FP2* vec, FP2 v1)
 {
 #if USE_ACC
@@ -128,7 +130,7 @@ void acc_assign(int size, FP2* vec, FP2 v1)
   for (int j=0;j<size;j++)
     vec[j] = v1;
 }
-#endif
+//#endif
 
 void acc_assign(int size, FP1* vec1, FP1* vec2, FP1 v1)
 {
@@ -649,7 +651,7 @@ void generate_central_grid(FP1* grid1, FP1* wt1, FP1* val1, int need_inr, FP1 Z1
 
 FP1 becke_a(int Z1, int Z2)
 {
-  FP1 x = get_radii_2(Z1)/get_radii_2(Z2);
+  FP1 x = get_radii_2_2(Z1)/get_radii_2_2(Z2);
 
   FP1 u = (x-1.f)/(x+1.f);
   FP1 a = u/(u*u-1.f);
@@ -829,7 +831,7 @@ void becke_weight_2c(int gs, FP1* grid1, FP1* wt1, FP1* grid2, FP1* wt2, int Z1,
 }
 
 
-void transpose_C(int Naux, int N, FP1* C)
+void transpose_C(int Naux, int N, FP1* C) 
 {
   int N2 = N*N;
   int N2a = N2*Naux;
@@ -850,7 +852,8 @@ void transpose_C(int Naux, int N, FP1* C)
   return;
 }
 
-#if !EVL64
+// if !EVL64 commented out by Soumi
+//#if !EVL64
 void transpose_C(int Naux, int N, FP2* C)
 {
   int N2 = N*N;
@@ -871,9 +874,9 @@ void transpose_C(int Naux, int N, FP2* C)
 
   return;
 }
-#endif
+//#endif
 
-void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, FP1* C, int type)
+void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, FP1* C, int type)  
 {
  //copy symmetric 2-atom terms
   int N2 = N*N;
@@ -927,7 +930,8 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<
   return;
 }
 
-#if !EVL64
+// if !EVL64 commented out by Soumi
+//#if !EVL64
 void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, FP2* C, int type)
 {
  //copy symmetric 2-atom terms
@@ -981,7 +985,7 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<
   }
   return;
 }
-#endif
+//#endif
 
 int get_imax_n2i(int natoms, int N, vector<vector<FP2> >& basis, int* n2i)
 {
@@ -3493,7 +3497,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
   return;
 }
 
-void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* C, int prl)
+void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* C, int prl) //FP1* C changed to FP2* C by Soumi
 {
   if (prl>1) printf(" beginning compute_all_3c \n");
 

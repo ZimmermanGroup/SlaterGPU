@@ -33,6 +33,7 @@ FP1 get_radii(int Z1)
 #if USE_ACC
 //#pragma acc routine seq
 #endif
+
 FP1 bsf(int a0, int a1, int a2)
 {
   FP1 val = 0.35*a0 + 0.85*a1 + a2;
@@ -42,6 +43,7 @@ FP1 bsf(int a0, int a1, int a2)
 #if USE_ACC
 //#pragma acc routine seq
 #endif
+
 FP1 get_radii_2(int Z)
 {
   if (Z>36) { printf(" ERROR in Bragg-Slater radii \n"); exit(1); }
@@ -69,5 +71,9 @@ FP1 get_radii_2(int Z)
   return r1;
 }
 
+
+FP1 get_radii_2(int Z);
+FP1 bsf(int a0, int a1, int a2);
+FP1 get_radii(int Z1);
 
 #endif
