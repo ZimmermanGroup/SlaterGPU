@@ -99,6 +99,10 @@ void gen_eri(double **eri, int N,
              int natm, int nbas, int nenv,
              int *atm, int *bas, double *env);
 
+void gen_jMOI_gto(double **eri, int N, 
+                  int natm, int nbas, int nenv,
+                  int *atm, int *bas, double *env);
+
 void gen_ri_int(double *jSaux, double *jSinv, double **jCaux,
                 double * jERI3c, double *jERI2c, int Naux, int N,
                 int natm, int nbas, int nenv, int nbas_ri,

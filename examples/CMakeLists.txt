@@ -1,1 +1,2 @@
 add_subdirectory(geom_timings)
+add_subdirectory(test_gto_grid)

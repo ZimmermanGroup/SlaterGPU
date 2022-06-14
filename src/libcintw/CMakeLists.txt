@@ -2,7 +2,8 @@ set(CINT_SOURCES
     cint_funcs.h cint.h
     cintprep.cpp cintprep.h
     cintwrapper.cpp cintwrapper.h
-    elements.h
+    elements.h gto_grid.cpp
+    gto_grid.h
     )
 
 # find_package(BLAS REQUIRED)
@@ -17,6 +18,7 @@ target_compile_options(cintw PRIVATE ${CINTW_COMP_FLAGS})
 target_include_directories(cintw PRIVATE
     "${LIBCINT_PATH}/include"
     "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
+    "$ENV{BLAS_INCLUDE_DIR}"
     )
 target_link_libraries(cintw PRIVATE
     "${LIBCINT_PATH}/lib64/libcint.so" 

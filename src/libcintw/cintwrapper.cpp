@@ -387,6 +387,120 @@ void gen_eri(double **eri, int N,
   } // else
 }
 
+void gen_jMOI_gto(double **eri, int N, 
+                  int natm, int nbas, int nenv,
+                  int *atm, int *bas, double *env) {
+  int N2 = N*N;
+
+  int idxi = 0;
+  int idxj = 0;
+  int idxk = 0;
+  int idxl = 0;
+  int di = 0;
+  int dj = 0;
+  int dk = 0;
+  int dl = 0;
+  CINTOpt *no_opt = NULL;
+  if (BT::DO_CART) {
+    for (int i = 0; i < nbas; i++) {
+      di = CINTcgto_cart(i,bas);
+      for (int j = 0; j < nbas; j++) {
+        dj = CINTcgto_cart(j,bas);
+        for (int k = 0; k < nbas; k++) {
+          dk = CINTcgto_cart(k,bas);
+          for (int l = 0; l < nbas; l++) {
+            dl = CINTcgto_cart(l,bas);
+            double * buf = new double[di*dj*dk*dl];
+            int shls[4];
+            shls[0] = i;
+            shls[1] = j;
+            shls[2] = k;
+            shls[3] = l;
+            cint2e_cart(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (int l1 = 0; l1 < dl; l1++) {
+              for (int k1 = 0; k1 < dk; k1++) {
+                for (int j1 = 0; j1 < dj; j1++) {
+                  for (int i1 = 0; i1 < di; i1++) {
+                    int oi = i1 + idxi;
+                    int oj = j1 + idxj;
+                    int ok = k1 + idxk;
+                    int ol = l1 + idxl;
+                    int i = oi;
+                    int jkl = oj * N * N + ok * N + ol;
+                    int k = ok;
+                    int lij = ol * N * N + oi * N + oj;
+                    int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
+                    // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
+                    eri[i][jkl] = eri[k][lij] = buf[bdx];
+                  } // for i1
+                } // for j1
+              } // for k1
+            } // for l1
+            delete [] buf;
+            idxl += dl;
+          } // for l
+          idxl = 0;
+          idxk += dk;
+        } // for k
+        idxk = 0;
+        idxj += dj;
+      } // for j
+      idxj = 0;
+      idxi += di;
+    } // for i
+  } // if BT::DO_CART
+  else {
+    for (int i = 0; i < nbas; i++) {
+      di = CINTcgto_spheric(i,bas);
+      for (int j = 0; j < nbas; j++) {
+        dj = CINTcgto_spheric(j,bas);
+        for (int k = 0; k < nbas; k++) {
+          dk = CINTcgto_spheric(k,bas);
+          for (int l = 0; l < nbas; l++) {
+            dl = CINTcgto_spheric(l,bas);
+            double * buf = new double[di*dj*dk*dl];
+            int shls[4];
+            shls[0] = i;
+            shls[1] = j;
+            shls[2] = k;
+            shls[3] = l;
+            cint2e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (int l1 = 0; l1 < dl; l1++) {
+              for (int k1 = 0; k1 < dk; k1++) {
+                for (int j1 = 0; j1 < dj; j1++) {
+                  for (int i1 = 0; i1 < di; i1++) {
+                    int oi = i1 + idxi;
+                    int oj = j1 + idxj;
+                    int ok = k1 + idxk;
+                    int ol = l1 + idxl;
+                    int i = oi;
+                    int jkl = oj * N * N + ok * N + ol;
+                    int k = ok;
+                    int lij = ol * N * N + oi * N + oj;
+                    int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
+                    // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
+                    eri[i][jkl] = eri[k][lij] = buf[bdx];
+                  } // for i1
+                } // for j1
+              } // for k1
+            } // for l1
+            delete [] buf;
+            idxl += dl;
+          } // for l
+          idxl = 0;
+          idxk += dk;
+        } // for k
+        idxk = 0;
+        idxj += dj;
+      } // for j
+      idxj = 0;
+      idxi += di;
+    } // for i
+  } // else
+}
+
 void gen_ri_int(double *jSaux, double *jSinv, double **jCaux,
                 double *jERI3c, double *jERI2c, int Naux, int N,
                 int natm, int nbas, int nenv, int nbas_ri,
