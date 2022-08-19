@@ -1577,11 +1577,15 @@ int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector
     if (tok_line.size()>0 && tok_line[0]=="Angstrom")
       geom_in_ang = 1;
     else if (tok_line.size()==1)
+    {
       charge = atoi(tok_line[0].c_str());
+      printf("charge : %i\n",charge);
+    }
     else if (tok_line.size()==2)
     {
       charge = atoi(tok_line[0].c_str());
       nup = atoi(tok_line[1].c_str());
+      printf("unpaired electron: %i\n",nup);
      //interpreting these as multiplicities
       if (nup==1) nup = 0;
       else if (nup==3) nup = 1;
@@ -1642,6 +1646,115 @@ int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector
   return natoms;
 }
 
+void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int prl)
+{
+  int N = basis.size();
+  printf("  found %2i atoms and %2i basis functions \n",natoms,N);
+  if (prl>0)
+  {
+    for (int n=0;n<N;n++)
+      printf("   basis(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f Z: %2.0f) \n",n,(int)basis[n][0],(int)basis[n][1],(int)basis[n][2],basis[n][3],basis[n][4],basis[n][5],basis[n][6],basis[n][7],basis[n][8]);
+  }
+
+  int Naux = basis_aux.size();
+  printf("  found %2i auxiliary basis functions \n",Naux);
+#if DDEBUG || FDEBUG || GDEBUG
+  if (prl>0 && Naux<250)
+#else
+  if ((prl>0 && Naux<20) || prl>1)
+#endif
+  {
+    for (int n=0;n<Naux;n++)
+      printf("   basis_aux(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis_aux[n][0],(int)basis_aux[n][1],(int)basis_aux[n][2],basis_aux[n][3],basis_aux[n][4],basis_aux[n][5],basis_aux[n][6],basis_aux[n][7]);
+  }
+  return;
+
+}
+
+bool check_valid_basis(int n1, int l1)
+{
+ //based on currently programmed AO types
+  if (n1>12) return 0;
+  if (l1==1 && n1>9) return 0;
+  if (l1==2 && n1>7) return 0;
+  if (l1==3 && n1>6) return 0;
+  if (l1==4 && n1>5) return 0;
+  if (l1==5 && n1>6) return 0;
+  if (l1>=6) return 0;
+
+  return 1;
+}
+
+int get_n12(int n1, int n2, int l1, int l2)
+{
+  int nr1 = n1-1;
+  int nr2 = n2-1;
+  //int nr1 = n1-l1-1;
+  //int nr2 = n2-l2-1;
+  return 1+nr1+nr2;
+}
+
+void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+{
+  vector<vector<double> > basis;
+
+ //gather basis set, skipping m sequence
+  int natp = basis_std[0][9]; int np = basis_std[0][0]; int lp = basis_std[0][1]; double zetap = basis_std[0][3];
+  basis.push_back(basis_std[0]);
+  for (int i1=1;i1<basis_std.size();i1++)
+  {
+    vector<double> basis1 = basis_std[i1]; 
+    int nat1 = basis1[9]; int n1 = basis1[0]; int l1 = basis1[1]; double zeta1 = basis1[3];
+ 
+    if (fabs(zeta1-zetap)>0.01 || n1!=np || l1!=lp || nat1!=natp)
+    {
+      zetap = zeta1; natp = nat1; np = n1; lp = l1;
+      basis.push_back(basis1);
+    }
+  }
+
+ //using the truncated, no m basis
+  int N = basis.size();
+
+  for (int n=0;n<natoms;n++)
+  {
+    for (int i1=0;i1<N;i1++)
+    {
+      vector<double> basis1 = basis[i1];
+
+      if (basis1[9]==n)
+      {
+        vector<double> b1 = basis1; int n1 = basis1[0]; int l1 = basis1[1]; double zeta1 = basis1[3];
+        for (int i2=0;i2<N;i2++)
+        {
+          vector<double> basis2 = basis[i2]; int n2 = basis2[0]; int l2 = basis2[1]; double zeta2 = basis2[3];
+
+          if (basis2[9]==n) //both basis ftns on same atom
+          {
+            int n12 = get_n12(n1,n2,l1,l2);
+            int l12 = l1+l2;
+            double z12 = zeta1+zeta2;
+            b1[0] = n12;
+            b1[1] = l12;
+            b1[3] = z12;
+
+            bool valid_basis = check_valid_basis(n12,l12);
+            if (valid_basis)
+            for (int m=-l12;m<=l12;m++)
+            {
+              b1[2] = m;
+              b1[4] = norm(n12,l12,m,z12);
+              basis_aux.push_back(b1);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return;
+}
+
 int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& basis_aux, int* atno, FP2* &coords, int& charge, int& unpaired, FP2& Enn, int prl)
 {
   //int prl = 1;
@@ -1667,27 +1780,18 @@ int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& b
 
 
   if (gbasis) return natoms;
+ 
+  int auto_ri = read_ri();
 
-  int N = basis.size();
-  printf("  found %2i atoms and %2i basis functions \n",natoms,N);
-  prl = 1;
-  if (prl>0)
+  if (auto_ri>=2)
   {
-    for (int n=0;n<N;n++)
-      printf("   basis(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis[n][0],(int)basis[n][1],(int)basis[n][2],basis[n][3],basis[n][4],basis[n][5],basis[n][6],basis[n][7]);
+    basis_aux.clear();
+    create_basis_aux(natoms,basis,basis_aux);
+    prl++;
   }
 
-  int Naux = basis_aux.size();
-  printf("  found %2i auxiliary basis functions \n",Naux);
-#if DDEBUG || FDEBUG || GDEBUG
-  if (prl>0 && Naux<250)
-#else
-  if ((prl>0 && Naux<20) || prl>1)
-#endif
-  {
-    for (int n=0;n<Naux;n++)
-      printf("   basis_aux(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis_aux[n][0],(int)basis_aux[n][1],(int)basis_aux[n][2],basis_aux[n][3],basis_aux[n][4],basis_aux[n][5],basis_aux[n][6],basis_aux[n][7]);
-  }
+  print_basis(natoms,basis,basis_aux,prl+1);
 
   return natoms;
 }
+

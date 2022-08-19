@@ -32,6 +32,7 @@ int read_lag();
 int read_basis();
 int read_cas();
 bool read_cas_act(int& N, int& M);
+bool read_nalpha_nbeta(int& Na, int& Nb);
 int read_spinref();
 int read_group();
 int read_restart();
@@ -55,5 +56,7 @@ string get_aname(int Z);
 int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& basis_aux, int* atno, FP2* &coords, int& charge, int& unpaired, FP2& Enn, int prl);
 
 void read_nrad_nang(int& nrad, int& nang, int type);
+FP2 nuclear_repulsion(int natoms, int* atno, FP2* coords);
+FP2 nuclear_repulsion(int natoms, int* atno, FP1* coordsf);
 
 #endif
