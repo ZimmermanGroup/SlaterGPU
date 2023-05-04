@@ -42,10 +42,21 @@ void print_square_fine(int N, FP2* S)
   for (int n=0;n<N;n++)
   {
     for (int m=0;m<N;m++)
-      printf(" %12.8f",S[n*N+m]);
+      printf(" %12.12f",S[n*N+m]);
     printf("\n");
   }
 }
+
+void print_square_fine(int N, FP1* S) 
+{
+  for (int n=0;n<N;n++)
+  {
+    for (int m=0;m<N;m++)
+      printf(" %12.12f",S[n*N+m]);
+    printf("\n");
+  }
+}
+
 
 // !EVL64 commented out by Soumi
 //#if !EVL64
@@ -1694,6 +1705,75 @@ int get_n12(int n1, int n2, int l1, int l2)
   return 1+nr1+nr2;
 }
 
+void screen_basis_aux(vector<vector<double> >& basis_aux)
+{
+  vector<vector<double> > basis1;
+  for (int j=0;j<basis_aux.size();j++)
+  {
+    vector<double> ao1;
+   //atom # first for sorting purposes
+    ao1.push_back(basis_aux[j][9]);
+    for (int k=0;k<9;k++)
+      ao1.push_back(basis_aux[j][k]);
+
+    basis1.push_back(ao1);
+  }
+
+  sort(basis1.begin(),basis1.end());
+  basis1.erase(unique(basis1.begin(),basis1.end()), basis1.end());
+
+  for (int j=0;j<basis1.size();j++)
+  {
+    vector<double> ao1;
+   //restore regular order
+    for (int k=0;k<9;k++)
+      ao1.push_back(basis1[j][k+1]);
+    ao1.push_back(basis1[j][0]);
+    basis1[j] = ao1;
+  }
+
+  int N = basis1.size();
+
+  int Nkeep = N;
+  bool keep[N];
+  for (int i1=0;i1<N;i1++) keep[i1] = 1;
+
+  const float thresh = 0.05; //% minimum difference
+  for (int i1=0;i1<N-1;i1++)
+  {
+    vector<double> ao1 = basis1[i1];
+    vector<double> ao2 = basis1[i1+1];
+
+    int at1 = ao1[9]; int at2 = ao2[9];
+    if (at1==at2)
+    {
+      int n1 = ao1[0]; int n2 = ao2[0];
+      int l1 = ao1[1]; int l2 = ao2[1];
+      int m1 = ao1[2]; int m2 = ao2[2];
+
+      if (n1==n2 && l1==l2 && m1==m2)
+      {
+        float zt1 = ao1[3]; float zt2 = ao2[3];
+        if (fabs(zt2/zt1-1.f) < thresh)
+        {
+          printf("   screening aux: %i %i %2i  zt: %8.5f %8.5f \n",n1,l1,m1,zt1,zt2);
+          keep[i1] = 0;
+          Nkeep--;
+        }
+      }
+    }
+  }
+
+  printf("   screen basis aux. N: %2i --> %2i \n",basis_aux.size(),Nkeep);
+
+  basis_aux.clear();
+  for (int j=0;j<N;j++)
+  if (keep[j])
+    basis_aux.push_back(basis1[j]);
+
+  return;
+}
+
 void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   vector<vector<double> > basis;
@@ -1725,7 +1805,8 @@ void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vec
       if (basis1[9]==n)
       {
         vector<double> b1 = basis1; int n1 = basis1[0]; int l1 = basis1[1]; double zeta1 = basis1[3];
-        for (int i2=0;i2<N;i2++)
+        //for (int i2=0;i2<N;i2++)
+        for (int i2=0;i2<=i1;i2++) // changed this line acc to Paul's code
         {
           vector<double> basis2 = basis[i2]; int n2 = basis2[0]; int l2 = basis2[1]; double zeta2 = basis2[3];
 
@@ -1751,6 +1832,10 @@ void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vec
       }
     }
   }
+
+  screen_basis_aux(basis_aux);
+
+  if (basis_aux.size()<1) printf(" WARNING: didn't find any auxiliary basis ftns \n");
 
   return;
 }

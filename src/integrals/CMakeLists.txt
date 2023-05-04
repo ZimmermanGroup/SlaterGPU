@@ -1,12 +1,12 @@
 set(INTEGRALS_SOURCES
-    integrals.cpp integrals_d.cpp integrals.h
+    integrals.cpp integrals_d.cpp integrals_aux.cpp integrals.h
     braggslater.h 
     gamma.h gamma.cpp
     lebedev2.cpp lebedev2.h
     murak.cpp murak.h
     pVp.cpp pVp.h
     reduce.cpp reduce.h
-    spherical.cpp spherical.h
+    spherical.cpp sphericald.cpp spherical.h
     Vinr.cpp Vinr.h
     grid_util.cpp grid_util.h
     opt.h opt.cpp

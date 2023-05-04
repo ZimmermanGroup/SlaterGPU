@@ -83,6 +83,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
 void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* En, FP2* pVp, int prl);
 // void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* En, FP1* pVp, int prl);
 
+void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* S, int prl);
+
 void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* S, FP2* T, int prl);
 // void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* S, FP1* T, int prl);
 
@@ -135,10 +137,9 @@ void eliminate_small_wt_3(int size, FP1* wt1, FP1* wt2, FP1* wt3);
 void eliminate_small_wt(int s1, int size, FP1* wt1);
 void eliminate_small_wt_3(int s1, int size, FP1* wt1, FP1* wt2, FP1* wt3);
 void recenter_grid_zero(int gs, FP1* grid, FP1 x2, FP1 y2, FP1 z2);
-void recenter_grid(int gs, FP1* grid, FP1 x2, FP1 y2, FP1 z2);
 
 void add_r1_to_grid(int gs, FP1* grid1, FP1 A2, FP1 B2, FP1 C2);
-void add_r2_to_grid(int gs, FP1* grid1, FP1 A2, FP1 B2, FP1 C2);
+void add_r2_to_grid(int gs, double* grid1, double A2, double B2, double C2);
 void add_r3_to_grid(int gs, FP1* grid1, FP1 A3, FP1 B3, FP1 C3);
 void add_r123_to_grid(int gs, FP1* grid1, FP1 A1, FP1 B1, FP1 C1, FP1 A2, FP1 B2, FP1 C2, FP1 A3, FP1 B3, FP1 C3);
 void add_r1_to_grid_6z(int gs, FP1* grid1, FP1* grid2, FP1* grid3, FP1* grid4, FP1* grid5, FP1* grid6);
@@ -147,5 +148,46 @@ void becke_weight_2c(int gs, FP1* grid1, FP1* wt1, FP1* grid2, FP1* wt2, int Z1,
 void becke_weight_3c(int gs, FP1* grid1, FP1* wt1, FP1* grid2, FP1* wt2, FP1* grid3, FP1* wt3, int Z1, int Z2, int Z3, FP1 A2, FP1 B2, FP1 C2, FP1 A3, FP1 B3, FP1 C3);
 FP1 becke_a(int Z1, int Z2);
 
+//integrals_aux.cpp:
+void print_array(int size, float* vec);
+void clean_small_values(int N, float* S);
+void clean_small_values(int N, double* S);
+void acc_assign(int size, float* vec, float v1);
+void acc_assign(int size, double* vec, double v1);
+void acc_assign(int size, float* vec1, float* vec2, float v1);
+void acc_assign(int size, float* vec1, float* vec2, float* vec3, float v1);
+void acc_copyf(int tid, int size, float* v1, float* v2);
+void acc_copyf(int size, float* v1, float* v2);
+void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4);
+void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4, float* v5, float* v6);
+void eliminate_small_wt_3(int size, float* wt1, float* wt2, float* wt3);
+void eliminate_small_wt_3(int s1, int size, float* wt1, float* wt2, float* wt3);
+void eliminate_small_wt(int size, float* wt1);
+void eliminate_small_wt(int s1, int size, float* wt1);
+void copy_grid(int gs, float* grid1, float* grid2);
+void copy_grid(int gs, double* grid1, double* grid2);
+void copy_grid(int gs, float* grid1, float* wt1, float* grid2, float* wt2);
+void recenter_grid_zero(int gs, float* grid, float x2, float y2, float z2);
+void recenter_grid_zero(int gs, double* grid, double x2, double y2, double z2);
+void recenter_grid(int gs, float* grid, float x2, float y2, float z2);
+void recenter_grid(int gs, double* grid, double x2, double y2, double z2);
+void recenter_grid_exp(int gs, float* grid, float* wt, float* val, float x2, float y2, float z2, float zeta2);
+void add_r123_to_grid(int gs, float* grid1, float A1, float B1, float C1, float A2, float B2, float C2, float A3, float B3, float C3);
+void add_r1_to_grid_6z(int gs, float* grid1, float* grid2, float* grid3, float* grid4, float* grid5, float* grid6);
+void add_r1_to_grid(int gs, float* grid1, float A2, float B2, float C2);
+void add_r1_to_grid(int gs, double* grid1, double A2, double B2, double C2);
+void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2);
+//void add_r2_to_grid(int gs, double* grid1, float A2, float B2, float C2);
+void add_r3_to_grid(int gs, float* grid1, float A3, float B3, float C3);
+void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
+void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w);
+void generate_central_grid(float* grid1, float* wt1, float* val1, int need_inr, float Z1, int n1, int l1, float zeta1, int nrad, int nang, float* ang_g, float* ang_w);
+void transpose_C(int Naux, int N, float* C);
+void transpose_C(int Naux, int N, double* C);
+void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, float* C, int type);
+void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, double* C, int type);
+void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* wt2,
+                     double zeta1, double zeta2, double A2, double B2, double C2);
+double bf3d(double f1);
 
 #endif

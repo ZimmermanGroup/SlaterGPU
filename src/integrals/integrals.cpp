@@ -987,29 +987,6 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<
 }
 //#endif
 
-int get_imax_n2i(int natoms, int N, vector<vector<FP2> >& basis, int* n2i)
-{
-  int imaxN = 1;
-  int wa = 0;
-  int iprev = 0;
-  for (int i=0;i<N;i++)
-  {
-    int wa2 = basis[i][9];
-    if (wa2!=wa)
-    {
-      int cmaxN = i-iprev; 
-      if (cmaxN>imaxN) imaxN = cmaxN;
-      n2i[wa] = i;
-      wa = wa2;
-      iprev = i;
-    }
-  }
-  if (N-iprev>imaxN) imaxN = N-iprev;
-  n2i[natoms-1] = N;
-
-  return imaxN;
-}
-
 #if RED_DOUBLE
 void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords, 
                          vector<vector<FP2> > &basis, 
@@ -6247,6 +6224,291 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
   return;
 }
 
+//high-precision overlap integrals
+void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, int prl)
+{
+  if (prl>1) printf(" beginning compute_S (double precision) \n");
+
+  int N = basis.size();
+  int N2 = N*N;
+
+ #if 0
+  printf("\n DEBUG: diagonal overlap \n");
+  for (int m=0;m<N2;m++)
+    S[m] = 0;
+  for (int m=0;m<N;m++)
+    S[m*N+m] = 1;
+  #pragma acc update device(S[0:N2])
+
+  return;
+ #endif
+
+  if (prl>2)
+  {
+    printf("\n S(float): \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",S[i*N+j]);
+      printf("\n");
+    }
+    printf("\n");
+  }
+
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  int estart = find_center_of_grid(1,nrad)*nang;
+
+  double* grid1m = new double[gs6];
+  double* grid1n = new double[gs6];
+  double* wt1 = new double[gs];
+
+  double* grid2m = new double[gs6];
+  double* grid2n = new double[gs6];
+  double* wt2 = new double[gs];
+
+  double* val1m = new double[gs];
+  double* val1n = new double[gs];
+  double* val2m = new double[gs];
+  double* val2n = new double[gs];
+
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+  //printf("  iN: %i \n",imaxN);
+
+ #if USE_ACC
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(n2i[0:natoms])
+  #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
+
+  #pragma acc enter data create(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+ #endif
+  acc_assign(N2,S,0.);
+
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+    for (int i1=s1;i1<s2;i1++)
+    for (int i2=s1;i2<=i1;i2++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; float zeta1 = basis1[3];
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; float zeta2 = basis2[3];
+
+      float z12 = zeta1 + zeta2;
+     //new grid with zeta dependence
+      generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w); 
+
+      #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
+      for (int j=0;j<gs;j++)
+        val1m[j] = wt1[j];
+      #pragma acc parallel loop present(val2m[0:gs])
+      for (int j=0;j<gs;j++)
+        val2m[j] = 1.; 
+
+     //S
+      eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
+      eval_shd(ii1,gs,grid1m,val2m,n2,l2,m2,zeta2); //basis 2
+
+     #if 0
+      #pragma acc update self(val1m[0:gs],val2m[0:gs],wt1[0:gs])
+      printf("   val1*val2*wt: ");
+      for (int j=0;j<nrad;j++)
+        printf(" %4.1e",val1m[j*nang]*val2m[j*nang]);
+      printf("\n");
+     #endif
+
+      double val = 0.;
+     #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs]) reduction(+:val)
+      for (int j=0;j<gs;j++)
+        val += val1m[j]*val2m[j];
+
+     #pragma acc serial
+      S[i1*N+i2] = S[i2*N+i1] = val;
+
+    } //pairs of basis on single atoms
+
+
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+      //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
+
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+
+      for (int i1=s1;i1<s2;i1++)
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii1 = i1-s1;
+
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; float zeta1 = basis1[3];
+
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; float zeta2 = basis2[3];
+
+       //new grid with zeta dependence
+        generate_central_grid_2d(0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w); 
+        generate_central_grid_2d(0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
+
+       //grid1 at 0,0,0 now has r1 at 3, r2 at 4
+        add_r2_to_grid(gs,grid1m,A12,B12,C12);
+        recenter_grid(gs,grid2m,A12,B12,C12);
+
+       //optimize this
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
+        //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
+
+        copy_grid(gs,grid2n,grid2m);
+        recenter_grid(gs,grid2n,-A12,-B12,-C12);      //grid 2 centered on atom 1
+
+        copy_grid(gs,grid1n,grid1m);
+        recenter_grid_zero(gs,grid1n,-A12,-B12,-C12); //grid 1 centered on atom 2
+
+       //needs to happen after becke weighting
+        add_r1_to_grid(gs,grid2m,0.,0.,0.);
+
+        #pragma acc parallel loop present(val1n[0:gs],val2m[0:gs])
+        for (int j=0;j<gs;j++)
+          val2m[j] = val2n[j] = 1.; 
+        #pragma acc parallel loop present(val1m[0:gs],val2n[0:gs],wt1[0:gs],wt2[0:gs])
+        for (int j=0;j<gs;j++)
+        {
+          val1m[j] = wt1[j];
+          val1n[j] = wt2[j];
+        }
+
+       //S
+        eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1 on center 1
+        eval_shd(ii1,gs,grid2m,val1n,n1,l1,m1,zeta1); //basis 1 on center 2
+        eval_shd(ii1,gs,grid1n,val2m,n2,l2,m2,zeta2); //basis 2 on center 1
+        eval_shd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2); //basis 2 on center 2
+
+        double val = 0.;
+       #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs]) reduction(+:val)
+        for (int j=0;j<gs;j++)
+          val += val1m[j]*val2m[j] + val1n[j]*val2n[j];
+
+       #pragma acc serial
+        S[i1*N+i2] = S[i2*N+i1] = val;
+      }
+
+    } //loop n>m
+
+  } //loop m over natoms
+
+
+  double* norm = new double[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+  #pragma acc enter data copyin(norm[0:N])
+
+  #pragma acc parallel loop independent present(S[0:N2],norm[0:N])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<=i;j++)
+  {
+    double n12 = norm[i]*norm[j];
+    S[i*N+j] *= n12;
+  }
+
+  if (prl>-1)
+  {
+    int nlow = 0;
+    #pragma acc update self(S[0:N2])
+    printf("  overlap diagonal accuracy (decimal points): ");
+    for (int i=0;i<N;i++)
+    {
+      double v0 = fabs(S[i*N+i]-1.);
+      double v1 = log10(v0);
+      if (fabs(v1)<4) nlow++;
+      printf(" %5.3f",v1);
+    }
+    printf("\n\n");
+    if (nlow)
+      printf("  WARNING: found %2i low accuracy diagonals \n",nlow);
+    if (nlow>1) { printf("   therefore exiting now \n"); exit(-1); }
+  }
+
+ #pragma acc parallel loop independent present(S[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<i;j++)
+  {
+    S[j*N+i] = S[i*N+j];
+  }
+ 
+ //might as well eliminate errors on diagonal
+ #pragma acc parallel loop present(S[0:N2])
+  for (int i=0;i<N;i++)
+    S[i*N+i] = 1.;
+
+  #pragma acc exit data delete(norm[0:N])
+  delete [] norm;
+
+  clean_small_values(N,S);
+
+
+ #if USE_ACC
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc update self(S[0:N2])
+ #endif
+
+
+  if (prl>1 || prl==-1)
+  {
+    printf("\n S: \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",S[i*N+j]);
+      printf("\n");
+    }
+  }
+
+#if USE_ACC
+  #pragma acc exit data delete(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+  #pragma acc exit data delete(n2i[0:natoms])
+  #pragma acc exit data delete(coords[0:3*natoms],atno[0:natoms])
+#endif
+
+  //delete [] ang_g;
+  //delete [] ang_w;
+
+  delete [] n2i;
+
+  delete [] val1m;
+  delete [] val1n;
+  delete [] val2m;
+  delete [] val2n;
+  delete [] grid1m;
+  delete [] grid1n;
+  delete [] grid2m;
+  delete [] grid2n;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
+
+
 #if RED_DOUBLE
 void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* S, FP2* T, int prl)
 #else
@@ -7248,5 +7510,95 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
   delete [] val2;
 
   return;
+
 }
 
+double becke_a_zeta(double zeta1, double zeta2)
+{
+  double x = zeta2/zeta1;
+
+  float u = (x-1.)/(x+1.);
+  float a = u/(u*u-1.);
+
+  if (a>0.5) a = 0.5;
+  else if (a<-0.5) a = -0.5;
+  return a;
+}
+
+
+#pragma acc routine seq
+double bf3d(double f1)
+{
+  //default is order 3
+  #define ORDER4 0
+
+  f1 = 1.5*f1 - 0.5*f1*f1*f1;
+  f1 = 1.5*f1 - 0.5*f1*f1*f1;
+  f1 = 1.5*f1 - 0.5*f1*f1*f1;
+ #if ORDER4
+  f1 = 1.5*f1 - 0.5*f1*f1*f1;
+ #endif
+  f1 = 0.5*(1.-f1);
+  f1 = f1*f1;
+
+  return f1;
+}
+
+void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* wt2, 
+                     double zeta1, double zeta2, double A2, double B2, double C2)
+{
+ //first center is at 0,0,0 and second at A2,B2,C2
+  double R  = sqrt(A2*A2+B2*B2+C2*C2);
+  const double oR = 1./R;
+
+  const double a1 = becke_a_zeta(zeta1,zeta2);
+  const double a2 = becke_a_zeta(zeta2,zeta1);
+
+  //printf(" a1/2: %8.5f %8.5f \n",a1,a2);
+
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double r1 = grid1[6*i+3];
+    double r2 = grid1[6*i+4];
+    double mu = (r1-r2)*oR;
+    double omm2 = 1.f-mu*mu;
+    double nu1 =  mu + a1*omm2;
+    double nu2 = -mu + a2*omm2;
+
+    double f1 = bf3d(nu1);
+    double f2 = bf3d(nu2);
+
+    double norm = f1 + f2 + 1.e-10f;
+    double s1 = f1/norm;
+
+    //printf(" r1/2: %8.5f %8.5f s1: %8.5f \n",r1,r2,s1);
+    wt1[i] *= s1;
+  }
+
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid2[0:6*gs],wt2[0:gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double r1 = grid2[6*i+3];
+    double r2 = grid2[6*i+4];
+    double mu = (r1-r2)*oR;
+    double omm2 = 1.f-mu*mu;
+    double nu1 =  mu + a2*omm2;
+    double nu2 = -mu + a1*omm2;
+
+    double f1 = bf3d(nu1);
+    double f2 = bf3d(nu2);
+
+    double norm = f1 + f2 + 1.e-10f;
+    double s1 = f1/norm;
+
+    //printf(" r1/2: %8.5f %8.5f s1: %8.5f \n",r1,r2,s1);
+    wt2[i] *= s1;
+  }
+
+  return;
+}

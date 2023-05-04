@@ -2,6 +2,7 @@ set(CINT_SOURCES
     cint_funcs.h cint.h
     cintprep.cpp cintprep.h
     cintwrapper.cpp cintwrapper.h
+    gto_grid.cpp gto_grid.h
     elements.h
     )
 
@@ -11,7 +12,7 @@ set(LIBCINT_PATH $ENV{LIBCINT_PATH})
 add_library(cintw SHARED ${CINT_SOURCES})
 set_property(TARGET cintw PROPERTY CXX_STANDARD 11)
 set(CINTW_COMP_FLAGS ${CMAKE_CXX_FLAGS} 
-    -O2 -g
+    -O3 -g
     )
 
 set(BLAS_INCLUDE_DIR $ENV{BLAS_INCLUDE_DIR})

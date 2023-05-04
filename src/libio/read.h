@@ -51,6 +51,8 @@ void print_square(int M, int N, FP2* S);
 void print_square(int M, int N, FP1* S);
 void print_square(int N, FP2* S);
 void print_square(int N, FP1* S);
+void print_square_fine(int N, FP2* S);
+void print_square_fine(int N, FP1* S);
 
 string get_aname(int Z);
 int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& basis_aux, int* atno, FP2* &coords, int& charge, int& unpaired, FP2& Enn, int prl);

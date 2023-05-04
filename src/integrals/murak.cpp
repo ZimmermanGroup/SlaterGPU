@@ -3,6 +3,46 @@
 using namespace std;
 #include "fp_def.h"
 
+void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, const int m)
+{
+ //assuming alpha scalar == 1
+  double alpha = 1./zeta;
+  const int mm1 = m-1;
+  const double w0 = 1./size;
+  const double mal = m*alpha;
+
+  //printf("  murak_grid zeta/alpha: %8.5f %8.5f \n",zeta,alpha);
+
+#if USE_ACC
+ #pragma acc parallel loop independent present(r[0:size],w[0:size])
+#endif
+  for (int n=0;n<size;n++)
+  {
+    double i1 = (n+0.5)/size;
+    double a1 = 1.0 - pow(i1,m);
+    double l1 = log(a1);
+
+    double r1 = -alpha*l1;
+
+    double w1 = mal*w0*r1*r1;
+    w1 *= pow(i1,mm1) / a1;
+
+    r[n] = r1;
+    w[n] = w1;
+  }
+
+  if (0)
+  {
+   #pragma acc update self(r[0:size])
+    printf("\n r:");
+    for (int m=0;m<size;m++)
+      printf(" %6.3e",r[m]);
+    printf("\n");
+  }
+
+  return;
+}
+
  //working this in double precision, otherwise limit on grid size
 void get_murak_grid_f(int size, FP1* r, FP1* w, int Z, const int m)
 {
@@ -97,6 +137,44 @@ void get_murak_grid_f(int size, FP1* r, FP1* w, FP1* er, int Z, FP1 zeta, const 
   for (int m=0;m<size;m++)
     printf(" %14.12f",r[m]);
  #endif 
+
+  return;
+}
+
+void get_murak_grid(int size, double* r, double* w, int Z, const int m)
+{
+  if (Z==0) Z = 1;
+
+ //assuming alpha scalar == 1
+  double alpha = alpha_k[Z-1];
+  const int mm1 = m-1;
+  const double w0 = 1./size;
+  const double mal = m*alpha;
+
+#if USE_ACC
+ #pragma acc parallel loop independent present(r[0:size],w[0:size])
+#endif
+  for (int n=0;n<size;n++)
+  {
+    double i1 = (n+0.5)/size;
+    double a1 = 1.0 - pow(i1,m);
+    double l1 = log(a1);
+
+    double r1 = -alpha*l1;
+
+    double w1 = mal*w0*r1*r1;
+    w1 *= pow(i1,mm1) / a1;
+    r[n] = r1;
+    w[n] = w1;
+  }
+
+  if (size>165)
+  {
+   #pragma acc update self(r[0:size])
+    printf("\n r:");
+    for (int m=0;m<size;m++)
+      printf(" %14.12f",r[m]);
+  }
 
   return;
 }
