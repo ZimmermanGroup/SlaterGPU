@@ -28,7 +28,8 @@ using namespace std;
 //extern "C" void dsyev(char *jobz, char *uplo, int *n, double *a, int *lda,
 //                      double *w, double * work, int *lwork, int* info);
 
-bool BT::DO_CART = true;
+//bool BT::DO_CART = true;
+bool BT::DO_CART = false;
 
 int binom(int n, int k) {
   return (tgamma(n+1))/(tgamma(n+1-k)*tgamma(k+1));
@@ -268,7 +269,7 @@ void get_hcore(double *hcore, int N,
       } // for j
       idx_i += di;
     }// for i
-  }  
+  }
 
   for (int i = 0; i < N * N; i++) {
     hcore[i] += tmp[i];

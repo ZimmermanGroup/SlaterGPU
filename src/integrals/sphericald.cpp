@@ -1668,6 +1668,759 @@ void get_6hp5d(int tid, int gs, double* grid, double* val, float zeta)
 
 // end spherical * exp //
 
+// spherical w/r factors //
+
+void get_px_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double r = grid[6*i+3];
+    val[i] *= x/r;
+  }
+}
+
+void get_py_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double y = grid[6*i+1];
+    double r = grid[6*i+3];
+    val[i] *= y/r;
+  }
+}
+
+void get_pz_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    val[i] *= z/r;
+  }
+}
+
+void get_dxy_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double r = grid[6*i+3];
+    val[i] *= x*y/r/r;
+  }
+}
+
+void get_dyz_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    val[i] *= y*z/r/r;
+  }
+}
+
+void get_dz2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    val[i] *= 3.*z*z/r/r-1.;
+  }
+}
+
+void get_dxz_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    val[i] *= x*z/r/r;
+  }
+}
+
+void get_dx2y2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double r = grid[6*i+3];
+    val[i] *= (x*x-y*y)/r/r;
+  }
+}
+
+//Cartesian d functions
+void get_dxx_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double r = grid[6*i+3];
+    val[i] *= x*x/r/r;
+  }
+}
+
+void get_dyy_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double y = grid[6*i+1];
+    double r = grid[6*i+3];
+    val[i] *= y*y/r/r;
+  }
+}
+
+void get_dzz_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    val[i] *= z*z/r/r;
+  }
+}
+
+void get_fm3_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double r = grid[6*i+3];
+    double or3 = pow(r,-3.);
+    val[i] *= (3.*x*x-y*y)*y;
+    val[i] *= or3;
+  }
+}
+
+void get_fm2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or3 = pow(r,-3.);
+    val[i] *= x*y*z*or3;
+  }
+}
+
+void get_fm1_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or3 = pow(r,-3.);
+    val[i] *= (4.*z*z-x*x-y*y)*y*or3;
+  }
+}
+
+void get_f0_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or3 = pow(r,-3.);
+    val[i] *= (2.*z*z-3.*x*x-3.*y*y)*z*or3;
+  }
+}
+
+void get_fp1_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or3 = pow(r,-3.);
+    val[i] *= (4.*z*z-x*x-y*y)*x*or3;
+  }
+}
+
+void get_fp2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or3 = pow(r,-3.);
+    val[i] *= (x*x-y*y)*z*or3;
+  }
+}
+
+void get_fp3_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double r = grid[6*i+3];
+    double or3 = pow(r,-3.);
+    val[i] *= (x*x-3.*y*y)*x*or3;
+  }
+}
+
+void get_gm4_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    val[i] *= x*y * (x*x - y*y) * or4;
+  }
+}
+
+void get_gm3_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    val[i] *= y*z * (3.*x*x - y*y) * or4;
+  }
+}
+
+void get_gm2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    val[i] *= x*y * (6.*z*z - x*x - y*y) * or4;
+  }
+}
+
+void get_gm1_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    val[i] *= y*z * (4.*z*z - 3.*x*x - 3.*y*y) * or4;
+  }
+}
+
+void get_g0_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    double z2 = z*z;
+    double x2py2 = x*x+y*y;
+    double r2 = r*r;
+    val[i] *= (35.*z2*z2 - 30.*z2*r2) * or4 + 3.;
+  }
+}
+
+void get_gp1_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    val[i] *= x*z * (4.*z*z - 3.*x*x - 3.*y*y) * or4;
+  }
+}
+
+void get_gp2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    double x2 = x*x;
+    double y2 = y*y;
+    val[i] *= (x2 - y2) * (6.*z*z - x2 - y2) * or4;
+  }
+}
+
+void get_gp3_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    val[i] *= x*z * (x*x - 3.*y*y) * or4;
+  }
+}
+
+void get_gp4_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    //double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or4 = pow(r,-4.);
+    double x2 = x*x;
+    double y2 = y*y;
+    val[i] *= (x2 * (x2 - 3.*y2) - y2 * (3.*x2 - y2)) * or4;
+  }
+}
+
+void get_hm5_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    //double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double x2 = x*x;
+    double y2 = y*y;
+
+    val[i] *= -(5.*x2*x2 - 10.*x2*y2 + y2*y2)*y*or5;
+  }
+}
+
+void get_hm4_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double x2 = x*x;
+    double y2 = y*y;
+
+    val[i] *= (y2 - x2)*x*y*z*or5;
+  }
+}
+
+void get_hm3_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double x2 = x*x;
+    double y2 = y*y;
+    double z2 = z*z;
+    double r2 = r*r;
+
+    val[i] *= y * (r2*(3.*x2-y2) + 9.*z2*(y2-3.*x2))*or5;
+  }
+}
+
+void get_hm2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    //double x2 = x*x;
+    //double y2 = y*y;
+    double z2 = z*z;
+    double r2 = r*r;
+
+    val[i] *= x*y*z*(3.*z2-r2)*or5;
+  }
+}
+
+void get_hm1_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    //double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    //double x2 = x*x;
+    //double y2 = y*y;
+    double z2 = z*z;
+    double r2 = r*r;
+
+    val[i] *= y * (14.*r2*z2 - 21.*z2*z2 - r2*r2)*or5;
+  }
+}
+
+void get_h0_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double x2 = x*x;
+    double y2 = y*y;
+    double z2 = z*z;
+    double r2 = r*r;
+
+    val[i] *= z*(15.*r2*r2 - 70.*r2*z2 + 63.*z2*z2)*or5;
+  }
+}
+
+void get_hp1_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    //double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    //double x2 = x*x;
+    //double y2 = y*y;
+    double z2 = z*z;
+    double r2 = r*r;
+
+    val[i] *= x*(-r2*r2 + 14.*r2*z2 - 21.*z2*z2)*or5;
+  }
+}
+
+void get_hp2_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double z2 = z*z;
+    double r2 = r*r;
+
+    val[i] *= -z * (r2 - 3.*z2)*(x-y)*(x+y)*or5;
+  }
+}
+
+void get_hp3_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double x2 = x*x;
+    double y2 = y*y;
+    double z2 = z*z;
+    double r2 = r*r;
+
+    val[i] *= x * (r2*(x2-3.*y2) + 9.*z2*(3.*y2-x2))*or5;
+  }
+}
+
+void get_hp4_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double x2 = x*x;
+    double y2 = y*y;
+    //double z2 = z*z;
+
+    val[i] *= z * (x2*x2 - 6.*x2*y2 + y2*y2)*or5;
+  }
+}
+
+void get_hp5_3rd(int tid, int gs, double* grid, double* val)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    //double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double or5 = pow(r,-5.);
+    double x2 = x*x;
+    double y2 = y*y;
+    //double z2 = z*z;
+
+    val[i] *= x * (10.*x2*y2 - x2*x2 - 5.*y2*y2)*or5;
+  }
+}
+
+// spherical w/r factors //
+
+
+void eval_sh_3rd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1)
+{
+  if (l1==0) //1s
+  {
+    return;
+  }
+  else if (l1==1) //p
+  { 
+    if (m1==1)
+      return get_px_3rd(tid,gs,grid,val);
+    else if (m1==-1)
+      return get_py_3rd(tid,gs,grid,val);
+    else
+      return get_pz_3rd(tid,gs,grid,val);
+  }
+  else if (l1==2) //d
+  {
+   #if CART_D
+    if (m1==0)
+      return get_dxx_3rd(tid,gs,grid,val);
+    else if (m1==1)
+      return get_dyy_3rd(tid,gs,grid,val);
+    else if (m1==2)
+      return get_dzz_3rd(tid,gs,grid,val);
+    else if (m1==3)
+      return get_dxy_3rd(tid,gs,grid,val);
+    else if (m1==4)
+      return get_dxz_3rd(tid,gs,grid,val);
+    else if (m1==5)
+      return get_dyz_3rd(tid,gs,grid,val);
+   #else
+    if (m1==-2)
+      return get_dxy_3rd(tid,gs,grid,val);
+    else if (m1==-1)
+      return get_dyz_3rd(tid,gs,grid,val);
+    else if (m1==0)
+      return get_dz2_3rd(tid,gs,grid,val);
+    else if (m1==1)
+      return get_dxz_3rd(tid,gs,grid,val);
+    else
+      return get_dx2y2_3rd(tid,gs,grid,val);
+   #endif
+  }
+  else if (l1==3) //f
+  {
+    if (m1==-3)
+      return get_fm3_3rd(tid,gs,grid,val);
+    else if (m1==-2)
+      return get_fm2_3rd(tid,gs,grid,val);
+    else if (m1==-1)
+      return get_fm1_3rd(tid,gs,grid,val);
+    else if (m1== 0)
+      return get_f0_3rd(tid,gs,grid,val);
+    else if (m1== 1)
+      return get_fp1_3rd(tid,gs,grid,val);
+    else if (m1== 2)
+      return get_fp2_3rd(tid,gs,grid,val);
+    else if (m1== 3)
+      return get_fp3_3rd(tid,gs,grid,val);
+  }
+  else if (l1==4) //g
+  {
+    if (m1==-4)
+      return get_gm4_3rd(tid,gs,grid,val);
+    else if (m1==-3)
+      return get_gm3_3rd(tid,gs,grid,val);
+    else if (m1==-2)
+      return get_gm2_3rd(tid,gs,grid,val);
+    else if (m1==-1)
+      return get_gm1_3rd(tid,gs,grid,val);
+    else if (m1== 0)
+      return get_g0_3rd(tid,gs,grid,val);
+    else if (m1== 1)
+      return get_gp1_3rd(tid,gs,grid,val);
+    else if (m1== 2)
+      return get_gp2_3rd(tid,gs,grid,val);
+    else if (m1== 3)
+      return get_gp3_3rd(tid,gs,grid,val);
+    else if (m1== 4)
+      return get_gp4_3rd(tid,gs,grid,val);
+  }
+  else if (l1==5) //h
+  {
+    if (m1==-5)
+      return get_hm5_3rd(tid,gs,grid,val);
+    else if (m1==-4)
+      return get_hm4_3rd(tid,gs,grid,val);
+    else if (m1==-3)
+      return get_hm3_3rd(tid,gs,grid,val);
+    else if (m1==-2)
+      return get_hm2_3rd(tid,gs,grid,val);
+    else if (m1==-1)
+      return get_hm1_3rd(tid,gs,grid,val);
+    else if (m1== 0)
+      return get_h0_3rd(tid,gs,grid,val);
+    else if (m1== 1)
+      return get_hp1_3rd(tid,gs,grid,val);
+    else if (m1== 2)
+      return get_hp2_3rd(tid,gs,grid,val);
+    else if (m1== 3)
+      return get_hp3_3rd(tid,gs,grid,val);
+    else if (m1== 4)
+      return get_hp4_3rd(tid,gs,grid,val);
+    else if (m1== 5)
+      return get_hp5_3rd(tid,gs,grid,val);
+  }
+
+  return;
+}
+
+void eval_sh_3rd(int gs, double* grid, double* val, int n1, int l1, int m1)
+{
+  return eval_sh_3rd(0,gs,grid,val,n1,l1,m1);
+}
+
+
 void eval_shd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, float zeta1)
 {
  //1s - 12s

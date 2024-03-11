@@ -1,4 +1,5 @@
 #include "gamma.h"
+//#include <stdio.h>
 #include <cmath>
 // #include <accelmath.h>
 

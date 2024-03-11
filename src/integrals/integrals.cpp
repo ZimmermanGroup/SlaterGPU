@@ -6566,6 +6566,7 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
   #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],wtt1[0:gs])
   //#pragma acc enter data create(S[0:N2],T[0:N2])
  #endif
+
   acc_assign(N2,S,0.);
   acc_assign(N2,T,0.);
 
@@ -6648,7 +6649,6 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
 
     reduce_2c1(s1,s2,gs,valS1,valS3,iN,N,S);
     reduce_2c1(s1,s2,gs,valT1,valS3,iN,N,T);
-
 
    //two-atom ints
     for (int n=m+1;n<natoms;n++)
@@ -6775,7 +6775,6 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
     } //loop n over second atom
 
   } //loop m over natoms
-
 
   FP2* norm = new FP2[N];
   for (int i=0;i<N;i++)

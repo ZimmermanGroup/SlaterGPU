@@ -2,6 +2,7 @@
 #include "cintwrapper.h"
 #include "cintprep.h"
 #include "omp.h"
+#include <math.h>
 
 using namespace std;
 
@@ -13,13 +14,13 @@ void setup_env_bas_grid(
   nenv_g = PTR_ENV_START;
   int offset = PTR_ENV_START;
   atm_g[CHARGE_OF ] = 1;
-  atm_g[PTR_COORD ] = offset;
+  atm_g[PTR_COORD ] = offset; // coordinates of grid point
   atm_g[NUC_MOD_OF] = 0;
   atm_g[PTR_ZETA  ] = 0;
   offset += 3;
   int bas_atm_of = bas[BAS_SLOTS * bas_idx + ATOM_OF];
   atm_g[CHARGE_OF  + ATM_SLOTS] = atm[ATM_SLOTS * bas_atm_of + CHARGE_OF];
-  atm_g[PTR_COORD  + ATM_SLOTS] = offset;
+  atm_g[PTR_COORD  + ATM_SLOTS] = offset;  // coordinates of atom
   atm_g[NUC_MOD_OF + ATM_SLOTS] = 0;
   atm_g[PTR_ZETA   + ATM_SLOTS] = 0;
   offset += 3;
@@ -48,10 +49,15 @@ void setup_env_bas_grid(
     (*env_g)[offset++] = env[atm[atm_idx]+i];
   }
 
-  const double DIRAC_EXP = 1.e18;
+  // Getting basis set specification
+  // basis set for large decay
+  const double DIRAC_EXP = 1.e15;
   (*env_g)[offset++] = DIRAC_EXP;
-  const double DIRAC_NORM = CINTgto_norm(0,DIRAC_EXP);
-  (*env_g)[offset++] = DIRAC_NORM * DIRAC_NORM;
+  // const double DIRAC_NORM = CINTgto_norm(0,DIRAC_EXP);
+  // const double DIRAC_NORM = pow(DIRAC_EXP/M_PI,3./2.);
+  const double DIRAC_NORM = 2*pow(DIRAC_EXP,1.5)/(M_PI);    // M_PI is the constant pi
+  //const double DIRAC_NORM = pow((2*DIRAC_EXP/M_PI),3/4);
+  (*env_g)[offset++] = DIRAC_NORM; // * DIRAC_NORM;
 
   int nprim = bas_g[BAS_SLOTS + NPRIM_OF];
   for (int i = 0; i < nprim; i++) {
@@ -112,9 +118,12 @@ void gen_gto_grad_on_grid(
   int & shl_size
 ) {
   int di = CINTcgto_spheric(bas_idx,bas);
+  printf("di: %i\n",di);
   int dj = 1;
   shl_size = di;
   double * buf = new double[di * dj * 3]();
+  float x = di * dj * 3;
+  printf("size of buf : %8.5f\n",x);
 
   int shls[2] = {0,1};
   int bas_g[2 * BAS_SLOTS] = {0};
@@ -128,12 +137,14 @@ void gen_gto_grad_on_grid(
   );
 
   int offset = PTR_ENV_START;
+  printf("gridsize: %i\n",grid_size);
   for (int i = 0; i < grid_size; i++) {
     env_g[offset + 0] = (double)grid[i * 6 + 0];
     env_g[offset + 1] = (double)grid[i * 6 + 1];
     env_g[offset + 2] = (double)grid[i * 6 + 2];
   
     cint1e_ovlpip_sph(buf,shls,atm_g,2,bas_g,2,env_g);
+    printf("cint1e thing ran with i = %i\n",i);
     for (int j = 0; j < di * dj; j++) {
       for (int k = 0; k < 3; k++) {
         // printf("%3d %3d %3d\n",i,(j * grid_size * 3) + i * 3 + k,k*di+j);

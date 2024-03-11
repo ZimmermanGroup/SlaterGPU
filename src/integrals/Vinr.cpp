@@ -33,6 +33,8 @@ void eval_ke(int gs, FP1* grid, FP1* val, int n, int l, FP1 zeta)
   for (int i=0;i<gs;i++)
   {
     FP1 r = grid[6*i+3];
+    //if (r<0.00001)      //
+    //  r = r + 0.00001;  // added the 1e-5 later
     FP1 or1 = 1.f/r;
     FP1 or2 = or1*or1;
 

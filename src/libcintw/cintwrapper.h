@@ -138,6 +138,9 @@ void contract_d2c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
 void contract_d3c2e(int natm, int N, int nbas, int Naux, int nbas_ri, 
                     double *grad_term, double *gQmunu,
                     int *atm, int *bas, double *env);
+void get_ovlp_4c1e(double ** S4c1e, int N, int natm,
+                   int nbas, int nenv, int *atm, int *bas,
+                   double *env);
 #endif
 
 // Start over the gen_ri_int function
