@@ -11,6 +11,7 @@
 #include "lebedev2.h"
 #include "integrals.h"
 #include "grid_util.h"
+#include "rel.h"
 
 #include "fp_def.h"
 
@@ -54,6 +55,7 @@ int main(int argc, char* argv[]) {
     coordsf[i] = coords[i];
   }
   
+  FP2 SOL = 137.03599967994;
   int Na, Nb, Nc;
   int No = electron_count(charge,natoms,atno,Nc,Na,Nb);
 
@@ -85,40 +87,28 @@ int main(int argc, char* argv[]) {
     FP2 * En = new FP2[N2];
     FP2 * T = new FP2[N2];
     FP2 * pVp = new FP2[N2];
+    FP2 * hcore = new FP2[N2];
     int prl = 0;
     #pragma acc enter data \
-      create(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
+      create(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2],hcore[0:N2])
     printf("1e ints: %d\n2c2e ints: %d\n3c3e ints: %d\n",N2, Naux2, N2a);
-    auto t1 = chrono::high_resolution_clock::now();
     compute_ST(natoms, atno, coordsf, basis, nrad, size_ang, ang_g, ang_w, S, T, prl);
-    auto t2 = chrono::high_resolution_clock::now();
     compute_all_2c_v2(natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
-    auto t3 = chrono::high_resolution_clock::now();
     compute_Enp(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
-    auto t4 = chrono::high_resolution_clock::now();
     compute_all_3c_para2(ngpu,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
-    auto t5 = chrono::high_resolution_clock::now();
-    auto elapsed12 = chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
-    auto elapsed23 = chrono::duration_cast<chrono::nanoseconds>(t3-t2).count();
-    auto elapsed34 = chrono::duration_cast<chrono::nanoseconds>(t4-t3).count();
-    auto elapsed45 = chrono::duration_cast<chrono::nanoseconds>(t5-t4).count();
-    auto elapsed15 = chrono::duration_cast<chrono::nanoseconds>(t5-t1).count();
-    printf("Integral ST   time: %5.3e s\n",(FP2)elapsed12/1.e9);
-    printf("Integral 2c2e time: %5.3e s\n",(FP2)elapsed23/1.e9);
-    printf("Integral Vne  time: %5.3e s\n",(FP2)elapsed34/1.e9);
-    printf("Integral 3c2e time: %5.3e s\n",(FP2)elapsed45/1.e9);
-    printf("Integral tot  time: %5.3e s\n",(FP2)elapsed15/1.e9);
+    compute_hcore(N, T, En, pVp, S, SOL, hcore, 0);
     #pragma acc exit data \
-      copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
-  
-    int mprint = min(N,10);
-    for (int i = 0; i < mprint; i++) {
-      for (int j = 0; j < mprint; j++) {
-        printf("%6.4f ",En[i*N+j]);
+      copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2],hcore[0:N2])
+
+    printf("h: \n");
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++) {
+        printf("%10.8f ",En[i*N+j]+T[i*N+j]);
       }
       printf("\n");
     }
-    delete [] A, Anorm, C, S, En, T, pVp;
+
+    delete [] A, Anorm, C, S, En, T, pVp, hcore;
   }
 
   delete [] ang_g, ang_w;
