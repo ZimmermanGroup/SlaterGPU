@@ -4,7 +4,7 @@ set(INTEGRALS_SOURCES
     gamma.h gamma.cpp
     lebedev2.cpp lebedev2.h
     murak.cpp murak.h
-    pVp.cpp pVp.h
+    hess.cpp pVp.cpp pVp.h
     reduce.cpp reduce.h
     spherical.cpp sphericald.cpp spherical.h
     Vinr.cpp Vinr.h
