@@ -199,7 +199,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   int qos = quad_order*quad_order*quad_order;
   int gs = nmu*nnu*nphi*qos;
   int gs6 = 6*gs;
-
+  
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
 
@@ -216,7 +216,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   while (Nmax>0)
   {
     //allocates memory for 2c ints on gpu (grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function)
-    double mem1 = 8.*(1.*gs*Nmax + 1.*mem0 + 3.*N2 + 3.*gs6 + 3.*iN*gs + gs + gsq6);
+    double mem1 = 8.*(3.*gs*Nmax + 1.*mem0 + 3.*N2 + 4.*gs6 + 1.gs);
     if (mem1<gpumem)
     {
       printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -710,7 +710,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
   while (Nmax>0)
   {
     //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
-    double mem1 = 8.*(gs*6.*Nmax + 1.*mem0 + N2 + 2.*gs6 + 2.*gs + 2.*iN*gs3 + gsq6);
+    double mem1 = 8.*(1.*mem0 + 1.*N2 + 3.*gs6 + 2.*gs + 2.*Nmax*gs3);
     if (mem1<gpumem)
     {
       //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -1101,13 +1101,12 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   double togb = 1./1024./1024./1024.;
 
   //this calculation not accurate yet
-  //need to define gsq6 (in ps_grid.cpp)
   int Nmax = 150;
   double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
     //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
-    double mem1 = 8.*(gs*2.*Nmax + 1.*mem0 + N2 + gs6 + gs + 2.*iN*gs + gsq6 + gs);
+    double mem1 = 8.*(gs*2.*Nmax + 1.*mem0 + 1.*N2 + 2.*gs6 + 2.*gs);
     if (mem1<gpumem)
     {
       //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -1655,7 +1654,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   while (Nmax>0)
   {
     //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
-    double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0 + 1.*N2 + 2.*gs6 + 2.*gsh + 2.*iN*gs3 + 1.*gsq6);
+    double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0 + 1.*N2 + 3.*gs6 + 2.*gsh);
     if (mem1<gpumem)
     {
       //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -1927,22 +1926,24 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   double togb = 1./1024./1024./1024.;
 
   //need to improve this estimate
-  //need to define gsq6 (in ps_grid.cpp)
   int Nmax = 100;
+  int NAmax = 100;
   //is this accurate? for now assume correct
   double mem0 = gsh*iN*2.+gsh*7.+1.*nmu*nnu*nphi;
   mem0 += gs6;
 
-  while (Nmax>0)
+  //need to loop over both Nmax and NAmax?
+  while (Nmax>0, NAmax>0)
   {
     //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
-    double mem1 = 8.*(1.*gsh*Nmax + 1.*mem0 + N2 + 2.*N2a + 2.*gs6 + 2.*gsh + 2.*iN*gsh + iNa*gsh + gsq6);
+    double mem1 = 8.*(2.*gsh*Nmax + 1.*mem0 + 1.*N2 + 2.*N2a + 3.*gs6 + 2.*gsh + NAmax*gsh);
     if (mem1<gpumem)
     {
       //printf("    mem0: %6.1f mem1: %6.1f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
+    NAmax--;
   }
   if (Nmax>5)
     Nmax -= 5;
