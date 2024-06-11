@@ -216,7 +216,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   while (Nmax>0)
   {
     //allocates memory for 2c ints on gpu (grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function)
-    double mem1 = 8.*(3.*gs*Nmax + 1.*mem0 + 3.*N2 + 4.*gs6 + 1.gs);
+    double mem1 = 8.*(3.*gs*Nmax + 1.*mem0 + 3.*N2 + 4.*gs6 + 1.*gs);
     if (mem1<gpumem)
     {
       printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -1926,14 +1926,14 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   double togb = 1./1024./1024./1024.;
 
   //need to improve this estimate
-  int Nmax = 100;
-  int NAmax = 100;
+  int Nmax = iN;
+  int NAmax = 200;
   //is this accurate? for now assume correct
   double mem0 = gsh*iN*2.+gsh*7.+1.*nmu*nnu*nphi;
   mem0 += gs6;
 
   //need to loop over both Nmax and NAmax?
-  while (Nmax>0, NAmax>0)
+  while (NAmax>0)
   {
     //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
     double mem1 = 8.*(2.*gsh*Nmax + 1.*mem0 + 1.*N2 + 2.*N2a + 3.*gs6 + 2.*gsh + NAmax*gsh);
@@ -1942,15 +1942,12 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
       //printf("    mem0: %6.1f mem1: %6.1f \n",mem0*togb,mem1*togb);
       break;
     }
-    Nmax--;
     NAmax--;
   }
-  if (Nmax>5)
-    Nmax -= 5;
-  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  if (NAmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
 
   vector<vector<int> > n2aip;
-  int iNa = get_imax_n2ip(Nmax,natoms,Naux,basis_aux,n2aip);
+  int iNa = get_imax_n2ip(NAmax,natoms,Naux,basis_aux,n2aip);
   printf("   iNa: %2i \n",iNa);
 
   int* na2i = new int[natoms]; //needed for copy_symm
