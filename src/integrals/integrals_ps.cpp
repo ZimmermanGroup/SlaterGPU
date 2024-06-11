@@ -209,13 +209,14 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   double gpumem = (double)acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
   double togb = 1./1024./1024./1024.;
 
- //this calculation not accurate yet
+  //this calculation not accurate yet
+  //need to define gsq6 (in ps_grid.cpp)
   int Nmax = 150;
   double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
-    //allocates memory for 2c ints on gpu (grid size + size of 2c int arrays +)
-    double mem1 = 8.*(1.*gs*Nmax + 1.*mem0 + 3.*N2 + 2.*gs6 + 3.*iN*gs + gs + gsq6 + gs6);
+    //allocates memory for 2c ints on gpu (grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function)
+    double mem1 = 8.*(1.*gs*Nmax + 1.*mem0 + 3.*N2 + 3.*gs6 + 3.*iN*gs + gs + gsq6);
     if (mem1<gpumem)
     {
       printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -234,18 +235,18 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   vector<vector<int> > n2ip;
   int iN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
   printf("   Nmax: %2i \n",Nmax);
-  printf("   imaxN: %2i \n",iN);
+  printf("   iN: %2i \n",iN);
 
-  //double gsxvalsv = 8.*(imaxN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
-  //double gsxvalsv_gb = gsxvalsv/1024./1024./1024.;
+  //double gsxvalsv = 8.*(iN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
+  //double gsxvalsv_gb = gsxvalsv/togb;
   //printf("   estimated memory needed (2c): %6.3f GB \n",gsxvalsv_gb);
 
   double gpumem_gb = gpumem/togb;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
 
   //int* n2i = new int[natoms];
-  //int imaxN = get_imax_n2i(natoms,N,basis,n2i);
-  //printf(" imaxN: %2i \n",imaxN);
+  //int iN = get_imax_n2i(natoms,N,basis,n2i);
+  //printf(" iN: %2i \n",iN);
 
  //intermediate storage
   double** valS1 = new double*[iN]; for (int i=0;i<iN;i++) valS1[i] = new double[gs];
@@ -702,12 +703,14 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
   double gpumem = (double)acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
   double togb = 1./1024./1024./1024.;
 
- //this calculation not accurate yet
+  //this calculation not accurate yet
+  //need to define gsq6 (in ps_grid.cpp)
   int Nmax = 150;
   double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
-    double mem1 = 8.*(gs*6.*Nmax + 1.*mem0);
+    //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
+    double mem1 = 8.*(gs*6.*Nmax + 1.*mem0 + N2 + 2.*gs6 + 2.*gs + 2.*iN*gs3 + gsq6);
     if (mem1<gpumem)
     {
       //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -715,8 +718,10 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
     }
     Nmax--;
   }
+  //what is this for?
   if (Nmax>4)
     Nmax -= 4;
+
   //if (Nmax>40) Nmax = 40;
   //int NNm = read_int("NMAX");
   //Nmax = NNm;
@@ -725,7 +730,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
   vector<vector<int> > n2ip;
   int iN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",iN);
+  printf("   iN: %2i \n",iN);
 
   double gpumem_gb = gpumem/togb;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
@@ -1095,12 +1100,14 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   double gpumem = (double)acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
   double togb = 1./1024./1024./1024.;
 
- //this calculation not accurate yet
+  //this calculation not accurate yet
+  //need to define gsq6 (in ps_grid.cpp)
   int Nmax = 150;
   double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
-    double mem1 = 8.*(gs*2.*Nmax + 1.*mem0);
+    //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
+    double mem1 = 8.*(gs*2.*Nmax + 1.*mem0 + N2 + gs6 + gs + 2.*iN*gs + gsq6 + gs);
     if (mem1<gpumem)
     {
       //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -1113,18 +1120,17 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
 
   vector<vector<int> > n2ip;
-  int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  int iN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
+  printf("   iN: %2i \n",iN);
 
-  double gsxvalsv = 8.*(imaxN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
-  double gsxvalsv_gb = gsxvalsv/1024./1024./1024.;
+  double gsxvalsv = 8.*(iN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
+  double gsxvalsv_gb = gsxvalsv/togb;
   printf("   estimated memory needed (2c): %6.3f GB \n",gsxvalsv_gb);
 
-  double gpumem_gb = gpumem/1024./1024./1024.;
+  double gpumem_gb = gpumem/togb;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
 
  //intermediate storage
-  int iN = imaxN;
   double** valS1 = new double*[iN]; for (int i=0;i<iN;i++) valS1[i] = new double[gs];
   double** valV2 = new double*[iN]; for (int i=0;i<iN;i++) valV2[i] = new double[gs];
 
@@ -1642,12 +1648,14 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   double gpumem = 1.*acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
   double togb = 1./1024./1024./1024.;
 
- //this calculation not accurate yet
+  //this calculation not accurate yet
+  //need to define gsq6 (in ps_grid.cpp)
   int Nmax = 150;
   double mem0 = gs6+2*gsh;
   while (Nmax>0)
   {
-    double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0);
+    //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
+    double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0 + 1.*N2 + 2.*gs6 + 2.*gsh + 2.*iN*gs3 + 1.*gsq6);
     if (mem1<gpumem)
     {
       //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
@@ -1660,14 +1668,13 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
     
   vector<vector<int> > n2ip;
-  int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  int iN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
+  printf("   iN: %2i \n",iN);
 
-  double gpumem_gb = gpumem/1024./1024./1024.;
+  double gpumem_gb = gpumem/togb;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
 
  //intermediate storage
-  iN = imaxN;
   double** valS1 = new double*[iN];  for (int i=0;i<iN;i++)  valS1[i] = new double[gs3];
   double** valS2 = new double*[iN];  for (int i=0;i<iN;i++)  valS2[i] = new double[gs3];
   double* valt = new double[gsh];
@@ -1919,13 +1926,17 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   double gpumem = 1.*acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
   double togb = 1./1024./1024./1024.;
 
- //need to improve this estimate
+  //need to improve this estimate
+  //need to define gsq6 (in ps_grid.cpp)
   int Nmax = 100;
+  //is this accurate? for now assume correct
   double mem0 = gsh*iN*2.+gsh*7.+1.*nmu*nnu*nphi;
   mem0 += gs6;
+
   while (Nmax>0)
   {
-    double mem1 = 8.*(1.*gsh*Nmax + mem0);
+    //grid size + size of 2c int arrays + ps_grid arrays called by generate_ps_quad_grid function
+    double mem1 = 8.*(1.*gsh*Nmax + 1.*mem0 + N2 + 2.*N2a + 2.*gs6 + 2.*gsh + 2.*iN*gsh + iNa*gsh + gsq6);
     if (mem1<gpumem)
     {
       //printf("    mem0: %6.1f mem1: %6.1f \n",mem0*togb,mem1*togb);
@@ -2883,14 +2894,12 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   printf("  gs: %8i  gpu mem total: %6.3f GB ngpu: %2i \n",gshh,gpumem*togb,ngpu); 
 
   vector<vector<int> > n2ip;
-  int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  int iN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
+  printf("   iN: %2i \n",iN);
 
  //needed for copy_symm ftn
   int* n2i = new int[natoms];
   int iN = get_imax_n2i(natoms,N,basis,n2i);
- //enables memory savings
-  iN = imaxN;
 
  //intermediate storage
   double** valS1 = new double*[iN]; for (int i=0;i<iN;i++) valS1[i] = new double[gshh];
