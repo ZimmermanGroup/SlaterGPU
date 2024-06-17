@@ -13,4 +13,5 @@ export OMP_NUM_THREADS=2
 alias r="~/integrate/gpu/zest.exe"
 alias r2="~/integrate/gpu/zest.exe2"
 alias mpirun="mpirun --bind-to none --mca btl ^openib"
+
 #alias m="mpirun -n 1 --bind-to socket --mca btl ^openib /home/paulzim/integrate/test.exe "
