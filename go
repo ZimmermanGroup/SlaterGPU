@@ -5,7 +5,6 @@ module load pgi/20.7
 module load cmake
 export PGI_LIBS=/export/apps/CentOS7/pgi/2020/Linux_x86_64/20.7/
 
-
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/export/zimmerman/ndmeier/SlaterGPU/src/libio
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/export/zimmerman/ndmeier/SlaterGPU/src/libcintw
 
