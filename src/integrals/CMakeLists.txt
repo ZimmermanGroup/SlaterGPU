@@ -1,20 +1,21 @@
 set(INTEGRALS_SOURCES
-    integrals.cpp integrals_d.cpp integrals.h
-    braggslater.h 
-    gamma.h gamma.cpp
-    lebedev2.cpp lebedev2.h
-    murak.cpp murak.h
-    pVp.cpp pVp.h
-    reduce.cpp reduce.h
-    spherical.cpp spherical.h
-    Vinr.cpp Vinr.h
-    grid_util.cpp grid_util.h
-    opt.h opt.cpp
+    integrals.cpp 
+    integrals_d.cpp 
+    gamma.cpp
+    lebedev2.cpp     
+    murak.cpp
+    pVp.cpp
+    reduce.cpp
+    spherical.cpp
+    Vinr.cpp
+    grid_util.cpp
+    opt.cpp
     )
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
 target_include_directories(SlaterGPU PUBLIC
     "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
+    "${CMAKE_SOURCE_DIR}/include"
     )
 
 set_property(TARGET SlaterGPU PROPERTY CXX_STANDARD 11)
