@@ -8,7 +8,7 @@ set(USE_MPI True)
 set(USE_OMP True)
 
 if(NOT DO_GTO)
-    set(DO_GTO True)
+    set(DO_GTO False)
 endif()
 
 set(DO_GTO ${DO_GTO})
