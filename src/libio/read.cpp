@@ -1,33 +1,53 @@
+//use only m=0 components of spherical harmonics
+//do this for l>#
+//#define CYLINDER_Z 1
+#define CYLINDER_Z 6
+//#define CYLINDER_Z 10
+
+#define GEOM_DEBUG 0
+#define PDEBUG 0
 #define DDEBUG 0
 #define FDEBUG 0
 #define GDEBUG 0
+#define HDEBUG 0
 
 #include "read.h"
-#include "fp_def.h"
 
 #include <sstream>
 #define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
 #define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
 
-FP2 norm(int n, int l, int m, FP2 zeta);
+double norm(int n, int l, int m, double zeta);
 
 #define A2B 1.8897261
 
-
-void print_coords(int natoms, FP1* coordsf)
+   
+int check_file(string filename)
 {
-  FP1 B2A = 1.f/A2B;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+     
+  infile.close();
+   
+  return 1;   
+}  
+
+void print_coords(int natoms, float* coordsf)
+{
+  float B2A = 1.f/A2B;
   for (int n=0;n<natoms;n++)
     printf(" %10.5f %10.5f %10.5f \n",coordsf[3*n+0]*B2A,coordsf[3*n+1]*B2A,coordsf[3*n+2]*B2A);
 }
 
-void print_gradient(int natoms, FP2* grad)
+void print_gradient(int natoms, double* grad)
 {
   for (int n=0;n<natoms;n++)
     printf(" %10.5f %10.5f %10.5f \n",grad[3*n+0],grad[3*n+1],grad[3*n+2]);
 }
 
-void print_square_diff(int N, FP2* S1, FP2* S2) 
+void print_square_diff(int N, double* S1, double* S2) 
 {
   for (int n=0;n<N;n++)
   {
@@ -37,7 +57,7 @@ void print_square_diff(int N, FP2* S1, FP2* S2)
   }
 }
 
-void print_square_fine(int N, FP2* S) 
+void print_square_fine(int N, float* S) 
 {
   for (int n=0;n<N;n++)
   {
@@ -47,8 +67,17 @@ void print_square_fine(int N, FP2* S)
   }
 }
 
-#if !EVL64
-void print_square(int N, FP2* S) 
+void print_square_fine(int N, double* S) 
+{
+  for (int n=0;n<N;n++)
+  {
+    for (int m=0;m<N;m++)
+      printf(" %12.8f",S[n*N+m]);
+    printf("\n");
+  }
+}
+
+void print_square(int N, double* S) 
 {
   for (int n=0;n<N;n++)
   {
@@ -57,9 +86,8 @@ void print_square(int N, FP2* S)
     printf("\n");
   }
 }
-#endif
 
-void print_square(int N, FP1* S) 
+void print_square(int N, float* S) 
 {
   for (int n=0;n<N;n++)
   {
@@ -69,19 +97,7 @@ void print_square(int N, FP1* S)
   }
 }
 
-#if !EVL64
-void print_square(int M, int N, FP1* S) 
-{
-  for (int n=0;n<M;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-#endif
-
-void print_square(int M, int N, FP2* S) 
+void print_square(int M, int N, float* S) 
 {
   for (int n=0;n<M;n++)
   {
@@ -91,7 +107,51 @@ void print_square(int M, int N, FP2* S)
   }
 }
 
-void print_square_ss(int N, FP2* S)
+void print_square(int M, int N, double* S) 
+{
+  for (int n=0;n<M;n++)
+  {
+    for (int m=0;m<N;m++)
+      printf(" %10.5f",S[n*N+m]);
+    printf("\n");
+  }
+}
+
+void print_mos_col(int M, int N, vector<vector<double> > basis, double* jCA)
+{
+  if (M<1) return;
+  for (int j=0;j<N;j++)
+  {
+    int n1 = basis[j][0]; int l1 = basis[j][1]; int m1 = basis[j][2];
+
+    printf("  %i%i%2i ",n1,l1,m1);
+    for (int k=0;k<M;k++)
+      printf(" %10.5f",jCA[j*N+k]);
+    printf("\n");
+  }
+}
+
+void print_square_col(int M, int N, double* S) 
+{
+  for (int n=0;n<N;n++)
+  {
+    for (int m=0;m<M;m++)
+      printf(" %10.5f",S[n*N+m]);
+    printf("\n");
+  }
+}
+
+void print_square_col_sm(int M, int N, double* S) 
+{
+  for (int n=0;n<N;n++)
+  {
+    for (int m=0;m<M;m++)
+      printf(" %6.3f",S[n*N+m]);
+    printf("\n");
+  }
+}
+
+void print_square_ss(int N, double* S)
 {
   for (int n=0;n<N;n++)
   {
@@ -102,7 +162,7 @@ void print_square_ss(int N, FP2* S)
   }
 }
 
-void print_square_sm(int N, FP2* S)
+void print_square_sm(int N, double* S)
 {
   for (int n=0;n<N;n++)
   {
@@ -113,8 +173,7 @@ void print_square_sm(int N, FP2* S)
   }
 }
 
-#if !EVL64
-void print_square_sm(int N, FP1* S)
+void print_square_sm(int N, float* S)
 {
   for (int n=0;n<N;n++)
   {
@@ -124,9 +183,8 @@ void print_square_sm(int N, FP1* S)
     printf("\n");
   }
 }
-#endif
 
-void print_square_ss_sm(int N, FP2* S)
+void print_square_ss_sm(int N, double* S)
 { 
   for (int n=0;n<N;n++)
   {
@@ -137,7 +195,7 @@ void print_square_ss_sm(int N, FP2* S)
   }
 }
 
-void print_square_nxn(int No, int N, FP1* S)
+void print_square_nxn(int No, int N, float* S)
 {
   for (int n=0;n<No;n++)
   {
@@ -147,8 +205,7 @@ void print_square_nxn(int No, int N, FP1* S)
   }
 }
 
-#if !EVL64
-void print_square_nxn(int No, int N, FP2* S)
+void print_square_nxn(int No, int N, double* S)
 {
   for (int n=0;n<No;n++)
   {
@@ -157,15 +214,36 @@ void print_square_nxn(int No, int N, FP2* S)
     printf("\n");
   }
 }
-#endif
 
-void print_rectangle_sm(int N1, int N2, FP2* S)
+void print_rectangle(int N1, int N2, double* S)
 {
   for (int n=0;n<N1;n++)
   {
     printf("  ");
     for (int m=0;m<N2;m++)
-      printf(" %5.2f",S[n*N2+m]);
+      printf(" %10.5f",S[n*N2+m]);
+    printf("\n");
+  }
+}
+
+void print_rectangle_e(int N1, int N2, double* S)
+{
+  for (int n=0;n<N1;n++)
+  {
+    printf("  ");
+    for (int m=0;m<N2;m++)
+      printf(" %5.1e",S[n*N2+m]);
+    printf("\n");
+  }
+}
+
+void print_rectangle_sm(int N1, int N2, double* S)
+{
+  for (int n=0;n<N1;n++)
+  {
+    printf("  ");
+    for (int m=0;m<N2;m++)
+      printf(" %7.4f",S[n*N2+m]);
     printf("\n");
   }
 }
@@ -176,7 +254,7 @@ vector<string> split1(const string &s, char delim)
   stringstream ss(s);
   string item;  
   vector<string> tokens;
-  while (getline(ss, item, delim))
+  while ((bool)getline(ss, item, delim))
     tokens.push_back(item);
   return tokens;
 }
@@ -188,7 +266,7 @@ string read_basis_text(string aname)
   infile.open(filename.c_str());
   if (!infile)
   {
-    printf("   couldn't open file: %s \n",filename.c_str());
+    printf("  couldn't open file: %s \n",filename.c_str());
     return 0;
   }
 
@@ -197,14 +275,14 @@ string read_basis_text(string aname)
   while (!infile.eof() && !done)
   {  
     string line;
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>1 && tok_line[0].compare(aname)==0)
     {
       //printf("  found elem %2s \n",aname.c_str());
       while (!infile.eof())
       {
-        getline(infile, line);
+        (bool)getline(infile, line);
         vector<string> tok2 = split1(line,' ');
         if (tok2.size() & tok2[0].compare("****")==0)
         {
@@ -222,7 +300,7 @@ string read_basis_text(string aname)
   return text;
 }
 
-FP2 read_FP1(string filename)
+double read_float(string filename)
 {
   ifstream infile;
   infile.open(filename.c_str());
@@ -230,9 +308,9 @@ FP2 read_FP1(string filename)
     return 0.;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
-  FP2 val = 0.;
+  double val = 0.;
   if (success)
     val = atof(line.c_str());
 
@@ -241,7 +319,64 @@ FP2 read_FP1(string filename)
   return val;
 }
 
-void read_thresh(FP1& no_thresh, FP1& occ_thresh)
+double read_float_2(string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return -1.;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  double val = -1.;
+  if (success)
+    val = atof(line.c_str());
+
+  infile.close();
+
+  return val;
+}
+
+int read_int(string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int val = 0;
+  if (success)
+    val = atoi(line.c_str());
+
+  infile.close();
+
+  return val;
+}
+
+int read_int_2(string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return -1;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int val = 0.;
+  if (success)
+    val = atoi(line.c_str());
+
+  infile.close();
+
+  return val;
+}
+
+void read_thresh(float& no_thresh, float& occ_thresh)
 {
   string filename = "THRESH";
 
@@ -251,13 +386,13 @@ void read_thresh(FP1& no_thresh, FP1& occ_thresh)
     return;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   if (success)
   {
     no_thresh = atof(line.c_str());
 
-    success = (bool) getline(infile, line);
+    success = (bool)getline(infile, line);
     if (success)
       occ_thresh = atof(line.c_str());
   }
@@ -267,13 +402,13 @@ void read_thresh(FP1& no_thresh, FP1& occ_thresh)
   return;
 }
 
-void read_eps(FP2& eps1, FP2& eps2, FP2& eps1s)
+void read_eps(double& eps1, double& eps2, double& eps1s)
 {
   string filename = "EPS";
 
   eps1 = 0.001;
-  eps2 = 0.0000001;
-  eps1s = 0.00005;
+  eps2 = 0.000001;
+  eps1s = 0.0001;
 
   ifstream infile;
   infile.open(filename.c_str());
@@ -281,17 +416,17 @@ void read_eps(FP2& eps1, FP2& eps2, FP2& eps1s)
     return;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   if (success)
   {
     eps1 = atof(line.c_str());
 
-    success = (bool) getline(infile, line);
+    success = (bool)getline(infile, line);
     if (success)
       eps2 = atof(line.c_str());
 
-    success = (bool) getline(infile, line);
+    success = (bool)getline(infile, line);
     if (success)
       eps1s = atof(line.c_str());
   }
@@ -308,7 +443,7 @@ void read_eps(FP2& eps1, FP2& eps2, FP2& eps1s)
   return;
 }
 
-void read_eps(FP2& eps1, FP2& eps2)
+void read_eps(double& eps1, double& eps2)
 {
   string filename = "EPS";
 
@@ -321,13 +456,13 @@ void read_eps(FP2& eps1, FP2& eps2)
     return;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   if (success)
   {
     eps1 = atof(line.c_str());
 
-    success = (bool) getline(infile, line);
+    success = (bool)getline(infile, line);
     if (success)
       eps2 = atof(line.c_str());
   }
@@ -342,9 +477,10 @@ void read_eps(FP2& eps1, FP2& eps2)
   return;
 }
 
-bool read_dft(int& dt1, int& dt2)
+bool read_dft(int& dt1, int& dt2, int type)
 {
   string filename = "DFT";
+  if (type==2) filename = "DFTS";
 
   ifstream infile;
   infile.open(filename.c_str());
@@ -352,7 +488,7 @@ bool read_dft(int& dt1, int& dt2)
     return 0;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   dt1 = dt2 = -1;
   if (success)
@@ -360,7 +496,7 @@ bool read_dft(int& dt1, int& dt2)
    //exchange
     dt1 = atoi(line.c_str());
 
-    success = (bool) getline(infile, line);
+    success = (bool)getline(infile, line);
     if (success)
      //correlation
       dt2 = atoi(line.c_str());
@@ -386,7 +522,7 @@ int read_esci()
     return 0;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   int default_val = 1;
   int do_esci;
@@ -400,6 +536,126 @@ int read_esci()
   return do_esci;
 }
 
+int read_cusp()
+{
+  string filename = "CUSP";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 1;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int default_val = 1;
+  int cusp;
+  if (success)
+    cusp = atoi(line.c_str());
+  else
+    cusp = default_val;
+
+  infile.close();
+
+  return cusp;
+}
+
+int read_hfx()
+{
+  string filename = "HFX";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int default_val = 1;
+  int hfx;
+  if (success)
+    hfx = atoi(line.c_str());
+  else
+    hfx = default_val;
+
+  infile.close();
+
+  return hfx;
+}
+
+int read_pp()
+{
+  string filename = "PP";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int default_val = 1;
+  int pp;
+  if (success)
+    pp = atoi(line.c_str());
+  else
+    pp = default_val;
+
+  infile.close();
+
+  return pp;
+}
+
+int read_symm()
+{
+  string filename = "SYMM";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int default_val = 1;
+  int pp;
+  if (success)
+    pp = atoi(line.c_str());
+  else
+    pp = default_val;
+
+  infile.close();
+
+  return pp;
+}
+
+int read_vnuc()
+{
+  string filename = "VNUC";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int default_val = 1;
+  int vnuc;
+  if (success)
+    vnuc = atoi(line.c_str());
+  else
+    vnuc = default_val;
+
+  infile.close();
+
+  return vnuc;
+}
+
 int read_ri()
 {
   string filename = "RI";
@@ -410,7 +666,7 @@ int read_ri()
     return 0;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   int default_val = 1;
   int do_ri;
@@ -436,7 +692,7 @@ int read_opt()
     return default_val;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   int nopt;
   if (success)
@@ -461,7 +717,7 @@ int read_mbe()
     return default_val;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   int mbe;
   if (success)
@@ -489,6 +745,20 @@ int read_basis()
   return 1;
 }
 
+int read_hf()
+{
+  string filename = "HF";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  infile.close();
+
+  return 1;
+}
+
 int read_lag()
 {
   string filename = "LAG";
@@ -503,6 +773,51 @@ int read_lag()
   return 1;
 }
 
+void read_T(int& use_td, int& use_tl, int& use_erf, int& use_th, int& use_mixed_t)
+{
+  string filename = "T";
+
+  int default_val = 0;
+  use_td = use_tl = use_th = 0;
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int type;
+  if (success)
+    type = atoi(line.c_str());
+  else
+    type = default_val;
+
+  if (type==1)
+    use_td = 1;
+  else if (type==2)
+    use_tl = 1;
+  else if (type==3)
+  {
+    use_tl = 1;
+    use_erf = 1;
+  }
+  else if (type==4)
+    use_td = 2;
+  else if (type==5)
+  {
+    use_td = 1;
+    use_mixed_t = 1;
+  }
+  else if (type==6)
+    use_th = 1;
+
+  infile.close();
+
+  return;
+}
+
 int read_cas()
 {
   string filename = "CAS";
@@ -515,7 +830,7 @@ int read_cas()
     return default_val;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   int cas_type;
   if (success)
@@ -528,6 +843,83 @@ int read_cas()
   return cas_type;
 }
 
+void read_cas_size(int& Nc, int& Na, int& Nb)
+{
+  string filename = "CAS_2";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return;
+
+  string line;
+  bool success; 
+
+  success = (bool)getline(infile, line);
+  if (success)
+    Nc = atoi(line.c_str());
+
+  success = (bool)getline(infile, line);
+  if (success)
+    Na = Nc+atoi(line.c_str());
+
+  success = (bool)getline(infile, line);
+  if (success)
+    Nb = Nc+atoi(line.c_str());
+
+  infile.close();
+
+  return;
+}
+
+bool read_array(int size, double* A, string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+  {
+    vector<string> tok_line = split1(line,' ');
+    //printf("  size: %2i tok_line.size: %2i \n",size,tok_line.size());
+    if (tok_line.size()<size) { infile.close(); return 0; }
+
+    for (int i=0;i<tok_line.size();i++)
+      A[i] = atof(tok_line[i].c_str());
+  }
+
+  infile.close();
+
+  return success;
+}
+
+vector<double> read_vector(string filename)
+{
+  vector<double> vec;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return vec;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+  {
+    vector<string> tok_line = split1(line,' ');
+    for (int i=0;i<tok_line.size();i++)
+      vec.push_back(atof(tok_line[i].c_str()));
+  }
+
+  infile.close();
+
+  return vec;
+}
+
 bool read_cas_act(int& N, int& M)
 {
   string filename = "CAS_ACT";
@@ -538,7 +930,7 @@ bool read_cas_act(int& N, int& M)
     return 0;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   if (success)
   {
@@ -557,26 +949,28 @@ bool read_cas_act(int& N, int& M)
   return 1;
 }
 
-void read_rotate(int N, FP2* jCA)
+int read_rotate(int N, double* jCA)
 {
   string filename = "ROT";
 
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
-    return;
+    return 0;
 
+  printf("\n jCA(in) \n");
+  print_square_sm(N,jCA);
 
   int nrot = 0;
   while (!infile.eof())
   {
     string line;
-    bool success = (bool) getline(infile, line);
+    bool success = (bool)getline(infile, line);
 
     if (success)
     {
-      FP2 vec1[N];
-      FP2 vec2[N];
+      double vec1[N];
+      double vec2[N];
       vector<string> tok_line = split1(line,' ');
 
       if (tok_line.size()==2)
@@ -598,7 +992,10 @@ void read_rotate(int N, FP2* jCA)
 
   printf("\n  rotated %2i orbitals \n",nrot);
 
-  return;
+  printf("\n jCA(out) \n");
+  print_square_sm(N,jCA);
+
+  return 1;
 }
 
 int read_nsteps()
@@ -613,7 +1010,7 @@ int read_nsteps()
     return default_nsteps;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
 
   int nsteps;
   if (success)
@@ -638,7 +1035,7 @@ int read_spinref()
   else
   {
     string line;
-    bool success = (bool) getline(infile, line);
+    bool success = (bool)getline(infile, line);
 
     if (success)
       spinref = atoi(line.c_str());
@@ -662,7 +1059,7 @@ int read_group()
   else
   {
     string line;
-    bool success = (bool) getline(infile, line);
+    bool success = (bool)getline(infile, line);
 
     if (success)
       group_size = atoi(line.c_str());
@@ -686,7 +1083,7 @@ int read_restart()
   else
   {
     string line;
-    bool success = (bool) getline(infile, line);
+    bool success = (bool)getline(infile, line);
 
     if (success)
       is_restart = atoi(line.c_str());
@@ -700,6 +1097,73 @@ int read_restart()
   return is_restart;
 }
 
+void read_gridps(int& nmu, int& nnu, int& nphi, int type)
+{
+  string filename = "GRIDPS";
+  if (type==2) filename = "GRIDPS2";
+
+  nmu = 24;
+  nnu = 12;
+  nphi = 8;
+
+  ifstream infile;
+  infile.open(filename.c_str());    
+  if (!infile)
+  {
+    printf("  couldn't open GRIDPS file. \n");
+    return;
+  }
+  
+  string line;
+  bool success = (bool)getline(infile, line);
+  if (success)
+    nmu = atoi(line.c_str());
+
+  success = (bool)getline(infile, line);
+  if (success)
+    nnu = atoi(line.c_str());
+
+  success = (bool)getline(infile, line);
+  if (success)
+    nphi = atoi(line.c_str());
+
+  infile.close();
+
+  return;
+}
+
+
+void read_quad(int& qo1, int& qo2)
+{
+  string filename = "QUAD";
+  //if (type==2) filename = "QUAD2";
+
+  qo1 = 8;
+  qo2 = 8;
+
+  ifstream infile;
+  infile.open(filename.c_str());    
+  if (!infile)
+    return;
+  
+  string line;
+  bool success = (bool)getline(infile, line);
+  if (success)
+    qo1 = atoi(line.c_str());
+
+  success = (bool)getline(infile, line);
+  if (success)
+    qo2 = atoi(line.c_str());
+  else
+    qo2 = qo1;
+
+  if (qo2<=0) qo2 = qo1;
+
+  infile.close();
+
+  return;
+}
+
 void read_nrad_nang(int& nrad, int& nang, int type)
 {
   string filename = "GRID";
@@ -709,16 +1173,16 @@ void read_nrad_nang(int& nrad, int& nang, int type)
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open GRID file. please provide GRID \n");
+    printf("  couldn't open GRID file. please provide GRID \n");
     exit(1);
   }
   
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
   if (success)
     nrad = atoi(line.c_str());
 
-  success = (bool) getline(infile, line);
+  success = (bool)getline(infile, line);
   if (success)
     nang = atoi(line.c_str());
 
@@ -738,7 +1202,7 @@ int read_tuples(vector<vector<int> >& tuples)
   printf(" TUPLES only reading one line (for now) \n");
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
   vector<string> tok_line = split1(line,' ');
   if (tok_line.size()>0)
   {
@@ -756,7 +1220,7 @@ int read_tuples(vector<vector<int> >& tuples)
 
 string get_iarray_name(short type1, short type2, short i1);
 
-int read_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
+int read_iarray(short type1, short type2, short i1, int s1, int s2, float* A)
 {
   string filename = get_iarray_name(type1,type2,i1);
   //printf("  reading %8s \n",filename.c_str());
@@ -765,7 +1229,7 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
   infile.open(filename.c_str());
   if (!infile)
   {
-    printf("    couldn't open file (%s) \n",filename.c_str());
+    printf("   couldn't open file (%s) \n",filename.c_str());
     return 0;
   }
 
@@ -774,7 +1238,7 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
 
   for (int i=0;i<s1;i++)
   {
-    bool success = (bool) getline(infile, line);
+    bool success = (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
 
     int tks = tok_line.size();
@@ -792,8 +1256,7 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
   return found;
 }
 
-#if !EVL64
-int read_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
+int read_iarray(short type1, short type2, short i1, int s1, int s2, double* A)
 {
   string filename = get_iarray_name(type1,type2,i1);
   //printf("  reading %8s \n",filename.c_str());
@@ -802,7 +1265,7 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
   infile.open(filename.c_str());
   if (!infile)
   {
-    printf("    couldn't open file (%s) \n",filename.c_str());
+    printf("   couldn't open file (%s) \n",filename.c_str());
     return 0;
   }
 
@@ -811,7 +1274,7 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
 
   for (int i=0;i<s1;i++)
   {
-    bool success = (bool) getline(infile, line);
+    bool success = (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
 
     int tks = tok_line.size();
@@ -828,9 +1291,8 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
 
   return found;
 }
-#endif
 
-int read_gridpts(int s1, int s2, FP1* A, string filename)
+int read_gridpts(int s1, int s2, float* A, string filename)
 {
   ifstream infile;
   infile.open(filename.c_str());
@@ -838,15 +1300,15 @@ int read_gridpts(int s1, int s2, FP1* A, string filename)
     return 0;
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
   int wi = 0;
   while (wi<s1)
   {
-    success = (bool) getline(infile, line);
+    success = (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
-      if (tok_line.size()<s2) { printf(" ERROR: file size incorrect (read_gridpts) \n"); exit(1); }
+      if (tok_line.size()<s2) { printf(" ERROR: file size incorrect (read_gridpts. file: %s) \n",filename.c_str()); exit(1); }
       for (int m=0;m<s2;m++)
         A[wi*s2+m] = atof(tok_line[m+1].c_str());
       wi++;
@@ -858,29 +1320,63 @@ int read_gridpts(int s1, int s2, FP1* A, string filename)
   return 1;
 }
 
-int read_square(int N, FP2* Pao, string filename)
+int read_square_check(int N, double* A, string filename)
 {
 
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
   {
-    //printf("   couldn't open file \n");
+    printf("  couldn't open file %s \n",filename.c_str());
     return 0;
   }
 
   string line;
-  bool success = (bool) getline(infile, line);
+  bool success = (bool)getline(infile, line);
   int wi = 0;
   while (wi<N)
   {
-    success = (bool) getline(infile, line);
+    success = (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
-      if (tok_line.size()<N) { printf(" ERROR: file size not square \n"); exit(1); }
+      if (tok_line.size()<N) { infile.close(); return 0; }
       for (int m=0;m<N;m++)
-        Pao[wi*N+m] = atof(tok_line[m+1].c_str());
+        A[wi*N+m] = atof(tok_line[m+1].c_str());
+      wi++;
+    }
+    else
+      return 0;
+  }
+  
+  infile.close();
+
+  return 1;
+}
+
+int read_square(int N, double* A, string filename)
+{
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    //printf("  couldn't open file \n");
+    return 0;
+  }
+
+  string line;
+  bool success = (bool)getline(infile, line);
+  int wi = 0;
+  while (wi<N)
+  {
+    success = (bool)getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
+    if (tok_line.size()>0)
+    {
+      if (tok_line.size()<N) { printf(" ERROR: file (%s) size not square \n",filename.c_str()); exit(1); }
+      for (int m=0;m<N;m++)
+        A[wi*N+m] = atof(tok_line[m+1].c_str());
       wi++;
     }
   }
@@ -890,13 +1386,13 @@ int read_square(int N, FP2* Pao, string filename)
   return 1;
 }
 
-int read_square(vector<vector<FP2> > basis, FP2* Pao, string filename)
+int read_square(vector<vector<double> > basis, double* A, string filename)
 {
   int N = basis.size();
-  return read_square(N,Pao,filename);
+  return read_square(N,A,filename);
 }
 
-void read_SENT(string dirname, int N, FP2* S, FP2* T, FP2* En, int prl)
+void read_SENT(string dirname, int N, double* S, double* T, double* En, int prl)
 {
   string filename = "SENT"; if (dirname!="0") filename = dirname+"/"+"SENT";
   printf("  attempting file read: %s \n",filename.c_str());
@@ -905,16 +1401,16 @@ void read_SENT(string dirname, int N, FP2* S, FP2* T, FP2* En, int prl)
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open file \n");
+    printf("  couldn't open file \n");
     return;
   }
 
   string line;  
-  getline(infile, line);
+  (bool)getline(infile, line);
   int wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -925,11 +1421,13 @@ void read_SENT(string dirname, int N, FP2* S, FP2* T, FP2* En, int prl)
     }
   }
 
-  getline(infile, line);
+  if (En==NULL) { infile.close(); return; }
+
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -940,11 +1438,13 @@ void read_SENT(string dirname, int N, FP2* S, FP2* T, FP2* En, int prl)
     }
   }
 
-  getline(infile, line);
+  if (T==NULL) { infile.close(); return; }
+
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -967,32 +1467,46 @@ void read_SENT(string dirname, int N, FP2* S, FP2* T, FP2* En, int prl)
 
 }
 
-void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP2* A, FP2* Ciap, int prl)
+bool read_yukawa_potentials(int N, int Naux, double*& Ayd, double*& Cyd)
 {
   int N2 = N*N;
-  //int N3 = N2*N;
-  //int na = Naux;
-  //int Naux2 = Naux*Naux;
+  int N2a = N2*Naux;
+  int Na2 = Naux*Naux;
 
- //first file
-  string filename = "Ciap"; if (dirname!="0") filename = dirname+"/"+"Ciap";
+  bool yukawa_available = check_file("Ay");
+  if (yukawa_available)
+  {
+    printf("  reading Yukawa potentials \n");
+    Ayd = new double[Na2];
+    Cyd = new double[N2a];
+
+    read_square(Naux,Ayd,"Ay");
+    read_Ciap(N,Naux,Cyd,"Cyiap");
+  }
+
+  return yukawa_available;
+}
+
+void read_Ciap(int N, int Naux, double* Ciap, string filename)
+{
   printf("  attempting file read: %s \n",filename.c_str());
+  int prl = 0;
 
   ifstream infile;
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open file \n");
+    printf("  couldn't open file \n");
     return;
   }
   
   string line;
 
-  getline(infile, line);
+  (bool)getline(infile, line);
   int wi = 0;
   while (!infile.eof())
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1002,27 +1516,43 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
       wi++;
     }
   }
+  int N2 = N*N;
   if (wi==N2) { if (prl>1) printf("   found all lines of Ciap \n"); }
   else printf(" Ciap missing lines \n");
   infile.close();
 
+  return;
+}
+
+bool read_integrals(string dirname, int N, int Naux, double* S, double* T, double* En, double* A, double* Ciap, int prl)
+{
+  int N2 = N*N;
+  //int N3 = N2*N;
+  //int na = Naux;
+  //int Naux2 = Naux*Naux;
+
+ //first file
+  string filename = "Ciap"; if (dirname!="0") filename = dirname+"/"+"Ciap";
+  read_Ciap(N,Naux,Ciap,filename);
 
  //second file
   filename = "A"; if (dirname!="0") filename = dirname+"/"+"A";
   printf("  attempting file read: %s \n",filename.c_str());
 
+  ifstream infile;
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open file \n");
-    return;
+    printf("  couldn't open file \n");
+    return 0;
   }
   
-  getline(infile, line);
-  wi = 0;
+  string line;
+  (bool)getline(infile, line);
+  int wi = 0;
   while (!infile.eof())
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1044,15 +1574,15 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open file \n");
-    return;
+    printf("  couldn't open file \n");
+    return 0;
   }
   
-  getline(infile, line);
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1063,11 +1593,11 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
     }
   }
 
-  getline(infile, line);
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1078,11 +1608,11 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
     }
   }
 
-  getline(infile, line);
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1121,80 +1651,44 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
     printf("\n");
   }
 
-#if 0
- //now compute g matrix
-  FP2* Ai = new FP2[Naux2];
-  for (int m=0;m<Naux2;m++) Ai[m] = A[m];
-  printf(" cannot compute g, need invert function \n");
-  //Invert_stable(Ai,Naux,inv_cutoff);
-
-  FP2* AC = new FP2[Naux*N2]();
-  int nanan2 = Naux2+N2;
-
-#if 0
-  FP2* tmp = new FP2[nomp*nanan2]();
-
-  compute_AC(N,na,Ai,Ciap,AC,tmp);
-  compute_g(N,Naux,Ciap,AC,tmp,g);
-  delete [] tmp;
-#endif
-
-  delete [] Ai;
-  delete [] AC;
-
-  if (prl>2)
-  {
-    printf("\n printing gmnls \n");
-    for (int m=0;m<N;m++)
-    for (int n=0;n<N;n++)
-    {
-      printf("  g%i%i:\n",m,n);
-      print_square_ss(N,&g[m*N3+n*N2]);
-    }
-  }
-  printf("\n");
-#endif
-
-  return;
+  return 1;
 }
 
-FP2 nuclear_repulsion(int natoms, int* atno, FP2* coords)
+double nuclear_repulsion(int natoms, int* atno, double* coords)
 {
-  FP2 Enn = 0;
+  double Enn = 0;
 
   for (int n=0;n<natoms;n++)
   for (int m=0;m<n;m++)
   {
-    FP2 x12 = coords[3*n+0] - coords[3*m+0];
-    FP2 y12 = coords[3*n+1] - coords[3*m+1];
-    FP2 z12 = coords[3*n+2] - coords[3*m+2];
-    FP2 zz = atno[n]*atno[m];
+    double x12 = coords[3*n+0] - coords[3*m+0];
+    double y12 = coords[3*n+1] - coords[3*m+1];
+    double z12 = coords[3*n+2] - coords[3*m+2];
+    double zz = atno[n]*atno[m];
     Enn += zz/sqrt(x12*x12+y12*y12+z12*z12);
   }
 
   return Enn;
 }
 
-#if !EVL64
-FP2 nuclear_repulsion(int natoms, int* atno, FP1* coordsf)
+double nuclear_repulsion(int natoms, int* atno, float* coordsf)
 {
-  FP2 Enn = 0;
+  double Enn = 0;
 
   for (int n=0;n<natoms;n++)
   for (int m=0;m<n;m++)
   {
-    FP1 x12 = coordsf[3*n+0] - coordsf[3*m+0];
-    FP1 y12 = coordsf[3*n+1] - coordsf[3*m+1];
-    FP1 z12 = coordsf[3*n+2] - coordsf[3*m+2];
-    FP1 zz = atno[n]*atno[m];
+    float x12 = coordsf[3*n+0] - coordsf[3*m+0];
+    float y12 = coordsf[3*n+1] - coordsf[3*m+1];
+    float z12 = coordsf[3*n+2] - coordsf[3*m+2];
+    float zz = atno[n]*atno[m];
     Enn += zz/sqrt(x12*x12+y12*y12+z12*z12);
   }
 
   return Enn;
 }
-#endif
 
-void add_s(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta)
+void add_s(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta)
 {
  //ns function
   ao1[0] = n; ao1[1] = 0; ao1[2] = 0;
@@ -1205,27 +1699,52 @@ void add_s(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta)
   return;
 }
 
-void add_p(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int np)
+void add_p(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int np)
 {
  //2px
-  ao1[0] = n; ao1[1] = 1; ao1[2] = 0;
+  ao1[0] = n; ao1[1] = 1; ao1[2] = 1;
   ao1[3] = zeta;
   ao1[4] = norm(n,1,0,zeta);
+
+ #if PDEBUG || CYLINDER_Z<=1
+  //z function only
+  ao1[2] = 0;
+  basis1.push_back(ao1);
+  return;
+ #endif
+
   basis1.push_back(ao1);
 
   if (np<2) return;
 
  //2py
-  ao1[2] = 1; 
+  ao1[2] = -1; 
   basis1.push_back(ao1);
  //2pz
-  ao1[2] = -1;
+  ao1[2] = 0;
   basis1.push_back(ao1);
 
   return;
 }
 
-void add_d(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int nd)
+void add_dz2(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta)
+{
+ //3d
+  ao1[0] = n; ao1[1] = 2;
+  ao1[3] = zeta;
+
+  int m = 0;
+  {
+    ao1[2] = m;
+    ao1[4] = norm(n,2,m,zeta);
+
+    basis1.push_back(ao1);
+  }
+
+  return;
+}
+
+void add_d(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nd)
 {
   if (nd<2) { printf(" ERROR: cannot use nd anymore \n"); exit(1); } 
 
@@ -1257,8 +1776,8 @@ void add_d(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int n
     ao1[2] = m;
     ao1[4] = norm(n,2,m,zeta);
 
-   #if DDEBUG
-    //if (n==3 || (n>3 && m==0))
+   #if DDEBUG || CYLINDER_Z<=2
+    if (m==0)
    #endif
     basis1.push_back(ao1);
   }
@@ -1267,7 +1786,7 @@ void add_d(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int n
   return;
 }
 
-void add_f(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int nf)
+void add_f(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nf)
 {
  //4f
   ao1[0] = n; ao1[1] = 3;
@@ -1283,9 +1802,9 @@ void add_f(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int n
     ao1[2] = m;
     ao1[4] = norm(n,3,m,zeta);
 
-#if FDEBUG
-    if (m==2)
-#endif
+   #if FDEBUG || CYLINDER_Z<=3
+    if (m==0)
+   #endif
     {
       basis1.push_back(ao1);
       bf++;
@@ -1297,7 +1816,7 @@ void add_f(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int n
   return;
 }
 
-void add_g(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int ng)
+void add_g(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int ng)
 {
  //5g
   ao1[0] = n; ao1[1] = 4;
@@ -1306,9 +1825,9 @@ void add_g(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int n
  //high angular momentum will integrate poorly
  // when becke grid has near-zero weights (around < 10^-8)
 
-#if GDEBUG
+ #if GDEBUG
   printf("   WARNING: restricted g functions \n");
-#endif
+ #endif
 
   int bf = 0;
   for (int m=-4;m<=4;m++)
@@ -1316,13 +1835,9 @@ void add_g(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int n
     ao1[2] = m;
     ao1[4] = norm(n,4,m,zeta);
 
-#if GDEBUG
- //m==2 problem?
- //m==-1,0 problem?
-  //  if (m!=2 && m!=-1 && m!=0)
-   // if (m==2 || m==-1 || m==0)
-    if (m<=0)
-#endif
+   #if GDEBUG || CYLINDER_Z<=4
+    if (m==0)
+   #endif
     {
       basis1.push_back(ao1);
     }
@@ -1333,11 +1848,24 @@ void add_g(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int n
   return;
 }
 
-void add_h(vector<vector<FP2> > &basis1, vector<FP2> ao1, int n, FP2 zeta, int nh)
+void add_h(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nh)
 {
  //6h
   ao1[0] = n; ao1[1] = 5;
   ao1[3] = zeta;
+
+ #if CYLINDER_Z<=5
+  ao1[2] = 0;
+  ao1[4] = norm(n,5,0,zeta);
+  basis1.push_back(ao1);
+  return;
+ #endif
+ #if HDEBUG
+  ao1[2] = 0;
+  ao1[4] = norm(n,5,0,zeta);
+  basis1.push_back(ao1);
+  return;
+ #endif
  
   int bf = 0;
   for (int m=-5;m<=5;m++)
@@ -1377,7 +1905,9 @@ void get_n_l(string aotype, int& n, int& l)
   else if (char_array[1]=='J')
     l = 7;
 
-  if (n<l+1)
+  if (char_array[1]=='D' && char_array[2]=='Z' && char_array[3]=='2')
+    l = 22;
+  else if (n<l+1)
   {
     printf(" ERROR: basis invalid. n: %i l: %i \n",n,l);
     exit(1);
@@ -1386,7 +1916,7 @@ void get_n_l(string aotype, int& n, int& l)
   return;
 }
 
-void get_basis(string aname, int atnum, int Zeff, FP2* coords1, vector<vector<FP2> >& basis1, vector<vector<FP2> >& basis_aux1)
+bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vector<double> >& basis1, vector<vector<double> >& basis_aux1)
 {
   int prl = 1;
 
@@ -1395,15 +1925,14 @@ void get_basis(string aname, int atnum, int Zeff, FP2* coords1, vector<vector<FP
   bfile.open(bfilename.c_str());
   if (!bfile)
   {
-    printf(" ERROR: couldn't find %s \n",bfilename.c_str());
-    exit(1);
+    return 0;
   }
 
   string line;
   int on_basis = 0;
   while (!bfile.eof())
   {  
-    getline(bfile, line);
+    (bool)getline(bfile, line);
    //this split function is sensitive to number of spaces
     vector<string> tok_line = split1(line,' ');
 
@@ -1411,7 +1940,7 @@ void get_basis(string aname, int atnum, int Zeff, FP2* coords1, vector<vector<FP
     if (size>0)
     {
      //generic basis function centered at some XYZ
-      vector<FP2> b1; 
+      vector<double> b1; 
       for (int m=0;m<10;m++) b1.push_back(0);
       b1[5] = coords1[0]; b1[6] = coords1[1]; b1[7] = coords1[2];
       b1[8] = Zeff; b1[9] = atnum;
@@ -1422,7 +1951,8 @@ void get_basis(string aname, int atnum, int Zeff, FP2* coords1, vector<vector<FP
           on_basis = 0;
         else
         {
-          FP2 zeta = atof(tok_line[size-1].c_str());
+          double zeta = atof(tok_line[size-1].c_str());
+          if (zeta<=0.) { printf("\n ERROR: zeta cannot be zero \n"); cout << " LINE: " << line << endl; exit(-1); }
           int n,l;
           get_n_l(tok_line[0],n,l);
           if (prl>1) printf("  found n/l/zeta: %i %i %5.2f (%s) \n",n,l,zeta,tok_line[size-1].c_str());
@@ -1436,6 +1966,9 @@ void get_basis(string aname, int atnum, int Zeff, FP2* coords1, vector<vector<FP
             if (l==4) add_g(basis1,b1,n,zeta,9);
             if (l==5) add_h(basis1,b1,n,zeta,11);
             //if (l==6) add_i(basis1,b1,n,zeta,13);
+
+           //add just dz2 function
+            if (l==22) add_dz2(basis1,b1,n,zeta);
           }
           else if (on_basis==2)
           {
@@ -1465,10 +1998,12 @@ void get_basis(string aname, int atnum, int Zeff, FP2* coords1, vector<vector<FP
 
   bfile.close();
 
+  return 1;
 }
 
 string get_aname(int Z)
 {
+  if (Z==0) return "X";
   if (Z==1) return "H";
   if (Z==2) return "He";
   if (Z==3) return "Li";
@@ -1552,13 +2087,43 @@ int is_valid_atom(string atname)
   return 0;
 }
 
-int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& basis_aux, int& charge, int& nup, int* atno, FP2* &coords)
+bool get_secondary_basis(string name, int natoms, int* atno, double* coords, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int prl)
+{
+  if (prl>0)
+    printf(" reading secondary basis set \n");
+  //vector<vector<double> > basis_aux;
+
+  double coords1[3];
+  for (int i=0;i<natoms;i++)
+  {
+    double atno1 = atno[i];
+    string aname = get_aname(atno1)+name;
+    coords1[0] = coords[3*i+0]; 
+    coords1[1] = coords[3*i+1]; 
+    coords1[2] = coords[3*i+2]; 
+
+    bool found = get_basis(aname,i,atno1,coords1,basis,basis_aux);
+    if (!found)
+    {
+      printf(" no secondary basis found for element %s \n",aname.c_str());
+      return 0;
+    }
+  }
+
+  //printf("  found %2i basis functions and %2i auxiliary functions \n",basis.size(),basis_aux.size());
+  print_basis(natoms,basis,basis_aux,prl);
+ 
+  return 1;
+}
+
+
+int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int& charge, int& nup, int* atno, double* &coords)
 {
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
   {
-    printf("   couldn't open file: %s \n",filename.c_str());
+    printf("  couldn't open file: %s \n",filename.c_str());
     return 0;
   }
 
@@ -1569,7 +2134,7 @@ int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector
   charge = 0;
   while (!infile.eof())
   {  
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
 
     //cout << " 1READ: " << line << endl;
@@ -1587,7 +2152,7 @@ int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector
       else if (nup==5) nup = 2;
       else if (nup==2 || nup==4) 
       {
-        printf(" ERROR: FP2t/quartet not available \n");
+        printf(" ERROR: doublet/quartet not available \n");
         exit(1);
       }
       else if (nup>5)
@@ -1602,11 +2167,11 @@ int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector
   }
   infile.clear(); infile.seekg(0);
 
-  coords = new FP2[3*natoms]();
+  coords = new double[3*natoms]();
   int wa = 0;
   while (!infile.eof())
   {  
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
 
     //cout << " 2READ: " << line << endl;
@@ -1615,47 +2180,506 @@ int read_input(string filename, bool gbasis, vector<vector<FP2> >& basis, vector
       string tkl0 = tok_line[0];
       if (tkl0=="X")
       {
-       //dummy atom with an integer charge
-        int Zeff = atoi(tok_line[4].c_str());
-        atno[wa] = Zeff;
+       //dummy atom with (an integer) charge
+        double Zeff = 0;
+        if (tok_line.size()>4)
+          Zeff = atof(tok_line[4].c_str());
+        atno[wa] = 0;
+        //atno[wa] = Zeff; //was this
         coords[3*wa+0] = atof(tok_line[1].c_str());
         coords[3*wa+1] = atof(tok_line[2].c_str());
         coords[3*wa+2] = atof(tok_line[3].c_str());
+        if (geom_in_ang) { coords[3*wa+0] *= A2B;  coords[3*wa+1] *= A2B; coords[3*wa+2] *= A2B; }
+        if (!gbasis && Zeff==0) get_basis(tkl0,wa,Zeff,&coords[3*wa],basis,basis_aux);
         wa++;
       }
       else if (is_valid_atom(tkl0))
       {
-        int Zeff = get_Z(tkl0);
+        double Zeff = get_Z(tkl0);
         atno[wa] = Zeff;
+        if (tok_line.size()>4)
+          Zeff = atof(tok_line[4].c_str());
+        if (Zeff==0.) Zeff = atno[wa];
+
         coords[3*wa+0] = atof(tok_line[1].c_str());
         coords[3*wa+1] = atof(tok_line[2].c_str());
         coords[3*wa+2] = atof(tok_line[3].c_str());
         if (geom_in_ang) { coords[3*wa+0] *= A2B;  coords[3*wa+1] *= A2B; coords[3*wa+2] *= A2B; }
         //printf(" coords[%i]: %8.5f %8.5f %8.5f \n",wa,coords[3*wa+0],coords[3*wa+1],coords[3*wa+2]);
-        if (!gbasis) get_basis(tkl0,wa,Zeff,&coords[3*wa],basis,basis_aux);
+        if (!gbasis)
+        {
+          bool found = get_basis(tkl0,wa,Zeff,&coords[3*wa],basis,basis_aux);
+          if (!found)
+          {
+            printf("\n ERROR: could not find basis for %s \n",tkl0.c_str());
+            exit(-1);
+          }
+        }
         wa++;
       }
     }
   }
 
+ #if GEOM_DEBUG
+  {
+    double coordn[3*natoms];
+    double rot[9];
+    double PI = 3.141592653;
+
+    for (int j=0;j<9;j++) rot[j] = 0.;
+    double angle_1 = randomf(0,PI);
+   //xz
+    rot[0] = cos(angle_1);
+    rot[2] = -sin(angle_1);
+    rot[4] = 1.;
+    rot[6] = sin(angle_1);
+    rot[8] = cos(angle_1);
+
+    for (int i=0;i<natoms;i++)
+    for (int j=0;j<3;j++)
+    {
+      double tr = 0.;
+      for (int k=0;k<3;k++)
+        tr += coords[i*natoms+k] * rot[k*3+j];
+      coordn[i*natoms+j] = tr;
+    }
+
+    
+    for (int j=0;j<9;j++) rot[j] = 0.;
+    double angle_2 = randomf(0,PI);
+   //xy
+    rot[0] = cos(angle_2);
+    rot[1] = -sin(angle_2);
+    rot[3] = sin(angle_2);
+    rot[4] = cos(angle_2);
+    rot[8] = 1.;
+
+    for (int i=0;i<natoms;i++)
+    for (int j=0;j<3;j++)
+    {
+      double tr = 0.;
+      for (int k=0;k<3;k++)
+        tr += coordn[i*natoms+k] * rot[k*3+j];
+      coords[i*natoms+j] = tr;
+    }
+
+    for (int n=0;n<basis.size();n++)
+    {
+      int n1 = basis[n][9];
+      basis[n][5] = coords[3*n1+0];
+      basis[n][6] = coords[3*n1+1];
+      basis[n][7] = coords[3*n1+2];
+    }
+  }
+
+ #endif
+
   return natoms;
 }
 
-int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& basis_aux, int* atno, FP2* &coords, int& charge, int& unpaired, FP2& Enn, int prl)
+void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int prl)
+{
+  if (prl<0) return;
+
+  int N = basis.size();
+  printf("  found %2i atoms and %2i basis functions \n",natoms,N);
+  //if (prl>0)
+  if (prl>-1)
+  {
+    for (int n=0;n<N;n++)
+      printf("   basis(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f Z: %3.2f) \n",n,(int)basis[n][0],(int)basis[n][1],(int)basis[n][2],basis[n][3],basis[n][4],basis[n][5],basis[n][6],basis[n][7],basis[n][8]);
+  }
+
+  int Naux = basis_aux.size();
+  printf("  found %2i auxiliary basis functions \n",Naux);
+#if DDEBUG || FDEBUG || GDEBUG
+  if (prl>-1 && Naux<250)
+#else
+  if (prl>1)
+#endif
+  {
+    for (int n=0;n<Naux;n++)
+      printf("   basis_aux(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis_aux[n][0],(int)basis_aux[n][1],(int)basis_aux[n][2],basis_aux[n][3],basis_aux[n][4],basis_aux[n][5],basis_aux[n][6],basis_aux[n][7]);
+  }
+
+}
+
+bool check_valid_basis(int n1, int l1)
+{
+ //based on currently programmed AO types
+  if (n1>12) return 0;
+  if (l1==1 && n1>9) return 0;
+  if (l1==2 && n1>7) return 0;
+  if (l1==3 && n1>6) return 0;
+  if (l1==4 && n1>5) return 0;
+  if (l1==5 && n1>6) return 0;
+  if (l1>=6) return 0;
+
+  return 1;
+}
+
+int get_n12(int n1, int n2, int l1, int l2)
+{
+  int nr1 = n1-1;
+  int nr2 = n2-1;
+  //int nr1 = n1-l1-1;
+  //int nr2 = n2-l2-1;
+  return 1+nr1+nr2;
+}
+
+void screen_basis_aux(vector<vector<double> >& basis_aux, int prl)
+{
+  vector<vector<double> > basis1;
+  for (int j=0;j<basis_aux.size();j++)
+  {
+    vector<double> ao1;
+   //atom # first for sorting purposes
+    ao1.push_back(basis_aux[j][9]);
+    for (int k=0;k<9;k++)
+      ao1.push_back(basis_aux[j][k]);
+
+    basis1.push_back(ao1);
+  }
+
+  sort(basis1.begin(),basis1.end());
+  basis1.erase(unique(basis1.begin(),basis1.end()), basis1.end());
+
+  for (int j=0;j<basis1.size();j++)
+  {
+    vector<double> ao1;
+   //restore regular order
+    for (int k=0;k<9;k++)
+      ao1.push_back(basis1[j][k+1]);
+    ao1.push_back(basis1[j][0]);
+    basis1[j] = ao1;
+  }
+
+  int N = basis1.size();
+
+  int Nkeep = N;
+  bool keep[N];
+  for (int i1=0;i1<N;i1++) keep[i1] = 1;
+
+  const float thresh = 0.05; //% minimum difference
+  for (int i1=0;i1<N-1;i1++)
+  {
+    vector<double> ao1 = basis1[i1];
+    vector<double> ao2 = basis1[i1+1];
+
+    int at1 = ao1[9]; int at2 = ao2[9];
+    if (at1==at2)
+    {
+      int n1 = ao1[0]; int n2 = ao2[0];
+      int l1 = ao1[1]; int l2 = ao2[1];
+      int m1 = ao1[2]; int m2 = ao2[2];
+
+      if (n1==n2 && l1==l2 && m1==m2)
+      {
+        float zt1 = ao1[3]; float zt2 = ao2[3];
+        if (fabs(zt2/zt1-1.f) < thresh)
+        {
+          if (prl>2)
+            printf("   screening aux: %i %i %2i  zt: %8.5f %8.5f \n",n1,l1,m1,zt1,zt2);
+          keep[i1] = 0;
+          Nkeep--;
+        }
+      }
+    }
+  }
+
+  if (prl>0)
+    printf("   screen basis aux. N: %2i --> %2i \n",basis_aux.size(),Nkeep);
+
+  basis_aux.clear();
+  for (int j=0;j<N;j++)
+  if (keep[j])
+    basis_aux.push_back(basis1[j]);
+
+  return;
+}
+
+#if 0
+int get_bsize(int n1, int l1, int n2, int l2, int bs1, int bs2)
+{
+  int bsize = 1;
+  if (l1==0 && l2==0) //s ftns
+  {
+    bsize = 8;
+  }
+  if (l1+l2==1) //p ftns
+    bsize = 6;
+  if (l2==2)
+  {
+    if (bs12
+    bsize = 1;
+    bsize = 4;
+  }
+}
+#endif
+
+int get_bsize(double ztmin, double ztmax)
+{
+  //double dz = ztmax-ztmin;
+  double dd = ztmax/ztmin;
+
+ //wider zeta range, more ftns
+  if (dd>4.8) return 6;
+  if (dd>3.8) return 5;
+  if (dd>2.8) return 4;
+  if (dd>1.8) return 3;
+  if (dd>1.) return 2;
+
+ //dd==1.
+  return 1;
+}
+
+void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+{
+  if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
+
+  vector<vector<double> > basis_max;
+  vector<vector<double> > basis_min;
+  vector<int> basis_size;
+
+ //gather basis set, skipping m sequence
+ //taking only the min and max values of zeta
+  for (int a=0;a<natoms;a++)
+  for (int n=1;n<10;n++)
+  for (int l=0;l<6;l++)
+  {
+    double ztmin = 1000.; int minz = -1;
+    double ztmax = 0.;    int maxz = -1;
+    int bsize = 0;
+
+   //find basis ftns with specific nl(m=0)
+    for (int i1=0;i1<basis_std.size();i1++)
+    if (basis_std[i1][9]==a && basis_std[i1][0]==n && basis_std[i1][1]==l && basis_std[i1][2]==0)
+    {
+      double zt1 = basis_std[i1][3];
+      if (zt1<ztmin) { ztmin = zt1; minz = i1; }
+      if (zt1>ztmax) { ztmax = zt1; maxz = i1; }
+      bsize++;
+    }
+    if (minz!=-1 && maxz!=-1 && l!=5)
+    {
+      basis_min.push_back(basis_std[minz]);
+      basis_max.push_back(basis_std[maxz]);
+      basis_size.push_back(bsize);
+    }
+    else if (minz!=-1 && l==5)
+    {
+      printf("\n WARNING: H functions in standard basis not supported by RI==3 \n");
+      exit(-1);
+    }
+  }
+
+ //using the truncated, no m basis
+  int N = basis_max.size();
+
+  int lmax = 0;
+  for (int n=0;n<natoms;n++)
+  for (int i1=0;i1<N;i1++)
+  if (basis_max[i1][9]==n)
+  {
+    vector<double> basis1 = basis_min[i1];
+    vector<double> basis2 = basis_max[i1];
+    int bs1 = basis_size[i1];
+
+    int n1 = basis1[0]; int l1 = basis1[1]; double zt1 = basis1[3];
+    int n2 = basis2[0]; int l2 = basis2[1]; double zt2 = basis2[3];
+
+    for (int i2=0;i2<=i1;i2++)
+    if (basis_max[i2][9]==n)
+    {
+      vector<double> basis3 = basis_min[i2];
+      vector<double> basis4 = basis_max[i2];
+      int bs2 = basis_size[i2];
+
+      int n3 = basis3[0]; int l3 = basis3[1]; double zt3 = basis3[3];
+      int n4 = basis4[0]; int l4 = basis4[1]; double zt4 = basis4[3];
+
+      int n13 = get_n12(n1,n3,l1,l3);
+      int l13 = l1+l3;
+      double zt13 = zt1+zt3;
+      double zt24 = zt2+zt4;
+
+      int n24 = get_n12(n2,n4,l2,l4); 
+      int l24 = l2+l4;
+
+      int nmax = get_bsize(zt13,zt24);
+      if (l24>=4 && nmax>2) nmax--; //trimming
+
+      double zf = zt24/zt13;
+      double B = 1;
+      if (nmax>1) B = exp(log(zf)/(nmax-1));
+      for (int ns=0;ns<nmax;ns++)
+      {
+        double ztn = zt13*pow(B,ns);
+        vector<double> b1 = basis1;
+        b1[0] = n13; b1[1] = l13; b1[3] = ztn;
+
+        bool valid_basis = check_valid_basis(n13,l13);
+        if (valid_basis)
+        {
+          //if (n==0)
+          //  printf("  nl: %i %i / %i %i  zt: %8.5f \n",n13,l13,n24,l24,ztn);
+          for (int m=-l13;m<=l13;m++)
+          {
+            b1[2] = m;
+            b1[4] = norm(n13,l13,m,ztn);
+            basis_aux.push_back(b1);
+          }
+        }
+
+        if (valid_basis && l13>lmax) lmax = l13;
+
+      } //adding ftns
+
+    } //pairs of ftns on same atom
+  } //loop n
+
+  //screen_basis_aux(basis_aux,1);
+  printf("  lmax in auxiliary basis: %i \n",lmax);
+
+  if (basis_aux.size()<1) printf(" WARNING: didn't find any auxiliary basis ftns \n");
+
+  return;
+}
+
+void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+{
+  if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
+
+  vector<vector<double> > basis;
+
+ //gather basis set, skipping m sequence
+  int natp = basis_std[0][9]; int np = basis_std[0][0]; int lp = basis_std[0][1]; double zetap = basis_std[0][3];
+  basis.push_back(basis_std[0]);
+  for (int i1=1;i1<basis_std.size();i1++)
+  {
+    vector<double> basis1 = basis_std[i1]; 
+    int nat1 = basis1[9]; int n1 = basis1[0]; int l1 = basis1[1]; double zeta1 = basis1[3];
+ 
+    if (fabs(zeta1-zetap)>0.01 || n1!=np || l1!=lp || nat1!=natp)
+    {
+      zetap = zeta1; natp = nat1; np = n1; lp = l1;
+      basis.push_back(basis1);
+    }
+  }
+
+ //using the truncated, no m basis
+  int N = basis.size();
+
+  int lmax = 0;
+  for (int n=0;n<natoms;n++)
+  {
+    for (int i1=0;i1<N;i1++)
+    {
+      vector<double> basis1 = basis[i1];
+
+      if (basis1[9]==n)
+      {
+        vector<double> b1 = basis1; int n1 = basis1[0]; int l1 = basis1[1]; double zeta1 = basis1[3];
+        for (int i2=0;i2<=i1;i2++)
+        {
+          vector<double> basis2 = basis[i2]; int n2 = basis2[0]; int l2 = basis2[1]; double zeta2 = basis2[3];
+
+          if (basis2[9]==n) //both basis ftns on same atom
+          {
+            int n12 = get_n12(n1,n2,l1,l2);
+            int l12 = l1+l2;
+            double z12 = zeta1+zeta2;
+            b1[0] = n12;
+            b1[1] = l12;
+            b1[3] = z12;
+
+
+            bool valid_basis = check_valid_basis(n12,l12);
+            if (valid_basis)
+            {
+              for (int m=-l12;m<=l12;m++)
+              {
+                b1[2] = m;
+                b1[4] = norm(n12,l12,m,z12);
+                basis_aux.push_back(b1);
+              }
+            }
+
+            if (valid_basis && l12>lmax) lmax = l12;
+
+          } //basis on same atom
+        } //pairs of ftns
+      } //basis on atom n
+    } //loop i1
+  } //loop n
+
+  screen_basis_aux(basis_aux,1);
+  printf("  lmax in auxiliary basis: %i \n",lmax);
+
+  if (basis_aux.size()<1) printf(" WARNING: didn't find any auxiliary basis ftns \n");
+
+  return;
+}
+
+//puts first atom at 0.,0.,0.
+void set_zero_coords_basis(int natoms, double* coords, vector<vector<double> >& basis, vector<vector<double> >& basis_aux)
+{
+  double A1 = coords[0]; double B1 = coords[1]; double C1 = coords[2];
+  if (A1==0. && B1==0. && C1==0.)
+    return;
+
+  for (int n=0;n<natoms;n++)
+  {
+    coords[3*n+0] -= A1;
+    coords[3*n+1] -= B1;
+    coords[3*n+2] -= C1;
+  }
+
+  int N = basis.size();
+  for (int j=0;j<N;j++)
+  {
+    basis[j][5] -= A1;
+    basis[j][6] -= B1;
+    basis[j][7] -= C1;
+  }
+
+  int Naux = basis_aux.size();
+  for (int j=0;j<Naux;j++)
+  {
+    basis_aux[j][5] -= A1;
+    basis_aux[j][6] -= B1;
+    basis_aux[j][7] -= C1;
+  }
+
+  return;
+}
+
+int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int* atno, double* &coords, int& charge, int& unpaired, double& Enn, int prl)
 {
   //int prl = 1;
 
   //int charge = 0;
-  //FP2* coords;
+  //double* coords;
   //int* atno = new int[100]();
 
-  //vector<vector<FP2> > basis;
-  //vector<vector<FP2> > basis_aux;
+  //vector<vector<double> > basis;
+  //vector<vector<double> > basis_aux;
 
   string geomfile = "GEOM";
   int natoms = read_input(geomfile,gbasis,basis,basis_aux,charge,unpaired,atno,coords);
+  //void set_zero_coords_basis(int natoms, double* coords, vector<vector<double> >& basis, vector<vector<double> >& basis_aux)
 
-  if (prl>0)
+  bool do_ps_integrals = read_int("PS");
+  if (!do_ps_integrals) do_ps_integrals = read_int("QUAD");
+  if (do_ps_integrals)
+    set_zero_coords_basis(natoms,coords,basis,basis_aux);
+
+  if (natoms<1)
+  {
+    printf("\n  no geometry found \n"); exit(1);
+  }
+
+  if (prl>-1)
   {
     printf("  Geometry: \n");
     for (int m=0;m<natoms;m++)
@@ -1667,26 +2691,20 @@ int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& b
 
   if (gbasis) return natoms;
 
-  int N = basis.size();
-  printf("  found %2i atoms and %2i basis functions \n",natoms,N);
-  prl = 1;
-  if (prl>0)
+  int auto_ri = read_ri();
+
+  if (auto_ri>=2)
   {
-    for (int n=0;n<N;n++)
-      printf("   basis(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis[n][0],(int)basis[n][1],(int)basis[n][2],basis[n][3],basis[n][4],basis[n][5],basis[n][6],basis[n][7]);
+    basis_aux.clear();
+    if (auto_ri==3)
+      create_basis_aux_v3(natoms,basis,basis_aux);
+    else
+      create_basis_aux(natoms,basis,basis_aux);
+    prl++;
   }
 
-  int Naux = basis_aux.size();
-  printf("  found %2i auxiliary basis functions \n",Naux);
-#if DDEBUG || FDEBUG || GDEBUG
-  if (prl>0 && Naux<250)
-#else
-  if ((prl>0 && Naux<20) || prl>1)
-#endif
-  {
-    for (int n=0;n<Naux;n++)
-      printf("   basis_aux(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis_aux[n][0],(int)basis_aux[n][1],(int)basis_aux[n][2],basis_aux[n][3],basis_aux[n][4],basis_aux[n][5],basis_aux[n][6],basis_aux[n][7]);
-  }
+  print_basis(natoms,basis,basis_aux,prl);
 
   return natoms;
 }
+
