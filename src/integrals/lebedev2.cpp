@@ -6923,3 +6923,46 @@ void xyz_to_tp ( double x, double y, double z, double *t, double *p )
 
   return;
 }
+
+int get_npts_from_order(int order)
+{
+ //need to mesh this with above
+  switch(order)
+  {
+    case 1: return 6;
+    case 2: return 14;
+    case 3: return 26;
+    case 4: return 38;
+    case 5: return 50;
+    case 6: return 74;
+    case 7: return 86;
+    case 8: return 110;
+    case 9: return 146;
+    case 10: return 170;
+    case 11: return 194;
+    case 12: return 230;
+    case 13: return 266;
+    case 14: return 302;
+    case 15: return 350;
+    case 16: return 434;
+    case 17: return 590;
+    case 18: return 770;
+    case 19: return 974;
+    case 20: return 1202;
+    case 21: return 1454;
+    case 22: return 1730;
+    case 23: return 2030;
+    case 24: return 2354;
+    case 25: return 2702;
+    case 26: return 3074;
+    case 27: return 3470;
+    case 28: return 3890;
+    case 29: return 4334;
+    case 30: return 4802;
+    case 31: return 5294;
+    case 32: return 5810;
+    default:
+      printf(" ERROR: grid of order %2i does not exist \n",order);
+  }
+  return 0;
+}
