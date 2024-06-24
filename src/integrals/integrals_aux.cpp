@@ -1,0 +1,1272 @@
+#include "integrals.h"
+
+
+void auto_crash()
+{
+  //return;
+
+ //debug: what is on devices?
+  int nang = 100;
+  double* ang_t = new double[nang];
+
+ //#pragma acc exit data delete(ang_t[0:nang])
+ #pragma acc parallel loop present(ang_t[0:nang])
+  for (int j=0;j<2;j++)
+    printf(" debug: %8.5f \n",ang_t[j]);
+
+  delete [] ang_t;
+  return;
+}
+
+void print_array(int size, float* vec)
+{
+  for (int i=0;i<size;i++)
+    printf(" %6.3e",vec[i]);
+  printf("\n");
+}
+
+void clean_small_values(int N, float* S)
+{
+  int N2 = N*N;
+ #pragma acc parallel loop independent present(S[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+  if (fabs(S[i*N+j])<CL_THRESH)
+    S[i*N+j] = S[j*N+i] = 0.;
+}
+
+void clean_small_values(int N, double* S)
+{
+  int N2 = N*N;
+ #pragma acc parallel loop independent present(S[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+  if (fabs(S[i*N+j])<CL_THRESH)
+    S[i*N+j] = S[j*N+i] = 0.;
+}
+
+void acc_assign(int size, float* vec, float v1)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(vec[0:size])
+#endif
+  for (int j=0;j<size;j++)
+    vec[j] = v1;
+}
+
+void acc_assign(int size, double* vec, double v1)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(vec[0:size])
+#endif
+  for (int j=0;j<size;j++)
+    vec[j] = v1;
+}
+
+void acc_assign(int size, float* vec1, float* vec2, float v1)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(vec1[0:size],vec2[0:size])
+#endif
+  for (int j=0;j<size;j++)
+    vec1[j] = vec2[j] = v1;
+}
+
+void acc_assign(int size, float* vec1, float* vec2, float* vec3, float v1)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(vec1[0:size],vec2[0:size],vec3[0:size])
+#endif
+  for (int j=0;j<size;j++)
+    vec1[j] = vec2[j] = vec3[j] = v1;
+}
+
+float acc_sum(int size, float* vec)
+{
+  float sum = 0.;
+#if USE_ACC
+ #pragma acc parallel loop present(vec[0:size]) reduction(+:sum)
+#endif
+  for (int i=0;i<size;i++)
+    sum += vec[i];
+
+  return sum;
+}
+
+void acc_copy(int tid, int size, double* v1, double* v2)
+{
+ #if USE_ACC
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid)
+ #endif
+  for (int i=0;i<size;i++)
+    v1[i] = v2[i];
+
+  return;
+}
+
+void acc_copy(int size, double* v1, double* v2)
+{
+ #if USE_ACC
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid)
+ #endif
+  for (int i=0;i<size;i++)
+    v1[i] = v2[i];
+
+  return;
+}
+
+void acc_copyf(int tid, int size, float* v1, float* v2)
+{
+ #if USE_ACC
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid)
+ #endif
+  for (int i=0;i<size;i++)
+    v1[i] = v2[i];
+
+  return;
+}
+
+void acc_copyf(int size, float* v1, float* v2)
+{
+ #if USE_ACC
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size])
+ #endif
+  for (int i=0;i<size;i++)
+    v1[i] = v2[i];
+
+  return;
+}
+
+void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4)
+{
+ #if USE_ACC
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size],v3[0:size],v4[0:size])
+ #endif
+  for (int i=0;i<size;i++)
+  {
+    v1[i] = v2[i];
+    v3[i] = v4[i];
+  }
+
+  return;
+}
+
+void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4, float* v5, float* v6)
+{
+ #if USE_ACC
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size],v3[0:size],v4[0:size],v5[0:size],v6[0:size])
+ #endif
+  for (int i=0;i<size;i++)
+  {
+    v1[i] = v2[i];
+    v3[i] = v4[i];
+    v5[i] = v6[i];
+  }
+
+  return;
+}
+
+void eliminate_small_wt_3(int size, float* wt1, float* wt2, float* wt3)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(wt1[0:size],wt2[0:size],wt3[0:size])
+#endif
+  for (int i=0;i<size;i++) 
+  {
+    if (wt1[i]<WT_THRESH)
+      wt1[i] = 0.;
+    if (wt2[i]<WT_THRESH)
+      wt2[i] = 0.;
+    if (wt3[i]<WT_THRESH)
+      wt3[i] = 0.;
+  }
+
+}
+
+void eliminate_small_wt_3(int s1, int size, float* wt1, float* wt2, float* wt3)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(wt1[0:size],wt2[0:size],wt3[0:size])
+#endif
+  for (int i=s1;i<size;i++) 
+  {
+    if (wt1[i]<WT_THRESH_D)
+      wt1[i] = 0.;
+    if (wt2[i]<WT_THRESH_D)
+      wt2[i] = 0.;
+    if (wt3[i]<WT_THRESH_D)
+      wt3[i] = 0.;
+  }
+
+}
+
+void eliminate_small_wt(int size, float* wt1)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(wt1[0:size])
+#endif
+  for (int i=0;i<size;i++) 
+  if (wt1[i]<WT_THRESH)
+  {
+    //printf(" small wt: %12.10f \n",wt1[i]);
+    wt1[i] = 0.;
+  }
+
+}
+
+void eliminate_small_wt(int s1, int size, float* wt1)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(wt1[0:size])
+#endif
+  for (int i=s1;i<size;i++) 
+  if (wt1[i]<WT_THRESH_D)
+  {
+    //printf(" small wt: %12.10f \n",wt1[i]);
+    wt1[i] = 0.;
+  }
+
+}
+
+void copy_grid(int gs, float* grid1, float* grid2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid1[6*i+0] = grid2[6*i+0];
+    grid1[6*i+1] = grid2[6*i+1];
+    grid1[6*i+2] = grid2[6*i+2];
+    grid1[6*i+3] = grid2[6*i+3];
+  }
+
+  return;
+}
+
+void copy_grid(int gs, double* grid1, double* grid2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid1[6*i+0] = grid2[6*i+0];
+    grid1[6*i+1] = grid2[6*i+1];
+    grid1[6*i+2] = grid2[6*i+2];
+    grid1[6*i+3] = grid2[6*i+3];
+  }
+
+  return;
+}
+
+void copy_grid(int gs, float* grid1, float* wt1, float* grid2, float* wt2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs],grid2[0:6*gs],wt2[0:gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid2[6*i+0] = grid1[6*i+0];
+    grid2[6*i+1] = grid1[6*i+1];
+    grid2[6*i+2] = grid1[6*i+2];
+    grid2[6*i+3] = grid1[6*i+3];
+    wt2[i] = wt1[i];
+  }
+
+  return;
+}
+
+
+void recenter_grid_zero(int gs, float* grid, float x2, float y2, float z2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid[6*i+0] += x2;
+    grid[6*i+1] += y2;
+    grid[6*i+2] += z2;
+    float xn = grid[6*i+0];
+    float yn = grid[6*i+1];
+    float zn = grid[6*i+2];
+
+    float r1 = sqrtf(xn*xn+yn*yn+zn*zn);
+    grid[6*i+3] = r1;
+  }
+
+  return;
+}
+
+void recenter_grid_zero(int gs, double* grid, double x2, double y2, double z2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid[6*i+0] += x2;
+    grid[6*i+1] += y2;
+    grid[6*i+2] += z2;
+    double xn = grid[6*i+0];
+    double yn = grid[6*i+1];
+    double zn = grid[6*i+2];
+
+    double r1 = sqrt(xn*xn+yn*yn+zn*zn);
+    grid[6*i+3] = r1;
+  }
+
+  return;
+}
+
+void recenter_grid(int gs, float* grid, float x2, float y2, float z2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid[6*i+0] += x2;
+    grid[6*i+1] += y2;
+    grid[6*i+2] += z2;
+    float xn = grid[6*i+0];
+    float yn = grid[6*i+1];
+    float zn = grid[6*i+2];
+
+   //distance to other center
+    float r2 = sqrtf(xn*xn+yn*yn+zn*zn);
+    grid[6*i+4] = r2;
+  }
+
+  return;
+}
+
+void recenter_grid(int gs, double* grid, double x2, double y2, double z2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid[6*i+0] += x2;
+    grid[6*i+1] += y2;
+    grid[6*i+2] += z2;
+    double xn = grid[6*i+0];
+    double yn = grid[6*i+1];
+    double zn = grid[6*i+2];
+
+   //distance to other center
+    double r2 = sqrt(xn*xn+yn*yn+zn*zn);
+    grid[6*i+4] = r2;
+  }
+
+  return;
+}
+
+void recenter_grid_exp(int gs, float* grid, float* wt, float* val, float x2, float y2, float z2, float zeta2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid[6*i+0] += x2;
+    grid[6*i+1] += y2;
+    grid[6*i+2] += z2;
+    float xn = grid[6*i+0];
+    float yn = grid[6*i+1];
+    float zn = grid[6*i+2];
+    float r2 = grid[6*i+3];
+
+    float r1 = sqrtf(xn*xn+yn*yn+zn*zn);
+    float er2 = expf(-zeta2*r2);
+
+   //distance to first center
+    grid[6*i+4] = r1;
+    //wt[i] *= er2;
+    val[i] = er2;
+  }
+
+  return;
+}
+
+void add_r123_to_grid(int gs, float* grid1, float A1, float B1, float C1, float A2, float B2, float C2, float A3, float B3, float C3)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    float x = grid1[6*i+0];
+    float y = grid1[6*i+1];
+    float z = grid1[6*i+2];
+    float x1 = x-A1; float y1 = y-B1; float z1 = z-C1;
+    float x2 = x-A2; float y2 = y-B2; float z2 = z-C2;
+    float x3 = x-A3; float y3 = y-B3; float z3 = z-C3;
+    float r1 = sqrtf(x1*x1+y1*y1+z1*z1);
+    float r2 = sqrtf(x2*x2+y2*y2+z2*z2);
+    float r3 = sqrtf(x3*x3+y3*y3+z3*z3);
+    grid1[6*i+3] = r1;
+    grid1[6*i+4] = r2;
+    grid1[6*i+5] = r3;
+  }
+
+  return;
+}
+
+void add_r1_to_grid_6z(int gs, float* grid1, float* grid2, float* grid3, float* grid4, float* grid5, float* grid6)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs],grid3[0:6*gs],grid4[0:6*gs],grid5[0:6*gs],grid6[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    float x1 = grid1[6*i+0]; float y1 = grid1[6*i+1]; float z1 = grid1[6*i+2];
+    float r1 = sqrtf(x1*x1+y1*y1+z1*z1);
+    grid1[6*i+3] = r1;
+
+    float x2 = grid2[6*i+0]; float y2 = grid2[6*i+1]; float z2 = grid2[6*i+2];
+    float r2 = sqrtf(x2*x2+y2*y2+z2*z2);
+    grid2[6*i+3] = r2;
+
+    float x3 = grid3[6*i+0]; float y3 = grid3[6*i+1]; float z3 = grid3[6*i+2];
+    float r3 = sqrtf(x3*x3+y3*y3+z3*z3);
+    grid3[6*i+3] = r3;
+
+    float x4 = grid4[6*i+0]; float y4 = grid4[6*i+1]; float z4 = grid4[6*i+2];
+    float r4 = sqrtf(x4*x4+y4*y4+z4*z4);
+    grid4[6*i+3] = r4;
+
+    float x5 = grid5[6*i+0]; float y5 = grid5[6*i+1]; float z5 = grid5[6*i+2];
+    float r5 = sqrtf(x5*x5+y5*y5+z5*z5);
+    grid5[6*i+3] = r5;
+
+    float x6 = grid6[6*i+0]; float y6 = grid6[6*i+1]; float z6 = grid6[6*i+2];
+    float r6 = sqrtf(x6*x6+y6*y6+z6*z6);
+    grid6[6*i+3] = r6;
+  }
+
+  return;
+}
+
+void add_r1_to_grid(int gs, float* grid1, float A2, float B2, float C2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    float x1 = grid1[6*i+0];
+    float y1 = grid1[6*i+1];
+    float z1 = grid1[6*i+2];
+    float x12 = x1-A2;
+    float y12 = y1-B2;
+    float z12 = z1-C2;
+    float r2 = sqrtf(x12*x12+y12*y12+z12*z12);
+    grid1[6*i+3] = r2;
+  }
+
+  return;
+}
+
+void add_r1_to_grid(int gs, double* grid1, double A2, double B2, double C2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x1 = grid1[6*i+0];
+    double y1 = grid1[6*i+1];
+    double z1 = grid1[6*i+2];
+    double x12 = x1-A2;
+    double y12 = y1-B2;
+    double z12 = z1-C2;
+    double r2 = sqrt(x12*x12+y12*y12+z12*z12);
+    grid1[6*i+3] = r2;
+  }
+
+  return;
+}
+
+void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    float x1 = grid1[6*i+0];
+    float y1 = grid1[6*i+1];
+    float z1 = grid1[6*i+2];
+    float x12 = x1-A2;
+    float y12 = y1-B2;
+    float z12 = z1-C2;
+    float r2 = sqrtf(x12*x12+y12*y12+z12*z12);
+    grid1[6*i+4] = r2;
+  }
+
+  return;
+}
+
+void add_r2_to_grid(int gs, double* grid1, double A2, double B2, double C2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x1 = grid1[6*i+0];
+    double y1 = grid1[6*i+1];
+    double z1 = grid1[6*i+2];
+    double x12 = x1-A2;
+    double y12 = y1-B2;
+    double z12 = z1-C2;
+    double r2 = sqrt(x12*x12+y12*y12+z12*z12);
+    grid1[6*i+4] = r2;
+  }
+
+  return;
+}
+
+void add_r3_to_grid(int gs, float* grid1, float A3, float B3, float C3)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs])
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    float x1 = grid1[6*i+0];
+    float y1 = grid1[6*i+1];
+    float z1 = grid1[6*i+2];
+    float x13 = x1-A3;
+    float y13 = y1-B3;
+    float z13 = z1-C3;
+    float r3 = sqrtf(x13*x13+y13*y13+z13*z13);
+    grid1[6*i+5] = r3;
+  }
+
+  return;
+}
+
+int find_center_of_grid(float Z1, int nrad)
+{
+  float* r = new float[nrad];
+  float* w = new float[nrad];
+
+ #if USE_ACC
+  #pragma acc enter data create(r[0:nrad],w[0:nrad])
+ #endif
+
+  get_murak_grid_f(nrad,r,w,Z1,3);
+
+  int s1 = 0;
+#if USE_ACC
+ #pragma acc parallel loop present(w[0:nrad])
+#endif
+  for (int i=0;i<nrad;i++)
+  if (w[i]<WT_THRESH_D)
+    s1 = i; 
+  s1++;
+
+  //printf(" s1: %2i \n",s1);
+
+  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
+
+  return s1;
+}
+
+void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
+{
+  double* r = new double[nrad];
+  double* w = new double[nrad];
+
+ #if USE_ACC
+  #pragma acc enter data create(r[0:nrad],w[0:nrad])
+ #endif
+
+  //use_murak = 1;
+ #if 0
+  printf("  in generate_central_grid_2d. use_murak: %i \n",(int)use_murak);
+  get_eumac_grid(nrad,r,w,25,1);
+ #endif
+ #if 1
+  if (use_murak)
+    get_murak_grid(nrad,r,w,Z1,3);
+  else
+  {
+    int m = 3;
+    double zeta = Z1/10.; //exponent
+    get_murak_grid_zeta(nrad,r,w,zeta,m);
+  }
+ #endif
+
+  int gs = nrad*nang;
+
+#if USE_ACC
+ #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
+#endif
+  for (int i=0;i<nrad;i++)
+  {
+    double r1 = r[i];
+    double wr1 = w[i];
+
+  #if USE_ACC
+   #pragma acc loop independent 
+  #endif
+    for (int j=0;j<nang;j++)
+    {
+      double w1 = wr1*ang_w[j];
+
+     //grid positions
+      double x1 = r1 * ang_g[3*j+0];
+      double y1 = r1 * ang_g[3*j+1];
+      double z1 = r1 * ang_g[3*j+2];
+
+      int wg = i*nang+j;
+      grid1[6*wg+0] = x1;
+      grid1[6*wg+1] = y1;
+      grid1[6*wg+2] = z1;
+      grid1[6*wg+3] = r1;
+      grid1[6*wg+4] = r1;
+      grid1[6*wg+5] = r1;
+      wt1[wg] = w1;
+    }
+  }
+
+#if USE_ACC
+  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
+#endif
+
+  delete [] r;
+  delete [] w;
+
+  return;
+}
+
+void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w)
+{
+  float* r = new float[nrad];
+  float* w = new float[nrad];
+
+ #if USE_ACC
+  #pragma acc enter data create(r[0:nrad],w[0:nrad])
+ #endif
+
+  get_murak_grid_f(nrad,r,w,Z1,3);
+
+  int gs = nrad*nang;
+
+#if USE_ACC
+ #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
+#endif
+  for (int i=0;i<nrad;i++)
+  {
+    float r1 = r[i];
+    float wr1 = w[i];
+
+  #if USE_ACC
+   #pragma acc loop independent 
+  #endif
+    for (int j=0;j<nang;j++)
+    {
+      float w1 = wr1*ang_w[j];
+
+     //grid positions
+      float x1 = r1 * ang_g[3*j+0];
+      float y1 = r1 * ang_g[3*j+1];
+      float z1 = r1 * ang_g[3*j+2];
+
+      int wg = i*nang+j;
+      grid1[6*wg+0] = x1;
+      grid1[6*wg+1] = y1;
+      grid1[6*wg+2] = z1;
+      grid1[6*wg+3] = r1;
+      grid1[6*wg+4] = r1;
+      grid1[6*wg+5] = r1;
+      wt1[wg] = w1;
+    }
+  }
+
+#if USE_ACC
+  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
+#endif
+
+  delete [] r;
+  delete [] w;
+
+  return;
+}
+
+#if 0
+void generate_central_grid(float* grid1, float* wt1, float* val1, int need_inr, float Z1, int n1, int l1, float zeta1, int nrad, int nang, float* ang_g, float* ang_w)
+{
+  printf("\n WARNING: shouldn't be here in generate_central_grid() \n");
+
+  float* r = new float[nrad];
+  float* w = new float[nrad];
+  float* er = new float[nrad];
+  float* inr = new float[nrad];
+
+ #if DEBUG
+  printf("  generate_central_grid for: %i %i (zeta: %8.5f) \n",n1,l1,zeta1);
+ #endif
+
+ #if USE_ACC
+  #pragma acc enter data create(r[0:nrad],w[0:nrad],er[0:nrad],inr[0:nrad])
+ #endif
+
+  get_murak_grid_f(nrad,r,w,er,Z1,zeta1,3);
+  if (need_inr)
+    get_inr(n1,l1,zeta1,nrad,r,inr);
+  else
+    acc_assign(nrad,inr,0.);
+
+  int gs = nrad*nang;
+
+#if USE_ACC
+ #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],inr[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs],val1[0:gs])
+#endif
+  for (int i=0;i<nrad;i++)
+  {
+    float r1 = r[i];
+    float wr1 = w[i];
+    float inr1 = inr[i];
+ 
+  #if USE_ACC
+   #pragma acc loop independent 
+  #endif
+    for (int j=0;j<nang;j++)
+    {
+      float w1 = wr1*ang_w[j];
+
+     //grid positions
+      float x1 = r1 * ang_g[3*j+0];
+      float y1 = r1 * ang_g[3*j+1];
+      float z1 = r1 * ang_g[3*j+2];
+
+      int wg = i*nang+j;
+      grid1[6*wg+0] = x1;
+      grid1[6*wg+1] = y1;
+      grid1[6*wg+2] = z1;
+      grid1[6*wg+3] = r1;
+      grid1[6*wg+4] = r1;
+      grid1[6*wg+5] = r1;
+      wt1[wg] = w1;
+      val1[wg] = inr1;
+    }
+  }
+
+#if USE_ACC
+  #pragma acc exit data delete(r[0:nrad],w[0:nrad],er[0:nrad],inr[0:nrad])
+#endif
+
+  delete [] r;
+  delete [] w;
+  delete [] er;
+  delete [] inr;
+
+  return;
+}
+#endif
+
+void transpose_C(int Naux, int N, float* C)
+{
+  int N2 = N*N;
+  int N2a = N2*Naux;
+  int nna = N*Naux;
+
+  float* tmp = new float[N2a];
+
+  for (int i=0;i<Naux;i++) 
+  for (int j=0;j<N;j++)
+  for (int k=0;k<N;k++)
+    tmp[j*nna+k*Naux+i] = C[i*N2+j*N+k];
+
+  for (int i=0;i<N2a;i++)
+    C[i] = tmp[i];
+
+  delete [] tmp;
+
+  return;
+}
+
+void transpose_C(int Naux, int N, double* C)
+{
+  int N2 = N*N;
+  int N2a = N2*Naux;
+  int nna = N*Naux;
+
+  double* tmp = new double[N2a];
+
+  for (int i=0;i<Naux;i++) 
+  for (int j=0;j<N;j++)
+  for (int k=0;k<N;k++)
+    tmp[j*nna+k*Naux+i] = C[i*N2+j*N+k];
+
+  for (int i=0;i<N2a;i++)
+    C[i] = tmp[i];
+
+  delete [] tmp;
+
+  return;
+}
+
+void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, float* C, int type)
+{
+ //copy symmetric 2-atom terms
+  int N2 = N*N;
+
+  for (int m=0;m<natoms;m++)
+  {
+    for (int i1=0;i1<Naux;i1++) 
+    if (basis_aux[i1][9]==m)
+    {
+      for (int n=0;n<natoms;n++)
+      if (m!=n)
+      {
+       //2-atom
+        if (type==1)
+        {
+          for (int i2=0;i2<N;i2++)
+          if (basis[i2][9]==n)
+          {
+            for (int i3=0;i3<N;i3++)
+            if (basis[i3][9]==m)
+              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+          }
+        }
+        else
+        {
+          for (int i2=0;i2<N;i2++)
+          if (basis[i2][9]==m)
+          {
+            for (int i3=0;i3<N;i3++)
+            if (basis[i3][9]==n)
+              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+          }
+        }
+
+       //3-atom 
+        for (int p=n+1;p<natoms;p++)
+        if (p!=m)
+        {
+          for (int i2=0;i2<N;i2++)
+          if (basis[i2][9]==n)
+          {
+            for (int i3=0;i3<N;i3++)
+            if (basis[i3][9]==p)
+              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+          }
+        }
+
+      }
+    }
+  }
+  return;
+}
+
+void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, double* C, int type)
+{
+ //copy symmetric 2-atom terms
+  int N2 = N*N;
+
+  for (int m=0;m<natoms;m++)
+  {
+    for (int i1=0;i1<Naux;i1++) 
+    if (basis_aux[i1][9]==m)
+    {
+      for (int n=0;n<natoms;n++)
+      if (m!=n)
+      {
+       //2-atom
+        if (type==1)
+        {
+          for (int i2=0;i2<N;i2++)
+          if (basis[i2][9]==n)
+          {
+            for (int i3=0;i3<N;i3++)
+            if (basis[i3][9]==m)
+              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+          }
+        }
+        else
+        {
+          for (int i2=0;i2<N;i2++)
+          if (basis[i2][9]==m)
+          {
+            for (int i3=0;i3<N;i3++)
+            if (basis[i3][9]==n)
+              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+          }
+        }
+
+       //3-atom 
+        for (int p=n+1;p<natoms;p++)
+        if (p!=m)
+        {
+          for (int i2=0;i2<N;i2++)
+          if (basis[i2][9]==n)
+          {
+            for (int i3=0;i3<N;i3++)
+            if (basis[i3][9]==p)
+              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+          }
+        }
+
+      }
+    }
+  }
+  return;
+}
+
+void copy_symm_3c_ps(int natoms, int N, int Naux, int* n2i, int* na2i, double* C)
+{
+  int N2 = N*N;
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    int s3 = s1; int s4 = s2;
+    int s5 = 0; if (m>0) s5 = na2i[m-1];  int s6 = na2i[m];
+
+    for (int n=0;n<natoms;n++)
+    if (n!=m)
+    {
+      s3 = 0; if (n>0) s3 = n2i[n-1]; s4 = n2i[n];
+      s5 = 0; if (n>0) s5 = na2i[n-1]; s6 = na2i[n];
+
+      for (int i1=s5;i1<s6;i1++)
+      for (int i2=s1;i2<s2;i2++)
+      for (int i3=s3;i3<s4;i3++)
+        C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+
+     //nothing to do with second set
+      s3 = s1; s4 = s2;
+    }
+  }
+
+  for (int m=0;m<natoms;m++)
+  {
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+
+      for (int p=0;p<natoms;p++)
+      if (p!=m && p!=n)
+      {
+        int s5 = 0; if (p>0) s5 = na2i[p-1]; int s6 = na2i[p];
+
+        for (int i1=s5;i1<s6;i1++)
+        for (int i2=s1;i2<s2;i2++)
+        for (int i3=s3;i3<s4;i3++)
+          C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
+      }
+    }
+  }
+
+  return;
+}
+
+void copy_symm_4c_ps(int natoms, int* n2i, int N, double* olp)
+{
+  int N2 = N*N;
+  int N3 = N2*N;
+  int N4 = N3*N;
+
+  for (int m=0;m<natoms;m++)
+  {
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+
+     #pragma acc parallel loop collapse(4) present(olp[0:N4])
+      for (int i=s1;i<s2;i++)
+      for (int j=s3;j<s4;j++)
+      for (int k=s3;k<s4;k++)
+      for (int l=s3;l<s4;l++)
+      {
+        double v1 = olp[i*N3+j*N2+k*N+l];
+        olp[j*N3+i*N2+k*N+l] = v1;
+        olp[k*N3+l*N2+i*N+j] = v1;
+        olp[k*N3+l*N2+j*N+i] = v1;
+      }
+     #pragma acc parallel loop collapse(4) present(olp[0:N4])
+      for (int i=s1;i<s2;i++)
+      for (int j=s1;j<s2;j++)
+      for (int k=s3;k<s4;k++)
+      for (int l=s3;l<s4;l++)
+      {
+        double v1 = olp[i*N3+j*N2+k*N+l];
+        olp[k*N3+l*N2+i*N+j] = v1;
+
+        olp[i*N3+l*N2+k*N+j] = v1;
+        olp[l*N3+i*N2+k*N+j] = v1;
+        olp[i*N3+l*N2+j*N+k] = v1;
+        olp[l*N3+i*N2+j*N+k] = v1;
+      }
+     #pragma acc parallel loop collapse(4) present(olp[0:N4])
+      for (int i=s1;i<s2;i++)
+      for (int j=s1;j<s2;j++)
+      for (int k=s1;k<s2;k++)
+      for (int l=s3;l<s4;l++)
+      {
+        double v1 = olp[i*N3+j*N2+k*N+l];
+        olp[l*N3+i*N2+j*N+k] = v1;
+        olp[i*N3+l*N2+j*N+k] = v1;
+        olp[i*N3+j*N2+l*N+k] = v1;
+      }
+    } //2-center cases
+
+    for (int n=m+1;n<natoms;n++)
+    {
+      for (int p=n+1;p<natoms;p++)
+      if (p!=m)
+      {
+        int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+        int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+        int s5 = 0; if (p>0) s5 = n2i[p-1]; int s6 = n2i[p];
+
+       #pragma acc parallel loop collapse(4) present(olp[0:N4])
+        for (int i=s1;i<s2;i++)
+        for (int j=s1;j<s2;j++)
+        for (int k=s3;k<s4;k++)
+        for (int l=s5;l<s6;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          olp[i*N3+j*N2+l*N+k] = v1;
+
+          olp[i*N3+k*N2+j*N+l] = v1;
+          olp[i*N3+l*N2+j*N+k] = v1;
+
+          olp[i*N3+k*N2+l*N+j] = v1;
+          olp[i*N3+l*N2+k*N+j] = v1;
+
+          olp[k*N3+i*N2+j*N+l] = v1;
+          olp[l*N3+i*N2+j*N+k] = v1;
+
+          olp[k*N3+l*N2+i*N+j] = v1;
+          olp[l*N3+k*N2+i*N+j] = v1;
+
+          olp[k*N3+i*N2+l*N+j] = v1;
+          olp[l*N3+i*N2+k*N+j] = v1;
+        }
+
+       #pragma acc parallel loop collapse(4) present(olp[0:N4])
+        for (int i=s1;i<s2;i++)
+        for (int j=s3;j<s4;j++)
+        for (int k=s3;k<s4;k++)
+        for (int l=s5;l<s6;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          olp[l*N3+j*N2+k*N+i] = v1;
+
+          olp[j*N3+k*N2+i*N+l] = v1;
+          olp[j*N3+k*N2+l*N+i] = v1;
+
+          olp[j*N3+i*N2+k*N+l] = v1;
+          olp[j*N3+l*N2+k*N+i] = v1;
+
+          olp[j*N3+i*N2+l*N+k] = v1;
+          olp[j*N3+l*N2+i*N+k] = v1;
+
+          olp[i*N3+l*N2+j*N+k] = v1;
+          olp[l*N3+i*N2+j*N+k] = v1;
+
+          olp[i*N3+j*N2+l*N+k] = v1;
+          olp[l*N3+j*N2+i*N+k] = v1;
+        }
+
+       #pragma acc parallel loop collapse(4) present(olp[0:N4])
+        for (int i=s1;i<s2;i++)
+        for (int j=s3;j<s4;j++)
+        for (int k=s5;k<s6;k++)
+        for (int l=s5;l<s6;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          olp[j*N3+i*N2+k*N+l] = v1;
+
+          olp[k*N3+l*N2+i*N+j] = v1;
+          olp[k*N3+l*N2+j*N+i] = v1;
+
+          olp[k*N3+i*N2+l*N+j] = v1;
+          olp[k*N3+j*N2+l*N+i] = v1;
+
+          olp[k*N3+i*N2+j*N+l] = v1;
+          olp[k*N3+j*N2+i*N+l] = v1;
+
+          olp[i*N3+k*N2+l*N+j] = v1;
+          olp[j*N3+k*N2+l*N+i] = v1;
+
+          olp[i*N3+k*N2+j*N+l] = v1;
+          olp[j*N3+k*N2+i*N+l] = v1;
+        }
+      }
+    } //3-center cases
+
+   //4-center
+    for (int n=m+1;n<natoms;n++)
+    {
+      for (int p=n+1;p<natoms;p++)
+      if (p!=m)
+      for (int q=p+1;q<natoms;q++)
+      if (q!=m && q!=n)
+      {
+        int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+        int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+        int s5 = 0; if (p>0) s5 = n2i[p-1]; int s6 = n2i[p];
+        int s7 = 0; if (q>0) s7 = n2i[q-1]; int s8 = n2i[q];
+
+       #pragma acc parallel loop collapse(4) present(olp[0:N4])
+        for (int i=s1;i<s2;i++)
+        for (int j=s3;j<s4;j++)
+        for (int k=s5;k<s6;k++)
+        for (int l=s7;l<s8;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          //printf("   D: %i%i%i%i: %8.3e \n",i,j,k,l,v1);
+          olp[i*N3+j*N2+l*N+k] = v1;
+          olp[i*N3+k*N2+j*N+l] = v1;
+          olp[i*N3+k*N2+l*N+j] = v1;
+          olp[i*N3+l*N2+j*N+k] = v1;
+          olp[i*N3+l*N2+k*N+j] = v1;
+
+          olp[j*N3+i*N2+k*N+l] = v1;
+          olp[j*N3+i*N2+l*N+k] = v1;
+          olp[j*N3+k*N2+i*N+l] = v1;
+          olp[j*N3+k*N2+l*N+i] = v1;
+          olp[j*N3+l*N2+i*N+k] = v1;
+          olp[j*N3+l*N2+k*N+i] = v1;
+
+          olp[k*N3+i*N2+j*N+l] = v1;
+          olp[k*N3+i*N2+l*N+j] = v1;
+          olp[k*N3+j*N2+i*N+l] = v1;
+          olp[k*N3+j*N2+l*N+i] = v1;
+          olp[k*N3+l*N2+i*N+j] = v1;
+          olp[k*N3+l*N2+j*N+i] = v1;
+
+          olp[l*N3+i*N2+k*N+j] = v1;
+          olp[l*N3+i*N2+j*N+k] = v1;
+          olp[l*N3+k*N2+i*N+j] = v1;
+          olp[l*N3+k*N2+j*N+i] = v1;
+          olp[l*N3+j*N2+i*N+k] = v1;
+          olp[l*N3+j*N2+k*N+i] = v1;
+        }
+      }
+    } //4-center cases
+  }
+
+  return;
+}
+
+int get_imax_n2ip(int Nmax, int natoms, int N, vector<vector<double> >& basis, vector<vector<int> >& n2ip)
+{
+  n2ip.clear();
+
+  int n2i[natoms];
+  int iN0 = get_imax_n2i(natoms,N,basis,n2i);
+
+  int imaxN = 0;
+  for (int n=0;n<natoms;n++)
+  {
+    int s1 = 0; if (n>0) s1 = n2i[n-1]; int s2 = n2i[n];
+
+    int size = s2-s1;
+    imaxN = max(size,imaxN);
+    //printf("  working on s12: %3i %3i  size: %3i \n",s1,s2,size);
+
+    if (size<Nmax)
+    {
+      vector<int> p1;
+      p1.push_back(s1);
+      p1.push_back(s2);
+      n2ip.push_back(p1);
+    }
+    else
+    {
+      vector<int> p1;
+      p1.push_back(s1);
+
+      while (size>Nmax)
+      {
+        s1 += Nmax;
+        p1.push_back(s1);
+        size -= Nmax;
+      }
+      p1.push_back(s2);
+
+      n2ip.push_back(p1);
+    }
+  }
+  imaxN = min(Nmax,imaxN);
+
+ #if 0
+  printf("\n     n2ip: \n");
+  for (int n=0;n<natoms;n++)
+  {
+    printf("      ");
+    for (int j=0;j<n2ip[n].size();j++)
+      printf("  %2i",n2ip[n][j]);
+    printf("\n");
+  }
+ #endif
+
+  return imaxN;
+}
+
+int get_imax_n2i(int natoms, int N, vector<vector<double> >& basis, int* n2i)
+{
+  for (int n=0;n<natoms;n++) n2i[n] = 0;
+
+  int imaxN = 1;
+  int wa = 0;
+  int iprev = 0;
+  for (int i=0;i<N;i++)
+  {
+    int wa2 = basis[i][9];
+    if (wa2!=wa)
+    {
+      int cmaxN = i-iprev; 
+      if (cmaxN>imaxN) imaxN = cmaxN;
+      n2i[wa] = i;
+      wa = wa2;
+      iprev = i;
+    }
+  }
+  if (N-iprev>imaxN) imaxN = N-iprev;
+  n2i[wa] = N;
+
+  for (int n=wa;n<natoms;n++)
+    n2i[n] = N;
+
+  return imaxN;
+}
+
+int get_natoms_with_basis(int natoms, int* atno, vector<vector<double> >& basis)
+{
+  int N = basis.size();
+
+  int natoms1 = 0;
+  for (int n=0;n<natoms;n++)
+  {
+    if (atno[n]==0)
+    {
+      bool found = 0;
+      for (int j=0;j<N;j++)
+      if (basis[j][9]==n)
+      { found = 1; break ;}
+      if (!found)
+        break;
+    }
+    else
+      natoms1 = n+1;
+  }
+  
+  return natoms1;
+}
+

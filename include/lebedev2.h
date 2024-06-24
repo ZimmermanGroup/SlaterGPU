@@ -36,6 +36,7 @@ void ld4334 ( double *x, double *y, double *z, double *w );
 void ld4802 ( double *x, double *y, double *z, double *w );
 void ld5294 ( double *x, double *y, double *z, double *w );
 void ld5810 ( double *x, double *y, double *z, double *w );
+int get_npts_from_order(int order);
 int order_table ( int rule );
 int precision_table ( int rule );
 void timestamp ( );

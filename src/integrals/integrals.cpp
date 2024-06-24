@@ -1,10 +1,8 @@
 #include "integrals.h"
-#include "braggslater.h"
-#include <chrono>
-#define TIMER_KD 1
 
 #define TEST_SORT 0
-#include "fp_def.h"
+//symmetrize wrt atom swap
+#define SYMM_ST 1
 
 /*
  //current status of compute_all_2/3c code:
@@ -26,15 +24,178 @@
   7. 4s, 4p, 4d functions
 
 */
-using namespace std;
 
 #include <string>
-// void auto_crash();
-// void print_duration(chrono::high_resolution_clock::time_point t1, chrono::high_resolution_clock::time_point t2, string name);
+void auto_crash();
+void print_duration(chrono::high_resolution_clock::time_point t1, chrono::high_resolution_clock::time_point t2, string name);
+void print_grid(int gs, float* grid1, float* grid2, float* wt1, float* wt2, int prl);
+bool close_val(double v1, double v2);
+void print_square_fine(int size, double* A);
 
-void print_grid(int gs, FP1* grid1, FP1* grid2, FP1* wt1, FP1* wt2, int prl)
+void collect_4c_1d(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g)
 {
-  if (gs>300) return;
+ //2221
+  int M2 = M*M;
+  int M3 = M2*M;
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  //printf(" collect_4c_1d: %i %i %i %i \n",s1,s2,s3,s4);
+
+  #pragma acc update self(gt[0:M2*M2])
+  for (int i1=s3;i1<s4;i1++)
+  for (int i2=s3;i2<=i1;i2++)
+  for (int i3=s3;i3<s4;i3++)
+  for (int i4=s1;i4<s2;i4++)
+  {
+    int ii1 = i1-s3; int ii2 = i2-s3;
+    int ii3 = i3-s3; int ii4 = i4-s1;
+
+    float v1 = gt[ii1*M3+ii2*M2+ii3*M+ii4];
+    gt[ii1*M3+ii2*M2+ii3*M+ii4] = 0.f;
+
+    g[i1*N3+i2*N2+i3*N+i4] = v1;
+    g[i2*N3+i1*N2+i3*N+i4] = v1;
+
+    g[i1*N3+i2*N2+i4*N+i3] = v1;
+    g[i2*N3+i1*N2+i4*N+i3] = v1;
+
+    g[i3*N3+i4*N2+i1*N+i2] = v1;
+    g[i3*N3+i4*N2+i2*N+i1] = v1;
+
+    g[i4*N3+i3*N2+i1*N+i2] = v1;
+    g[i4*N3+i3*N2+i2*N+i1] = v1;
+  }
+
+  #pragma acc parallel loop present(gt[0:M2*M2])
+  for (int j=0;j<M2*M2;j++)
+    gt[j] = 0.f;
+
+  return;
+}
+
+
+void collect_4c_1c(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g)
+{
+ //1221
+  int M2 = M*M;
+  int M3 = M2*M;
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  //printf(" collect_4c_1c: %i %i %i %i \n",s1,s2,s3,s4);
+
+  #pragma acc update self(gt[0:M2*M2])
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s3;i2<s4;i2++)
+  for (int i3=s3;i3<s4;i3++)
+  for (int i4=s1;i4<s2;i4++)
+  {
+    int ii1 = i1-s1; int ii2 = i2-s3;
+    int ii3 = i3-s3; int ii4 = i4-s1;
+
+    float v1 = gt[ii1*M3+ii2*M2+ii3*M+ii4];
+    gt[ii1*M3+ii2*M2+ii3*M+ii4] = 0.f;
+
+    g[i1*N3+i2*N2+i3*N+i4] = v1;
+    g[i1*N3+i2*N2+i4*N+i3] = v1;
+    g[i2*N3+i1*N2+i3*N+i4] = v1;
+    g[i2*N3+i1*N2+i4*N+i3] = v1;
+  }
+
+  #pragma acc parallel loop present(gt[0:M2*M2])
+  for (int j=0;j<M2*M2;j++)
+    gt[j] = 0.f;
+
+  return;
+}
+
+
+void collect_4c_1b(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g)
+{
+ //1121
+  int M2 = M*M;
+  int M3 = M2*M;
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  //printf(" collect_4c_1b: %i %i %i %i \n",s1,s2,s3,s4);
+
+  #pragma acc update self(gt[0:M2*M2])
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s1;i2<=i1;i2++)
+  for (int i3=s3;i3<s4;i3++)
+  for (int i4=s1;i4<s2;i4++)
+  {
+    int ii1 = i1-s1; int ii2 = i2-s1;
+    int ii3 = i3-s3; int ii4 = i4-s1;
+
+    float v1 = gt[ii1*M3+ii2*M2+ii3*M+ii4];
+    gt[ii1*M3+ii2*M2+ii3*M+ii4] = 0.f;
+
+    g[i1*N3+i2*N2+i3*N+i4] = v1;
+    g[i2*N3+i1*N2+i3*N+i4] = v1;
+    g[i3*N3+i4*N2+i1*N+i2] = v1;
+    g[i3*N3+i4*N2+i2*N+i1] = v1;
+
+    g[i1*N3+i2*N2+i4*N+i3] = v1;
+    g[i2*N3+i1*N2+i4*N+i3] = v1;
+    g[i4*N3+i3*N2+i1*N+i2] = v1;
+    g[i4*N3+i3*N2+i2*N+i1] = v1;
+  }
+
+  #pragma acc parallel loop present(gt[0:M2*M2])
+  for (int j=0;j<M2*M2;j++)
+    gt[j] = 0.f;
+
+  return;
+}
+
+void collect_4c_1(int s1, int s2, int s3, int s4, bool lr_copy, int gs, int gsp, int M, int N, float* gt, double* g)
+{
+  int M2 = M*M;
+  int M3 = M2*M;
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  //printf(" collect_4c_1: %i %i %i %i \n",s1,s2,s3,s4);
+
+  #pragma acc update self(gt[0:M2*M2])
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s1;i2<=i1;i2++)
+  for (int i3=s3;i3<s4;i3++)
+  for (int i4=s3;i4<=i3;i4++)
+  {
+    int ii1 = i1-s1; int ii2 = i2-s1;
+    int ii3 = i3-s3; int ii4 = i4-s3;
+
+    float v1 = gt[ii1*M3+ii2*M2+ii3*M+ii4];
+    gt[ii1*M3+ii2*M2+ii3*M+ii4] = 0.f;
+
+    g[i1*N3+i2*N2+i3*N+i4] = v1;
+    g[i2*N3+i1*N2+i3*N+i4] = v1;
+    g[i1*N3+i2*N2+i4*N+i3] = v1;
+    g[i2*N3+i1*N2+i4*N+i3] = v1;
+    if (lr_copy)
+    {
+      g[i3*N3+i4*N2+i1*N+i2] = v1;
+      g[i3*N3+i4*N2+i2*N+i1] = v1;
+      g[i4*N3+i3*N2+i1*N+i2] = v1;
+      g[i4*N3+i3*N2+i2*N+i1] = v1;
+    }
+  }
+
+  #pragma acc parallel loop present(gt[0:M2*M2])
+  for (int j=0;j<M2*M2;j++)
+    gt[j] = 0.f;
+
+  return;
+}
+
+
+void print_grid(int gs, float* grid1, float* grid2, float* wt1, float* wt2, int prl)
+{
+  if (gs>300 && prl<3) return;
   if (prl>0)
   {
     //printf("\n printing grid1 \n");
@@ -52,7 +213,7 @@ void print_grid(int gs, FP1* grid1, FP1* grid2, FP1* wt1, FP1* wt2, int prl)
   return;
 }
 
-void print_grid(int gs, FP1* grid1, FP1* grid2, FP1* grid3, FP1* wt1, FP1* wt2, FP1* wt3, int prl)
+void print_grid(int gs, float* grid1, float* grid2, float* grid3, float* wt1, float* wt2, float* wt3, int prl)
 {
   if (gs>300) return;
   if (prl>0)
@@ -79,950 +240,17 @@ void print_grid(int gs, FP1* grid1, FP1* grid2, FP1* grid3, FP1* wt1, FP1* wt2, 
   return;
 }
 
-void print_array(int size, FP1* vec)
-{
-  for (int i=0;i<size;i++)
-    printf(" %6.3e",vec[i]);
-  printf("\n");
-}
-
-void clean_small_values(int N, FP1* S)
-{
-  int N2 = N*N;
- #pragma acc parallel loop independent present(S[0:N2])
-  for (int i=0;i<N;i++)
- #pragma acc loop independent
-  for (int j=i+1;j<N;j++)
-  if (fabs(S[i*N+j])<CL_THRESH)
-    S[i*N+j] = S[j*N+i] = 0.;
-}
-
-#if !EVL64
-void clean_small_values(int N, FP2* S)
-{
-  int N2 = N*N;
- #pragma acc parallel loop independent present(S[0:N2])
-  for (int i=0;i<N;i++)
- #pragma acc loop independent
-  for (int j=i+1;j<N;j++)
-  if (fabs(S[i*N+j])<CL_THRESH)
-    S[i*N+j] = S[j*N+i] = 0.;
-}
-#endif
-
-void acc_assign(int size, FP1* vec, FP1 v1)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(vec[0:size])
-#endif
-  for (int j=0;j<size;j++)
-    vec[j] = v1;
-}
-
-#if !EVL64
-void acc_assign(int size, FP2* vec, FP2 v1)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(vec[0:size])
-#endif
-  for (int j=0;j<size;j++)
-    vec[j] = v1;
-}
-#endif
-
-void acc_assign(int size, FP1* vec1, FP1* vec2, FP1 v1)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(vec1[0:size],vec2[0:size])
-#endif
-  for (int j=0;j<size;j++)
-    vec1[j] = vec2[j] = v1;
-}
-
-void acc_assign(int size, FP1* vec1, FP1* vec2, FP1* vec3, FP1 v1)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(vec1[0:size],vec2[0:size],vec3[0:size])
-#endif
-  for (int j=0;j<size;j++)
-    vec1[j] = vec2[j] = vec3[j] = v1;
-}
-
-FP1 acc_sum(int size, FP1* vec)
-{
-  FP1 sum = 0.;
-#if USE_ACC
- #pragma acc parallel loop present(vec[0:size]) reduction(+:sum)
-#endif
-  for (int i=0;i<size;i++)
-    sum += vec[i];
-
-  return sum;
-}
-
-void acc_copyf(int tid, int size, FP1* v1, FP1* v2)
-{
- #if USE_ACC
-  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid)
- #endif
-  for (int i=0;i<size;i++)
-    v1[i] = v2[i];
-
-  return;
-}
-
-void acc_copyf(int size, FP1* v1, FP1* v2)
-{
- #if USE_ACC
-  #pragma acc parallel loop independent present(v1[0:size],v2[0:size])
- #endif
-  for (int i=0;i<size;i++)
-    v1[i] = v2[i];
-
-  return;
-}
-
-void acc_copyf(int size, FP1* v1, FP1* v2, FP1* v3, FP1* v4)
-{
- #if USE_ACC
-  #pragma acc parallel loop independent present(v1[0:size],v2[0:size],v3[0:size],v4[0:size])
- #endif
-  for (int i=0;i<size;i++)
-  {
-    v1[i] = v2[i];
-    v3[i] = v4[i];
-  }
-
-  return;
-}
-
-void acc_copyf(int size, FP1* v1, FP1* v2, FP1* v3, FP1* v4, FP1* v5, FP1* v6)
-{
- #if USE_ACC
-  #pragma acc parallel loop independent present(v1[0:size],v2[0:size],v3[0:size],v4[0:size],v5[0:size],v6[0:size])
- #endif
-  for (int i=0;i<size;i++)
-  {
-    v1[i] = v2[i];
-    v3[i] = v4[i];
-    v5[i] = v6[i];
-  }
-
-  return;
-}
-
-void eliminate_small_wt_3(int size, FP1* wt1, FP1* wt2, FP1* wt3)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(wt1[0:size],wt2[0:size],wt3[0:size])
-#endif
-  for (int i=0;i<size;i++) 
-  {
-    if (wt1[i]<WT_THRESH)
-      wt1[i] = 0.;
-    if (wt2[i]<WT_THRESH)
-      wt2[i] = 0.;
-    if (wt3[i]<WT_THRESH)
-      wt3[i] = 0.;
-  }
-
-}
-
-void eliminate_small_wt_3(int s1, int size, FP1* wt1, FP1* wt2, FP1* wt3)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(wt1[0:size],wt2[0:size],wt3[0:size])
-#endif
-  for (int i=s1;i<size;i++) 
-  {
-    if (wt1[i]<WT_THRESH_D)
-      wt1[i] = 0.;
-    if (wt2[i]<WT_THRESH_D)
-      wt2[i] = 0.;
-    if (wt3[i]<WT_THRESH_D)
-      wt3[i] = 0.;
-  }
-
-}
-
-void eliminate_small_wt(int size, FP1* wt1)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(wt1[0:size])
-#endif
-  for (int i=0;i<size;i++) 
-  if (wt1[i]<WT_THRESH)
-  {
-    //printf(" small wt: %12.10f \n",wt1[i]);
-    wt1[i] = 0.;
-  }
-
-}
-
-void eliminate_small_wt(int s1, int size, FP1* wt1)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(wt1[0:size])
-#endif
-  for (int i=s1;i<size;i++) 
-  if (wt1[i]<WT_THRESH_D)
-  {
-    //printf(" small wt: %12.10f \n",wt1[i]);
-    wt1[i] = 0.;
-  }
-
-}
-
-void copy_grid(int gs, FP1* grid1, FP1* grid2)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    grid1[6*i+0] = grid2[6*i+0];
-    grid1[6*i+1] = grid2[6*i+1];
-    grid1[6*i+2] = grid2[6*i+2];
-    grid1[6*i+3] = grid2[6*i+3];
-  }
-
-  return;
-}
-
-void copy_grid(int gs, FP1* grid1, FP1* wt1, FP1* grid2, FP1* wt2)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs],grid2[0:6*gs],wt2[0:gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    grid2[6*i+0] = grid1[6*i+0];
-    grid2[6*i+1] = grid1[6*i+1];
-    grid2[6*i+2] = grid1[6*i+2];
-    grid2[6*i+3] = grid1[6*i+3];
-    wt2[i] = wt1[i];
-  }
-
-  return;
-}
-
-
-void recenter_grid_zero(int gs, FP1* grid, FP1 x2, FP1 y2, FP1 z2)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    grid[6*i+0] += x2;
-    grid[6*i+1] += y2;
-    grid[6*i+2] += z2;
-    FP1 xn = grid[6*i+0];
-    FP1 yn = grid[6*i+1];
-    FP1 zn = grid[6*i+2];
-
-    FP1 r1 = sqrtf(xn*xn+yn*yn+zn*zn);
-    grid[6*i+3] = r1;
-  }
-
-  return;
-}
-
-void recenter_grid(int gs, FP1* grid, FP1 x2, FP1 y2, FP1 z2)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    grid[6*i+0] += x2;
-    grid[6*i+1] += y2;
-    grid[6*i+2] += z2;
-    FP1 xn = grid[6*i+0];
-    FP1 yn = grid[6*i+1];
-    FP1 zn = grid[6*i+2];
-
-   //distance to other center
-    FP1 r2 = sqrtf(xn*xn+yn*yn+zn*zn);
-    grid[6*i+4] = r2;
-  }
-
-  return;
-}
-
-void recenter_grid_exp(int gs, FP1* grid, FP1* wt, FP1* val, FP1 x2, FP1 y2, FP1 z2, FP1 zeta2)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    grid[6*i+0] += x2;
-    grid[6*i+1] += y2;
-    grid[6*i+2] += z2;
-    FP1 xn = grid[6*i+0];
-    FP1 yn = grid[6*i+1];
-    FP1 zn = grid[6*i+2];
-    FP1 r2 = grid[6*i+3];
-
-    FP1 r1 = sqrtf(xn*xn+yn*yn+zn*zn);
-    FP1 er2 = expf(-zeta2*r2);
-
-   //distance to first center
-    grid[6*i+4] = r1;
-    //wt[i] *= er2;
-    val[i] = er2;
-  }
-
-  return;
-}
-
-void add_r123_to_grid(int gs, FP1* grid1, FP1 A1, FP1 B1, FP1 C1, FP1 A2, FP1 B2, FP1 C2, FP1 A3, FP1 B3, FP1 C3)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 x = grid1[6*i+0];
-    FP1 y = grid1[6*i+1];
-    FP1 z = grid1[6*i+2];
-    FP1 x1 = x-A1; FP1 y1 = y-B1; FP1 z1 = z-C1;
-    FP1 x2 = x-A2; FP1 y2 = y-B2; FP1 z2 = z-C2;
-    FP1 x3 = x-A3; FP1 y3 = y-B3; FP1 z3 = z-C3;
-    FP1 r1 = sqrtf(x1*x1+y1*y1+z1*z1);
-    FP1 r2 = sqrtf(x2*x2+y2*y2+z2*z2);
-    FP1 r3 = sqrtf(x3*x3+y3*y3+z3*z3);
-    grid1[6*i+3] = r1;
-    grid1[6*i+4] = r2;
-    grid1[6*i+5] = r3;
-  }
-
-  return;
-}
-
-void add_r1_to_grid_6z(int gs, FP1* grid1, FP1* grid2, FP1* grid3, FP1* grid4, FP1* grid5, FP1* grid6)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs],grid3[0:6*gs],grid4[0:6*gs],grid5[0:6*gs],grid6[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 x1 = grid1[6*i+0]; FP1 y1 = grid1[6*i+1]; FP1 z1 = grid1[6*i+2];
-    FP1 r1 = sqrtf(x1*x1+y1*y1+z1*z1);
-    grid1[6*i+3] = r1;
-
-    FP1 x2 = grid2[6*i+0]; FP1 y2 = grid2[6*i+1]; FP1 z2 = grid2[6*i+2];
-    FP1 r2 = sqrtf(x2*x2+y2*y2+z2*z2);
-    grid2[6*i+3] = r2;
-
-    FP1 x3 = grid3[6*i+0]; FP1 y3 = grid3[6*i+1]; FP1 z3 = grid3[6*i+2];
-    FP1 r3 = sqrtf(x3*x3+y3*y3+z3*z3);
-    grid3[6*i+3] = r3;
-
-    FP1 x4 = grid4[6*i+0]; FP1 y4 = grid4[6*i+1]; FP1 z4 = grid4[6*i+2];
-    FP1 r4 = sqrtf(x4*x4+y4*y4+z4*z4);
-    grid4[6*i+3] = r4;
-
-    FP1 x5 = grid5[6*i+0]; FP1 y5 = grid5[6*i+1]; FP1 z5 = grid5[6*i+2];
-    FP1 r5 = sqrtf(x5*x5+y5*y5+z5*z5);
-    grid5[6*i+3] = r5;
-
-    FP1 x6 = grid6[6*i+0]; FP1 y6 = grid6[6*i+1]; FP1 z6 = grid6[6*i+2];
-    FP1 r6 = sqrtf(x6*x6+y6*y6+z6*z6);
-    grid6[6*i+3] = r6;
-  }
-
-  return;
-}
-
-void add_r1_to_grid(int gs, FP1* grid1, FP1 A2, FP1 B2, FP1 C2)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 x1 = grid1[6*i+0];
-    FP1 y1 = grid1[6*i+1];
-    FP1 z1 = grid1[6*i+2];
-    FP1 x12 = x1-A2;
-    FP1 y12 = y1-B2;
-    FP1 z12 = z1-C2;
-    FP1 r2 = sqrtf(x12*x12+y12*y12+z12*z12);
-    grid1[6*i+3] = r2;
-  }
-
-  return;
-}
-
-void add_r2_to_grid(int gs, FP1* grid1, FP1 A2, FP1 B2, FP1 C2)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 x1 = grid1[6*i+0];
-    FP1 y1 = grid1[6*i+1];
-    FP1 z1 = grid1[6*i+2];
-    FP1 x12 = x1-A2;
-    FP1 y12 = y1-B2;
-    FP1 z12 = z1-C2;
-    FP1 r2 = sqrtf(x12*x12+y12*y12+z12*z12);
-    grid1[6*i+4] = r2;
-  }
-
-  return;
-}
-
-void add_r3_to_grid(int gs, FP1* grid1, FP1 A3, FP1 B3, FP1 C3)
-{
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 x1 = grid1[6*i+0];
-    FP1 y1 = grid1[6*i+1];
-    FP1 z1 = grid1[6*i+2];
-    FP1 x13 = x1-A3;
-    FP1 y13 = y1-B3;
-    FP1 z13 = z1-C3;
-    FP1 r3 = sqrtf(x13*x13+y13*y13+z13*z13);
-    grid1[6*i+5] = r3;
-  }
-
-  return;
-}
-
-int find_center_of_grid(FP1 Z1, int nrad)
-{
-  FP1* r = new FP1[nrad];
-  FP1* w = new FP1[nrad];
-
- #if USE_ACC
-  #pragma acc enter data create(r[0:nrad],w[0:nrad])
- #endif
-
-  get_murak_grid_f(nrad,r,w,Z1,3);
-
-  int s1 = 0;
-#if USE_ACC
- #pragma acc parallel loop present(w[0:nrad])
-#endif
-  for (int i=0;i<nrad;i++)
-  if (w[i]<WT_THRESH_D)
-    s1 = i; 
-  s1++;
-
-  //printf(" s1: %2i \n",s1);
-
-  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
-
-  return s1;
-}
-
-void generate_central_grid_2(FP1* grid1, FP1* wt1, FP1 Z1, int nrad, int nang, FP1* ang_g, FP1* ang_w)
-{
-  FP1* r = new FP1[nrad];
-  FP1* w = new FP1[nrad];
-
- #if USE_ACC
-  #pragma acc enter data create(r[0:nrad],w[0:nrad])
- #endif
-
-  get_murak_grid_f(nrad,r,w,Z1,3);
-
-  int gs = nrad*nang;
-
-#if USE_ACC
- #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
-#endif
-  for (int i=0;i<nrad;i++)
-  {
-    FP1 r1 = r[i];
-    FP1 wr1 = w[i];
-
-  #if USE_ACC
-   #pragma acc loop independent 
-  #endif
-    for (int j=0;j<nang;j++)
-    {
-      FP1 w1 = wr1*ang_w[j];
-
-     //grid positions
-      FP1 x1 = r1 * ang_g[3*j+0];
-      FP1 y1 = r1 * ang_g[3*j+1];
-      FP1 z1 = r1 * ang_g[3*j+2];
-
-      int wg = i*nang+j;
-      grid1[6*wg+0] = x1;
-      grid1[6*wg+1] = y1;
-      grid1[6*wg+2] = z1;
-      grid1[6*wg+3] = r1;
-      grid1[6*wg+4] = r1;
-      grid1[6*wg+5] = r1;
-      wt1[wg] = w1;
-    }
-  }
-
-#if USE_ACC
-  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
-#endif
-
-  delete [] r;
-  delete [] w;
-
-  return;
-}
-
-void generate_central_grid(FP1* grid1, FP1* wt1, FP1* val1, int need_inr, FP1 Z1, int n1, int l1, FP1 zeta1, int nrad, int nang, FP1* ang_g, FP1* ang_w)
-{
-  printf("\n WARNING: shouldn't be here in generate_central_grid() \n");
-
-  FP1* r = new FP1[nrad];
-  FP1* w = new FP1[nrad];
-  FP1* er = new FP1[nrad];
-  FP1* inr = new FP1[nrad];
-
- #if DEBUG
-  printf("  generate_central_grid for: %i %i (zeta: %8.5f) \n",n1,l1,zeta1);
- #endif
-
- #if USE_ACC
-  #pragma acc enter data create(r[0:nrad],w[0:nrad],er[0:nrad],inr[0:nrad])
- #endif
-
-  get_murak_grid_f(nrad,r,w,er,Z1,zeta1,3);
-  if (need_inr)
-    get_inr(n1,l1,zeta1,nrad,r,inr);
-  else
-    acc_assign(nrad,inr,0.);
-
-  int gs = nrad*nang;
-
-#if USE_ACC
- #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],inr[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs],val1[0:gs])
-#endif
-  for (int i=0;i<nrad;i++)
-  {
-    FP1 r1 = r[i];
-    FP1 wr1 = w[i];
-    FP1 inr1 = inr[i];
- 
-  #if USE_ACC
-   #pragma acc loop independent 
-  #endif
-    for (int j=0;j<nang;j++)
-    {
-      FP1 w1 = wr1*ang_w[j];
-
-     //grid positions
-      FP1 x1 = r1 * ang_g[3*j+0];
-      FP1 y1 = r1 * ang_g[3*j+1];
-      FP1 z1 = r1 * ang_g[3*j+2];
-
-      int wg = i*nang+j;
-      grid1[6*wg+0] = x1;
-      grid1[6*wg+1] = y1;
-      grid1[6*wg+2] = z1;
-      grid1[6*wg+3] = r1;
-      grid1[6*wg+4] = r1;
-      grid1[6*wg+5] = r1;
-      wt1[wg] = w1;
-      val1[wg] = inr1;
-    }
-  }
-
-#if USE_ACC
-  #pragma acc exit data delete(r[0:nrad],w[0:nrad],er[0:nrad],inr[0:nrad])
-#endif
-
-  delete [] r;
-  delete [] w;
-  delete [] er;
-  delete [] inr;
-
-  return;
-}
-
-FP1 becke_a(int Z1, int Z2)
-{
-  FP1 x = get_radii_2(Z1)/get_radii_2(Z2);
-
-  FP1 u = (x-1.f)/(x+1.f);
-  FP1 a = u/(u*u-1.f);
-
-  if (a>0.5f) a = 0.5f;
-  else if (a<-0.5f) a = -0.5f;
-  return a;
-}
-
-#pragma acc routine seq
-FP1 bf3(FP1 f1)
-{
-  //default is order 3
-  #define ORDER4 0
-
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
- #if ORDER4
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
- #endif
-  f1 = 0.5f*(1.f-f1);
-  f1 = f1*f1;
-
-  return f1;
-}
-
-#pragma acc routine seq
-FP1 get_3c_bw(FP1 r1, FP1 r2, FP1 r3, FP1 a12, FP1 a13, FP1 a23, FP1 a21, FP1 a31, FP1 a32, FP1 oR12, FP1 oR13, FP1 oR23)
-{
-  FP1 mu12 = (r1-r2)*oR12;
-  FP1 mu13 = (r1-r3)*oR13;
-  FP1 mu23 = (r2-r3)*oR23;
-  FP1 omm12 = 1.f-mu12*mu12;
-  FP1 omm13 = 1.f-mu13*mu13;
-  FP1 omm23 = 1.f-mu23*mu23;
-
- //original
-  FP1 nu12 =  mu12 + a12*omm12;
-  FP1 nu21 = -mu12 + a21*omm12;
-  FP1 nu13 =  mu13 + a13*omm13;
-  FP1 nu31 = -mu13 + a31*omm13;
-  FP1 nu23 =  mu23 + a23*omm23;
-  FP1 nu32 = -mu23 + a32*omm23;
-
-  FP1 f12 = bf3(nu12);
-  FP1 f21 = bf3(nu21);
-  FP1 f13 = bf3(nu13);
-  FP1 f31 = bf3(nu31);
-  FP1 f23 = bf3(nu23);
-  FP1 f32 = bf3(nu32);
-
-  FP1 norm = f12*f13 + f21*f23 + f31*f32 + 1.e-10f;
-  FP1 s1 = f12*f13/norm;
-
-  return s1;
-}
-
-void becke_weight_3c(int gs, FP1* grid1, FP1* wt1, FP1* grid2, FP1* wt2, FP1* grid3, FP1* wt3, int Z1, int Z2, int Z3, FP1 A2, FP1 B2, FP1 C2, FP1 A3, FP1 B3, FP1 C3)
-{
-  FP1 A23 = A3-A2; FP1 B23 = B3-B2; FP1 C23 = C3-C2;
-
-  const FP1 R12 = sqrtf(A2*A2+B2*B2+C2*C2);
-  const FP1 R13 = sqrtf(A3*A3+B3*B3+C3*C3);
-  const FP1 R23 = sqrtf(A23*A23+B23*B23+C23*C23);
-  const FP1 oR12 = 1./R12;
-  const FP1 oR13 = 1./R13;
-  const FP1 oR23 = 1./R23;
-
-  FP1 a12 = becke_a(Z1,Z2);
-  FP1 a13 = becke_a(Z1,Z3);
-  FP1 a23 = becke_a(Z2,Z3);
-  FP1 a21 = becke_a(Z2,Z1);
-  FP1 a31 = becke_a(Z3,Z1);
-  FP1 a32 = becke_a(Z3,Z2); 
-
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 r1 = grid1[6*i+3];
-    FP1 r2 = grid1[6*i+4];
-    FP1 r3 = grid1[6*i+5];
-    FP1 s1 = get_3c_bw(r1,r2,r3,a12,a13,a23,a21,a31,a32,oR12,oR13,oR23);
-
-    wt1[i] *= s1;
-  }
-
-#if USE_ACC
- #pragma acc parallel loop independent present(grid2[0:6*gs],wt2[0:gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 r1 = grid2[6*i+3];
-    FP1 r2 = grid2[6*i+4];
-    FP1 r3 = grid2[6*i+5];
-    FP1 s1 = get_3c_bw(r1,r2,r3,a21,a23,a13,a12,a32,a31,oR12,oR23,oR13);
-
-    wt2[i] *= s1;
-  }
-
-#if USE_ACC
- #pragma acc parallel loop independent present(grid3[0:6*gs],wt3[0:gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 r1 = grid3[6*i+3];
-    FP1 r2 = grid3[6*i+4];
-    FP1 r3 = grid3[6*i+5];
-    FP1 s1 = get_3c_bw(r1,r2,r3,a32,a31,a21,a23,a13,a12,oR23,oR13,oR12);
-
-    wt3[i] *= s1;
-  }
-
-  return;
-}
-
-void becke_weight_2c(int gs, FP1* grid1, FP1* wt1, FP1* grid2, FP1* wt2, int Z1, int Z2, FP1 A2, FP1 B2, FP1 C2)
-{
- //first center is at 0,0,0 and second at A2,B2,C2
-  FP1 R  = sqrtf(A2*A2+B2*B2+C2*C2);
-  const FP1 oR = 1./R;
-
-  const FP1 a1 = becke_a(Z1,Z2);
-  const FP1 a2 = becke_a(Z2,Z1);
-  //const FP1 a1 = becke_a(Z2,Z1);
-  //const FP1 a2 = becke_a(Z1,Z2);
-
-  //printf(" a1/2: %8.5f %8.5f \n",a1,a2);
-
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 r1 = grid1[6*i+3];
-    FP1 r2 = grid1[6*i+4];
-    FP1 mu = (r1-r2)*oR;
-    FP1 omm2 = 1.f-mu*mu;
-    FP1 nu1 =  mu + a1*omm2;
-    FP1 nu2 = -mu + a2*omm2;
-
-    FP1 f1 = bf3(nu1);
-    FP1 f2 = bf3(nu2);
-
-    FP1 norm = f1 + f2 + 1.e-10f;
-    FP1 s1 = f1/norm;
-
-    //printf(" r1/2: %8.5f %8.5f s1: %8.5f \n",r1,r2,s1);
-    wt1[i] *= s1;
-  }
-
-#if USE_ACC
- #pragma acc parallel loop independent present(grid2[0:6*gs],wt2[0:gs])
-#endif
-  for (int i=0;i<gs;i++)
-  {
-    FP1 r1 = grid2[6*i+3];
-    FP1 r2 = grid2[6*i+4];
-    FP1 mu = (r1-r2)*oR;
-    FP1 omm2 = 1.f-mu*mu;
-    FP1 nu1 =  mu + a2*omm2;
-    FP1 nu2 = -mu + a1*omm2;
-
-    FP1 f1 = bf3(nu1);
-    FP1 f2 = bf3(nu2);
-
-    FP1 norm = f1 + f2 + 1.e-10f;
-    FP1 s1 = f1/norm;
-
-    //printf(" r1/2: %8.5f %8.5f s1: %8.5f \n",r1,r2,s1);
-    wt2[i] *= s1;
-  }
-
-  return;
-}
-
-
-void transpose_C(int Naux, int N, FP1* C)
-{
-  int N2 = N*N;
-  int N2a = N2*Naux;
-  int nna = N*Naux;
-
-  FP1* tmp = new FP1[N2a];
-
-  for (int i=0;i<Naux;i++) 
-  for (int j=0;j<N;j++)
-  for (int k=0;k<N;k++)
-    tmp[j*nna+k*Naux+i] = C[i*N2+j*N+k];
-
-  for (int i=0;i<N2a;i++)
-    C[i] = tmp[i];
-
-  delete [] tmp;
-
-  return;
-}
-
-#if !EVL64
-void transpose_C(int Naux, int N, FP2* C)
-{
-  int N2 = N*N;
-  int N2a = N2*Naux;
-  int nna = N*Naux;
-
-  FP2* tmp = new FP2[N2a];
-
-  for (int i=0;i<Naux;i++) 
-  for (int j=0;j<N;j++)
-  for (int k=0;k<N;k++)
-    tmp[j*nna+k*Naux+i] = C[i*N2+j*N+k];
-
-  for (int i=0;i<N2a;i++)
-    C[i] = tmp[i];
-
-  delete [] tmp;
-
-  return;
-}
-#endif
-
-void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, FP1* C, int type)
-{
- //copy symmetric 2-atom terms
-  int N2 = N*N;
-
-  for (int m=0;m<natoms;m++)
-  {
-    for (int i1=0;i1<Naux;i1++) 
-    if (basis_aux[i1][9]==m)
-    {
-      for (int n=0;n<natoms;n++)
-      if (m!=n)
-      {
-       //2-atom
-        if (type==1)
-        {
-          for (int i2=0;i2<N;i2++)
-          if (basis[i2][9]==n)
-          {
-            for (int i3=0;i3<N;i3++)
-            if (basis[i3][9]==m)
-              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
-          }
-        }
-        else
-        {
-          for (int i2=0;i2<N;i2++)
-          if (basis[i2][9]==m)
-          {
-            for (int i3=0;i3<N;i3++)
-            if (basis[i3][9]==n)
-              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
-          }
-        }
-
-       //3-atom 
-        for (int p=n+1;p<natoms;p++)
-        if (p!=m)
-        {
-          for (int i2=0;i2<N;i2++)
-          if (basis[i2][9]==n)
-          {
-            for (int i3=0;i3<N;i3++)
-            if (basis[i3][9]==p)
-              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
-          }
-        }
-
-      }
-    }
-  }
-  return;
-}
-
-#if !EVL64
-void copy_symm(int natoms, int N, int Naux, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, FP2* C, int type)
-{
- //copy symmetric 2-atom terms
-  int N2 = N*N;
-
-  for (int m=0;m<natoms;m++)
-  {
-    for (int i1=0;i1<Naux;i1++) 
-    if (basis_aux[i1][9]==m)
-    {
-      for (int n=0;n<natoms;n++)
-      if (m!=n)
-      {
-       //2-atom
-        if (type==1)
-        {
-          for (int i2=0;i2<N;i2++)
-          if (basis[i2][9]==n)
-          {
-            for (int i3=0;i3<N;i3++)
-            if (basis[i3][9]==m)
-              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
-          }
-        }
-        else
-        {
-          for (int i2=0;i2<N;i2++)
-          if (basis[i2][9]==m)
-          {
-            for (int i3=0;i3<N;i3++)
-            if (basis[i3][9]==n)
-              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
-          }
-        }
-
-       //3-atom 
-        for (int p=n+1;p<natoms;p++)
-        if (p!=m)
-        {
-          for (int i2=0;i2<N;i2++)
-          if (basis[i2][9]==n)
-          {
-            for (int i3=0;i3<N;i3++)
-            if (basis[i3][9]==p)
-              C[i1*N2+i3*N+i2] = C[i1*N2+i2*N+i3];
-          }
-        }
-
-      }
-    }
-  }
-  return;
-}
-#endif
-
-int get_imax_n2i(int natoms, int N, vector<vector<FP2> >& basis, int* n2i)
-{
-  int imaxN = 1;
-  int wa = 0;
-  int iprev = 0;
-  for (int i=0;i<N;i++)
-  {
-    int wa2 = basis[i][9];
-    if (wa2!=wa)
-    {
-      int cmaxN = i-iprev; 
-      if (cmaxN>imaxN) imaxN = cmaxN;
-      n2i[wa] = i;
-      wa = wa2;
-      iprev = i;
-    }
-  }
-  if (N-iprev>imaxN) imaxN = N-iprev;
-  n2i[natoms-1] = N;
-
-  return imaxN;
-}
-
 #if RED_DOUBLE
-void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords, 
-                         vector<vector<FP2> > &basis, 
-                         vector<vector<FP2> > &basis_aux, 
-                         int nrad, int nang, FP2* ang_g0, FP2* ang_w0, 
-                         FP2* C, int prl)
+void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* C, int prl)
 #else
-void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords, 
-                         vector<vector<FP2> > &basis, 
-                         vector<vector<FP2> > &basis_aux, 
-                         int nrad, int nang, FP2* ang_g0, FP2* ang_w0, 
-                         FP1* C, int prl)
+void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* C, int prl)
 #endif
 {
  #if !USE_ACC
-  return compute_all_3c_v2(natoms,atno,coords,basis,basis_aux,nrad,nang,ang_g0,ang_w0,C,prl);
+  return compute_all_3c_v2(do_overlap,natoms,atno,coords,basis,basis_aux,nrad,nang,ang_g0,ang_w0,C,prl);
  #endif
+
+  if (ngpu<1) { printf("\n ERROR: cannot run compute_all_3c_para, not enough gpus (%i) \n",ngpu); exit(-1); }
 
   int nomp = ngpu;
  //#pragma omp parallel
@@ -1037,6 +265,9 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
   int gs = nrad*nang;
   int gs6 = 6*gs;
 
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
   int estart = find_center_of_grid(1,nrad)*nang;
  
   int* na2i = new int[natoms];
@@ -1047,50 +278,50 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
 
   //printf("  iN/a: %i %i \n",iN,iNa);
 
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
+  float* grid1 = new float[gs6];
+  float* wt1 = new float[gs];
 
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
+  float* grid2 = new float[gs6];
+  float* wt2 = new float[gs];
 
-  FP1* grid3 = new FP1[gs6];
-  FP1* wt3 = new FP1[gs];
+  float* grid3 = new float[gs6];
+  float* wt3 = new float[gs];
 
-  FP1** val1 = new FP1*[iNa];
-  FP1** val2 = new FP1*[iN];
-  FP1** val3 = new FP1*[iN];
-  FP1** val4 = new FP1*[iNa];
-  FP1** val5 = new FP1*[iN];
-  FP1** val6 = new FP1*[iN];
-  FP1** val7 = new FP1*[iNa];
-  FP1** val8 = new FP1*[iN];
-  FP1** val9 = new FP1*[iN];
-  for (int i=0;i<iNa;i++) val1[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val2[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val3[i] = new FP1[gs];
-  for (int i=0;i<iNa;i++) val4[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val5[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val6[i] = new FP1[gs];
-  for (int i=0;i<iNa;i++) val7[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val8[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val9[i] = new FP1[gs];
-  FP1* valt1 = new FP1[gs];
-  FP1* valt2 = new FP1[gs];
-  FP1* valt3 = new FP1[gs];
+  float** val1 = new float*[iNa];
+  float** val2 = new float*[iN];
+  float** val3 = new float*[iN];
+  float** val4 = new float*[iNa];
+  float** val5 = new float*[iN];
+  float** val6 = new float*[iN];
+  float** val7 = new float*[iNa];
+  float** val8 = new float*[iN];
+  float** val9 = new float*[iN];
+  for (int i=0;i<iNa;i++) val1[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val2[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val3[i] = new float[gs];
+  for (int i=0;i<iNa;i++) val4[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val5[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val6[i] = new float[gs];
+  for (int i=0;i<iNa;i++) val7[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val8[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val9[i] = new float[gs];
+  float* valt1 = new float[gs];
+  float* valt2 = new float[gs];
+  float* valt3 = new float[gs];
 
-  FP1* grid1s = new FP1[gs6];
-  FP1* grid2s = new FP1[gs6];
-  FP1* grid3s = new FP1[gs6];
+  float* grid1s = new float[gs6];
+  float* grid2s = new float[gs6];
+  float* grid3s = new float[gs6];
 
-  FP1* grid1p = new FP1[gs6];
-  FP1* grid2p = new FP1[gs6];
-  FP1* grid3p = new FP1[gs6];
+  float* grid1p = new float[gs6];
+  float* grid2p = new float[gs6];
+  float* grid3p = new float[gs6];
 
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
+  float* wtt1 = new float[gs];
+  float* wtt2 = new float[gs];
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -1105,9 +336,7 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
-    #if USE_ACC
     acc_set_device_num(tid,acc_device_nvidia);
-    #endif
 
     #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
     #pragma acc enter data copyin(n2i[0:natoms],na2i[0:natoms])
@@ -1129,9 +358,7 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
     }
     acc_assign(N2a,C,0.);
   }
-  #if USE_ACC
   acc_set_device_num(0,acc_device_nvidia);
-  #endif
 
   //high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
@@ -1141,17 +368,15 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
   for (int m=0;m<natoms;m++)
   {
     int tid = omp_get_thread_num();
-    #if USE_ACC
     acc_set_device_num(tid,acc_device_nvidia);
-    #endif
     //printf("  launch %i/%i \n",m,tid);
 
     int s1 = 0; if (m>0) s1 = na2i[m-1]; int s2 = na2i[m];
     int s3 = 0; if (m>0) s3 = n2i[m-1]; int s4 = n2i[m];
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
-    
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
    #pragma acc parallel loop present(val1[0:iNa][0:gs])
@@ -1182,19 +407,24 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis_aux[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis_aux[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
-      eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
+      if (do_overlap)
+        eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
+      else
+      {
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+        eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
+      }
     } //loop i1
 
     for (int i2=s3;i2<s4;i2++)
     {
       int ii2 = i2-s3;
 
-      vector<FP2> basis2 = basis[i2];
-      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
       eval_sh(ii2,gs,grid1,val2[ii2],n2,l2,m2,zeta2);
     } //loop i2
@@ -1203,29 +433,27 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
     {
       int ii3 = i3-s3;
 
-      vector<FP2> basis3 = basis[i3];
-      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+      vector<double> basis3 = basis[i3];
+      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
 
       eval_sh(ii3,gs,grid1,val3[ii3],n3,l3,m3,zeta3);
     } //loop i3
-    
-    reduce_3c1b(s1,s2,s3,s4,gs,val1,val2,val3,N,Naux,iN,iNa,C);
-    // printf("%d %d %d\n",m,m,m);
 
-#if 1
+    reduce_3c1b(s1,s2,s3,s4,gs,val1,val2,val3,N,Naux,iN,iNa,C);
+
+
    //two-atom ints
     for (int n=0;n<natoms;n++)
     if (m!=n)
     {
-      // printf("%d %d %d\n",m,n,n);
      //s12 over atom m, aux function
      //s34 over atom m, regular function
      //s56 over atom n, regular function
       int s5 = 0; if (n>0) s5 = n2i[n-1]; int s6 = n2i[n];
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -1276,11 +504,16 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis_aux[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis_aux[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
-        eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
+        if (do_overlap)
+          eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
+        else
+        {
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+          eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
+        }
       }
 
      //i2 on atom m
@@ -1288,8 +521,8 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       {
         int ii2 = i2-s3;
 
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_sh(ii2,gs,grid1,val2[ii2],n2,l2,m2,zeta2);
         eval_sh(ii2,gs,grid2,val5[ii2],n2,l2,m2,zeta2);
@@ -1300,8 +533,8 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       {
         int ii3 = i3-s5;
 
-        vector<FP2> basis3 = basis[i3];
-        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
@@ -1335,8 +568,8 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       {
         int ii2 = i2-s5;
 
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_sh(ii2,gs,grid1s,val2[ii2],n2,l2,m2,zeta2);
         eval_sh(ii2,gs,grid2s,val5[ii2],n2,l2,m2,zeta2);
@@ -1347,8 +580,8 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       {
         int ii3 = i3-s5;
 
-        vector<FP2> basis3 = basis[i3];
-        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
@@ -1357,18 +590,18 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       reduce_3c2b(s1,s2,s5,s6,s5,s6,gs,val1,val2,val3,val4,val5,val6,N,Naux,iN,iNa,C);
  
     } //loop n over second atom
-#endif 
 
-#if 1
+
+
    //three-atom ints
     for (int n=0;n<natoms;n++)
     if (m!=n)
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -1386,12 +619,11 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       //for (int p=0;p<natoms;p++)
       //if (p!=m && p!=n)
       {
-        // printf("%d %d %d\n",m,n,p);
         int s5 = 0; if (p>0) s5 = n2i[p-1]; int s6 = n2i[p];
 
-        FP1 Z3 = (FP1)atno[p];
-        FP1 A3 = coords[3*p+0]; FP1 B3 = coords[3*p+1]; FP1 C3 = coords[3*p+2];
-        FP1 A13 = A3-A1; FP1 B13 = B3-B1; FP1 C13 = C3-C1;
+        float Z3 = (float)atno[p];
+        float A3 = coords[3*p+0]; float B3 = coords[3*p+1]; float C3 = coords[3*p+2];
+        float A13 = A3-A1; float B13 = B3-B1; float C13 = C3-C1;
 
         generate_central_grid_2(grid3,wt3,Z3,nrad,nang,ang_g,ang_w);
         copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
@@ -1459,20 +691,31 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
         {
           int ii1 = i1-s1;
 
-          vector<FP2> basis1 = basis_aux[i1];
-          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+          vector<double> basis1 = basis_aux[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
-          eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
-          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
-          eval_sh_3r(gs,grid3,val7[ii1],n1,l1,m1);
+          if (do_overlap)
+            eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
+          else
+          {
+            eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+            eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
+          }
+
+          if (do_overlap)
+            eval_sh(ii1,gs,grid3,val7[ii1],n1,l1,m1,zeta1);
+          else
+          {
+            eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+            eval_sh_3r(gs,grid3,val7[ii1],n1,l1,m1);
+          }
         }
 
         for (int i2=s3;i2<s4;i2++)
         {
           int ii2 = i2-s3;
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
           eval_sh(ii2,gs,grid3s,val8[ii2],n2,l2,m2,zeta2);
           eval_sh(ii2,gs,grid2s,val5[ii2],n2,l2,m2,zeta2);
@@ -1482,8 +725,8 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
         for (int i3=s5;i3<s6;i3++)
         {
           int ii3 = i3-s5;
-          vector<FP2> basis3 = basis[i3];
-          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+          vector<double> basis3 = basis[i3];
+          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
           eval_sh(ii3,gs,grid3p,val9[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid2p,val6[ii3],n3,l3,m3,zeta3);
@@ -1494,33 +737,19 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
 
       } //loop p over third atom
     } //loop n over second atom
-#endif
+
   } //loop m over natoms
 
   //high_resolution_clock::time_point t2 = high_resolution_clock::now();
 
  //collect integrals from all GPUs
-  FP2* C_all = new FP2[N2a]();
+  double* C_all = new double[N2a]();
 
   for (int n=0;n<nomp;n++)
   {
-    #if USE_ACC
     acc_set_device_num(n,acc_device_nvidia);
-    #endif
 
     #pragma acc update self(C[0:N2a])
-
-   #if 0
-    printf("\n C(%i): \n",n);
-    for (int i=0;i<Naux;i++)
-    {
-      printf(" i: %i \n",i);
-      for (int j=0;j<N;j++)
-      for (int k=0;k<N;k++)
-        printf("  %12.6f",C[i*N2+j*N+k]);
-      printf("\n");
-    }
-   #endif
 
     for (int i=0;i<N2a;i++)
       C_all[i] += C[i];
@@ -1531,9 +760,7 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
       #pragma acc exit data delete(C[0:N2a])
     }
   }
-  #if USE_ACC
   acc_set_device_num(0,acc_device_nvidia);
-  #endif
 
   for (int i=0;i<N2a;i++)
     C[i] = C_all[i];
@@ -1543,10 +770,20 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
  //apply symmetry and normalization
   copy_symm(natoms,N,Naux,basis,basis_aux,C,1);
 
-  for (int i=0;i<Naux;i++)
-  for (int j=0;j<N;j++)
-  for (int k=0;k<N;k++)
-    C[i*N2+j*N+k] *= norm_sv(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3])*basis[j][4]*basis[k][4];
+  if (do_overlap)
+  {
+    for (int i=0;i<Naux;i++)
+    for (int j=0;j<N;j++)
+    for (int k=0;k<N;k++)
+      C[i*N2+j*N+k] *= basis_aux[i][4]*basis[j][4]*basis[k][4];
+  }
+  else
+  {
+    for (int i=0;i<Naux;i++)
+    for (int j=0;j<N;j++)
+    for (int k=0;k<N;k++)
+      C[i*N2+j*N+k] *= norm_sv(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3])*basis[j][4]*basis[k][4];
+  }
 
   if (prl>2)
   {
@@ -1561,7 +798,8 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
     }
   }
 
-  transpose_C(Naux,N,C);
+  if (!do_overlap)
+    transpose_C(Naux,N,C);
   #pragma acc update device(C[0:N2a])
 
 
@@ -1572,9 +810,7 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
-    #if USE_ACC
     acc_set_device_num(tid,acc_device_nvidia);
-    #endif
 
     #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
     #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
@@ -1641,1224 +877,22 @@ void compute_all_3c_para(int ngpu, int natoms, int* atno, FP1* coords,
   delete [] valt2;
   delete [] valt3;
 
-  //printf("\n ENDING EARLY \n");
-  //exit(0);
-
   return;
 }
-
-void compute_all_3c_para2(int ngpu, int natoms, int* atno, FP1* coords, 
-                         vector<vector<FP2> > &basis, 
-                         vector<vector<FP2> > &basis_aux, 
-                         int nrad, int nang, FP2* ang_g0, FP2* ang_w0, 
-                         FP2* C, int prl)
-{
- #if !USE_ACC
-  return compute_all_3c_v2(natoms,atno,coords,basis,basis_aux,nrad,nang,ang_g0,ang_w0,C,prl);
- #endif
-
-  int nomp = ngpu;
- //#pragma omp parallel
-  //nomp = omp_get_num_threads(); 
-
-  if (prl>1) printf(" beginning compute_all_3c_para. nthreads: %2i \n",nomp);
-
-  int N = basis.size();
-  int N2 = N*N;
-  int Naux = basis_aux.size();
-  int N2a = N2*Naux;
-  int gs = nrad*nang;
-  int gs6 = 6*gs;
-
-  int estart = find_center_of_grid(1,nrad)*nang;
- 
-  int* na2i = new int[natoms];
-  int iNa = get_imax_n2i(natoms,Naux,basis_aux,na2i);
-
-  int* n2i = new int[natoms];
-  int iN = get_imax_n2i(natoms,N,basis,n2i);
-
-  //printf("  iN/a: %i %i \n",iN,iNa);
-
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
-
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
-
-  FP1* grid3 = new FP1[gs6];
-  FP1* wt3 = new FP1[gs];
-
-  FP1** val1 = new FP1*[iNa];
-  FP1** val2 = new FP1*[iN];
-  FP1** val3 = new FP1*[iN];
-  FP1** val4 = new FP1*[iNa];
-  FP1** val5 = new FP1*[iN];
-  FP1** val6 = new FP1*[iN];
-  FP1** val7 = new FP1*[iNa];
-  FP1** val8 = new FP1*[iN];
-  FP1** val9 = new FP1*[iN];
-  for (int i=0;i<iNa;i++) val1[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val2[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val3[i] = new FP1[gs];
-  for (int i=0;i<iNa;i++) val4[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val5[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val6[i] = new FP1[gs];
-  for (int i=0;i<iNa;i++) val7[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val8[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val9[i] = new FP1[gs];
-  FP1* valt1 = new FP1[gs];
-  FP1* valt2 = new FP1[gs];
-  FP1* valt3 = new FP1[gs];
-
-  FP1* grid1s = new FP1[gs6];
-  FP1* grid2s = new FP1[gs6];
-  FP1* grid3s = new FP1[gs6];
-
-  FP1* grid1p = new FP1[gs6];
-  FP1* grid2p = new FP1[gs6];
-  FP1* grid3p = new FP1[gs6];
-
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
-
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
-  for (int i=0;i<3*nang;i++)
-    ang_g[i] = ang_g0[i];
-  for (int i=0;i<nang;i++)
-    ang_w[i] = ang_w0[i];
-
-  //using namespace std::chrono;
-  //high_resolution_clock::time_point t0 = high_resolution_clock::now();
- 
-  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-  for (int n=0;n<nomp;n++)
-  {
-    int tid = omp_get_thread_num();
-    #if USE_ACC
-    acc_set_device_num(tid,acc_device_nvidia);
-    #endif
-
-    #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
-    #pragma acc enter data copyin(n2i[0:natoms],na2i[0:natoms])
-
-    #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-    #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
-    #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
-    #pragma acc enter data create(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-    #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-    #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
-
-    #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
-    #pragma acc enter data create(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
-
-    #pragma acc enter data create(wtt1[0:gs],wtt2[0:gs],valt1[0:gs],valt2[0:gs],valt3[0:gs])
-    if (tid>0)
-    {
-      #pragma acc enter data create(C[0:N2a])
-    }
-    acc_assign(N2a,C,0.);
-  }
-  #if USE_ACC
-  acc_set_device_num(0,acc_device_nvidia);
-  #endif
-
-  //high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  //Setting up manager-worker scheme
-  int work_size = natoms;
-  if (natoms > 1) {
-    work_size += natoms * (natoms - 1);
-  }
-  if (natoms > 2) {
-    work_size += natoms * (natoms - 1) * (natoms - 2) / 2;
-  }
-  int * work = new int[3*work_size]();
-  int count = 0;
-  for (int i = 0; i < natoms; i++) {
-    work[3*i+0] = i;
-    work[3*i+1] = i;
-    work[3*i+2] = i;
-    // printf("%d %d %d\n",i,i,i);
-    count++;
-  }
-  for (int i = 0; i < natoms; i++) {
-    for (int j = 0; j < natoms; j++) {
-      if (i != j) {
-        work[3*(count)+0] = i;
-        work[3*(count)+1] = j;
-        work[3*(count)+2] = j;
-        // printf("%d %d %d\n",i,j,j);
-        count++;
-      }
-    }
-  }
-  for (int i = 0; i < natoms; i++) {
-    for (int j = 0; j < natoms; j++) {
-      if (i != j) {
-        for (int k = j+1; k < natoms; k++) {
-          if (k != i) {
-            work[3*(count)+0] = i;
-            work[3*(count)+1] = j;
-            work[3*(count)+2] = k;
-            // printf("%d %d %d\n",i,j,k);
-            count++;
-          }
-        }
-      }
-    }
-  }
-  printf("\n");
-
-  // Starting integrals
-  int tasks = 0;
-  #pragma omp parallel num_threads(nomp)
-  {
-    int tid = omp_get_thread_num();
-    int num_threads = omp_get_num_threads();
-    int task = tid;
-
-    #if USE_ACC
-    acc_set_device_num(tid,acc_device_nvidia);
-    #endif
-
-    #pragma omp single
-    tasks = num_threads;
-
-    while (tasks <= count) {
-      int m = work[3*task+0];
-      int n = work[3*task+1];
-      int p = work[3*task+2];
-
-      // Compute grid for m first
-      int s1 = 0; if (m>0) s1 = na2i[m-1]; int s2 = na2i[m];
-      int s3 = 0; if (m>0) s3 = n2i[m-1]; int s4 = n2i[m];
-
-      FP1 Z1 = (FP1)atno[m];
-      FP1 A1 = coords[3*m+0]; 
-      FP1 B1 = coords[3*m+1]; 
-      FP1 C1 = coords[3*m+2];
-
-      generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
-      #pragma acc parallel loop present(val1[0:iNa][0:gs])
-      for (int ii1=0;ii1<s2-s1;ii1++)
-      {
-      #pragma acc loop
-        for (int j=0;j<gs;j++)
-          val1[ii1][j] = 1.f;
-      }
-
-      #pragma acc parallel loop present(val2[0:iN][0:gs])
-      for (int ii2=0;ii2<s4-s3;ii2++)
-      {
-      #pragma acc loop
-        for (int j=0;j<gs;j++)
-          val2[ii2][j] = 1.f;
-      }
-      #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs])
-      for (int ii3=0;ii3<s4-s3;ii3++)
-      {
-        #pragma acc loop
-        for (int j=0;j<gs;j++)
-          val3[ii3][j] = wt1[j];
-      }
-      // Done with m grid
-      for (int i1=s1;i1<s2;i1++)
-      {
-        int ii1 = i1-s1;
-
-        vector<FP2> basis1 = basis_aux[i1];
-        int n1 = basis1[0]; 
-        int l1 = basis1[1]; 
-        int m1 = basis1[2]; 
-        FP1 zeta1 = basis1[3];
-
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
-        eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
-      } //loop i1
-
-      // single atom, note by transitive property n == p... >.<
-      if (m == n && m == p) {
-        for (int i2=s3;i2<s4;i2++)
-        {
-          int ii2 = i2-s3;
-
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; 
-          int l2 = basis2[1]; 
-          int m2 = basis2[2]; 
-          FP1 zeta2 = basis2[3];
-
-          eval_sh(ii2,gs,grid1,val2[ii2],n2,l2,m2,zeta2);
-        } //loop i2
-
-        for (int i3=s3;i3<s4;i3++)
-        {
-          int ii3 = i3-s3;
-
-          vector<FP2> basis3 = basis[i3];
-          int n3 = basis3[0]; 
-          int l3 = basis3[1]; 
-          int m3 = basis3[2]; 
-          FP1 zeta3 = basis3[3];
-
-          eval_sh(ii3,gs,grid1,val3[ii3],n3,l3,m3,zeta3);
-        } //loop i3
-        
-        reduce_3c1b(s1,s2,s3,s4,gs,val1,val2,val3,N,Naux,iN,iNa,C);
-      } // end single atom
-      // two atoms
-      else if (m != n && n == p) {
-        int s5 = 0; if (n>0) s5 = n2i[n-1]; int s6 = n2i[n];
-
-        FP1 Z2 = (FP1)atno[n];
-        FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-        FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
-        add_r2_to_grid(gs,grid1,A12,B12,C12);
-
-        generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
-        copy_grid(gs,grid2s,grid2);
-        recenter_grid(gs,grid2,A12,B12,C12);
-
-        copy_grid(gs,grid1s,grid1); 
-        recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
-
-        acc_copyf(gs,wtt1,wt1);
-        becke_weight_2c(gs,grid1,wtt1,grid2,wt2,Z1,Z2,A12,B12,C12);
-        eliminate_small_wt(estart,gs,wtt1);
-        eliminate_small_wt(estart,gs,wt2);
-
-        add_r1_to_grid(gs,grid2,0.,0.,0.);
-
-        #pragma acc parallel loop collapse(2) present(val4[0:iNa][0:gs])
-        for (int ii1=0;ii1<s2-s1;ii1++)
-        {
-          for (int j=0;j<gs;j++)
-            val4[ii1][j] = 1.f;
-        }
-
-        #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs])
-        for (int ii2=0;ii2<s4-s3;ii2++)
-        {
-          for (int j=0;j<gs;j++)
-          {
-            val2[ii2][j] = 1.f;
-            val5[ii2][j] = 1.f;
-          }
-        }
-
-        #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
-        for (int ii3=0;ii3<s6-s5;ii3++)
-        {
-          for (int j=0;j<gs;j++)
-          {
-            val3[ii3][j] = wtt1[j];
-            val6[ii3][j] = wt2[j];
-          }
-        }
-
-        //i1 on atom m
-        for (int i1=s1;i1<s2;i1++)
-        {
-          int ii1 = i1-s1;
-
-          vector<FP2> basis1 = basis_aux[i1];
-          int n1 = basis1[0]; 
-          int l1 = basis1[1]; 
-          int m1 = basis1[2]; 
-          FP1 zeta1 = basis1[3];
-
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
-          eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
-        }
-
-        //i2 on atom m
-        for (int i2=s3;i2<s4;i2++)
-        {
-          int ii2 = i2-s3;
-
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; 
-          int l2 = basis2[1]; 
-          int m2 = basis2[2]; 
-          FP1 zeta2 = basis2[3];
-
-          eval_sh(ii2,gs,grid1,val2[ii2],n2,l2,m2,zeta2);
-          eval_sh(ii2,gs,grid2,val5[ii2],n2,l2,m2,zeta2);
-        }
-
-        //i3 on atom n
-        for (int i3=s5;i3<s6;i3++)
-        {
-          int ii3 = i3-s5;
-
-          vector<FP2> basis3 = basis[i3];
-          int n3 = basis3[0]; 
-          int l3 = basis3[1]; 
-          int m3 = basis3[2]; 
-          FP1 zeta3 = basis3[3];
-      
-          eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
-          eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
-        }
-
-        reduce_3c2b(s1,s2,s3,s4,s5,s6,gs,val1,val2,val3,val4,val5,val6,N,Naux,iN,iNa,C);
-
-        #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs])
-        for (int ii2=0;ii2<s6-s5;ii2++)
-        {
-          for (int j=0;j<gs;j++)
-          {
-            val2[ii2][j] = 1.f;
-            val5[ii2][j] = 1.f;
-          }
-        }
-
-        #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
-        for (int ii3=0;ii3<s6-s5;ii3++)
-        {
-          for (int j=0;j<gs;j++)
-          {
-            val3[ii3][j] = wtt1[j];
-            val6[ii3][j] = wt2[j];
-          }
-        }
-
-        // now do i2+i3 on atom n 
-        // i2 on atom n
-        for (int i2=s5;i2<s6;i2++)
-        {
-          int ii2 = i2-s5;
-
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
-
-          eval_sh(ii2,gs,grid1s,val2[ii2],n2,l2,m2,zeta2);
-          eval_sh(ii2,gs,grid2s,val5[ii2],n2,l2,m2,zeta2);
-        }
-
-        //i3 on atom n
-        for (int i3=s5;i3<s6;i3++)
-        {
-          int ii3 = i3-s5;
-
-          vector<FP2> basis3 = basis[i3];
-          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
-      
-          eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
-          eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
-        }
-
-        reduce_3c2b(s1,s2,s5,s6,s5,s6,gs,val1,val2,val3,val4,val5,val6,N,Naux,iN,iNa,C);
-      } // end 2 atom
-      // 3 atoms
-      else if (m != n && m != p) {
-        // printf("%d %d %d\n",m,n,p);
-        int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
-
-        FP1 Z2 = (FP1)atno[n];
-        FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-        FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
-
-        //grid1 at 0,0,0 now has r1 at 3, r2 at 4
-        add_r2_to_grid(gs,grid1,A12,B12,C12);
-
-        generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
-        copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
-        recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
-
-        copy_grid(gs,grid1s,grid1);
-        recenter_grid(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
-
-        int s5 = 0; if (p>0) s5 = n2i[p-1]; int s6 = n2i[p];
-
-        FP1 Z3 = (FP1)atno[p];
-        FP1 A3 = coords[3*p+0]; FP1 B3 = coords[3*p+1]; FP1 C3 = coords[3*p+2];
-        FP1 A13 = A3-A1; FP1 B13 = B3-B1; FP1 C13 = C3-C1;
-
-        generate_central_grid_2(grid3,wt3,Z3,nrad,nang,ang_g,ang_w);
-        copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
-        recenter_grid(gs,grid3,A13,B13,C13); //grid 3 centered on atom 1
-
-        copy_grid(gs,grid3s,grid3);
-        recenter_grid(gs,grid3s,-A12,-B12,-C12); //grid 3 centered on atom 2
-
-        copy_grid(gs,grid2p,grid2); //grid 2 centered on atom 3
-        recenter_grid(gs,grid2p,-A13,-B13,-C13);
-
-        copy_grid(gs,grid1p,grid1);
-        recenter_grid(gs,grid1p,-A13,-B13,-C13); //grid 1 centered on atom 3
-
-        add_r1_to_grid_6z(gs,grid1s,grid2s,grid3s,grid1p,grid2p,grid3p);
-
-        //need to keep all of these distances in order
-        add_r3_to_grid(gs,grid1,A13,B13,C13);
-        add_r123_to_grid(gs,grid2,A12,B12,C12,0.,0.,0.,A13,B13,C13);
-        add_r123_to_grid(gs,grid3,A13,B13,C13,A12,B12,C12,0.,0.,0.);
-
-        acc_copyf(gs,wtt1,wt1,wtt2,wt2);
-
-        becke_weight_3c(gs,grid1,wtt1,grid2,wtt2,grid3,wt3,Z1,Z2,Z3,A12,B12,C12,A13,B13,C13);
-        eliminate_small_wt_3(estart,gs,wtt1,wtt2,wt3);
-
-        add_r1_to_grid(gs,grid2,0.,0.,0.);
-        add_r1_to_grid(gs,grid3,0.,0.,0.);
-
-        #pragma acc parallel loop collapse(2) present(val4[0:iNa][0:gs],val7[0:iNa][0:gs])
-        for (int ii1=0;ii1<s2-s1;ii1++)
-        {
-          for (int j=0;j<gs;j++)
-          {
-            val4[ii1][j] = 1.f;
-            val7[ii1][j] = 1.f;
-          }
-        }
-
-        #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs],val8[0:iN][0:gs])
-        for (int ii2=0;ii2<s4-s3;ii2++)
-        {
-          for (int j=0;j<gs;j++)
-          {
-            val2[ii2][j] = 1.f;
-            val5[ii2][j] = 1.f;
-            val8[ii2][j] = 1.f;
-          }
-        }
-
-        #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],val9[0:iN][0:gs],wtt1[0:gs],wtt2[0:gs],wt3[0:gs])
-        for (int ii3=0;ii3<s6-s5;ii3++)
-        {
-          for (int j=0;j<gs;j++)
-          {
-            val3[ii3][j] = wtt1[j];
-            val6[ii3][j] = wtt2[j];
-            val9[ii3][j] = wt3[j];
-          }
-        }
-
- 
-        for (int i1=s1;i1<s2;i1++)
-        {
-          int ii1 = i1-s1;
-
-          vector<FP2> basis1 = basis_aux[i1];
-          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
-
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
-          eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
-          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
-          eval_sh_3r(gs,grid3,val7[ii1],n1,l1,m1);
-        }
-
-        for (int i2=s3;i2<s4;i2++)
-        {
-          int ii2 = i2-s3;
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
-
-          eval_sh(ii2,gs,grid3s,val8[ii2],n2,l2,m2,zeta2);
-          eval_sh(ii2,gs,grid2s,val5[ii2],n2,l2,m2,zeta2);
-          eval_sh(ii2,gs,grid1s,val2[ii2],n2,l2,m2,zeta2);
-        }
-
-        for (int i3=s5;i3<s6;i3++)
-        {
-          int ii3 = i3-s5;
-          vector<FP2> basis3 = basis[i3];
-          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
-    
-          eval_sh(ii3,gs,grid3p,val9[ii3],n3,l3,m3,zeta3);
-          eval_sh(ii3,gs,grid2p,val6[ii3],n3,l3,m3,zeta3);
-          eval_sh(ii3,gs,grid1p,val3[ii3],n3,l3,m3,zeta3);
-        }
-
-        reduce_3c3b(s1,s2,s3,s4,s5,s6,gs,val1,val2,val3,val4,val5,val6,val7,val8,val9,N,Naux,iN,iNa,C);
-      } // end 3 atoms
-
-      #pragma omp atomic capture
-      task = tasks++;
-    } // while loop for manager worker
-  } // omp parallel region
-  delete [] work;
-
-  //high_resolution_clock::time_point t2 = high_resolution_clock::now();
-
- //collect integrals from all GPUs
-  FP2* C_all = new FP2[N2a]();
-
-  for (int n=0;n<nomp;n++)
-  {
-    #if USE_ACC
-    acc_set_device_num(n,acc_device_nvidia);
-    #endif
-
-    #pragma acc update self(C[0:N2a])
-
-    for (int i=0;i<N2a;i++)
-      C_all[i] += C[i];
-
-    #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
-    if (n>0)
-    {
-      #pragma acc exit data delete(C[0:N2a])
-    }
-  }
-  #if USE_ACC
-  acc_set_device_num(0,acc_device_nvidia);
-  #endif
-
-  for (int i=0;i<N2a;i++)
-    C[i] = C_all[i];
-
-  delete [] C_all;
-
-  //apply symmetry and normalization
-  copy_symm(natoms,N,Naux,basis,basis_aux,C,1);
-
-  for (int i=0;i<Naux;i++)
-  for (int j=0;j<N;j++)
-  for (int k=0;k<N;k++)
-    C[i*N2+j*N+k] *= norm_sv(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3])*basis[j][4]*basis[k][4];
-
-  if (prl>2)
-  {
-    printf("\n C: \n");
-    for (int i=0;i<Naux;i++)
-    {
-      printf(" i: %i \n",i);
-      for (int j=0;j<N;j++)
-      for (int k=0;k<N;k++)
-        printf("  %12.6f",C[i*N2+j*N+k]);
-      printf("\n");
-    }
-  }
-
-  transpose_C(Naux,N,C);
-  #pragma acc update device(C[0:N2a])
-
-  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-  for (int n=0;n<nomp;n++)
-  {
-    int tid = omp_get_thread_num();
-    #if USE_ACC
-    acc_set_device_num(tid,acc_device_nvidia);
-    #endif
-
-    #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-    #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
-    #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
-
-    #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-    #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-    #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
-
-    #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
-    #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
-
-    #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs],valt1[0:gs],valt2[0:gs],valt3[0:gs])
-    #pragma acc exit data delete(n2i[0:natoms],na2i[0:natoms])
-  }
-
-  delete [] n2i;
-  delete [] na2i;
-
-  delete [] ang_g;
-  delete [] ang_w;
-
-  delete [] grid1s;
-  delete [] grid2s;
-  delete [] grid3s;
-  delete [] grid1p;
-  delete [] grid2p;
-  delete [] grid3p;
-
-  delete [] wtt1;
-  delete [] wtt2;
-  delete [] grid1;
-  delete [] grid2;
-  delete [] grid3;
-  delete [] wt1;
-  delete [] wt2;
-  delete [] wt3;
-  for (int i=0;i<iNa;i++) delete [] val1[i];
-  for (int i=0;i<iN;i++) delete [] val2[i];
-  for (int i=0;i<iN;i++) delete [] val3[i];
-  for (int i=0;i<iNa;i++) delete [] val4[i];
-  for (int i=0;i<iN;i++) delete [] val5[i];
-  for (int i=0;i<iN;i++) delete [] val6[i];
-  for (int i=0;i<iNa;i++) delete [] val7[i];
-  for (int i=0;i<iN;i++) delete [] val8[i];
-  for (int i=0;i<iN;i++) delete [] val9[i];
-  delete [] val1;
-  delete [] val2;
-  delete [] val3;
-  delete [] val4;
-  delete [] val5;
-  delete [] val6;
-  delete [] val7;
-  delete [] val8;
-  delete [] val9;
-  delete [] valt1;
-  delete [] valt2;
-  delete [] valt3;
-
-  return;
-}
-
-void compute_all_3c_para3(int ngpu, int natoms, int* atno, FP1* coords, 
-                         vector<vector<FP2> > &basis, 
-                         vector<vector<FP2> > &basis_aux, 
-                         int nrad, int nang, FP2* ang_g0, FP2* ang_w0, 
-                         FP2* C, int prl)
-{
- #if !USE_ACC
-  return compute_all_3c_v2(natoms,atno,coords,basis,basis_aux,nrad,nang,ang_g0,ang_w0,C,prl);
- #endif
-
-  int nomp = ngpu;
-  // printf(" beginning compute_all_3c_para3. nthreads: %2i \n",nomp);
-
-  int N = basis.size();
-  int N2 = N*N;
-  int Naux = basis_aux.size();
-  int N2a = N2*Naux;
-  int gs = nrad*nang;
-  int gs6 = 6*gs;
-
-  int estart = find_center_of_grid(1,nrad)*nang;
-
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
-
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
-
-  FP1* grid3 = new FP1[gs6];
-  FP1* wt3 = new FP1[gs];
-
-  int* na2i = new int[natoms];
-  int iNa = get_imax_n2i(natoms,Naux,basis_aux,na2i);
-
-  int* n2i = new int[natoms];
-  int iN = get_imax_n2i(natoms,N,basis,n2i);
-
-  FP1 * val1 = new FP1[gs];
-  FP1 * val2 = new FP1[gs];
-  FP1 * val3 = new FP1[gs];
-  FP1 * val4 = new FP1[gs];
-  FP1 * val5 = new FP1[gs];
-  FP1 * val6 = new FP1[gs];
-  FP1 * val7 = new FP1[gs];
-  FP1 * val8 = new FP1[gs];
-  FP1 * val9 = new FP1[gs];
-
-  FP1* grid1s = new FP1[gs6];
-  FP1* grid2s = new FP1[gs6];
-  FP1* grid3s = new FP1[gs6];
-
-  FP1* grid1p = new FP1[gs6];
-  FP1* grid2p = new FP1[gs6];
-  FP1* grid3p = new FP1[gs6];
-
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
-
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
-  for (int i=0;i<3*nang;i++)
-    ang_g[i] = ang_g0[i];
-  for (int i=0;i<nang;i++)
-    ang_w[i] = ang_w0[i];
-
-  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-  for (int n=0;n<nomp;n++)
-  {
-    int tid = omp_get_thread_num();
-    #if USE_ACC
-    acc_set_device_num(tid,acc_device_nvidia);
-    #endif
-
-    #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
-    #pragma acc enter data copyin(n2i[0:natoms],na2i[0:natoms])
-
-    #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-    #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
-    #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
-    #pragma acc enter data create(val1[0:gs],val2[0:gs],val3[0:gs]) 
-    #pragma acc enter data create(val4[0:gs],val5[0:gs],val6[0:gs]) 
-    #pragma acc enter data create(val7[0:gs],val8[0:gs],val9[0:gs]) 
-
-    #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
-    #pragma acc enter data create(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
-
-    #pragma acc enter data create(wtt1[0:gs],wtt2[0:gs])
-    if (tid>0)
-    {
-      #pragma acc enter data create(C[0:N2a])
-    }
-    acc_assign(N2a,C,0.);
-  }
-  #if USE_ACC
-  acc_set_device_num(0,acc_device_nvidia);
-  #endif
-
-  int tasks = 0;
-  int count = N2a;
-  #pragma omp parallel num_threads(nomp)
-  {
-    int tid = omp_get_thread_num();
-    int num_threads = omp_get_num_threads();
-    int task = tid;
-
-    #if USE_ACC
-    acc_set_device_num(tid,acc_device_nvidia);
-    #endif
-    
-    #pragma omp single
-    tasks = num_threads;
-
-    while (task < count) {
-      int mb = task / N2;
-      int nb = (task - mb*N2)/N;
-      int pb = task - mb * N2 - nb * N;
-      
-      int m = basis_aux[mb][9];
-      int n = basis[nb][9];
-      int p = basis[pb][9];
-
-      if (1) {//(pb <= nb && p <= n) {
-        FP1 Z1 = (FP1)atno[m];
-        FP1 A1 = coords[3*m+0];
-        FP1 B1 = coords[3*m+1];
-        FP1 C1 = coords[3*m+2];
-
-        FP1 Z2 = (FP1)atno[n];
-        FP1 A2 = coords[3*n+0];
-        FP1 B2 = coords[3*n+1];
-        FP1 C2 = coords[3*n+2];
-
-        FP1 Z3 = (FP1)atno[p];
-        FP1 A3 = coords[3*p+0];
-        FP1 B3 = coords[3*p+1];
-        FP1 C3 = coords[3*p+2];
-
-        generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
-        #pragma acc parallel loop present(val1[0:gs])
-        for (int j=0;j<gs;j++)
-          val1[j] = 1.;
-
-        #pragma acc parallel loop present(val2[0:gs])
-        for (int j=0;j<gs;j++)
-          val2[j] = 1.;
-        
-        #pragma acc parallel loop present(val3[0:gs],wt1[0:gs])
-        for (int j=0;j<gs;j++)
-          val3[j] = wt1[j];
-        // Done with m grid
-
-        vector<FP2> basis1 = basis_aux[mb];
-        int n1 = basis1[0]; 
-        int l1 = basis1[1]; 
-        int m1 = basis1[2]; 
-        FP1 zeta1 = basis1[3];
-        vector<FP2> basis2 = basis[nb];
-        int n2 = basis2[0]; 
-        int l2 = basis2[1]; 
-        int m2 = basis2[2]; 
-        FP1 zeta2 = basis2[3];
-        vector<FP2> basis3 = basis[pb];
-        int n3 = basis3[0]; 
-        int l3 = basis3[1]; 
-        int m3 = basis3[2]; 
-        FP1 zeta3 = basis3[3];
-
-        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
-        eval_sh_3r(gs,grid1,val1,n1,l1,m1);
-
-        // single atom, note by transitive property n == p... >.<
-        if (m == n && m == p) {  
-          eval_sh(0,gs,grid1,val2,n2,l2,m2,zeta2);
-          eval_sh(0,gs,grid1,val3,n3,l3,m3,zeta3);
-
-          #pragma acc kernels present(val1[0:gs],val2[0:gs],val3[0:gs],C[0:N2a])
-          {
-            FP2 val = 0.;
-            #pragma acc loop reduction(+:val) 
-            for (int j = 0; j < gs; j++) {
-              val += val1[j] * val2[j] * val3[j];
-            }
-            C[mb * N2 + nb * N + pb] = val;
-          }
-        } // end single atom
-        // two atoms -- due to previous if, m == n == p is excluded
-        else if (m != n && n == p) {
-          FP1 A12, B12, C12;
-          A12 = A2 - A1;
-          B12 = B2 - B1;
-          C12 = C2 - C1;
-        
-          add_r2_to_grid(gs,grid1,A12,B12,C12);
-
-          generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
-          copy_grid(gs,grid2s,grid2);
-          recenter_grid(gs,grid2,A12,B12,C12);
-
-          copy_grid(gs,grid1s,grid1); 
-          recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
-
-          acc_copyf(gs,wtt1,wt1);
-          becke_weight_2c(gs,grid1,wtt1,grid2,wt2,Z1,Z2,A12,B12,C12);
-          eliminate_small_wt(estart,gs,wtt1);
-          eliminate_small_wt(estart,gs,wt2);
-
-          add_r1_to_grid(gs,grid2,0.,0.,0.);
-
-          #pragma acc parallel loop present(val4[0:gs])
-          for (int j = 0; j < gs; j++) {
-            val4[j] = 1;
-          }
-          #pragma acc parallel loop present(val2[0:gs],val5[0:gs])
-          for (int j = 0; j < gs; j++) {
-            val2[j] = 1;
-            val5[j] = 1;
-          }
-          #pragma acc parallel loop present(val3[0:gs],val6[0:gs],wtt1[0:gs],wt2[0:gs])
-          for (int j = 0; j < gs; j++) {
-            val3[j] = wtt1[j];
-            val6[j] = wt2[j];
-          }
-
-          // i1 on atom m
-          eval_inr_r12(gs,grid2,val4,n1,l1,zeta1);
-          eval_sh_3r(gs,grid2,val4,n1,l1,m1);
-
-          eval_sh(0,gs,grid1s,val2,n2,l2,m2,zeta2);
-          eval_sh(0,gs,grid2s,val5,n2,l2,m2,zeta2);
-          eval_sh(0,gs,grid1s,val3,n3,l3,m3,zeta3);
-          eval_sh(0,gs,grid2s,val6,n3,l3,m3,zeta3);
-          #pragma acc kernels present(\
-            val1[0:gs],val2[0:gs],val3[0:gs],val4[0:gs],val5[0:gs],val6[0:gs])
-          {
-            FP2 val = 0.;
-            #pragma acc loop reduction(+:val)
-            for (int j = 0; j < gs; j++) {
-              val += val1[j] * val2[j] * val3[j];
-            }
-
-            #pragma acc loop reduction(+:val)
-            for (int j = 0; j < gs; j++) {
-              val += val4[j] * val5[j] * val6[j];
-            }
-
-            C[mb * N2 + nb * N + pb] = val;
-          }
-        }
-        else if (m == n || m == p) {
-          FP1 A12, B12, C12;
-          if (m == n) {
-            A12 = A3 - A1;
-            B12 = B3 - B1;
-            C12 = C3 - C1;
-          }
-          else if (m == p) {
-            A12 = A2 - A1;
-            B12 = B2 - B1;
-            C12 = C2 - C1;
-          }
-          add_r2_to_grid(gs,grid1,A12,B12,C12);
-
-          generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
-          copy_grid(gs,grid2s,grid2);
-          recenter_grid(gs,grid2,A12,B12,C12);
-
-          copy_grid(gs,grid1s,grid1); 
-          recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
-
-          acc_copyf(gs,wtt1,wt1);
-          becke_weight_2c(gs,grid1,wtt1,grid2,wt2,Z1,Z2,A12,B12,C12);
-          eliminate_small_wt(estart,gs,wtt1);
-          eliminate_small_wt(estart,gs,wt2);
-
-          add_r1_to_grid(gs,grid2,0.,0.,0.);
-
-          #pragma acc parallel loop present(val4[0:gs])
-          for (int j = 0; j < gs; j++) {
-            val4[j] = 1;
-          }
-          #pragma acc parallel loop present(val2[0:gs],val5[0:gs])
-          for (int j = 0; j < gs; j++) {
-            val2[j] = 1;
-            val5[j] = 1;
-          }
-          #pragma acc parallel loop present(val3[0:gs],val6[0:gs],wtt1[0:gs],wt2[0:gs])
-          for (int j = 0; j < gs; j++) {
-            val3[j] = wtt1[j];
-            val6[j] = wt2[j];
-          }
-
-          // i1
-          eval_inr_r12(gs,grid2,val4,n1,l1,zeta1);
-          eval_sh_3r(gs,grid2,val4,n1,l1,m1);
-
-          if (m == n) {
-            eval_sh(0,gs,grid1,val2,n2,l2,m2,zeta2);
-            eval_sh(0,gs,grid2,val5,n2,l2,m2,zeta2);
-            eval_sh(0,gs,grid1s,val3,n3,l3,m3,zeta3);
-            eval_sh(0,gs,grid2s,val6,n3,l3,m3,zeta3);
-          }
-          else if (m == p) {
-            eval_sh(0,gs,grid1s,val2,n2,l2,m2,zeta2);
-            eval_sh(0,gs,grid2s,val5,n2,l2,m2,zeta2);
-            eval_sh(0,gs,grid1,val3,n3,l3,m3,zeta3);
-            eval_sh(0,gs,grid2,val6,n3,l3,m3,zeta3);
-          }
-          #pragma acc kernels present(\
-            val1[0:gs],val2[0:gs],val3[0:gs],val4[0:gs],val5[0:gs],val6[0:gs])
-          {
-            FP2 val = 0.;
-            #pragma acc loop reduction(+:val)
-            for (int j = 0; j < gs; j++) {
-              val += val1[j] * val2[j] * val3[j];
-            }
-
-            #pragma acc loop reduction(+:val)
-            for (int j = 0; j < gs; j++) {
-              val += val4[j] * val5[j] * val6[j];
-            }
-
-            C[mb * N2 + nb * N + pb] = val;
-          }
-        }
-        // 3 atoms
-        else if (m != n && m != p && n != p) {
-          FP1 A12 = A2 - A1;
-          FP1 B12 = B2 - B1;
-          FP1 C12 = C2 - C1;
-          FP1 A13 = A3 - A1;
-          FP1 B13 = B3 - B1;
-          FP1 C13 = C3 - C1;
-
-          add_r2_to_grid(gs,grid1,A12,B12,C12);
-
-          generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
-          copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
-          recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
-
-          copy_grid(gs,grid1s,grid1);
-          recenter_grid(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
-
-          generate_central_grid_2(grid3,wt3,Z3,nrad,nang,ang_g,ang_w);
-          copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
-          recenter_grid(gs,grid3,A13,B13,C13); //grid 3 centered on atom 1
-
-          copy_grid(gs,grid3s,grid3);
-          recenter_grid(gs,grid3s,-A12,-B12,-C12); //grid 3 centered on atom 2
-
-          copy_grid(gs,grid2p,grid2); //grid 2 centered on atom 3
-          recenter_grid(gs,grid2p,-A13,-B13,-C13);
-
-          copy_grid(gs,grid1p,grid1);
-          recenter_grid(gs,grid1p,-A13,-B13,-C13); //grid 1 centered on atom 3
-
-          add_r1_to_grid_6z(gs,grid1s,grid2s,grid3s,grid1p,grid2p,grid3p);
-
-          //need to keep all of these distances in order
-          add_r3_to_grid(gs,grid1,A13,B13,C13);
-          add_r123_to_grid(gs,grid2,A12,B12,C12,0.,0.,0.,A13,B13,C13);
-          add_r123_to_grid(gs,grid3,A13,B13,C13,A12,B12,C12,0.,0.,0.);
-
-          acc_copyf(gs,wtt1,wt1,wtt2,wt2);
-
-          becke_weight_3c(gs,grid1,wtt1,grid2,wtt2,grid3,wt3,Z1,Z2,Z3,A12,B12,C12,A13,B13,C13);
-          eliminate_small_wt_3(estart,gs,wtt1,wtt2,wt3);
-
-          add_r1_to_grid(gs,grid2,0.,0.,0.);
-          add_r1_to_grid(gs,grid3,0.,0.,0.);
-
-          #pragma acc parallel loop present(val4[0:gs],val7[0:gs])
-          for (int j=0;j<gs;j++)
-          {
-            val4[j] = 1.;
-            val7[j] = 1.;
-          }
-
-          #pragma acc parallel loop present(val2[0:gs],val5[0:gs],val8[0:gs])
-          for (int j=0;j<gs;j++)
-          {
-            val2[j] = 1.;
-            val5[j] = 1.;
-            val8[j] = 1.;
-          }
-
-          #pragma acc parallel loop present(\
-            val3[0:gs],val6[0:gs],val9[0:gs],wtt1[0:gs],wtt2[0:gs],wt3[0:gs])
-          for (int j=0;j<gs;j++)
-          {
-            val3[j] = wtt1[j];
-            val6[j] = wtt2[j];
-            val9[j] = wt3[j];
-          }
-
-          eval_inr_r12(gs,grid2,val4,n1,l1,zeta1);
-          eval_sh_3r(gs,grid2,val4,n1,l1,m1);
-          eval_inr_r12(gs,grid3,val7,n1,l1,zeta1);
-          eval_sh_3r(gs,grid3,val7,n1,l1,m1);
-
-          eval_sh(0,gs,grid3s,val8,n2,l2,m2,zeta2);
-          eval_sh(0,gs,grid2s,val5,n2,l2,m2,zeta2);
-          eval_sh(0,gs,grid1s,val2,n2,l2,m2,zeta2);
-          
-          eval_sh(0,gs,grid3p,val9,n3,l3,m3,zeta3);
-          eval_sh(0,gs,grid2p,val6,n3,l3,m3,zeta3);
-          eval_sh(0,gs,grid1p,val3,n3,l3,m3,zeta3);
-
-          #pragma acc kernels present(\
-            val1[0:gs],val2[0:gs],val3[0:gs],\
-            val4[0:gs],val5[0:gs],val6[0:gs],\
-            val7[0:gs],val8[0:gs],val9[0:gs],\
-            C[0:N2a])
-          {
-            FP1 val = 0;
-            #pragma acc loop reduction(+:val)
-            for (int j = 0; j < gs; j++) {
-              val += val1[j] * val2[j] * val3[j];
-            }
-            #pragma acc loop reduction(+:val)
-            for (int j = 0; j < gs; j++) {
-              val += val4[j] * val5[j] * val6[j];
-            }
-            #pragma acc loop reduction(+:val)
-            for (int j = 0; j < gs; j++) {
-              val += val7[j] * val8[j] * val9[j];
-            }
-            C[mb * N2 + nb * N + pb] = val;
-            C[mb * N2 + pb * N + nb] = val;
-          }
-        } // end 3 atoms
-      }
-      #pragma omp atomic capture
-      task = tasks++;
-    } // while loop for manager worker
-  } // omp parallel region
-
-  FP2* C_all = new FP2[N2a]();
-
-  for (int n=0;n<nomp;n++)
-  {
-    #if USE_ACC
-    acc_set_device_num(n,acc_device_nvidia);
-    #endif
-
-    #pragma acc update self(C[0:N2a])
-
-    for (int i=0;i<N2a;i++)
-      C_all[i] += C[i];
-
-    #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
-    if (n>0)
-    {
-      #pragma acc exit data delete(C[0:N2a])
-    }
-  }
-  #if USE_ACC
-  acc_set_device_num(0,acc_device_nvidia);
-  #endif
-
-  for (int i=0;i<N2a;i++)
-    C[i] = C_all[i];
-
-  delete [] C_all;
-  //apply symmetry and normalization
-  copy_symm(natoms,N,Naux,basis,basis_aux,C,1);
-
-  for (int i=0;i<Naux;i++)
-  for (int j=0;j<N;j++)
-  for (int k=0;k<N;k++)
-    C[i*N2+j*N+k] *= norm_sv(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3])*basis[j][4]*basis[k][4];
-
-  if (prl>2)
-  {
-    printf("\n C: \n");
-    for (int i=0;i<Naux;i++)
-    {
-      printf(" i: %i \n",i);
-      for (int j=0;j<N;j++)
-      for (int k=0;k<N;k++)
-        printf("  %12.6f",C[i*N2+j*N+k]);
-      printf("\n");
-    }
-  }
-
-  transpose_C(Naux,N,C);
-  #pragma acc update device(C[0:N2a])
-
-  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-  for (int n=0;n<nomp;n++)
-  {
-    int tid = omp_get_thread_num();
-    #if USE_ACC
-    acc_set_device_num(tid,acc_device_nvidia);
-    #endif
-
-    #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-    #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
-    #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
-
-    #pragma acc exit data delete(val1[0:gs],val2[0:gs],val3[0:gs]) 
-    #pragma acc exit data delete(val4[0:gs],val5[0:gs],val6[0:gs]) 
-    #pragma acc exit data delete(val7[0:gs],val8[0:gs],val9[0:gs]) 
-
-    #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
-    #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
-
-    #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
-    #pragma acc exit data delete(n2i[0:natoms],na2i[0:natoms])
-  }
-
-  delete [] n2i;
-  delete [] na2i;
-
-  delete [] ang_g;
-  delete [] ang_w;
-
-  delete [] grid1s;
-  delete [] grid2s;
-  delete [] grid3s;
-  delete [] grid1p;
-  delete [] grid2p;
-  delete [] grid3p;
-
-  delete [] wtt1;
-  delete [] wtt2;
-  delete [] grid1;
-  delete [] grid2;
-  delete [] grid3;
-  delete [] wt1;
-  delete [] wt2;
-  delete [] wt3;
-  
-  delete [] val1;
-  delete [] val2;
-  delete [] val3;
-  delete [] val4;
-  delete [] val5;
-  delete [] val6;
-  delete [] val7;
-  delete [] val8;
-  delete [] val9;
-
-  return;
-}
-
 
 #if RED_DOUBLE
-void compute_all_3c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* C, int prl)
+void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* C, int prl)
 #else
-void compute_all_3c_v2(int natoms, int* atno, FP1* coords, 
-                       vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* C, int prl)
+void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* C, int prl)
 #endif
 {
-  if (prl>1) printf(" beginning compute_all_3c_v2 \n");
+  if (prl>1)
+  {
+    if (do_overlap)
+      printf(" beginning compute_all_3c_v2 (overlap) \n");
+    else
+      printf(" beginning compute_all_3c_v2 \n");
+  }
 
   int N = basis.size();
   int N2 = N*N;
@@ -2866,6 +900,9 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
   int N2a = N2*Naux;
   int gs = nrad*nang;
   int gs6 = 6*gs;
+
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
 
   int estart = find_center_of_grid(1,nrad)*nang;
  
@@ -2877,50 +914,50 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
 
   //printf("  iN/a: %i %i \n",iN,iNa);
 
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
+  float* grid1 = new float[gs6];
+  float* wt1 = new float[gs];
 
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
+  float* grid2 = new float[gs6];
+  float* wt2 = new float[gs];
 
-  FP1* grid3 = new FP1[gs6];
-  FP1* wt3 = new FP1[gs];
+  float* grid3 = new float[gs6];
+  float* wt3 = new float[gs];
 
-  FP1** val1 = new FP1*[iNa];
-  FP1** val2 = new FP1*[iN];
-  FP1** val3 = new FP1*[iN];
-  FP1** val4 = new FP1*[iNa];
-  FP1** val5 = new FP1*[iN];
-  FP1** val6 = new FP1*[iN];
-  FP1** val7 = new FP1*[iNa];
-  FP1** val8 = new FP1*[iN];
-  FP1** val9 = new FP1*[iN];
-  for (int i=0;i<iNa;i++) val1[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val2[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val3[i] = new FP1[gs];
-  for (int i=0;i<iNa;i++) val4[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val5[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val6[i] = new FP1[gs];
-  for (int i=0;i<iNa;i++) val7[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val8[i] = new FP1[gs];
-  for (int i=0;i<iN;i++)  val9[i] = new FP1[gs];
-  FP1* valt1 = new FP1[gs];
-  FP1* valt2 = new FP1[gs];
-  FP1* valt3 = new FP1[gs];
+  float** val1 = new float*[iNa];
+  float** val2 = new float*[iN];
+  float** val3 = new float*[iN];
+  float** val4 = new float*[iNa];
+  float** val5 = new float*[iN];
+  float** val6 = new float*[iN];
+  float** val7 = new float*[iNa];
+  float** val8 = new float*[iN];
+  float** val9 = new float*[iN];
+  for (int i=0;i<iNa;i++) val1[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val2[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val3[i] = new float[gs];
+  for (int i=0;i<iNa;i++) val4[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val5[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val6[i] = new float[gs];
+  for (int i=0;i<iNa;i++) val7[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val8[i] = new float[gs];
+  for (int i=0;i<iN;i++)  val9[i] = new float[gs];
+  float* valt1 = new float[gs];
+  float* valt2 = new float[gs];
+  float* valt3 = new float[gs];
 
-  FP1* grid1s = new FP1[gs6];
-  FP1* grid2s = new FP1[gs6];
-  FP1* grid3s = new FP1[gs6];
+  float* grid1s = new float[gs6];
+  float* grid2s = new float[gs6];
+  float* grid3s = new float[gs6];
 
-  FP1* grid1p = new FP1[gs6];
-  FP1* grid2p = new FP1[gs6];
-  FP1* grid3p = new FP1[gs6];
+  float* grid1p = new float[gs6];
+  float* grid2p = new float[gs6];
+  float* grid3p = new float[gs6];
 
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
+  float* wtt1 = new float[gs];
+  float* wtt2 = new float[gs];
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -2946,29 +983,21 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
  #endif
   acc_assign(N2a,C,0.);
 
-#if TIMER_KD
-  size_t vinr_time = 0;
-  size_t red_time = 0;
-  auto t1 = chrono::high_resolution_clock::now();
-  auto t2 = chrono::high_resolution_clock::now();
-#endif
-
   for (int m=0;m<natoms;m++)
   {
-    
     int s1 = 0; if (m>0) s1 = na2i[m-1]; int s2 = na2i[m];
     int s3 = 0; if (m>0) s3 = n2i[m-1]; int s4 = n2i[m];
     //printf("  m: %i  s1/2->3/4: %i %i - %i %i \n",m,s1,s2,s3,s4);
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
     //#pragma acc update self(grid1[0:gs6],wt1[0:gs])
     //print_grid(gs,grid1,NULL,wt1,NULL,prl);
 
-    //CPMZ need more of this
-    #pragma acc parallel loop present(val1[0:iNa][0:gs])
+ //CPMZ need more of this
+   #pragma acc parallel loop present(val1[0:iNa][0:gs])
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -2976,47 +1005,44 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         val1[ii1][j] = 1.f;
     }
 
-    #pragma acc parallel loop present(val2[0:iN][0:gs])
+   #pragma acc parallel loop present(val2[0:iN][0:gs])
     for (int ii2=0;ii2<s4-s3;ii2++)
     {
      #pragma acc loop
       for (int j=0;j<gs;j++)
         val2[ii2][j] = 1.f;
     }
-    #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs])
+   #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs])
     for (int ii3=0;ii3<s4-s3;ii3++)
     {
      #pragma acc loop
       for (int j=0;j<gs;j++)
         val3[ii3][j] = wt1[j];
     }
-    
-    #if TIMER_KD
-    t1 = chrono::high_resolution_clock::now();
-    #endif
-    //first compute single atom ints
+
+   //first compute single atom ints
     for (int i1=s1;i1<s2;i1++)
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis_aux[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis_aux[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
-      eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
+      if (do_overlap)
+        eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
+      else
+      {
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+        eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
+      }
     } //loop i1
-    
-    #if TIMER_KD
-    t2 = chrono::high_resolution_clock::now();
-    vinr_time += chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
-    #endif
 
     for (int i2=s3;i2<s4;i2++)
     {
       int ii2 = i2-s3;
 
-      vector<FP2> basis2 = basis[i2];
-      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
       eval_sh(ii2,gs,grid1,val2[ii2],n2,l2,m2,zeta2);
     } //loop i2
@@ -3025,43 +1051,32 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
     {
       int ii3 = i3-s3;
 
-      vector<FP2> basis3 = basis[i3];
-      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+      vector<double> basis3 = basis[i3];
+      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
 
       eval_sh(ii3,gs,grid1,val3[ii3],n3,l3,m3,zeta3);
     } //loop i3
 
-    
-    #if TIMER_KD
-    t1 = chrono::high_resolution_clock::now();
-    #endif
-
-    #if REDUCEV==1
+   #if REDUCEV==1
     reduce_3c1(s1,s2,s3,s4,gs,val1,val2,val3,valt1,N,Naux,iN,iNa,C);
-    #else
+   #else
     reduce_3c1b(s1,s2,s3,s4,gs,val1,val2,val3,N,Naux,iN,iNa,C);
-    #endif
-
-    #if TIMER_KD
-    t2 = chrono::high_resolution_clock::now();
-    red_time += chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();;
-    #endif
+   #endif
 
 
-    //two-atom ints
+   //two-atom ints
     for (int n=0;n<natoms;n++)
     if (m!=n)
     {
-      
      //s12 over atom m, aux function
      //s34 over atom m, regular function
      //s56 over atom n, regular function
       int s5 = 0; if (n>0) s5 = n2i[n-1]; int s6 = n2i[n];
       //printf("  n: %i  s1/2->3/4->5/6: %i %i - %i %i - %i %i \n",n,s1,s2,s3,s4,s5,s6);
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -3083,14 +1098,14 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
       //#pragma acc update self(grid1[0:gs6],wt1[0:gs],grid2[0:gs6],wt2[0:gs])
       //print_grid(gs,grid1,grid2,wt1,wt2,prl);
 
-      #pragma acc parallel loop collapse(2) present(val4[0:iNa][0:gs])
+     #pragma acc parallel loop collapse(2) present(val4[0:iNa][0:gs])
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
         for (int j=0;j<gs;j++)
           val4[ii1][j] = 1.f;
       }
 
-      #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs])
+     #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs])
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
         for (int j=0;j<gs;j++)
@@ -3100,7 +1115,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         }
       }
 
-      #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
+     #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
       for (int ii3=0;ii3<s6-s5;ii3++)
       {
         for (int j=0;j<gs;j++)
@@ -3110,70 +1125,56 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         }
       }
 
-      #if TIMER_KD
-      t1 = chrono::high_resolution_clock::now();
-      #endif
-      //i1 on atom m
+     //i1 on atom m
       for (int i1=s1;i1<s2;i1++)
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis_aux[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis_aux[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
         //printf("  m: %i i1: %i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
 
-        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
-        eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
+        if (do_overlap)
+          eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
+        else
+        {
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+          eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
+        }
       }
-      
-      #if TIMER_KD
-      t2 = chrono::high_resolution_clock::now();
-      vinr_time += chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
-      #endif
 
-      //i2 on atom m
+     //i2 on atom m
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
 
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
         //printf("   n: %i i2: %i   nlm: %i %i %2i zeta: %8.5f \n",n,i2,n2,l2,m2,zeta2);
 
         eval_sh(ii2,gs,grid1,val2[ii2],n2,l2,m2,zeta2);
         eval_sh(ii2,gs,grid2,val5[ii2],n2,l2,m2,zeta2);
       }
 
-      //i3 on atom n
+     //i3 on atom n
       for (int i3=s5;i3<s6;i3++)
       {
         int ii3 = i3-s5;
 
-        vector<FP2> basis3 = basis[i3];
-        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
       }
 
-      
-      #if TIMER_KD
-      t1 = chrono::high_resolution_clock::now();
-      #endif
-
-      #if REDUCEV==1
+     #if REDUCEV==1
       reduce_3c2(s1,s2,s3,s4,s5,s6,gs,val1,val2,val3,val4,val5,val6,valt1,valt2,N,Naux,iN,iNa,C);
-      #else
+     #else
       reduce_3c2b(s1,s2,s3,s4,s5,s6,gs,val1,val2,val3,val4,val5,val6,N,Naux,iN,iNa,C);
-      #endif
+     #endif
 
-      #if TIMER_KD
-      t2 = chrono::high_resolution_clock::now();
-      red_time += chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
-      #endif
-      
-
-      #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs])
+     #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs])
       for (int ii2=0;ii2<s6-s5;ii2++)
       {
         for (int j=0;j<gs;j++)
@@ -3183,7 +1184,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         }
       }
 
-      #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
+     #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
       for (int ii3=0;ii3<s6-s5;ii3++)
       {
         for (int j=0;j<gs;j++)
@@ -3193,63 +1194,53 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         }
       }
 
-      //now do i2+i3 on atom n 
-      //i2 on atom n
+     //now do i2+i3 on atom n 
+     //i2 on atom n
       for (int i2=s5;i2<s6;i2++)
       {
         int ii2 = i2-s5;
 
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
         //printf("   n: %i i2: %i   nlm: %i %i %2i zeta: %8.5f \n",n,i2,n2,l2,m2,zeta2);
 
         eval_sh(ii2,gs,grid1s,val2[ii2],n2,l2,m2,zeta2);
         eval_sh(ii2,gs,grid2s,val5[ii2],n2,l2,m2,zeta2);
       }
 
-      //i3 on atom n
+     //i3 on atom n
       for (int i3=s5;i3<s6;i3++)
       {
         int ii3 = i3-s5;
 
-        vector<FP2> basis3 = basis[i3];
-        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
       }
 
-      #if TIMER_KD
-      t1 = chrono::high_resolution_clock::now();
-      #endif
-
-      #if REDUCEV==1
+     #if REDUCEV==1
       reduce_3c2(s1,s2,s5,s6,s5,s6,gs,val1,val2,val3,val4,val5,val6,valt1,valt2,N,Naux,iN,iNa,C);
-      #else
+     #else
       reduce_3c2b(s1,s2,s5,s6,s5,s6,gs,val1,val2,val3,val4,val5,val6,N,Naux,iN,iNa,C);
-      #endif
-
-      #if TIMER_KD
-      t2 = chrono::high_resolution_clock::now();
-      red_time += chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();;
-      #endif
-
+     #endif
+ 
     } //loop n over second atom
 
 
 
-    //three-atom ints
+   //three-atom ints
     for (int n=0;n<natoms;n++)
     if (m!=n)
     {
-      
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
-      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
+     //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
 
       generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
@@ -3259,7 +1250,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
       copy_grid(gs,grid1s,grid1);
       recenter_grid(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
-      //testing condition
+     //testing condition
       for (int p=n+1;p<natoms;p++)
       if (p!=m)
       //for (int p=0;p<natoms;p++)
@@ -3268,9 +1259,9 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         int s5 = 0; if (p>0) s5 = n2i[p-1]; int s6 = n2i[p];
         //printf("  p: %i  s1/2->3/4->5/6: %i %i - %i %i - %i %i \n",p,s1,s2,s3,s4,s5,s6);
 
-        FP1 Z3 = (FP1)atno[p];
-        FP1 A3 = coords[3*p+0]; FP1 B3 = coords[3*p+1]; FP1 C3 = coords[3*p+2];
-        FP1 A13 = A3-A1; FP1 B13 = B3-B1; FP1 C13 = C3-C1;
+        float Z3 = (float)atno[p];
+        float A3 = coords[3*p+0]; float B3 = coords[3*p+1]; float C3 = coords[3*p+2];
+        float A13 = A3-A1; float B13 = B3-B1; float C13 = C3-C1;
 
         generate_central_grid_2(grid3,wt3,Z3,nrad,nang,ang_g,ang_w);
         copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
@@ -3287,7 +1278,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
 
         add_r1_to_grid_6z(gs,grid1s,grid2s,grid3s,grid1p,grid2p,grid3p);
 
-        //need to keep all of these distances in order
+      //need to keep all of these distances in order
         add_r3_to_grid(gs,grid1,A13,B13,C13);
         add_r123_to_grid(gs,grid2,A12,B12,C12,0.,0.,0.,A13,B13,C13);
         add_r123_to_grid(gs,grid3,A13,B13,C13,A12,B12,C12,0.,0.,0.);
@@ -3301,7 +1292,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         add_r1_to_grid(gs,grid3,0.,0.,0.);
 
 
-        #pragma acc parallel loop collapse(2) present(val4[0:iNa][0:gs],val7[0:iNa][0:gs])
+       #pragma acc parallel loop collapse(2) present(val4[0:iNa][0:gs],val7[0:iNa][0:gs])
         for (int ii1=0;ii1<s2-s1;ii1++)
         {
           for (int j=0;j<gs;j++)
@@ -3311,7 +1302,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
           }
         }
 
-        #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs],val8[0:iN][0:gs])
+       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs],val5[0:iN][0:gs],val8[0:iN][0:gs])
         for (int ii2=0;ii2<s4-s3;ii2++)
         {
           for (int j=0;j<gs;j++)
@@ -3322,7 +1313,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
           }
         }
 
-        #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],val9[0:iN][0:gs],wtt1[0:gs],wtt2[0:gs],wt3[0:gs])
+       #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],val9[0:iN][0:gs],wtt1[0:gs],wtt2[0:gs],wt3[0:gs])
         for (int ii3=0;ii3<s6-s5;ii3++)
         {
           for (int j=0;j<gs;j++)
@@ -3333,31 +1324,35 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
           }
         }
 
-        #if TIMER_KD
-        t1 = chrono::high_resolution_clock::now();
-        #endif
+ 
         for (int i1=s1;i1<s2;i1++)
         {
           int ii1 = i1-s1;
 
-          vector<FP2> basis1 = basis_aux[i1];
-          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+          vector<double> basis1 = basis_aux[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
-          eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
-          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
-          eval_sh_3r(gs,grid3,val7[ii1],n1,l1,m1);
+          if (do_overlap)
+            eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
+          else
+          {
+            eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+            eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
+          }
+          if (do_overlap)
+            eval_sh(ii1,gs,grid3,val7[ii1],n1,l1,m1,zeta1);
+          else
+          {
+            eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+            eval_sh_3r(gs,grid3,val7[ii1],n1,l1,m1);
+          }
         }
-        #if TIMER_KD
-        t2 = chrono::high_resolution_clock::now();
-        vinr_time += chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
-        #endif
-        
+
         for (int i2=s3;i2<s4;i2++)
         {
           int ii2 = i2-s3;
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
           eval_sh(ii2,gs,grid3s,val8[ii2],n2,l2,m2,zeta2);
           eval_sh(ii2,gs,grid2s,val5[ii2],n2,l2,m2,zeta2);
@@ -3367,51 +1362,47 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
         for (int i3=s5;i3<s6;i3++)
         {
           int ii3 = i3-s5;
-          vector<FP2> basis3 = basis[i3];
-          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+          vector<double> basis3 = basis[i3];
+          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
           eval_sh(ii3,gs,grid3p,val9[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid2p,val6[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid1p,val3[ii3],n3,l3,m3,zeta3);
         }
 
-        
-        #if TIMER_KD
-        t1 = chrono::high_resolution_clock::now();
-        #endif
-
-        #if REDUCEV==1
+       #if REDUCEV==1
         reduce_3c3(s1,s2,s3,s4,s5,s6,gs,val1,val2,val3,val4,val5,val6,val7,val8,val9,valt1,valt2,valt3,N,Naux,iN,iNa,C);
-        #else
+       #else
         reduce_3c3b(s1,s2,s3,s4,s5,s6,gs,val1,val2,val3,val4,val5,val6,val7,val8,val9,N,Naux,iN,iNa,C);
-        #endif
-
-        #if TIMER_KD
-        t2 = chrono::high_resolution_clock::now();
-        red_time += chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();;
-        #endif
+       #endif
 
       } //loop p over third atom
     } //loop n over second atom
 
   } //loop m over natoms
 
-  #if USE_ACC
-    #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
-    //#pragma acc exit data copyout(C[0:N2a])
-    #pragma acc update self(C[0:N2a])
-  #endif
-
-  #if TIMER_KD
-  printf("\nVINR time: %5.3e s REDUCE time: %5.3e s\n\n",(FP2)vinr_time/1.e9,(FP2)red_time/1.e9);
-  #endif
+ #if USE_ACC
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  //#pragma acc exit data copyout(C[0:N2a])
+  #pragma acc update self(C[0:N2a])
+ #endif
 
   copy_symm(natoms,N,Naux,basis,basis_aux,C,1);
 
-  for (int i=0;i<Naux;i++)
-  for (int j=0;j<N;j++)
-  for (int k=0;k<N;k++)
-    C[i*N2+j*N+k] *= norm_sv(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3])*basis[j][4]*basis[k][4];
+  if (do_overlap)
+  {
+    for (int i=0;i<Naux;i++)
+    for (int j=0;j<N;j++)
+    for (int k=0;k<N;k++)
+      C[i*N2+j*N+k] *= basis_aux[i][4]*basis[j][4]*basis[k][4];
+  }
+  else
+  {
+    for (int i=0;i<Naux;i++)
+    for (int j=0;j<N;j++)
+    for (int k=0;k<N;k++)
+      C[i*N2+j*N+k] *= norm_sv(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3])*basis[j][4]*basis[k][4];
+  }
 
   if (prl>2)
   {
@@ -3426,26 +1417,26 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
     }
   }
 
-  transpose_C(Naux,N,C);
+  if (!do_overlap)
+    transpose_C(Naux,N,C);
   #pragma acc update device(C[0:N2a])
 
+ //CPMZ check this
+#if USE_ACC
+  #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
+  #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
 
-  //CPMZ check this
-  #if USE_ACC
-    #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-    #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
-    #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
+  #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
+  #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
+  #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
 
-    #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-    #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-    #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+  #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
+  #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
 
-    #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
-    #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
-
-    #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs],valt1[0:gs],valt2[0:gs],valt3[0:gs])
-    #pragma acc exit data delete(n2i[0:natoms],na2i[0:natoms])
-  #endif
+  #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs],valt1[0:gs],valt2[0:gs],valt3[0:gs])
+  #pragma acc exit data delete(n2i[0:natoms],na2i[0:natoms])
+#endif
 
   delete [] n2i;
   delete [] na2i;
@@ -3493,7 +1484,7 @@ void compute_all_3c_v2(int natoms, int* atno, FP1* coords,
   return;
 }
 
-void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, vector<vector<FP2> > &basis_aux, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* C, int prl)
+void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* C, int prl)
 {
   if (prl>1) printf(" beginning compute_all_3c \n");
 
@@ -3502,39 +1493,42 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
   int Naux = basis_aux.size();
   int N2a = N2*Naux;
 
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
   int gs = nrad*nang;
 
-  FP1* grid1 = new FP1[6*gs];
-  FP1* wt1 = new FP1[gs];
-  FP1* val1 = new FP1[gs];
+  float* grid1 = new float[6*gs];
+  float* wt1 = new float[gs];
+  float* val1 = new float[gs];
 
-  FP1* grid2 = new FP1[6*gs];
-  FP1* wt2 = new FP1[gs];
-  FP1* val2 = new FP1[gs];
+  float* grid2 = new float[6*gs];
+  float* wt2 = new float[gs];
+  float* val2 = new float[gs];
 
-  FP1* grid3 = new FP1[6*gs];
-  FP1* wt3 = new FP1[gs];
-  FP1* val3 = new FP1[gs];
+  float* grid3 = new float[6*gs];
+  float* wt3 = new float[gs];
+  float* val3 = new float[gs];
 
-  FP1* grid1s = new FP1[6*gs];
-  FP1* grid2s = new FP1[6*gs];
-  FP1* grid3s = new FP1[6*gs];
+  float* grid1s = new float[6*gs];
+  float* grid2s = new float[6*gs];
+  float* grid3s = new float[6*gs];
 
-  FP1* grid1p = new FP1[6*gs];
-  FP1* grid2p = new FP1[6*gs];
-  FP1* grid3p = new FP1[6*gs];
+  float* grid1p = new float[6*gs];
+  float* grid2p = new float[6*gs];
+  float* grid3p = new float[6*gs];
 
-  FP1* valt1 = new FP1[gs];
-  FP1* valt2 = new FP1[gs];
-  FP1* valt3 = new FP1[gs];
-  FP1* valt4 = new FP1[gs];
-  FP1* valt5 = new FP1[gs];
-  FP1* valt6 = new FP1[gs];
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
+  float* valt1 = new float[gs];
+  float* valt2 = new float[gs];
+  float* valt3 = new float[gs];
+  float* valt4 = new float[gs];
+  float* valt5 = new float[gs];
+  float* valt6 = new float[gs];
+  float* wtt1 = new float[gs];
+  float* wtt2 = new float[gs];
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -3577,8 +1571,8 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
   {
     //int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
     //generate_central_grid(grid1,wt1,val1,0,Z1,1,0,1.,nrad,nang,ang_g,ang_w);
@@ -3589,13 +1583,13 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
     for (int i1=0;i1<Naux;i1++)
     if (basis_aux[i1][9]==m)
     {
-      vector<FP2> basis1 = basis_aux[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis_aux[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
       //printf("\n  m: %i i1: %2i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
 
       acc_assign(gs,val1,1.);
 
-      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
+      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
       eval_sh_3r(gs,grid1,val1,n1,l1,m1);
 
       //#pragma acc update self(val1[0:gs])
@@ -3604,8 +1598,8 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
       for (int i2=0;i2<N;i2++)
       if (basis[i2][9]==m)
       {
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
         //printf("    n: %i i2: %2i   nlm: %i %i %2i zeta: %8.5f   (b2) \n",m,i2,n2,l2,m2,zeta2);
 
         acc_copyf(gs,valt1,val1);
@@ -3615,14 +1609,14 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
         for (int i3=0;i3<N;i3++)
         if (basis[i3][9]==m)
         {
-          vector<FP2> basis3 = basis[i3];
-          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+          vector<double> basis3 = basis[i3];
+          int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
 
           acc_copyf(gs,valt2,valt1);
 
           eval_sh(i2,gs,grid1,valt2,n3,l3,m3,zeta3);
 
-          FP1 val = 0.;
+          float val = 0.;
         #if USE_ACC
          #pragma acc parallel loop independent present(valt2[0:gs],wt1[0:gs]) reduction(+:val)
         #endif
@@ -3644,9 +1638,9 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
     for (int n=0;n<natoms;n++)
     if (m!=n)
     {
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -3672,23 +1666,23 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
       for (int i1=0;i1<Naux;i1++)
       if (basis_aux[i1][9]==m)
       {
-        vector<FP2> basis1 = basis_aux[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis_aux[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
         //printf("  m: %i i1: %i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
 
         acc_assign(gs,val1,1.);
         acc_assign(gs,val2,1.);
 
-        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
+        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
         eval_sh_3r(gs,grid1,val1,n1,l1,m1);
-        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1);
+        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1,3);
         eval_sh_3r(gs,grid2,val2,n1,m1,l1);
 
         for (int i2=0;i2<N;i2++)
         if (basis[i2][9]==n)
         {
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
           //printf("   n: %i i2: %i   nlm: %i %i %2i zeta: %8.5f \n",n,i2,n2,l2,m2,zeta2);
 
           acc_copyf(gs,valt1,val1);
@@ -3701,8 +1695,8 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
           for (int i3=0;i3<N;i3++)
           if (basis[i3][9]==m) 
           {
-            vector<FP2> basis3 = basis[i3];
-            int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+            vector<double> basis3 = basis[i3];
+            int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
             acc_copyf(gs,valt3,valt1);
             acc_copyf(gs,valt4,valt2);
@@ -3710,7 +1704,7 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
             eval_sh(i3,gs,grid2,valt4,n3,l3,m3,zeta3);
             eval_sh(i3,gs,grid1,valt3,n3,l3,m3,zeta3);
 
-            FP1 val = 0.;
+            float val = 0.;
           #if USE_ACC
            #pragma acc parallel loop independent present(valt3[0:gs],wtt1[0:gs]) reduction(+:val)
           #endif
@@ -3734,8 +1728,8 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
           for (int i3=0;i3<N;i3++)
           if (basis[i3][9]==n) 
           {
-            vector<FP2> basis3 = basis[i3];
-            int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+            vector<double> basis3 = basis[i3];
+            int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
             acc_copyf(gs,valt3,valt1);
             acc_copyf(gs,valt4,valt2);
@@ -3744,7 +1738,7 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
             eval_sh(i3,gs,grid2s,valt4,n3,l3,m3,zeta3);
             eval_sh(i3,gs,grid1s,valt3,n3,l3,m3,zeta3);
 
-            FP1 val = 0.;
+            float val = 0.;
           #if USE_ACC
            #pragma acc parallel loop independent present(valt3[0:gs],wtt1[0:gs]) reduction(+:val)
           #endif
@@ -3774,9 +1768,9 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
     for (int n=0;n<natoms;n++)
     if (m!=n)
     {
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -3792,10 +1786,10 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
       for (int p=0;p<natoms;p++)
       if (p!=m && p!=n)
       {
-        FP1 Z3 = (FP1)atno[p];
-        FP1 A3 = coords[3*p+0]; FP1 B3 = coords[3*p+1]; FP1 C3 = coords[3*p+2];
-        FP1 A13 = A3-A1; FP1 B13 = B3-B1; FP1 C13 = C3-C1;
-        //FP1 A23 = A3-A2; FP1 B23 = B3-B2; FP1 C23 = C3-C2;
+        float Z3 = (float)atno[p];
+        float A3 = coords[3*p+0]; float B3 = coords[3*p+1]; float C3 = coords[3*p+2];
+        float A13 = A3-A1; float B13 = B3-B1; float C13 = C3-C1;
+        //float A23 = A3-A2; float B23 = B3-B2; float C23 = C3-C2;
 
         generate_central_grid_2(grid3,wt3,Z3,nrad,nang,ang_g,ang_w);
         //generate_central_grid(grid3,wt3,val3,0,Z3,1,0,1.,nrad,nang,ang_g,ang_w);
@@ -3834,26 +1828,26 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
         for (int i1=0;i1<Naux;i1++)
         if (basis_aux[i1][9]==m)
         {
-          vector<FP2> basis1 = basis_aux[i1];
-          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+          vector<double> basis1 = basis_aux[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
           //printf("  m: %i i1: %i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
 
           acc_assign(gs,val1,1.);
           acc_assign(gs,val2,1.);
           acc_assign(gs,val3,1.);
 
-          eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
+          eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
           eval_sh_3r(gs,grid1,val1,n1,l1,m1);
-          eval_inr_r12(gs,grid2,val2,n1,l1,zeta1);
+          eval_inr_r12(gs,grid2,val2,n1,l1,zeta1,3);
           eval_sh_3r(gs,grid2,val2,n1,l1,m1);
-          eval_inr_r12(gs,grid3,val3,n1,l1,zeta1);
+          eval_inr_r12(gs,grid3,val3,n1,l1,zeta1,3);
           eval_sh_3r(gs,grid3,val3,n1,l1,m1);
 
           for (int i2=0;i2<N;i2++)
           if (basis[i2][9]==n)
           {
-            vector<FP2> basis2 = basis[i2];
-            int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+            vector<double> basis2 = basis[i2];
+            int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
             //printf("   n: %i i2: %i   nlm: %i %i %2i zeta: %8.5f \n",n,i2,n2,l2,m2,zeta2);
 
             acc_copyf(gs,valt1,val1);
@@ -3867,8 +1861,8 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
             for (int i3=0;i3<N;i3++)
             if (basis[i3][9]==p) 
             {
-              vector<FP2> basis3 = basis[i3];
-              int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; FP1 zeta3 = basis3[3];
+              vector<double> basis3 = basis[i3];
+              int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
     
               acc_copyf(gs,valt4,valt1);
               acc_copyf(gs,valt5,valt2);
@@ -3878,7 +1872,7 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
               eval_sh(i3,gs,grid2p,valt5,n3,l3,m3,zeta3);
               eval_sh(i3,gs,grid1p,valt4,n3,l3,m3,zeta3);
 
-              FP1 val = 0.;
+              float val = 0.;
             #if USE_ACC
              #pragma acc parallel loop independent present(valt4[0:gs],wtt1[0:gs]) reduction(+:val)
             #endif
@@ -4008,7 +2002,7 @@ void compute_all_3c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
   return;
 }
 
-void norm_2c(int N, vector<vector<FP2> > &basis, FP1* S)
+void norm_2c(int N, vector<vector<double> > &basis, float* S)
 {
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
@@ -4021,8 +2015,7 @@ void norm_2c(int N, vector<vector<FP2> > &basis, FP1* S)
   return;
 }
 
-#if !EVL64
-void norm_2c(int N, vector<vector<FP2> > &basis, FP2* S)
+void norm_2c(int N, vector<vector<double> > &basis, double* S)
 {
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
@@ -4034,12 +2027,11 @@ void norm_2c(int N, vector<vector<FP2> > &basis, FP2* S)
 
   return;
 }
-#endif
 
 #if RED_DOUBLE
-void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, int nc, FP1* coordsc, FP2* Pao, FP2* V, FP2* dV, int prl)
+void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, int nc, float* coordsc, double* Pao, double* V, double* dV, int prl)
 #else
-void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, int nc, FP1* coordsc, FP2* Pao, FP1* V, FP1* dV, int prl)
+void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, int nc, float* coordsc, double* Pao, float* V, float* dV, int prl)
 #endif
 {
   if (nc<1) return;
@@ -4055,56 +2047,56 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
 
   int estart = find_center_of_grid(1,nrad)*nang;
 
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
+  float* grid1 = new float[gs6];
+  float* wt1 = new float[gs];
 
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
+  float* grid2 = new float[gs6];
+  float* wt2 = new float[gs];
 
-  FP1* grid3 = new FP1[gs6];
-  FP1* wt3 = new FP1[gs];
+  float* grid3 = new float[gs6];
+  float* wt3 = new float[gs];
 
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
   //printf("  iN: %i \n",imaxN);
 
-  FP2* norms = new FP2[N2];
+  double* norms = new double[N2];
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
     norms[i*N+j] = basis[i][4]*basis[j][4];
 
  //intermediate storage
   int iN = imaxN;
-  FP1* grid1s = new FP1[gs6]; FP1* grid2s = new FP1[gs6]; FP1* grid3s = new FP1[gs6];
-  FP1* grid1p = new FP1[gs6]; FP1* grid2p = new FP1[gs6]; FP1* grid3p = new FP1[gs6];
-  FP1** valS1 = new FP1*[iN]; for (int i=0;i<iN;i++) valS1[i] = new FP1[gs];
-  FP1** valS2 = new FP1*[iN]; for (int i=0;i<iN;i++) valS2[i] = new FP1[gs];
-  FP1** valS3 = new FP1*[iN]; for (int i=0;i<iN;i++) valS3[i] = new FP1[gs];
-  FP1** valS4 = new FP1*[iN]; for (int i=0;i<iN;i++) valS4[i] = new FP1[gs];
-  FP1** valS5 = new FP1*[iN]; for (int i=0;i<iN;i++) valS5[i] = new FP1[gs];
-  FP1** valS6 = new FP1*[iN]; for (int i=0;i<iN;i++) valS6[i] = new FP1[gs];
+  float* grid1s = new float[gs6]; float* grid2s = new float[gs6]; float* grid3s = new float[gs6];
+  float* grid1p = new float[gs6]; float* grid2p = new float[gs6]; float* grid3p = new float[gs6];
+  float** valS1 = new float*[iN]; for (int i=0;i<iN;i++) valS1[i] = new float[gs];
+  float** valS2 = new float*[iN]; for (int i=0;i<iN;i++) valS2[i] = new float[gs];
+  float** valS3 = new float*[iN]; for (int i=0;i<iN;i++) valS3[i] = new float[gs];
+  float** valS4 = new float*[iN]; for (int i=0;i<iN;i++) valS4[i] = new float[gs];
+  float** valS5 = new float*[iN]; for (int i=0;i<iN;i++) valS5[i] = new float[gs];
+  float** valS6 = new float*[iN]; for (int i=0;i<iN;i++) valS6[i] = new float[gs];
 
-  FP1** valt1 = new FP1*[iN]; for (int i=0;i<iN;i++) valt1[i] = new FP1[gs];
-  FP1** valt2 = new FP1*[iN]; for (int i=0;i<iN;i++) valt2[i] = new FP1[gs];
-  FP1** valt3 = new FP1*[iN]; for (int i=0;i<iN;i++) valt3[i] = new FP1[gs];
+  float** valt1 = new float*[iN]; for (int i=0;i<iN;i++) valt1[i] = new float[gs];
+  float** valt2 = new float*[iN]; for (int i=0;i<iN;i++) valt2[i] = new float[gs];
+  float** valt3 = new float*[iN]; for (int i=0;i<iN;i++) valt3[i] = new float[gs];
 
-  FP1** valtv1 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv1[i] = new FP1[gs3];
-  FP1** valtv2 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv2[i] = new FP1[gs3];
-  FP1** valtv3 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv3[i] = new FP1[gs3];
+  float** valtv1 = new float*[iN]; for (int i=0;i<iN;i++) valtv1[i] = new float[gs3];
+  float** valtv2 = new float*[iN]; for (int i=0;i<iN;i++) valtv2[i] = new float[gs3];
+  float** valtv3 = new float*[iN]; for (int i=0;i<iN;i++) valtv3[i] = new float[gs3];
 
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
+  float* wtt1 = new float[gs];
+  float* wtt2 = new float[gs];
 
  #if RED_DOUBLE
-  FP2* V1 = new FP2[nc];
-  FP2* dV1 = new FP2[nc3]; 
+  double* V1 = new double[nc];
+  double* dV1 = new double[nc3]; 
  #else
-  FP1* V1 = new FP1[nc];
-  FP1* dV1 = new FP1[nc3]; 
+  float* V1 = new float[nc];
+  float* dV1 = new float[nc3]; 
  #endif
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -4134,8 +2126,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
@@ -4153,8 +2145,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
     }
@@ -4162,8 +2154,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
     for (int i2=s1;i2<s2;i2++)
     {
       int ii2 = i2-s1;
-      vector<FP2> basis2 = basis[i2];
-      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
       eval_sh(ii2,gs,grid1,valS3[ii2],n2,l2,m2,zeta2);
     } //loop i2 evaluate
@@ -4176,9 +2168,9 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
    //2 basis on same center (m), 1 charge elsewhere (p)
     for (int p=0;p<nc;p++)
     {
-      FP1 Zb = 1.;
-      FP1 An = coordsc[3*p+0]; FP1 Bn = coordsc[3*p+1]; FP1 Cn = coordsc[3*p+2];
-      FP1 A1n = An-A1; FP1 B1n = Bn-B1; FP1 C1n = Cn-C1;
+      float Zb = 1.;
+      float An = coordsc[3*p+0]; float Bn = coordsc[3*p+1]; float Cn = coordsc[3*p+2];
+      float A1n = An-A1; float B1n = Bn-B1; float C1n = Cn-C1;
 
       add_r2_to_grid(gs,grid1,A1n,B1n,C1n);
 
@@ -4223,8 +2215,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
         eval_sh(ii1,gs,grid3,valS2[ii1],n1,l1,m1,zeta1);
       }
@@ -4232,8 +2224,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       for (int i2=s1;i2<s2;i2++)
       {
         int ii2 = i2-s1;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_sh(ii2,gs,grid3,valS4[ii2],n2,l2,m2,zeta2);
       } //loop i2 evaluate
@@ -4255,15 +2247,15 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
      #pragma acc parallel loop present(grid1[0:gs6],grid3[0:gs6],grid1p[0:gs6],grid3p[0:gs6],valt1[0:iN][0:gs],valS2[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        FP1 x1 = grid1p[6*j+0]; FP1 y1 = grid1p[6*j+1]; FP1 z1 = grid1p[6*j+2];
-        FP1 x3 = grid3p[6*j+0]; FP1 y3 = grid3p[6*j+1]; FP1 z3 = grid3p[6*j+2];
-        FP1 Rn1 = grid1[6*j+4]+1.e-20f;
-        FP1 Rn3 = grid3[6*j+4]+1.e-20f;
-        FP1 r12 = Rn1*Rn1; FP1 r32 = Rn3*Rn3;
+        float x1 = grid1p[6*j+0]; float y1 = grid1p[6*j+1]; float z1 = grid1p[6*j+2];
+        float x3 = grid3p[6*j+0]; float y3 = grid3p[6*j+1]; float z3 = grid3p[6*j+2];
+        float Rn1 = grid1[6*j+4]+1.e-20f;
+        float Rn3 = grid3[6*j+4]+1.e-20f;
+        float r12 = Rn1*Rn1; float r32 = Rn3*Rn3;
 
-        FP1 ne1 = -1.f/Rn1; FP1 ne3 = -1.f/Rn3;
-        FP1 dx1 = x1*ne1/r12; FP1 dy1 = y1*ne1/r12; FP1 dz1 = z1*ne1/r12;
-        FP1 dx3 = x3*ne3/r32; FP1 dy3 = y3*ne3/r32; FP1 dz3 = z3*ne3/r32;
+        float ne1 = -1.f/Rn1; float ne3 = -1.f/Rn3;
+        float dx1 = x1*ne1/r12; float dy1 = y1*ne1/r12; float dz1 = z1*ne1/r12;
+        float dx3 = x3*ne3/r32; float dy3 = y3*ne3/r32; float dz3 = z3*ne3/r32;
 
         //ne1 = ne3 = 1.;
 
@@ -4314,9 +2306,9 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -4352,8 +2344,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
         eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
         eval_sh(ii1,gs,grid2,valS2[ii1],n1,l1,m1,zeta1);
@@ -4362,8 +2354,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_sh(ii2,gs,grid1s,valS3[ii2],n2,l2,m2,zeta2);
         eval_sh(ii2,gs,grid2s,valS4[ii2],n2,l2,m2,zeta2);
@@ -4373,9 +2365,9 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
      //2 basis on diff centers, 1 charge elsewhere
       for (int p=0;p<nc;p++)
       {
-        FP1 Zb = 1.;
-        FP1 An = coordsc[3*p+0]; FP1 Bn = coordsc[3*p+1]; FP1 Cn = coordsc[3*p+2];
-        FP1 A1n = An-A1; FP1 B1n = Bn-B1; FP1 C1n = Cn-C1;
+        float Zb = 1.;
+        float An = coordsc[3*p+0]; float Bn = coordsc[3*p+1]; float Cn = coordsc[3*p+2];
+        float A1n = An-A1; float B1n = Bn-B1; float C1n = Cn-C1;
 
         generate_central_grid_2(grid3,wt3,Zb,nrad,nang,ang_g,ang_w);
         copy_grid(gs,grid3p,grid3); //grid 3 centered on charge
@@ -4447,8 +2439,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
         {
           int ii1 = i1-s1;
 
-          vector<FP2> basis1 = basis[i1];
-          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+          vector<double> basis1 = basis[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
           eval_sh(ii1,gs,grid3,valS5[ii1],n1,l1,m1,zeta1);
         }
@@ -4456,8 +2448,8 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
         for (int i2=s3;i2<s4;i2++)
         {
           int ii2 = i2-s3;
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
           eval_sh(ii2,gs,grid3s,valS6[ii2],n2,l2,m2,zeta2);
         } //loop i2 evaluate
@@ -4467,7 +2459,7 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
         {
           for (int j=0;j<gs;j++)
           {
-            FP1 v1wt = valS5[ii1][j];
+            float v1wt = valS5[ii1][j];
             valtv3[ii1][3*j+0] = v1wt;
             valtv3[ii1][3*j+1] = v1wt;
             valtv3[ii1][3*j+2] = v1wt;
@@ -4478,17 +2470,17 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
        #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],grid3[0:gs6],grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valS5[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3],valtv3[0:iN][0:gs3])
         for (int j=0;j<gs;j++)
         {
-          FP1 x1 = grid1p[6*j+0]; FP1 y1 = grid1p[6*j+1]; FP1 z1 = grid1p[6*j+2];
-          FP1 x2 = grid2p[6*j+0]; FP1 y2 = grid2p[6*j+1]; FP1 z2 = grid2p[6*j+2];
-          FP1 x3 = grid3p[6*j+0]; FP1 y3 = grid3p[6*j+1]; FP1 z3 = grid3p[6*j+2];
-          FP1 Rn1 = grid1[6*j+4]+1.e-20f;
-          FP1 Rn2 = grid2[6*j+4]+1.e-20f;
-          FP1 Rn3 = grid3[6*j+4]+1.e-20f;
-          FP1 r12 = Rn1*Rn1; FP1 r22 = Rn2*Rn2; FP1 r32 = Rn3*Rn3;
-          FP1 ne1 = -1.f/Rn1; FP1 ne2 = -1.f/Rn2; FP1 ne3 = -1.f/Rn3;
-          FP1 dx1 = x1*ne1/r12; FP1 dy1 = y1*ne1/r12; FP1 dz1 = z1*ne1/r12;
-          FP1 dx2 = x2*ne2/r22; FP1 dy2 = y2*ne2/r22; FP1 dz2 = z2*ne2/r22;
-          FP1 dx3 = x3*ne3/r32; FP1 dy3 = y3*ne3/r32; FP1 dz3 = z3*ne3/r32;
+          float x1 = grid1p[6*j+0]; float y1 = grid1p[6*j+1]; float z1 = grid1p[6*j+2];
+          float x2 = grid2p[6*j+0]; float y2 = grid2p[6*j+1]; float z2 = grid2p[6*j+2];
+          float x3 = grid3p[6*j+0]; float y3 = grid3p[6*j+1]; float z3 = grid3p[6*j+2];
+          float Rn1 = grid1[6*j+4]+1.e-20f;
+          float Rn2 = grid2[6*j+4]+1.e-20f;
+          float Rn3 = grid3[6*j+4]+1.e-20f;
+          float r12 = Rn1*Rn1; float r22 = Rn2*Rn2; float r32 = Rn3*Rn3;
+          float ne1 = -1.f/Rn1; float ne2 = -1.f/Rn2; float ne3 = -1.f/Rn3;
+          float dx1 = x1*ne1/r12; float dy1 = y1*ne1/r12; float dz1 = z1*ne1/r12;
+          float dx2 = x2*ne2/r22; float dy2 = y2*ne2/r22; float dz2 = z2*ne2/r22;
+          float dx3 = x3*ne3/r32; float dy3 = y3*ne3/r32; float dz3 = z3*ne3/r32;
 
           ne1 = ne2 = ne3 = 1.;
 
@@ -4576,18 +2568,18 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
   if (1)
   for (int i=0;i<natoms;i++)
   {
-    FP1 Z1 = atno[i];
-    FP1 A1 = coords[3*i+0]; FP1 B1 = coords[3*i+1]; FP1 C1 = coords[3*i+2];
+    float Z1 = atno[i];
+    float A1 = coords[3*i+0]; float B1 = coords[3*i+1]; float C1 = coords[3*i+2];
     for (int p=0;p<nc;p++)
     {
-      FP1 A1n = A1 - coordsc[3*p+0];
-      FP1 B1n = B1 - coordsc[3*p+1];
-      FP1 C1n = C1 - coordsc[3*p+2];
-      FP2 r1n = sqrt(A1n*A1n+B1n*B1n+C1n*C1n);
-      FP2 r2 = r1n*r1n;
+      float A1n = A1 - coordsc[3*p+0];
+      float B1n = B1 - coordsc[3*p+1];
+      float C1n = C1 - coordsc[3*p+2];
+      double r1n = sqrt(A1n*A1n+B1n*B1n+C1n*C1n);
+      double r2 = r1n*r1n;
 
-      FP1 ne1 = Z1/r1n;
-      FP1 dx = A1n*ne1/r2; FP1 dy = B1n*ne1/r2; FP1 dz = C1n*ne1/r2;
+      float ne1 = Z1/r1n;
+      float dx = A1n*ne1/r2; float dy = B1n*ne1/r2; float dz = C1n*ne1/r2;
 
       V[p] += ne1;
       dV[3*p+0] += dx;
@@ -4675,9 +2667,9 @@ void compute_VdV(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
 }
 
 #if RED_DOUBLE
-void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* En, FP2* pVp, int prl)
+void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* En, double* pVp, int prl)
 #else
-void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* En, FP1* pVp, int prl)
+void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* En, float* pVp, int prl)
 #endif
 {
  #if !USE_ACC
@@ -4694,19 +2686,42 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
   int N = basis.size();
   int N2 = N*N;
 
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
+ //compute_Enp now allows non-integer Zeff values
+ // elements must still be identified
+  float atz[natoms];
+  for (int n=0;n<natoms;n++)
+  {
+    for (int m=0;m<N;m++)
+    if (close_val(coords[3*n+0],basis[m][5]) && close_val(coords[3*n+1],basis[m][6]) && close_val(coords[3*n+2],basis[m][7]))
+    {
+      atz[n] = basis[m][8];
+      break;
+    }
+  }
+  if (prl>2)
+  {
+    printf("  atz: ");
+    for (int n=0;n<natoms;n++)
+      printf(" %5.3f",atz[n]);
+    printf("\n");
+  }
+
   int gs = nrad*nang;
   int gs3 = 3*gs; int gs6 = 6*gs;
 
   int estart = find_center_of_grid(1,nrad)*nang;
 
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
+  float* grid1 = new float[gs6];
+  float* wt1 = new float[gs];
 
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
+  float* grid2 = new float[gs6];
+  float* wt2 = new float[gs];
 
-  FP1* grid3 = new FP1[gs6];
-  FP1* wt3 = new FP1[gs];
+  float* grid3 = new float[gs6];
+  float* wt3 = new float[gs];
 
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
@@ -4714,41 +2729,41 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
 
  //intermediate storage
   int iN = imaxN;
-  FP1* grid1s = new FP1[gs6]; FP1* grid2s = new FP1[gs6]; FP1* grid3s = new FP1[gs6];
-  FP1* grid1p = new FP1[gs6]; FP1* grid2p = new FP1[gs6]; FP1* grid3p = new FP1[gs6];
-  FP1** valS1 = new FP1*[iN]; for (int i=0;i<iN;i++) valS1[i] = new FP1[gs];
-  FP1** valS2 = new FP1*[iN]; for (int i=0;i<iN;i++) valS2[i] = new FP1[gs];
-  FP1** valS3 = new FP1*[iN]; for (int i=0;i<iN;i++) valS3[i] = new FP1[gs];
-  FP1** valS4 = new FP1*[iN]; for (int i=0;i<iN;i++) valS4[i] = new FP1[gs];
-  FP1** valS5 = new FP1*[iN]; for (int i=0;i<iN;i++) valS5[i] = new FP1[gs];
-  FP1** valS6 = new FP1*[iN]; for (int i=0;i<iN;i++) valS6[i] = new FP1[gs];
-  FP1** valV1 = new FP1*[iN]; for (int i=0;i<iN;i++) valV1[i] = new FP1[gs3];
-  FP1** valV2 = new FP1*[iN]; for (int i=0;i<iN;i++) valV2[i] = new FP1[gs3];
-  FP1** valV3 = new FP1*[iN]; for (int i=0;i<iN;i++) valV3[i] = new FP1[gs3];
-  FP1** valV4 = new FP1*[iN]; for (int i=0;i<iN;i++) valV4[i] = new FP1[gs3];
-  FP1** valV5 = new FP1*[iN]; for (int i=0;i<iN;i++) valV5[i] = new FP1[gs3];
-  FP1** valV6 = new FP1*[iN]; for (int i=0;i<iN;i++) valV6[i] = new FP1[gs3];
+  float* grid1s = new float[gs6]; float* grid2s = new float[gs6]; float* grid3s = new float[gs6];
+  float* grid1p = new float[gs6]; float* grid2p = new float[gs6]; float* grid3p = new float[gs6];
+  float** valS1 = new float*[iN]; for (int i=0;i<iN;i++) valS1[i] = new float[gs];
+  float** valS2 = new float*[iN]; for (int i=0;i<iN;i++) valS2[i] = new float[gs];
+  float** valS3 = new float*[iN]; for (int i=0;i<iN;i++) valS3[i] = new float[gs];
+  float** valS4 = new float*[iN]; for (int i=0;i<iN;i++) valS4[i] = new float[gs];
+  float** valS5 = new float*[iN]; for (int i=0;i<iN;i++) valS5[i] = new float[gs];
+  float** valS6 = new float*[iN]; for (int i=0;i<iN;i++) valS6[i] = new float[gs];
+  float** valV1 = new float*[iN]; for (int i=0;i<iN;i++) valV1[i] = new float[gs3];
+  float** valV2 = new float*[iN]; for (int i=0;i<iN;i++) valV2[i] = new float[gs3];
+  float** valV3 = new float*[iN]; for (int i=0;i<iN;i++) valV3[i] = new float[gs3];
+  float** valV4 = new float*[iN]; for (int i=0;i<iN;i++) valV4[i] = new float[gs3];
+  float** valV5 = new float*[iN]; for (int i=0;i<iN;i++) valV5[i] = new float[gs3];
+  float** valV6 = new float*[iN]; for (int i=0;i<iN;i++) valV6[i] = new float[gs3];
 
-  FP1** valt1 = new FP1*[iN]; for (int i=0;i<iN;i++) valt1[i] = new FP1[gs];
-  FP1** valt2 = new FP1*[iN]; for (int i=0;i<iN;i++) valt2[i] = new FP1[gs];
-  FP1** valt3 = new FP1*[iN]; for (int i=0;i<iN;i++) valt3[i] = new FP1[gs];
-  FP1** valtv1 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv1[i] = new FP1[gs3];
-  FP1** valtv2 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv2[i] = new FP1[gs3];
-  FP1** valtv3 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv3[i] = new FP1[gs3];
+  float** valt1 = new float*[iN]; for (int i=0;i<iN;i++) valt1[i] = new float[gs];
+  float** valt2 = new float*[iN]; for (int i=0;i<iN;i++) valt2[i] = new float[gs];
+  float** valt3 = new float*[iN]; for (int i=0;i<iN;i++) valt3[i] = new float[gs];
+  float** valtv1 = new float*[iN]; for (int i=0;i<iN;i++) valtv1[i] = new float[gs3];
+  float** valtv2 = new float*[iN]; for (int i=0;i<iN;i++) valtv2[i] = new float[gs3];
+  float** valtv3 = new float*[iN]; for (int i=0;i<iN;i++) valtv3[i] = new float[gs3];
 
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
+  float* wtt1 = new float[gs];
+  float* wtt2 = new float[gs];
 
  #if RED_DOUBLE
-  FP2* En1 = new FP2[N2];
-  FP2* pVp1 = new FP2[N2]; 
+  double* En1 = new double[N2];
+  double* pVp1 = new double[N2]; 
  #else
-  FP1* En1 = new FP1[N2];
-  FP1* pVp1 = new FP1[N2]; 
+  float* En1 = new float[N2];
+  float* pVp1 = new float[N2]; 
  #endif
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -4760,9 +2775,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
-    #if USE_ACC
     acc_set_device_num(tid,acc_device_nvidia);
-    #endif
+
     #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
     #pragma acc enter data copyin(n2i[0:natoms])
     #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
@@ -4791,18 +2805,17 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
   for (int m=0;m<natoms;m++)
   {
     int tid = omp_get_thread_num();
-    #if USE_ACC
     acc_set_device_num(tid,acc_device_nvidia);
-    #endif
     //printf("  launch %i/%i \n",m,tid);
 
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    float Z1 = atz[m];
+    int Z1g = atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
-    generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+    generate_central_grid_2(grid1,wt1,Z1g,nrad,nang,ang_g,ang_w);
 
   #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valV1[0:iN][0:gs3])
@@ -4837,8 +2850,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
       eval_p(gs,grid1,valV1[ii1],n1,l1,m1,zeta1);
@@ -4847,8 +2860,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
     for (int i2=s1;i2<s2;i2++)
     {
       int ii2 = i2-s1;
-      vector<FP2> basis2 = basis[i2];
-      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
       eval_sh(ii2,gs,grid1,valS3[ii2],n2,l2,m2,zeta2);
       eval_p(gs,grid1,valV3[ii2],n2,l2,m2,zeta2);
@@ -4875,8 +2888,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
    #pragma acc parallel loop present(grid1[0:gs6],valt1[0:iN][0:gs],valtv1[0:iN][0:gs3])
     for (int j=0;j<gs;j++)
     {
-      FP1 Rn1 = grid1[6*j+3]+1.e-20f;
-      FP1 ne1 = Z1/Rn1;
+      float Rn1 = grid1[6*j+3]+1.e-20f;
+      float ne1 = Z1/Rn1;
 
      #pragma acc loop
       for (int ii1=0;ii1<s2-s1;ii1++)
@@ -4889,30 +2902,34 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
     }
 
    //collect 1-atom values
-    acc_assign(N2,En1,0.);
-    acc_assign(N2,pVp1,0.);
-
-    reduce_2c1(s1,s2,gs,valt1,valS3,iN,N,En1);
-    reduce_2c1(s1,s2,gs3,valtv1,valV3,iN,N,pVp1);
-
-   #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
-    for (int j=0;j<N2;j++)
+    if (Z1!=0.)
     {
-      En[j] += En1[j];
-      pVp[j] += pVp1[j];
+      acc_assign(N2,En1,0.);
+      acc_assign(N2,pVp1,0.);
+
+      reduce_2c1(s1,s2,gs,valt1,valS3,iN,N,En1);
+      reduce_2c1(s1,s2,gs3,valtv1,valV3,iN,N,pVp1);
+
+     #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
+      for (int j=0;j<N2;j++)
+      {
+        En[j] += En1[j];
+        pVp[j] += pVp1[j];
+      }
     }
 
    //2 basis on same center, then 1 nucleus elsewhere
     for (int p=0;p<natoms;p++)
     if (p!=m)
     {
-      FP1 Zn = (FP1)atno[p];
-      FP1 An = coords[3*p+0]; FP1 Bn = coords[3*p+1]; FP1 Cn = coords[3*p+2];
-      FP1 A1n = An-A1; FP1 B1n = Bn-B1; FP1 C1n = Cn-C1;
+      float Zn = atz[p];
+      int Zng = atno[p];
+      float An = coords[3*p+0]; float Bn = coords[3*p+1]; float Cn = coords[3*p+2];
+      float A1n = An-A1; float B1n = Bn-B1; float C1n = Cn-C1;
 
       add_r2_to_grid(gs,grid1,A1n,B1n,C1n);
 
-      generate_central_grid_2(grid3,wt3,Zn,nrad,nang,ang_g,ang_w);
+      generate_central_grid_2(grid3,wt3,Zng,nrad,nang,ang_g,ang_w);
       //copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
       recenter_grid(gs,grid3,A1n,B1n,C1n); //grid 3 centered on atom 1
 
@@ -4951,8 +2968,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
         eval_sh(ii1,gs,grid3,valS2[ii1],n1,l1,m1,zeta1);
         eval_p(gs,grid3,valV2[ii1],n1,l1,m1,zeta1);
@@ -4961,8 +2978,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
       for (int i2=s1;i2<s2;i2++)
       {
         int ii2 = i2-s1;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         acc_assign(gs,valS4[ii2],1.);
         acc_assign(gs3,valV4[ii2],1.);
@@ -4974,10 +2991,10 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
      #pragma acc parallel loop present(grid1[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valS2[0:iN][0:gs],valtv1[0:iN][0:gs3],valV2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        FP1 Rn1 = grid1[6*j+4]+1.e-20f;
-        FP1 Rn3 = grid3[6*j+4]+1.e-20f;
-        FP1 ne1 = Zn/Rn1;
-        FP1 ne3 = Zn/Rn3;
+        float Rn1 = grid1[6*j+4]+1.e-20f;
+        float Rn3 = grid3[6*j+4]+1.e-20f;
+        float ne1 = Zn/Rn1;
+        float ne3 = Zn/Rn3;
 
        #pragma acc loop
         for (int ii1=0;ii1<s2-s1;ii1++)
@@ -4999,17 +3016,20 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
       }
 
      //collect 2-atom values
-      acc_assign(N2,En1,0.);
-      acc_assign(N2,pVp1,0.);
-
-      reduce_2c2(s1,s2,s1,s2,gs, valt1, valS2,valS3,valS4,iN,N,En1);
-      reduce_2c2(s1,s2,s1,s2,gs3,valtv1,valV2,valV3,valV4,iN,N,pVp1);
-
-     #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
-      for (int j=0;j<N2;j++)
+      if (Zn!=0.)
       {
-        En[j] += En1[j];
-        pVp[j] += pVp1[j];
+        acc_assign(N2,En1,0.);
+        acc_assign(N2,pVp1,0.);
+
+        reduce_2c2(s1,s2,s1,s2,gs, valt1, valS2,valS3,valS4,iN,N,En1);
+        reduce_2c2(s1,s2,s1,s2,gs3,valtv1,valV2,valV3,valV4,iN,N,pVp1);
+
+       #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
+        for (int j=0;j<N2;j++)
+        {
+          En[j] += En1[j];
+          pVp[j] += pVp1[j];
+        }
       }
 
     } //loop p over nuclear center
@@ -5022,14 +3042,15 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = atz[n];
+      int Z2g = atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
 
-      generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
+      generate_central_grid_2(grid2,wt2,Z2g,nrad,nang,ang_g,ang_w);
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
 
@@ -5078,8 +3099,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
         eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
         eval_sh(ii1,gs,grid2,valS2[ii1],n1,l1,m1,zeta1);
@@ -5090,8 +3111,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_sh(ii2,gs,grid1s,valS3[ii2],n2,l2,m2,zeta2);
         eval_sh(ii2,gs,grid2s,valS4[ii2],n2,l2,m2,zeta2);
@@ -5129,12 +3150,12 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
      #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        FP1 Rn1a = grid1[6*j+3]+1.e-20f;
-        FP1 Rn2a = grid1[6*j+4]+1.e-20f;
-        FP1 Rn1b = grid2[6*j+3]+1.e-20f;
-        FP1 Rn2b = grid2[6*j+4]+1.e-20f;
-        FP1 ne1 = Z1/Rn1a+Z2/Rn2a;
-        FP1 ne2 = Z1/Rn1b+Z2/Rn2b;
+        float Rn1a = grid1[6*j+3]+1.e-20f;
+        float Rn2a = grid1[6*j+4]+1.e-20f;
+        float Rn1b = grid2[6*j+3]+1.e-20f;
+        float Rn2b = grid2[6*j+4]+1.e-20f;
+        float ne1 = Z1/Rn1a+Z2/Rn2a;
+        float ne2 = Z1/Rn1b+Z2/Rn2b;
 
        #pragma acc loop
         for (int ii1=0;ii1<s2-s1;ii1++)
@@ -5158,29 +3179,33 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
       }
 
      //collect 2c-atom same-atom values
-      acc_assign(N2,En1,0.);
-      acc_assign(N2,pVp1,0.);
+      if (Z1!=0. || Z2!=0.)
+      {
+        acc_assign(N2,En1,0.);
+        acc_assign(N2,pVp1,0.);
 
-      reduce_2c2(s1,s2,s3,s4,gs,valt1,valt2,valS3,valS4,iN,N,En1);
-      reduce_2c2(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,iN,N,pVp1);
+        reduce_2c2(s1,s2,s3,s4,gs,valt1,valt2,valS3,valS4,iN,N,En1);
+        reduce_2c2(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,iN,N,pVp1);
 
-     #pragma acc parallel loop present(En[0:N2],En1[0:N2])
-      for (int j=0;j<N2;j++)
-        En[j] += En1[j];
-     #pragma acc parallel loop present(pVp[0:N2],pVp1[0:N2])
-      for (int j=0;j<N2;j++)
-        pVp[j] += pVp1[j];
+       #pragma acc parallel loop present(En[0:N2],En1[0:N2])
+        for (int j=0;j<N2;j++)
+          En[j] += En1[j];
+       #pragma acc parallel loop present(pVp[0:N2],pVp1[0:N2])
+        for (int j=0;j<N2;j++)
+          pVp[j] += pVp1[j];
+      }
 
 
      //2 basis on diff centers, then 1 nucleus elsewhere
       for (int p=0;p<natoms;p++)
       if (p!=m && p!=n)
       {
-        FP1 Zn = (FP1)atno[p];
-        FP1 An = coords[3*p+0]; FP1 Bn = coords[3*p+1]; FP1 Cn = coords[3*p+2];
-        FP1 A1n = An-A1; FP1 B1n = Bn-B1; FP1 C1n = Cn-C1;
+        float Zn = atz[p];
+        int Zng = atno[p];
+        float An = coords[3*p+0]; float Bn = coords[3*p+1]; float Cn = coords[3*p+2];
+        float A1n = An-A1; float B1n = Bn-B1; float C1n = Cn-C1;
 
-        generate_central_grid_2(grid3,wt3,Zn,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2(grid3,wt3,Zng,nrad,nang,ang_g,ang_w);
         //copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
         recenter_grid(gs,grid3,A1n,B1n,C1n); //grid 3 centered on atom 1
 
@@ -5261,8 +3286,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
         {
           int ii1 = i1-s1;
 
-          vector<FP2> basis1 = basis[i1];
-          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+          vector<double> basis1 = basis[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
           eval_sh(ii1,gs,grid3,valS5[ii1],n1,l1,m1,zeta1);
           eval_p(gs,grid3,valV5[ii1],n1,l1,m1,zeta1);
@@ -5271,8 +3296,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
         for (int i2=s3;i2<s4;i2++)
         {
           int ii2 = i2-s3;
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
           eval_sh(ii2,gs,grid3s,valS6[ii2],n2,l2,m2,zeta2);
           eval_p(gs,grid3s,valV6[ii2],n2,l2,m2,zeta2);
@@ -5281,8 +3306,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
        #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valS5[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3],valV5[0:iN][0:gs3])
         for (int j=0;j<gs;j++)
         {
-          FP1 Rn1 = grid1[6*j+4]+1.e-20f; FP1 Rn2 = grid2[6*j+4]+1.e-20f; FP1 Rn3 = grid3[6*j+4]+1.e-20f;
-          FP1 ne1 = Zn/Rn1; FP1 ne2 = Zn/Rn2; FP1 ne3 = Zn/Rn3;
+          float Rn1 = grid1[6*j+4]+1.e-20f; float Rn2 = grid2[6*j+4]+1.e-20f; float Rn3 = grid3[6*j+4]+1.e-20f;
+          float ne1 = Zn/Rn1; float ne2 = Zn/Rn2; float ne3 = Zn/Rn3;
 
          #pragma acc loop
           for (int ii1=0;ii1<s2-s1;ii1++)
@@ -5303,17 +3328,20 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
         }
 
         //collect 3-atom values
-        acc_assign(N2,En1,0.);
-        acc_assign(N2,pVp1,0.);
-
-        reduce_2c3(s1,s2,s3,s4,gs, valt1, valt2, valS3,valS4,valS5,valS6,iN,N,En1);
-        reduce_2c3(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,valV5,valV6,iN,N,pVp1);
-
-       #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
-        for (int j=0;j<N2;j++) 
+        if (Zn!=0.)
         {
-          En[j] += En1[j];
-          pVp[j] += pVp1[j];
+          acc_assign(N2,En1,0.);
+          acc_assign(N2,pVp1,0.);
+
+          reduce_2c3(s1,s2,s3,s4,gs, valt1, valt2, valS3,valS4,valS5,valS6,iN,N,En1);
+          reduce_2c3(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,valV5,valV6,iN,N,pVp1);
+
+         #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
+          for (int j=0;j<N2;j++) 
+          {
+            En[j] += En1[j];
+            pVp[j] += pVp1[j];
+          }
         }
 
       } //loop p over nuclear center
@@ -5325,14 +3353,12 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
 
 
  //gather from all gpus
-  FP2* En_all = new FP2[N2]();
-  FP2* pVp_all = new FP2[N2]();
+  double* En_all = new double[N2]();
+  double* pVp_all = new double[N2]();
 
   for (int n=0;n<nomp;n++)
   {
-    #if USE_ACC
     acc_set_device_num(n,acc_device_nvidia);
-    #endif
 
     #pragma acc update self(En[0:N2],pVp[0:N2])
 
@@ -5344,9 +3370,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
     #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
     #pragma acc exit data delete(En1[0:N2],pVp1[0:N2])
   }
-  #if USE_ACC
   acc_set_device_num(0,acc_device_nvidia);
-  #endif
 
   for (int i=0;i<N2;i++)
     En[i] = En_all[i];
@@ -5361,7 +3385,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
  //done gathering
 
 
-  FP2* norm = new FP2[N];
+  double* norm = new double[N];
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
   #pragma acc enter data copyin(norm[0:N])
@@ -5371,7 +3395,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
  #pragma acc loop independent
   for (int j=i;j<N;j++)
   {
-    FP2 n12 = norm[i]*norm[j];
+    double n12 = norm[i]*norm[j];
     En[i*N+j]  *= -n12;
     pVp[i*N+j] *= -n12;
   }
@@ -5403,7 +3427,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
     }
   }
 
-  if (prl>2)
+  if (prl>-2)
   {
     printf("\n pVp: \n");
     for (int i=0;i<N;i++)
@@ -5422,9 +3446,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
-    #if USE_ACC
     acc_set_device_num(tid,acc_device_nvidia);
-    #endif
 
     #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
     #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
@@ -5442,9 +3464,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
       #pragma acc exit data delete(pVp[0:N2],En[0:N2])
     }
   }
-  #if USE_ACC
   acc_set_device_num(0,acc_device_nvidia);
-  #endif
 
   delete [] ang_g;
   delete [] ang_w;
@@ -5498,9 +3518,9 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, FP1* coords, vector<vecto
 }
 
 #if RED_DOUBLE
-void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* En, FP2* pVp, int prl)
+void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* En, double* pVp, int prl)
 #else
-void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* En, FP1* pVp, int prl)
+void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* En, float* pVp, int prl)
 #endif
 {
   if (prl>1) printf(" beginning compute_Enp \n");
@@ -5508,19 +3528,40 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
   int N = basis.size();
   int N2 = N*N;
 
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
+  float atz[natoms];
+  for (int n=0;n<natoms;n++)
+  {
+    for (int m=0;m<N;m++)
+    if (close_val(coords[3*n+0],basis[m][5]) && close_val(coords[3*n+1],basis[m][6]) && close_val(coords[3*n+2],basis[m][7]))
+    {
+      atz[n] = basis[m][8];
+      break;
+    }
+  }
+  if (prl>2)
+  {
+    printf("  atz: ");
+    for (int n=0;n<natoms;n++)
+      printf(" %5.3f",atz[n]);
+    printf("\n");
+  }
+
   int gs = nrad*nang;
   int gs3 = 3*gs; int gs6 = 6*gs;
 
   int estart = find_center_of_grid(1,nrad)*nang;
 
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
+  float* grid1 = new float[gs6];
+  float* wt1 = new float[gs];
 
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
+  float* grid2 = new float[gs6];
+  float* wt2 = new float[gs];
 
-  FP1* grid3 = new FP1[gs6];
-  FP1* wt3 = new FP1[gs];
+  float* grid3 = new float[gs6];
+  float* wt3 = new float[gs];
 
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
@@ -5528,41 +3569,41 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
 
  //intermediate storage
   int iN = imaxN;
-  FP1* grid1s = new FP1[gs6]; FP1* grid2s = new FP1[gs6]; FP1* grid3s = new FP1[gs6];
-  FP1* grid1p = new FP1[gs6]; FP1* grid2p = new FP1[gs6]; FP1* grid3p = new FP1[gs6];
-  FP1** valS1 = new FP1*[iN]; for (int i=0;i<iN;i++) valS1[i] = new FP1[gs];
-  FP1** valS2 = new FP1*[iN]; for (int i=0;i<iN;i++) valS2[i] = new FP1[gs];
-  FP1** valS3 = new FP1*[iN]; for (int i=0;i<iN;i++) valS3[i] = new FP1[gs];
-  FP1** valS4 = new FP1*[iN]; for (int i=0;i<iN;i++) valS4[i] = new FP1[gs];
-  FP1** valS5 = new FP1*[iN]; for (int i=0;i<iN;i++) valS5[i] = new FP1[gs];
-  FP1** valS6 = new FP1*[iN]; for (int i=0;i<iN;i++) valS6[i] = new FP1[gs];
-  FP1** valV1 = new FP1*[iN]; for (int i=0;i<iN;i++) valV1[i] = new FP1[gs3];
-  FP1** valV2 = new FP1*[iN]; for (int i=0;i<iN;i++) valV2[i] = new FP1[gs3];
-  FP1** valV3 = new FP1*[iN]; for (int i=0;i<iN;i++) valV3[i] = new FP1[gs3];
-  FP1** valV4 = new FP1*[iN]; for (int i=0;i<iN;i++) valV4[i] = new FP1[gs3];
-  FP1** valV5 = new FP1*[iN]; for (int i=0;i<iN;i++) valV5[i] = new FP1[gs3];
-  FP1** valV6 = new FP1*[iN]; for (int i=0;i<iN;i++) valV6[i] = new FP1[gs3];
+  float* grid1s = new float[gs6]; float* grid2s = new float[gs6]; float* grid3s = new float[gs6];
+  float* grid1p = new float[gs6]; float* grid2p = new float[gs6]; float* grid3p = new float[gs6];
+  float** valS1 = new float*[iN]; for (int i=0;i<iN;i++) valS1[i] = new float[gs];
+  float** valS2 = new float*[iN]; for (int i=0;i<iN;i++) valS2[i] = new float[gs];
+  float** valS3 = new float*[iN]; for (int i=0;i<iN;i++) valS3[i] = new float[gs];
+  float** valS4 = new float*[iN]; for (int i=0;i<iN;i++) valS4[i] = new float[gs];
+  float** valS5 = new float*[iN]; for (int i=0;i<iN;i++) valS5[i] = new float[gs];
+  float** valS6 = new float*[iN]; for (int i=0;i<iN;i++) valS6[i] = new float[gs];
+  float** valV1 = new float*[iN]; for (int i=0;i<iN;i++) valV1[i] = new float[gs3];
+  float** valV2 = new float*[iN]; for (int i=0;i<iN;i++) valV2[i] = new float[gs3];
+  float** valV3 = new float*[iN]; for (int i=0;i<iN;i++) valV3[i] = new float[gs3];
+  float** valV4 = new float*[iN]; for (int i=0;i<iN;i++) valV4[i] = new float[gs3];
+  float** valV5 = new float*[iN]; for (int i=0;i<iN;i++) valV5[i] = new float[gs3];
+  float** valV6 = new float*[iN]; for (int i=0;i<iN;i++) valV6[i] = new float[gs3];
 
-  FP1** valt1 = new FP1*[iN]; for (int i=0;i<iN;i++) valt1[i] = new FP1[gs];
-  FP1** valt2 = new FP1*[iN]; for (int i=0;i<iN;i++) valt2[i] = new FP1[gs];
-  FP1** valt3 = new FP1*[iN]; for (int i=0;i<iN;i++) valt3[i] = new FP1[gs];
-  FP1** valtv1 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv1[i] = new FP1[gs3];
-  FP1** valtv2 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv2[i] = new FP1[gs3];
-  FP1** valtv3 = new FP1*[iN]; for (int i=0;i<iN;i++) valtv3[i] = new FP1[gs3];
+  float** valt1 = new float*[iN]; for (int i=0;i<iN;i++) valt1[i] = new float[gs];
+  float** valt2 = new float*[iN]; for (int i=0;i<iN;i++) valt2[i] = new float[gs];
+  float** valt3 = new float*[iN]; for (int i=0;i<iN;i++) valt3[i] = new float[gs];
+  float** valtv1 = new float*[iN]; for (int i=0;i<iN;i++) valtv1[i] = new float[gs3];
+  float** valtv2 = new float*[iN]; for (int i=0;i<iN;i++) valtv2[i] = new float[gs3];
+  float** valtv3 = new float*[iN]; for (int i=0;i<iN;i++) valtv3[i] = new float[gs3];
 
-  FP1* wtt1 = new FP1[gs];
-  FP1* wtt2 = new FP1[gs];
+  float* wtt1 = new float[gs];
+  float* wtt2 = new float[gs];
 
  #if RED_DOUBLE
-  FP2* En1 = new FP2[N2];
-  FP2* pVp1 = new FP2[N2]; 
+  double* En1 = new double[N2];
+  double* pVp1 = new double[N2]; 
  #else
-  FP1* En1 = new FP1[N2];
-  FP1* pVp1 = new FP1[N2]; 
+  float* En1 = new float[N2];
+  float* pVp1 = new float[N2]; 
  #endif
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -5593,10 +3634,11 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    float Z1 = atz[m];
+    int Z1g = atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
-    generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+    generate_central_grid_2(grid1,wt1,Z1g,nrad,nang,ang_g,ang_w);
 
   #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valV1[0:iN][0:gs3])
@@ -5631,8 +3673,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
       eval_p(gs,grid1,valV1[ii1],n1,l1,m1,zeta1);
@@ -5641,8 +3683,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
     for (int i2=s1;i2<s2;i2++)
     {
       int ii2 = i2-s1;
-      vector<FP2> basis2 = basis[i2];
-      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
       eval_sh(ii2,gs,grid1,valS3[ii2],n2,l2,m2,zeta2);
       eval_p(gs,grid1,valV3[ii2],n2,l2,m2,zeta2);
@@ -5669,8 +3711,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
    #pragma acc parallel loop present(grid1[0:gs6],valt1[0:iN][0:gs],valtv1[0:iN][0:gs3])
     for (int j=0;j<gs;j++)
     {
-      FP1 Rn1 = grid1[6*j+3]+1.e-20f;
-      FP1 ne1 = Z1/Rn1;
+      float Rn1 = grid1[6*j+3]+1.e-20f;
+      float ne1 = Z1/Rn1;
 
      #pragma acc loop
       for (int ii1=0;ii1<s2-s1;ii1++)
@@ -5683,30 +3725,34 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
     }
 
    //collect 1-atom values
-    acc_assign(N2,En1,0.);
-    acc_assign(N2,pVp1,0.);
-
-    reduce_2c1(s1,s2,gs,valt1,valS3,iN,N,En1);
-    reduce_2c1(s1,s2,gs3,valtv1,valV3,iN,N,pVp1);
-
-   #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
-    for (int j=0;j<N2;j++)
+    if (Z1!=0.)
     {
-      En[j] += En1[j];
-      pVp[j] += pVp1[j];
+      acc_assign(N2,En1,0.);
+      acc_assign(N2,pVp1,0.);
+
+      reduce_2c1(s1,s2,gs,valt1,valS3,iN,N,En1);
+      reduce_2c1(s1,s2,gs3,valtv1,valV3,iN,N,pVp1);
+
+     #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
+      for (int j=0;j<N2;j++)
+      {
+        En[j] += En1[j];
+        pVp[j] += pVp1[j];
+      }
     }
 
    //2 basis on same center, then 1 nucleus elsewhere
     for (int p=0;p<natoms;p++)
     if (p!=m)
     {
-      FP1 Zn = (FP1)atno[p];
-      FP1 An = coords[3*p+0]; FP1 Bn = coords[3*p+1]; FP1 Cn = coords[3*p+2];
-      FP1 A1n = An-A1; FP1 B1n = Bn-B1; FP1 C1n = Cn-C1;
+      float Zn = atno[p];
+      int Zng = atno[p];
+      float An = coords[3*p+0]; float Bn = coords[3*p+1]; float Cn = coords[3*p+2];
+      float A1n = An-A1; float B1n = Bn-B1; float C1n = Cn-C1;
 
       add_r2_to_grid(gs,grid1,A1n,B1n,C1n);
 
-      generate_central_grid_2(grid3,wt3,Zn,nrad,nang,ang_g,ang_w);
+      generate_central_grid_2(grid3,wt3,Zng,nrad,nang,ang_g,ang_w);
       //copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
       recenter_grid(gs,grid3,A1n,B1n,C1n); //grid 3 centered on atom 1
 
@@ -5745,8 +3791,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
         eval_sh(ii1,gs,grid3,valS2[ii1],n1,l1,m1,zeta1);
         eval_p(gs,grid3,valV2[ii1],n1,l1,m1,zeta1);
@@ -5755,8 +3801,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       for (int i2=s1;i2<s2;i2++)
       {
         int ii2 = i2-s1;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         acc_assign(gs,valS4[ii2],1.);
         acc_assign(gs3,valV4[ii2],1.);
@@ -5768,10 +3814,10 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
      #pragma acc parallel loop present(grid1[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valS2[0:iN][0:gs],valtv1[0:iN][0:gs3],valV2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        FP1 Rn1 = grid1[6*j+4]+1.e-20f;
-        FP1 Rn3 = grid3[6*j+4]+1.e-20f;
-        FP1 ne1 = Zn/Rn1;
-        FP1 ne3 = Zn/Rn3;
+        float Rn1 = grid1[6*j+4]+1.e-20f;
+        float Rn3 = grid3[6*j+4]+1.e-20f;
+        float ne1 = Zn/Rn1;
+        float ne3 = Zn/Rn3;
 
        #pragma acc loop
         for (int ii1=0;ii1<s2-s1;ii1++)
@@ -5793,17 +3839,20 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       }
 
      //collect 2-atom values
-      acc_assign(N2,En1,0.);
-      acc_assign(N2,pVp1,0.);
-
-      reduce_2c2(s1,s2,s1,s2,gs, valt1, valS2,valS3,valS4,iN,N,En1);
-      reduce_2c2(s1,s2,s1,s2,gs3,valtv1,valV2,valV3,valV4,iN,N,pVp1);
-
-     #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
-      for (int j=0;j<N2;j++)
+      if (Zn!=0.)
       {
-        En[j] += En1[j];
-        pVp[j] += pVp1[j];
+        acc_assign(N2,En1,0.);
+        acc_assign(N2,pVp1,0.);
+
+        reduce_2c2(s1,s2,s1,s2,gs, valt1, valS2,valS3,valS4,iN,N,En1);
+        reduce_2c2(s1,s2,s1,s2,gs3,valtv1,valV2,valV3,valV4,iN,N,pVp1);
+
+       #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
+        for (int j=0;j<N2;j++)
+        {
+          En[j] += En1[j];
+          pVp[j] += pVp1[j];
+        }
       }
 
     } //loop p over nuclear center
@@ -5816,14 +3865,15 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = atz[n];
+      int Z2g = atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
 
-      generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
+      generate_central_grid_2(grid2,wt2,Z2g,nrad,nang,ang_g,ang_w);
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
 
@@ -5872,8 +3922,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
         eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
         eval_sh(ii1,gs,grid2,valS2[ii1],n1,l1,m1,zeta1);
@@ -5884,8 +3934,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_sh(ii2,gs,grid1s,valS3[ii2],n2,l2,m2,zeta2);
         eval_sh(ii2,gs,grid2s,valS4[ii2],n2,l2,m2,zeta2);
@@ -5923,12 +3973,12 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
      #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        FP1 Rn1a = grid1[6*j+3]+1.e-20f;
-        FP1 Rn2a = grid1[6*j+4]+1.e-20f;
-        FP1 Rn1b = grid2[6*j+3]+1.e-20f;
-        FP1 Rn2b = grid2[6*j+4]+1.e-20f;
-        FP1 ne1 = Z1/Rn1a+Z2/Rn2a;
-        FP1 ne2 = Z1/Rn1b+Z2/Rn2b;
+        float Rn1a = grid1[6*j+3]+1.e-20f;
+        float Rn2a = grid1[6*j+4]+1.e-20f;
+        float Rn1b = grid2[6*j+3]+1.e-20f;
+        float Rn2b = grid2[6*j+4]+1.e-20f;
+        float ne1 = Z1/Rn1a+Z2/Rn2a;
+        float ne2 = Z1/Rn1b+Z2/Rn2b;
 
        #pragma acc loop
         for (int ii1=0;ii1<s2-s1;ii1++)
@@ -5952,29 +4002,33 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
       }
 
      //collect 2c-atom same-atom values
-      acc_assign(N2,En1,0.);
-      acc_assign(N2,pVp1,0.);
+      if (Z1!=0. || Z2!=0.)
+      {
+        acc_assign(N2,En1,0.);
+        acc_assign(N2,pVp1,0.);
 
-      reduce_2c2(s1,s2,s3,s4,gs,valt1,valt2,valS3,valS4,iN,N,En1);
-      reduce_2c2(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,iN,N,pVp1);
+        reduce_2c2(s1,s2,s3,s4,gs,valt1,valt2,valS3,valS4,iN,N,En1);
+        reduce_2c2(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,iN,N,pVp1);
 
-     #pragma acc parallel loop present(En[0:N2],En1[0:N2])
-      for (int j=0;j<N2;j++)
-        En[j] += En1[j];
-     #pragma acc parallel loop present(pVp[0:N2],pVp1[0:N2])
-      for (int j=0;j<N2;j++)
-        pVp[j] += pVp1[j];
+       #pragma acc parallel loop present(En[0:N2],En1[0:N2])
+        for (int j=0;j<N2;j++)
+          En[j] += En1[j];
+       #pragma acc parallel loop present(pVp[0:N2],pVp1[0:N2])
+        for (int j=0;j<N2;j++)
+          pVp[j] += pVp1[j];
+      }
 
 
      //2 basis on diff centers, then 1 nucleus elsewhere
       for (int p=0;p<natoms;p++)
       if (p!=m && p!=n)
       {
-        FP1 Zn = (FP1)atno[p];
-        FP1 An = coords[3*p+0]; FP1 Bn = coords[3*p+1]; FP1 Cn = coords[3*p+2];
-        FP1 A1n = An-A1; FP1 B1n = Bn-B1; FP1 C1n = Cn-C1;
+        float Zn = atz[p];
+        int Zng = atno[p];
+        float An = coords[3*p+0]; float Bn = coords[3*p+1]; float Cn = coords[3*p+2];
+        float A1n = An-A1; float B1n = Bn-B1; float C1n = Cn-C1;
 
-        generate_central_grid_2(grid3,wt3,Zn,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2(grid3,wt3,Zng,nrad,nang,ang_g,ang_w);
         //copy_grid(gs,grid3p,grid3); //grid 3 centered on atom 3
         recenter_grid(gs,grid3,A1n,B1n,C1n); //grid 3 centered on atom 1
 
@@ -6055,8 +4109,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
         {
           int ii1 = i1-s1;
 
-          vector<FP2> basis1 = basis[i1];
-          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+          vector<double> basis1 = basis[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
           eval_sh(ii1,gs,grid3,valS5[ii1],n1,l1,m1,zeta1);
           eval_p(gs,grid3,valV5[ii1],n1,l1,m1,zeta1);
@@ -6065,8 +4119,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
         for (int i2=s3;i2<s4;i2++)
         {
           int ii2 = i2-s3;
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
           eval_sh(ii2,gs,grid3s,valS6[ii2],n2,l2,m2,zeta2);
           eval_p(gs,grid3s,valV6[ii2],n2,l2,m2,zeta2);
@@ -6075,8 +4129,8 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
        #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valS5[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3],valV5[0:iN][0:gs3])
         for (int j=0;j<gs;j++)
         {
-          FP1 Rn1 = grid1[6*j+4]+1.e-20f; FP1 Rn2 = grid2[6*j+4]+1.e-20f; FP1 Rn3 = grid3[6*j+4]+1.e-20f;
-          FP1 ne1 = Zn/Rn1; FP1 ne2 = Zn/Rn2; FP1 ne3 = Zn/Rn3;
+          float Rn1 = grid1[6*j+4]+1.e-20f; float Rn2 = grid2[6*j+4]+1.e-20f; float Rn3 = grid3[6*j+4]+1.e-20f;
+          float ne1 = Zn/Rn1; float ne2 = Zn/Rn2; float ne3 = Zn/Rn3;
 
          #pragma acc loop
           for (int ii1=0;ii1<s2-s1;ii1++)
@@ -6097,17 +4151,20 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
         }
 
         //collect 3-atom values
-        acc_assign(N2,En1,0.);
-        acc_assign(N2,pVp1,0.);
-
-        reduce_2c3(s1,s2,s3,s4,gs, valt1, valt2, valS3,valS4,valS5,valS6,iN,N,En1);
-        reduce_2c3(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,valV5,valV6,iN,N,pVp1);
-
-       #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
-        for (int j=0;j<N2;j++) 
+        if (Zn!=0.)
         {
-          En[j] += En1[j];
-          pVp[j] += pVp1[j];
+          acc_assign(N2,En1,0.);
+          acc_assign(N2,pVp1,0.);
+
+          reduce_2c3(s1,s2,s3,s4,gs, valt1, valt2, valS3,valS4,valS5,valS6,iN,N,En1);
+          reduce_2c3(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,valV5,valV6,iN,N,pVp1);
+
+         #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
+          for (int j=0;j<N2;j++) 
+          {
+            En[j] += En1[j];
+            pVp[j] += pVp1[j];
+          }
         }
 
       } //loop p over nuclear center
@@ -6117,7 +4174,7 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
 
   } //loop m over natoms
 
-  FP2* norm = new FP2[N];
+  double* norm = new double[N];
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
   #pragma acc enter data copyin(norm[0:N])
@@ -6127,7 +4184,7 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
  #pragma acc loop independent
   for (int j=i;j<N;j++)
   {
-    FP2 n12 = norm[i]*norm[j];
+    double n12 = norm[i]*norm[j];
     En[i*N+j]  *= -n12;
     pVp[i*N+j] *= -n12;
   }
@@ -6243,10 +4300,551 @@ void compute_Enp(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis
   return;
 }
 
+//applied electric fields
+// currently does x,y,z directions only
+void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl)
+{
+  if (prl>1) printf(" beginning compute_E (double precision) \n");
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  printf("  compute_E. nrad/ang: %3i %3i \n",nrad,nang);
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  int estart = find_center_of_grid(1,nrad)*nang;
+
+  double* grid1m = new double[gs6];
+  double* grid1n = new double[gs6];
+  double* wt1 = new double[gs];
+
+  double* grid2m = new double[gs6];
+  double* grid2n = new double[gs6];
+  double* wt2 = new double[gs];
+
+  double* val1m = new double[gs];
+  double* val1n = new double[gs];
+  double* val2m = new double[gs];
+  double* val2n = new double[gs];
+
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+  //printf("  iN: %i \n",imaxN);
+
+ #if USE_ACC
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(n2i[0:natoms])
+  #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
+
+  #pragma acc enter data create(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+ #endif
+  acc_assign(3*N2,E,0.);
+
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+    for (int i1=s1;i1<s2;i1++)
+    for (int i2=s1;i2<=i1;i2++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+      float z12 = zeta1 + zeta2;
+     //new grid with zeta dependence
+      generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w); 
+
+      #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
+      for (int j=0;j<gs;j++)
+        val1m[j] = wt1[j];
+      #pragma acc parallel loop present(val2m[0:gs])
+      for (int j=0;j<gs;j++)
+        val2m[j] = 1.; 
+
+     //S
+      eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
+      eval_shd(ii1,gs,grid1m,val2m,n2,l2,m2,zeta2); //basis 2
+
+      double valx = 0.; double valy = 0.; double valz = 0.;
+     #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs],grid1m[0:gs6]) reduction(+:valx,valy,valz)
+      for (int j=0;j<gs;j++)
+      {
+       //assumes common 0,0,0 origin
+        double x = grid1m[6*j+0]+A1;
+        double y = grid1m[6*j+1]+B1;
+        double z = grid1m[6*j+2]+C1;
+
+        valx += val1m[j]*val2m[j]*x;
+        valy += val1m[j]*val2m[j]*y;
+        valz += val1m[j]*val2m[j]*z;
+      }
+
+     #pragma acc serial
+      {
+        E[i1*N+i2]      = E[i2*N+i1] = valx;
+        E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
+        E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
+      }
+
+    } //pairs of basis on single atoms
+
+
+   if (natoms>1) { printf("\n WARNING: can only do 1 atom in compute_Exyz \n"); exit(-1); }
+   //complete but needs testing
+   #if 0
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+      //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
+
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+
+      for (int i1=s1;i1<s2;i1++)
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii1 = i1-s1;
+
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+       //new grid with zeta dependence
+        generate_central_grid_2d(0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w); 
+        generate_central_grid_2d(0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
+
+       //grid1 at 0,0,0 now has r1 at 3, r2 at 4
+        add_r2_to_grid(gs,grid1m,A12,B12,C12);
+        recenter_grid(gs,grid2m,A12,B12,C12);
+
+       //optimize this
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
+        //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
+
+        copy_grid(gs,grid2n,grid2m);
+        recenter_grid(gs,grid2n,-A12,-B12,-C12);      //grid 2 centered on atom 1
+
+        copy_grid(gs,grid1n,grid1m);
+        recenter_grid_zero(gs,grid1n,-A12,-B12,-C12); //grid 1 centered on atom 2
+
+       //needs to happen after becke weighting
+        add_r1_to_grid(gs,grid2m,0.,0.,0.);
+
+        #pragma acc parallel loop present(val1n[0:gs],val2m[0:gs])
+        for (int j=0;j<gs;j++)
+          val2m[j] = val2n[j] = 1.; 
+        #pragma acc parallel loop present(val1m[0:gs],val2n[0:gs],wt1[0:gs],wt2[0:gs])
+        for (int j=0;j<gs;j++)
+        {
+          val1m[j] = wt1[j];
+          val1n[j] = wt2[j];
+        }
+
+       //S
+        eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1 on center 1
+        eval_shd(ii1,gs,grid2m,val1n,n1,l1,m1,zeta1); //basis 1 on center 2
+        eval_shd(ii1,gs,grid1n,val2m,n2,l2,m2,zeta2); //basis 2 on center 1
+        eval_shd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2); //basis 2 on center 2
+
+        double valx = 0.; double valy = 0.; double valz = 0.;
+       #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid1n[0:gs6]) reduction(+:valx,valy,valz)
+        for (int j=0;j<gs;j++)
+        {
+          double x1 = grid1m[6*j+0]+A1;
+          double y1 = grid1m[6*j+1]+B1;
+          double z1 = grid1m[6*j+2]+C1;
+          double x2 = grid2n[6*j+0]+A2;
+          double y2 = grid2n[6*j+1]+B2;
+          double z2 = grid2n[6*j+2]+C2;
+          valx += val1m[j]*val2m[j]*x1 + val1n[j]*val2n[j]*x2;
+          valy += val1m[j]*val2m[j]*y1 + val1n[j]*val2n[j]*y2;
+          valz += val1m[j]*val2m[j]*z1 + val1n[j]*val2n[j]*z2;
+        }
+
+       #pragma acc serial
+        {
+          E[i1*N+i2]      = E[i2*N+i1] = valx;
+          E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
+          E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
+        }
+      }
+
+    } //loop n>m
+   #endif
+
+  } //loop m over natoms
+
+
+  double* norm = new double[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+  #pragma acc enter data copyin(norm[0:N])
+
+  #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norm[i]*norm[j];
+    E[i*N+j]      *= n12;
+    E[N2+i*N+j]   *= n12;
+    E[2*N2+i*N+j] *= n12;
+  }
+
+ #if 0
+ #pragma acc parallel loop independent present(S[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<i;j++)
+  {
+    E[j*N+i] = S[i*N+j];
+  }
+ #endif
+ 
+  #pragma acc exit data delete(norm[0:N])
+  delete [] norm;
+
+  //clean_small_values(N,E);
+
+
+ #if USE_ACC
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc update self(E[0:3*N2])
+ #endif
+
+
+  if (prl>1 || prl==-1)
+  {
+    printf("\n Exyz: \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+  }
+
+#if USE_ACC
+  #pragma acc exit data delete(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+  #pragma acc exit data delete(n2i[0:natoms])
+  #pragma acc exit data delete(coords[0:3*natoms],atno[0:natoms])
+#endif
+
+  delete [] n2i;
+
+  delete [] val1m;
+  delete [] val1n;
+  delete [] val2m;
+  delete [] val2n;
+  delete [] grid1m;
+  delete [] grid1n;
+  delete [] grid2m;
+  delete [] grid2n;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
+
+//high-precision overlap integrals
+void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, int prl)
+{
+  if (prl>1) printf(" beginning compute_S (double precision) \n");
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  printf("  compute_Sd. nrad/ang: %3i %3i \n",nrad,nang);
+
+  if (prl>2)
+  {
+    printf("\n S(float): \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",S[i*N+j]);
+      printf("\n");
+    }
+    printf("\n");
+  }
+
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  int estart = find_center_of_grid(1,nrad)*nang;
+
+  double* grid1m = new double[gs6];
+  double* grid1n = new double[gs6];
+  double* wt1 = new double[gs];
+
+  double* grid2m = new double[gs6];
+  double* grid2n = new double[gs6];
+  double* wt2 = new double[gs];
+
+  double* val1m = new double[gs];
+  double* val1n = new double[gs];
+  double* val2m = new double[gs];
+  double* val2n = new double[gs];
+
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+  //printf("  iN: %i \n",imaxN);
+
+ #if USE_ACC
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(n2i[0:natoms])
+  #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
+
+  #pragma acc enter data create(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+ #endif
+  acc_assign(N2,S,0.);
+
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+    for (int i1=s1;i1<s2;i1++)
+    for (int i2=s1;i2<=i1;i2++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+      double z12 = zeta1 + zeta2;
+     //new grid with zeta dependence
+      generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w); 
+
+      #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
+      for (int j=0;j<gs;j++)
+        val1m[j] = wt1[j];
+      #pragma acc parallel loop present(val2m[0:gs])
+      for (int j=0;j<gs;j++)
+        val2m[j] = 1.; 
+
+     //S
+      eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
+      eval_shd(ii1,gs,grid1m,val2m,n2,l2,m2,zeta2); //basis 2
+
+     #if 0
+      #pragma acc update self(val1m[0:gs],val2m[0:gs],wt1[0:gs])
+      printf("   val1*val2*wt: ");
+      for (int j=0;j<nrad;j++)
+        printf(" %4.1e",val1m[j*nang]*val2m[j*nang]);
+      printf("\n");
+     #endif
+
+      double val = 0.;
+     #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs]) reduction(+:val)
+      for (int j=0;j<gs;j++)
+        val += val1m[j]*val2m[j];
+
+     #pragma acc serial
+      S[i1*N+i2] = S[i2*N+i1] = val;
+
+    } //pairs of basis on single atoms
+
+
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+      //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
+
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+
+      for (int i1=s1;i1<s2;i1++)
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii1 = i1-s1;
+
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+       //new grid with zeta dependence
+        generate_central_grid_2d(0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w); 
+        generate_central_grid_2d(0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
+
+       //grid1 at 0,0,0 now has r1 at 3, r2 at 4
+        add_r2_to_grid(gs,grid1m,A12,B12,C12);
+        recenter_grid(gs,grid2m,A12,B12,C12);
+
+       //optimize this
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
+        //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
+
+        copy_grid(gs,grid2n,grid2m);
+        recenter_grid(gs,grid2n,-A12,-B12,-C12);      //grid 2 centered on atom 1
+
+        copy_grid(gs,grid1n,grid1m);
+        recenter_grid_zero(gs,grid1n,-A12,-B12,-C12); //grid 1 centered on atom 2
+
+       //needs to happen after becke weighting
+        add_r1_to_grid(gs,grid2m,0.,0.,0.);
+
+        #pragma acc parallel loop present(val1n[0:gs],val2m[0:gs])
+        for (int j=0;j<gs;j++)
+          val2m[j] = val2n[j] = 1.; 
+        #pragma acc parallel loop present(val1m[0:gs],val2n[0:gs],wt1[0:gs],wt2[0:gs])
+        for (int j=0;j<gs;j++)
+        {
+          val1m[j] = wt1[j];
+          val1n[j] = wt2[j];
+        }
+
+       //S
+        eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1 on center 1
+        eval_shd(ii1,gs,grid2m,val1n,n1,l1,m1,zeta1); //basis 1 on center 2
+        eval_shd(ii1,gs,grid1n,val2m,n2,l2,m2,zeta2); //basis 2 on center 1
+        eval_shd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2); //basis 2 on center 2
+
+        double val = 0.;
+       #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs]) reduction(+:val)
+        for (int j=0;j<gs;j++)
+          val += val1m[j]*val2m[j] + val1n[j]*val2n[j];
+
+       #pragma acc serial
+        S[i1*N+i2] = S[i2*N+i1] = val;
+      }
+
+    } //loop n>m
+
+  } //loop m over natoms
+
+
+  double* norm = new double[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+  #pragma acc enter data copyin(norm[0:N])
+
+  #pragma acc parallel loop independent present(S[0:N2],norm[0:N])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<=i;j++)
+  {
+    double n12 = norm[i]*norm[j];
+    S[i*N+j] *= n12;
+  }
+
+  if (prl>-1)
+  {
+    int nlow = 0;
+    #pragma acc update self(S[0:N2])
+    printf("  overlap diagonal accuracy (decimal points): ");
+    for (int i=0;i<N;i++)
+    {
+      double v0 = fabs(S[i*N+i]-1.);
+      double v1 = log10(v0);
+      if (fabs(v1)<4) nlow++;
+      printf(" %5.3f",v1);
+    }
+    printf("\n\n");
+    if (nlow)
+      printf("  WARNING: found %2i low accuracy diagonals \n",nlow);
+    if (nlow>1) { printf("   therefore exiting now \n"); exit(-1); }
+  }
+
+ #pragma acc parallel loop independent present(S[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<i;j++)
+  {
+    S[j*N+i] = S[i*N+j];
+  }
+ 
+ //might as well eliminate errors on diagonal
+ #pragma acc parallel loop present(S[0:N2])
+  for (int i=0;i<N;i++)
+    S[i*N+i] = 1.;
+
+  #pragma acc exit data delete(norm[0:N])
+  delete [] norm;
+
+  clean_small_values(N,S);
+
+
+ #if USE_ACC
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc update self(S[0:N2])
+ #endif
+
+
+  if (prl>1 || prl==-1)
+  {
+    printf("\n S: \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",S[i*N+j]);
+      printf("\n");
+    }
+  }
+
+#if USE_ACC
+  #pragma acc exit data delete(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+  #pragma acc exit data delete(n2i[0:natoms])
+  #pragma acc exit data delete(coords[0:3*natoms],atno[0:natoms])
+#endif
+
+  //delete [] ang_g;
+  //delete [] ang_w;
+
+  delete [] n2i;
+
+  delete [] val1m;
+  delete [] val1n;
+  delete [] val2m;
+  delete [] val2n;
+  delete [] grid1m;
+  delete [] grid1n;
+  delete [] grid2m;
+  delete [] grid2n;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
+
 #if RED_DOUBLE
-void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* S, FP2* T, int prl)
+void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* S, double* T, int prl)
 #else
-void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* S, FP1* T, int prl)
+void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* S, float* T, int prl)
 #endif
 {
   if (prl>1) printf(" beginning compute_ST \n");
@@ -6257,13 +4855,16 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
   int gs = nrad*nang;
   int gs6 = 6*gs;
 
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
   int estart = find_center_of_grid(1,nrad)*nang;
 
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
+  float* grid1 = new float[gs6];
+  float* wt1 = new float[gs];
 
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
+  float* grid2 = new float[gs6];
+  float* wt2 = new float[gs];
 
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
@@ -6271,18 +4872,18 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
 
  //intermediate storage
   int iN = imaxN;
-  FP1* grid1s = new FP1[gs6];
-  FP1* grid2s = new FP1[gs6];
-  FP1** valS1 = new FP1*[iN]; for (int i=0;i<iN;i++) valS1[i] = new FP1[gs];
-  FP1** valS2 = new FP1*[iN]; for (int i=0;i<iN;i++) valS2[i] = new FP1[gs];
-  FP1** valS3 = new FP1*[iN]; for (int i=0;i<iN;i++) valS3[i] = new FP1[gs];
-  FP1** valS4 = new FP1*[iN]; for (int i=0;i<iN;i++) valS4[i] = new FP1[gs];
-  FP1** valT1 = new FP1*[iN]; for (int i=0;i<iN;i++) valT1[i] = new FP1[gs];
-  FP1** valT2 = new FP1*[iN]; for (int i=0;i<iN;i++) valT2[i] = new FP1[gs];
-  FP1* wtt1 = new FP1[gs];
+  float* grid1s = new float[gs6];
+  float* grid2s = new float[gs6];
+  float** valS1 = new float*[iN]; for (int i=0;i<iN;i++) valS1[i] = new float[gs];
+  float** valS2 = new float*[iN]; for (int i=0;i<iN;i++) valS2[i] = new float[gs];
+  float** valS3 = new float*[iN]; for (int i=0;i<iN;i++) valS3[i] = new float[gs];
+  float** valS4 = new float*[iN]; for (int i=0;i<iN;i++) valS4[i] = new float[gs];
+  float** valT1 = new float*[iN]; for (int i=0;i<iN;i++) valT1[i] = new float[gs];
+  float** valT2 = new float*[iN]; for (int i=0;i<iN;i++) valT2[i] = new float[gs];
+  float* wtt1 = new float[gs];
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -6308,8 +4909,8 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
@@ -6338,8 +4939,8 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
      //S
       eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
@@ -6348,8 +4949,8 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
     for (int i2=s1;i2<s2;i2++)
     {
       int ii2 = i2-s1;
-      vector<FP2> basis2 = basis[i2];
-      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
      //S
       eval_sh(ii2,gs,grid1,valS3[ii2],n2,l2,m2,zeta2);
@@ -6370,8 +4971,8 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       eval_ke(gs,grid1,valT1[ii1],n1,l1,zeta1);
     }
@@ -6385,15 +4986,19 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
 
 
    //two-atom ints
+   #if SYMM_ST
+    for (int n=0;n<natoms;n++)
+    if (m!=n)
+   #else
     for (int n=m+1;n<natoms;n++)
-    //if (m!=n)
+   #endif
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
       //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -6453,8 +5058,8 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
        //S
         eval_sh(ii1,gs,grid1,valS1[ii1],n1,l1,m1,zeta1);
@@ -6464,8 +5069,8 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
        //S
         eval_sh(ii2,gs,grid2s,valS4[ii2],n2,l2,m2,zeta2);
@@ -6496,8 +5101,8 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
         eval_ke(gs,grid1,valT1[ii1],n1,l1,zeta1);
         eval_ke(gs,grid2,valT2[ii1],n1,l1,zeta1);
@@ -6511,7 +5116,7 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
   } //loop m over natoms
 
 
-  FP2* norm = new FP2[N];
+  double* norm = new double[N];
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
   #pragma acc enter data copyin(norm[0:N])
@@ -6519,21 +5124,57 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
   #pragma acc parallel loop independent present(S[0:N2],T[0:N2],norm[0:N])
   for (int i=0;i<N;i++)
  #pragma acc loop independent
-  for (int j=i;j<N;j++)
+  for (int j=0;j<N;j++)
   {
-    FP2 n12 = norm[i]*norm[j];
+    double n12 = norm[i]*norm[j];
     S[i*N+j] *= n12;
     T[i*N+j] *= -0.5*n12;
   }
 
+ #if !SYMM_ST
+ //symmetrize wrt ij
+ #pragma acc parallel loop independent present(S[0:N2],T[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+  {
+    S[j*N+i] = S[i*N+j];
+    T[j*N+i] = T[i*N+j];
+  }
+ #else
+
+ //average the two (atom m vs n)
  #pragma acc parallel loop independent present(S[0:N2],T[0:N2])
   for (int i=0;i<N;i++)
  #pragma acc loop independent
   for (int j=i;j<N;j++)
   {
-    S[j*N+i] = S[i*N+j];
-    T[j*N+i] = T[i*N+j];
+    S[j*N+i] += S[i*N+j];
+    T[j*N+i] += T[i*N+j];
   }
+
+ #pragma acc parallel loop independent present(S[0:N2],T[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+  {
+    S[i*N+j] = S[j*N+i];
+    T[i*N+j] = T[j*N+i];
+  }
+
+ #pragma acc parallel loop independent present(S[0:N2],T[0:N2])
+  for (int i=0;i<N2;i++)
+  {
+    S[i] *= 0.5;
+    T[i] *= 0.5;
+  }
+
+ #endif
+
+ //might as well eliminate errors on diagonal
+ #pragma acc parallel loop present(S[0:N2])
+  for (int i=0;i<N;i++)
+    S[i*N+i] = 1.;
 
   #pragma acc exit data delete(norm[0:N])
   delete [] norm;
@@ -6608,13 +5249,10 @@ void compute_ST(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis,
   return;
 }
 
-#if RED_DOUBLE
-void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP2* An, int prl)
-#else
-void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* An, int prl)
-#endif
+//high precision 2-center Coulomb
+void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl)
 {
-  if (prl>1) printf(" beginning compute_all_2c_v2 \n");
+  if (prl>-1) printf(" beginning compute_all_2c_v2d \n");
 
  //2c integrals are all in auxiliary basis
   int N = basis.size();
@@ -6623,13 +5261,16 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
   int gs = nrad*nang;
   int gs6 = 6*gs;
 
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
   int estart = find_center_of_grid(1,nrad)*nang;
 
-  FP1* grid1 = new FP1[gs6];
-  FP1* wt1 = new FP1[gs];
+  double* grid1 = new double[gs6];
+  double* wt1 = new double[gs];
 
-  FP1* grid2 = new FP1[gs6];
-  FP1* wt2 = new FP1[gs];
+  double* grid2 = new double[gs6];
+  double* wt2 = new double[gs];
 
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
@@ -6637,24 +5278,24 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
 
  //intermediate storage
   int iN = imaxN;
-  FP1* grid1s = new FP1[gs6];
-  FP1* grid2s = new FP1[gs6];
-  FP1** val1 = new FP1*[iN];
-  FP1** val2 = new FP1*[iN];
-  FP1** val3 = new FP1*[iN];
-  FP1** val4 = new FP1*[iN];
+  double* grid1s = new double[gs6];
+  double* grid2s = new double[gs6];
+  double** val1 = new double*[iN];
+  double** val2 = new double*[iN];
+  double** val3 = new double*[iN];
+  double** val4 = new double*[iN];
   for (int i=0;i<iN;i++)
-    val1[i] = new FP1[gs];
+    val1[i] = new double[gs];
   for (int i=0;i<iN;i++)
-    val2[i] = new FP1[gs];
+    val2[i] = new double[gs];
   for (int i=0;i<iN;i++)
-    val3[i] = new FP1[gs];
+    val3[i] = new double[gs];
   for (int i=0;i<iN;i++)
-    val4[i] = new FP1[gs];
-  FP1* wtt1 = new FP1[gs];
+    val4[i] = new double[gs];
+  double* wtt1 = new double[gs];
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  double* ang_g = new double[3*nang];
+  double* ang_w = new double[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -6678,10 +5319,13 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    double Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
-    generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+    generate_central_grid_2d(1,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+    //float z12 = zeta1 + zeta2;
+     //new grid with zeta dependence
+    //generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
 
   #if USE_ACC
    #pragma acc parallel loop present(val1[0:iN][0:gs])
@@ -6690,7 +5334,7 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
     {
      #pragma acc loop
       for (int j=0;j<gs;j++)
-        val1[ii1][j] = 1.f;
+        val1[ii1][j] = 1.;
     }
 
   #if USE_ACC
@@ -6708,22 +5352,25 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
     {
       int ii1 = i1-s1;
 
-      vector<FP2> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-      //acc_assign(gs,val1[ii1],1.);
-
-      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
-      eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
+      if (do_overlap)
+        eval_shd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
+      else
+      {
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,ii1);
+        eval_sh_3rd(gs,grid1,val1[ii1],n1,l1,m1);
+      }
     }
 
     for (int i2=s1;i2<s2;i2++)
     {
       int ii2 = i2-s1;
-      vector<FP2> basis2 = basis[i2];
-      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
-      eval_sh(ii2,gs,grid1,val3[ii2],n2,l2,m2,zeta2);
+      eval_shd(ii2,gs,grid1,val3[ii2],n2,l2,m2,zeta2);
 
     } //loop i2 evaluate
    #if USE_ACC
@@ -6734,33 +5381,30 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
 
    //two-atom ints
     for (int n=m+1;n<natoms;n++)
-    //if (m!=n)
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
       //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
 
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
 
-      generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
+      generate_central_grid_2d(1,grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
 
       copy_grid(gs,grid1s,grid1); 
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
-      acc_copyf(gs,wtt1,wt1);
-      becke_weight_2c(gs,grid1,wtt1,grid2,wt2,Z1,Z2,A12,B12,C12);
+      acc_copy(gs,wtt1,wt1);
+      //becke_weight_2c(gs,grid1,wtt1,grid2,wt2,zeta1,zeta2,A12,B12,C12);
+      becke_weight_2d(gs,grid1,wtt1,grid2,wt2,Z1,Z2,A12,B12,C12);
 
-      //#pragma acc update self(grid1[0:gs6],wtt1[0:gs],grid2[0:gs6],wt2[0:gs])
-      //print_grid(gs,grid1,grid2,wtt1,wt2,prl);
-
-      eliminate_small_wt(estart,gs,wtt1);
-      eliminate_small_wt(estart,gs,wt2);
+      //eliminate_small_wt(estart,gs,wtt1);
+      //eliminate_small_wt(estart,gs,wt2);
 
      //needs to happen after Becke weighting
       add_r1_to_grid(gs,grid2,0.,0.,0.);
@@ -6772,10 +5416,10 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
       {
        #pragma acc loop
         for (int j=0;j<gs;j++)
-          val1[ii1][j] = 1.f;
+          val1[ii1][j] = 1.;
        #pragma acc loop
         for (int j=0;j<gs;j++)
-          val2[ii1][j] = 1.f;
+          val2[ii1][j] = 1.;
       }
 
     #if USE_ACC
@@ -6795,28 +5439,34 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
       {
         int ii1 = i1-s1;
 
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
-        //printf("  m: %i i1: %i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-        //acc_assign(gs,val1[ii1],1.);
-        //acc_assign(gs,val2[ii1],1.);
+        if (do_overlap)
+          eval_shd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
+        else
+        {
+          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,ii1);
+          eval_sh_3rd(gs,grid1,val1[ii1],n1,l1,m1);
+        }
 
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
-        eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
-        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
-        eval_sh_3r(gs,grid2,val2[ii1],n1,l1,m1);
+        if (do_overlap)
+          eval_shd(ii1,gs,grid2,val2[ii1],n1,l1,m1,zeta1);
+        else
+        {
+          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,ii1);
+          eval_sh_3rd(gs,grid2,val2[ii1],n1,l1,m1);
+        }
       }
 
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
-        //printf("   n: %i i2: %i   nlm: %i %i %2i zeta: %8.5f \n",n,i2,n2,l2,m2,zeta2);
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
-        eval_sh(ii2,gs,grid2s,val4[ii2],n2,l2,m2,zeta2);
-        eval_sh(ii2,gs,grid1s,val3[ii2],n2,l2,m2,zeta2);
+        eval_shd(ii2,gs,grid2s,val4[ii2],n2,l2,m2,zeta2);
+        eval_shd(ii2,gs,grid1s,val3[ii2],n2,l2,m2,zeta2);
       }
 
       reduce_2c2(s1,s2,s3,s4,gs,val1,val2,val3,val4,iN,N,An);
@@ -6825,11 +5475,14 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
 
   } //loop m over natoms
 
-  FP2* norm1 = new FP2[N];
-  FP2* norm2 = new FP2[N];
+  double* norm1 = new double[N];
+  double* norm2 = new double[N];
   for (int i=0;i<N;i++)
   {
-    norm1[i] = norm_sv(basis[i][0],basis[i][1],basis[i][2],basis[i][3]);
+    if (do_overlap)
+      norm1[i] = basis[i][4];
+    else
+      norm1[i] = norm_sv(basis[i][0],basis[i][1],basis[i][2],basis[i][3]);
     norm2[i] = basis[i][4];
   }
   #pragma acc enter data copyin(norm1[0:N],norm2[0:N])
@@ -6838,8 +5491,9 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
   for (int i=0;i<N;i++)
  #pragma acc loop independent
   for (int j=i;j<N;j++)
+  //for (int j=0;j<N;j++)
   {
-    FP2 n12 = norm1[i]*norm2[j];
+    double n12 = norm1[i]*norm2[j];
     An[i*N+j] *= n12;
   }
 
@@ -6847,11 +5501,33 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
   delete [] norm1;
   delete [] norm2;
 
+ #if 1
  #pragma acc parallel loop independent present(An[0:N2])
   for (int i=0;i<N;i++)
  #pragma acc loop independent
   for (int j=i+1;j<N;j++)
     An[j*N+i] = An[i*N+j];
+
+ #else
+ 
+ //average the two triangles
+ #pragma acc parallel loop independent present(An[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i;j<N;j++)
+    An[j*N+i] += An[i*N+j];
+
+ #pragma acc parallel loop independent present(An[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+    An[i*N+j] = An[j*N+i];
+
+ #pragma acc parallel loop independent present(An[0:N2])
+  for (int i=0;i<N2;i++)
+    An[i] *= 0.5;
+
+ #endif
 
   //clean_small_values(N,An);
 
@@ -6865,12 +5541,12 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
  #if 0
   for (int m=0;m<N;m++)
   {
-    FP2 val = An[m*N+m];
+    double val = An[m*N+m];
     if (fabs(val)<1.e-2)
     {
       printf(" WARNING: small diagonal element in A: %3i \n",m);
     }
-    FP2 v2 = 1./sqrt(val);
+    double v2 = 1./sqrt(val);
     //Anorm[m] = v2;
     for (int n=0;n<N;n++)
     {
@@ -6928,7 +5604,373 @@ void compute_all_2c_v2(int natoms, int* atno, FP1* coords, vector<vector<FP2> > 
   return;
 }
 
-void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &basis, int nrad, int nang, FP2* ang_g0, FP2* ang_w0, FP1* A, int prl)
+#if RED_DOUBLE
+void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl)
+#else
+void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* An, int prl)
+#endif
+{
+  if (prl>1) printf(" beginning compute_all_2c_v2 \n");
+
+ //2c integrals are all in auxiliary basis
+  int N = basis.size();
+  int N2 = N*N;
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
+  int estart = find_center_of_grid(1,nrad)*nang;
+
+  float* grid1 = new float[gs6];
+  float* wt1 = new float[gs];
+
+  float* grid2 = new float[gs6];
+  float* wt2 = new float[gs];
+
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+  //printf("  iN: %i \n",imaxN);
+
+ //intermediate storage
+  int iN = imaxN;
+  float* grid1s = new float[gs6];
+  float* grid2s = new float[gs6];
+  float** val1 = new float*[iN];
+  float** val2 = new float*[iN];
+  float** val3 = new float*[iN];
+  float** val4 = new float*[iN];
+  for (int i=0;i<iN;i++)
+    val1[i] = new float[gs];
+  for (int i=0;i<iN;i++)
+    val2[i] = new float[gs];
+  for (int i=0;i<iN;i++)
+    val3[i] = new float[gs];
+  for (int i=0;i<iN;i++)
+    val4[i] = new float[gs];
+  float* wtt1 = new float[gs];
+
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
+  for (int i=0;i<3*nang;i++)
+    ang_g[i] = ang_g0[i];
+  for (int i=0;i<nang;i++)
+    ang_w[i] = ang_w0[i];
+
+ #if USE_ACC
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(n2i[0:natoms])
+
+  #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(val1[0:iN][0:gs],val2[0:iN][0:gs],wtt1[0:gs])
+  #pragma acc enter data create(val3[0:iN][0:gs],val4[0:iN][0:gs])
+  #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6])
+  //#pragma acc enter data create(An[0:N2])
+ #endif
+  acc_assign(N2,An,0.);
+
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+    generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+
+  #if USE_ACC
+   #pragma acc parallel loop present(val1[0:iN][0:gs])
+  #endif
+    for (int ii1=0;ii1<s2-s1;ii1++)
+    {
+     #pragma acc loop
+      for (int j=0;j<gs;j++)
+        val1[ii1][j] = 1.f;
+    }
+
+  #if USE_ACC
+   #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs])
+  #endif
+    for (int ii2=0;ii2<s2-s1;ii2++)
+    {
+     #pragma acc loop
+      for (int j=0;j<gs;j++)
+        val3[ii2][j] = wt1[j];
+    }
+
+   //first compute single atom ints
+    for (int i1=s1;i1<s2;i1++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+      //acc_assign(gs,val1[ii1],1.);
+
+      if (do_overlap)
+        eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
+      else
+      {
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+        eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
+      }
+    }
+
+    for (int i2=s1;i2<s2;i2++)
+    {
+      int ii2 = i2-s1;
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+      eval_sh(ii2,gs,grid1,val3[ii2],n2,l2,m2,zeta2);
+
+    } //loop i2 evaluate
+   #if USE_ACC
+    #pragma acc wait
+   #endif
+
+    reduce_2c1(s1,s2,gs,val1,val3,iN,N,An);
+
+   //two-atom ints
+    for (int n=m+1;n<natoms;n++)
+    //for (int n=0;n<natoms;n++)
+    //if (m!=n)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+      //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
+
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+
+     //grid1 at 0,0,0 now has r1 at 3, r2 at 4
+      add_r2_to_grid(gs,grid1,A12,B12,C12);
+
+      generate_central_grid_2(grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
+      copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
+      recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
+
+      copy_grid(gs,grid1s,grid1); 
+      recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
+
+      acc_copyf(gs,wtt1,wt1);
+      becke_weight_2c(gs,grid1,wtt1,grid2,wt2,Z1,Z2,A12,B12,C12);
+
+      //#pragma acc update self(grid1[0:gs6],wtt1[0:gs],grid2[0:gs6],wt2[0:gs])
+      //print_grid(gs,grid1,grid2,wtt1,wt2,prl);
+
+      eliminate_small_wt(estart,gs,wtt1);
+      eliminate_small_wt(estart,gs,wt2);
+
+     //needs to happen after Becke weighting
+      add_r1_to_grid(gs,grid2,0.,0.,0.);
+
+    #if USE_ACC
+     #pragma acc parallel loop present(val1[0:iN][0:gs],val2[0:iN][0:gs])
+    #endif
+      for (int ii1=0;ii1<s2-s1;ii1++)
+      {
+       #pragma acc loop
+        for (int j=0;j<gs;j++)
+          val1[ii1][j] = 1.f;
+       #pragma acc loop
+        for (int j=0;j<gs;j++)
+          val2[ii1][j] = 1.f;
+      }
+
+    #if USE_ACC
+     #pragma acc parallel loop present(val3[0:iN][0:gs],val4[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
+    #endif
+      for (int ii2=0;ii2<s4-s3;ii2++)
+      {
+       #pragma acc loop
+        for (int j=0;j<gs;j++)
+          val3[ii2][j] = wtt1[j];
+       #pragma acc loop
+        for (int j=0;j<gs;j++)
+          val4[ii2][j] = wt2[j];
+      }
+
+      for (int i1=s1;i1<s2;i1++)
+      {
+        int ii1 = i1-s1;
+
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+        //printf("  m: %i i1: %i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
+
+        //acc_assign(gs,val1[ii1],1.);
+        //acc_assign(gs,val2[ii1],1.);
+
+        if (do_overlap)
+          eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
+        else
+        {
+          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+          eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
+        }
+
+        if (do_overlap)
+          eval_sh(ii1,gs,grid2,val2[ii1],n1,l1,m1,zeta1);
+        else
+        {
+          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+          eval_sh_3r(gs,grid2,val2[ii1],n1,l1,m1);
+        }
+      }
+
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii2 = i2-s3;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+        //printf("   n: %i i2: %i   nlm: %i %i %2i zeta: %8.5f \n",n,i2,n2,l2,m2,zeta2);
+
+        eval_sh(ii2,gs,grid2s,val4[ii2],n2,l2,m2,zeta2);
+        eval_sh(ii2,gs,grid1s,val3[ii2],n2,l2,m2,zeta2);
+      }
+
+      reduce_2c2(s1,s2,s3,s4,gs,val1,val2,val3,val4,iN,N,An);
+
+    } //loop n over second atom
+
+  } //loop m over natoms
+
+  double* norm1 = new double[N];
+  double* norm2 = new double[N];
+  for (int i=0;i<N;i++)
+  {
+    if (do_overlap)
+      norm1[i] = basis[i][4];
+    else
+      norm1[i] = norm_sv(basis[i][0],basis[i][1],basis[i][2],basis[i][3]);
+    norm2[i] = basis[i][4];
+  }
+  #pragma acc enter data copyin(norm1[0:N],norm2[0:N])
+
+ #pragma acc parallel loop independent present(An[0:N2],norm1[0:N],norm2[0:N])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i;j<N;j++)
+  //for (int j=0;j<N;j++)
+  {
+    double n12 = norm1[i]*norm2[j];
+    An[i*N+j] *= n12;
+  }
+
+  #pragma acc exit data delete(norm1[0:N],norm2[0:N])
+  delete [] norm1;
+  delete [] norm2;
+
+ #if 1
+ #pragma acc parallel loop independent present(An[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+    An[j*N+i] = An[i*N+j];
+
+ #else
+ 
+ //average the two triangles
+ #pragma acc parallel loop independent present(An[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i;j<N;j++)
+    An[j*N+i] += An[i*N+j];
+
+ #pragma acc parallel loop independent present(An[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+    An[i*N+j] = An[j*N+i];
+
+ #pragma acc parallel loop independent present(An[0:N2])
+  for (int i=0;i<N2;i++)
+    An[i] *= 0.5;
+
+ #endif
+
+  //clean_small_values(N,An);
+
+ #if USE_ACC
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  //#pragma acc exit data copyout(An[0:N2])
+  #pragma acc update self(An[0:N2])
+ #endif
+
+
+ #if 0
+  for (int m=0;m<N;m++)
+  {
+    double val = An[m*N+m];
+    if (fabs(val)<1.e-2)
+    {
+      printf(" WARNING: small diagonal element in A: %3i \n",m);
+    }
+    double v2 = 1./sqrt(val);
+    //Anorm[m] = v2;
+    for (int n=0;n<N;n++)
+    {
+      An[m*N+n] *= v2;
+      An[n*N+m] *= v2;
+    }
+  }
+ #endif
+
+
+  if (prl>2)
+  {
+    printf("\n A: \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %12.6f",An[i*N+j]);
+      printf("\n");
+    }
+  }
+
+ //CPMZ check this
+#if USE_ACC
+  #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6])
+  #pragma acc exit data delete(val1[0:iN][0:gs],val2[0:iN][0:gs],wtt1[0:gs])
+  #pragma acc exit data delete(val3[0:iN][0:gs],val4[0:iN][0:gs])
+  #pragma acc exit data delete(n2i[0:natoms])
+#endif
+
+  delete [] ang_g;
+  delete [] ang_w;
+
+  delete [] n2i;
+
+  delete [] grid1s;
+  delete [] grid2s;
+
+  for (int i=0;i<iN;i++) delete [] val1[i];
+  for (int i=0;i<iN;i++) delete [] val2[i];
+  for (int i=0;i<iN;i++) delete [] val3[i];
+  for (int i=0;i<iN;i++) delete [] val4[i];
+  delete [] val1;
+  delete [] val2;
+  delete [] val3;
+  delete [] val4;
+  delete [] wtt1;
+
+  delete [] grid1;
+  delete [] grid2;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
+
+void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* A, int prl)
 {
   if (prl>1) printf(" beginning compute_all_2c \n");
 
@@ -6936,34 +5978,37 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
   int N = basis.size();
   int N2 = N*N;
 
-  int gs = nrad*nang;
-  FP1* grid1 = new FP1[6*gs];
-  FP1* wt1 = new FP1[gs];
-  FP1* val1 = new FP1[gs];
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
 
-  FP1* grid2 = new FP1[6*gs];
-  FP1* wt2 = new FP1[gs];
-  FP1* val2 = new FP1[gs];
+  int gs = nrad*nang;
+  float* grid1 = new float[6*gs];
+  float* wt1 = new float[gs];
+  float* val1 = new float[gs];
+
+  float* grid2 = new float[6*gs];
+  float* wt2 = new float[gs];
+  float* val2 = new float[gs];
 
   int* i2m = new int[N];
 
  #if 1
-  FP1* grid1s = new FP1[6*gs];
-  FP1* grid2s = new FP1[6*gs];
-  FP1** valt1 = new FP1*[N];
-  FP1** valt2 = new FP1*[N];
+  float* grid1s = new float[6*gs];
+  float* grid2s = new float[6*gs];
+  float** valt1 = new float*[N];
+  float** valt2 = new float*[N];
   for (int i=0;i<N;i++)
-    valt1[i] = new FP1[gs];
+    valt1[i] = new float[gs];
   for (int i=0;i<N;i++)
-    valt2[i] = new FP1[gs];
+    valt2[i] = new float[gs];
  #else
-  FP1* valt1 = new FP1[gs];
-  FP1* valt2 = new FP1[gs];
+  float* valt1 = new float[gs];
+  float* valt2 = new float[gs];
  #endif
-  FP1* wtt1 = new FP1[gs];
+  float* wtt1 = new float[gs];
 
-  FP1* ang_g = new FP1[3*nang];
-  FP1* ang_w = new FP1[nang];
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
   for (int i=0;i<3*nang;i++)
     ang_g[i] = ang_g0[i];
   for (int i=0;i<nang;i++)
@@ -6982,8 +6027,8 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
 
   for (int m=0;m<natoms;m++)
   {
-    FP1 Z1 = (FP1)atno[m];
-    FP1 A1 = coords[3*m+0]; FP1 B1 = coords[3*m+1]; FP1 C1 = coords[3*m+2];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
     //#pragma acc update self(grid1[0:6*gs],wt1[0:gs])
@@ -6999,13 +6044,13 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
     for (int i1=0;i1<N;i1++)
     if (basis[i1][9]==m)
     {
-      vector<FP2> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
       //printf("\n  m: %i i1: %2i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
 
       acc_assign(gs,val1,1.);
 
-      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
+      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
       eval_sh_3r(gs,grid1,val1,n1,l1,m1);
 
       //#pragma acc update self(val1)
@@ -7028,8 +6073,8 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
       for (int i2=0;i2<N;i2++)
       if (basis[i2][9]==m)
       {
-        vector<FP2> basis2 = basis[i2];
-        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
         //printf("    n: %i i2: %2i   nlm: %i %i %2i zeta: %8.5f   (b2) \n",m,i2,n2,l2,m2,zeta2);
 
         //acc_copyf(i2,gs,valt1[i2],val1);
@@ -7051,7 +6096,7 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
       for (int i2=0;i2<N;i2++)
       if (i2m[i2])
       {
-        FP1 val = 0.;
+        float val = 0.;
       #if USE_ACC
        #pragma acc loop reduction(+:val)
       #endif
@@ -7068,9 +6113,9 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
     for (int n=0;n<natoms;n++)
     if (m!=n)
     {
-      FP1 Z2 = (FP1)atno[n];
-      FP1 A2 = coords[3*n+0]; FP1 B2 = coords[3*n+1]; FP1 C2 = coords[3*n+2];
-      FP1 A12 = A2-A1; FP1 B12 = B2-B1; FP1 C12 = C2-C1;
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
 
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
@@ -7101,16 +6146,16 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
       for (int i1=0;i1<N;i1++)
       if (basis[i1][9]==m)
       {
-        vector<FP2> basis1 = basis[i1];
-        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; FP1 zeta1 = basis1[3];
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
         //printf("  m: %i i1: %i   nlm: %i %i %2i zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
 
         acc_assign(gs,val1,1.);
         acc_assign(gs,val2,1.);
 
-        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
+        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
         eval_sh_3r(gs,grid1,val1,n1,l1,m1);
-        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1);
+        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1,3);
         eval_sh_3r(gs,grid2,val2,n1,l1,m1);
 
       #if USE_ACC
@@ -7135,8 +6180,8 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
         for (int i2=i1+1;i2<N;i2++)
         if (basis[i2][9]==n)
         {
-          vector<FP2> basis2 = basis[i2];
-          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; FP1 zeta2 = basis2[3];
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
           //printf("   n: %i i2: %i   nlm: %i %i %2i zeta: %8.5f \n",n,i2,n2,l2,m2,zeta2);
 
           //acc_copyf(i2,gs,valt2[i2],val2);
@@ -7155,7 +6200,7 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
         for (int i2=i1+1;i2<N;i2++)
         if (i2m[i2])
         {
-          FP1 val = 0.;
+          float val = 0.;
         #if USE_ACC
          #pragma acc loop reduction(+:val)
         #endif
@@ -7246,3 +6291,2647 @@ void compute_all_2c(int natoms, int* atno, FP1* coords, vector<vector<FP2> > &ba
   return;
 }
 
+
+#if RED_DOUBLE
+void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* g, int prl)
+#else
+void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl)
+#endif
+{
+  if (prl>-1) printf(" beginning compute_all_4c_v2 \n");
+  if (natoms>2)
+  {
+    printf("\n ERROR: compute_all_4c for 2-atom integrals only \n");
+  }
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  int gs = nrad*nang;
+  int gsp = (nrad+1)*nang;
+  int gs6 = 6*gs;
+  int gsp6 = 6*gsp;
+
+  if (prl>0) printf("  gs/p: %4i %4i \n",gs,gsp);
+
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
+  int estart = find_center_of_grid(1,nrad)*nang;
+  int estart2 = find_center_of_grid(1,nrad+1)*nang;
+
+  int* n2i = new int[natoms];
+  int iN = get_imax_n2i(natoms,N,basis,n2i);
+
+  float** grid1 = new float*[4]; for (int i=0;i<4;i++) grid1[i] = new float[gs6];
+  float** wt1 = new float*[4]; for (int i=0;i<4;i++) wt1[i] = new float[gs];
+
+  float** grid2 = new float*[4]; for (int i=0;i<4;i++) grid2[i] = new float[gsp6];
+  float** wt2 = new float*[4]; for (int i=0;i<4;i++) wt2[i] = new float[gsp];
+
+  float*** val1 = new float**[4];
+  float*** val2 = new float**[4];
+  float*** val3 = new float**[4];
+  float*** val4 = new float**[4];
+  for (int n=0;n<4;n++)
+  {
+    val1[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val1[n][i] = new float[gs];
+  }
+  for (int n=0;n<4;n++)
+  {
+    val2[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val2[n][i] = new float[gs];
+  }
+  for (int n=0;n<4;n++)
+  {
+    val3[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val3[n][i] = new float[gsp];
+  }
+  for (int n=0;n<4;n++)
+  {
+    val4[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val4[n][i] = new float[gsp];
+  }
+
+  float** wtt = new float*[16]; for (int i=0;i<16;i++) wtt[i] = new float[gsp];
+
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
+  for (int i=0;i<3*nang;i++)
+    ang_g[i] = ang_g0[i];
+  for (int i=0;i<nang;i++)
+    ang_w[i] = ang_w0[i];
+
+  for (int i=0;i<N2*N2;i++)
+    g[i] = 0.;
+
+ //g not on gpu (too large)
+  int M = iN;
+  int M2 = M*M;
+  //int M3 = M2*M;
+  float* gt = new float[M2*M2];
+
+ #if USE_ACC
+  #pragma acc enter data create(gt[0:M2*M2])
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(n2i[0:natoms])
+
+  #pragma acc enter data create(grid1[0:4][0:gs6],wt1[0:4][0:gs])
+  #pragma acc enter data create(grid2[0:4][0:gsp6],wt2[0:4][0:gsp])
+  #pragma acc enter data create(wtt[0:16][0:gsp])
+
+  for (int n=0;n<4;n++)
+  {
+    float** val1n = val1[n]; float** val2n = val2[n]; float** val3n = val3[n]; float** val4n = val4[n];
+    #pragma acc enter data create(val1n[0:iN][0:gs],val2n[0:iN][0:gs],val3n[0:iN][0:gsp],val4n[0:iN][0:gsp])
+  }
+ #endif
+
+  #pragma acc parallel loop present(gt[0:M2*M2])
+  for (int j=0;j<M2*M2;j++)
+    gt[j] = 0.f;
+
+  for (int m=0;m<natoms;m++)
+  {
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+    float* grid1a = grid1[0]; float* grid2a = grid2[0];
+    float* wt1a = wt1[0]; float* wt2a = wt2[0];
+
+    generate_central_grid_2(grid1a,wt1a,Z1,nrad,  nang,ang_g,ang_w);
+    generate_central_grid_2(grid2a,wt2a,Z1,nrad+1,nang,ang_g,ang_w);
+
+    float** val1a = val1[0]; float** val2a = val2[0];
+    float** val3a = val3[0]; float** val4a = val4[0];
+
+   #pragma acc parallel loop collapse(2) present(val1a[0:iN][0:gs])
+    for (int ii1=0;ii1<s2-s1;ii1++)
+    for (int j=0;j<gs;j++)
+      val1a[ii1][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val2a[0:iN][0:gs])
+    for (int ii2=0;ii2<s2-s1;ii2++)
+    for (int j=0;j<gs;j++)
+      val2a[ii2][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val3a[0:iN][0:gsp])
+    for (int ii3=0;ii3<s2-s1;ii3++)
+    for (int j=0;j<gsp;j++)
+      val3a[ii3][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val4a[0:iN][0:gsp])
+    for (int ii4=0;ii4<s2-s1;ii4++)
+    for (int j=0;j<gsp;j++)
+      val4a[ii4][j] = 1.f;
+
+   //first compute single atom ints
+    for (int i1=s1;i1<s2;i1++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+      eval_sh(ii1,gs,grid1a,val1a[ii1],n1,l1,m1,zeta1);
+    } //loop i1
+
+    for (int i2=s1;i2<s2;i2++)
+    {
+      int ii2 = i2-s1;
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+      eval_sh(ii2,gs,grid1a,val2a[ii2],n2,l2,m2,zeta2);
+    } //loop i2
+
+    for (int i3=s1;i3<s2;i3++)
+    {
+      int ii3 = i3-s1;
+
+      vector<double> basis3 = basis[i3];
+      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+
+      eval_sh(ii3,gsp,grid2a,val3a[ii3],n3,l3,m3,zeta3);
+    } //loop i3
+
+    for (int i4=s1;i4<s2;i4++)
+    {
+      int ii4 = i4-s1;
+
+      vector<double> basis4 = basis[i4];
+      int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+      eval_sh(ii4,gsp,grid2a,val4a[ii4],n4,l4,m4,zeta4);
+    } //loop i4
+
+   //form V2a for all basis on atom m
+   //contract density with potential
+//    reduce_4cv_1(s1,s2,gs,gsp,grid1a,grid2a,val1a,val2a,V2a,wt1a);
+//    reduce_4vv_1(s1,s2,gsp,grid2a,V2a,val3a,val4a,wt2a,gt);
+
+    //reduce_4c_1(s1,s2,s1,s2,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wt1a,wt2a,gt);
+    //collect_4c_1(s1,s2,s1,s2,0,gs,gsp,M,N,gt,g);
+
+
+   //two-atom ints
+    for (int n=0;n<m;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+
+      float* grid1b = grid1[1]; float* grid2b = grid2[1];
+      float* grid1d = grid1[3]; float* grid2d = grid2[3];
+      float* wt1b = wt1[1]; float* wt2b = wt2[1];
+
+      float** val1b = val1[1]; float** val2b = val2[1];
+      float** val3b = val3[1]; float** val4b = val4[1];
+
+     //grid1a at 0,0,0 now has r1 at 3, r2 at 4
+      add_r2_to_grid(gs, grid1a,A12,B12,C12);
+      add_r2_to_grid(gsp,grid2a,A12,B12,C12);
+
+      generate_central_grid_2(grid1b,wt1b,Z2,nrad,  nang,ang_g,ang_w);
+      generate_central_grid_2(grid2b,wt2b,Z2,nrad+1,nang,ang_g,ang_w);
+
+      copy_grid(gs, grid1d,grid1b); //centered at atom b
+      copy_grid(gsp,grid2d,grid2b); //centered at atom b
+
+      recenter_grid(gs, grid1b,A12,B12,C12); //r1 points to self, r2 points at first atom
+      recenter_grid(gsp,grid2b,A12,B12,C12);
+
+      float* wtt1a = wtt[0]; float* wtt1b = wtt[1];
+      float* wtt2a = wtt[4]; float* wtt2b = wtt[5];
+      acc_copyf(gs, wtt1a,wt1a); acc_copyf(gs, wtt1b,wt1b);
+      acc_copyf(gsp,wtt2a,wt2a); acc_copyf(gsp,wtt2b,wt2b);
+      becke_weight_2c(gs, grid1a,wtt1a,grid1b,wtt1b,Z1,Z2,A12,B12,C12);
+      becke_weight_2c(gsp,grid2a,wtt2a,grid2b,wtt2b,Z1,Z2,A12,B12,C12);
+
+      //eliminate_small_wt(estart, gs, wtt1a);
+      //eliminate_small_wt(estart, gs, wtt1b);
+      //eliminate_small_wt(estart2,gsp,wtt2a);
+      //eliminate_small_wt(estart2,gsp,wtt2b);
+
+      add_r1_to_grid(gs, grid1b,0.,0.,0.); //center is on atom a
+      add_r1_to_grid(gsp,grid2b,0.,0.,0.); //center is on atom a
+
+      float* grid1c = grid1[2]; float* grid2c = grid2[2];
+
+      copy_grid(gs, grid1c,grid1a);
+      copy_grid(gsp,grid2c,grid2a);
+
+      recenter_grid_zero(gs, grid1c,-A12,-B12,-C12);
+      recenter_grid_zero(gsp,grid2c,-A12,-B12,-C12);
+
+
+    //1122 (s12,s12,s34,s34)
+     #pragma acc parallel loop collapse(2) present(val1b[0:iN][0:gs])
+      for (int ii1=0;ii1<s2-s1;ii1++)
+      for (int j=0;j<gs;j++)
+        val1b[ii1][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val2b[0:iN][0:gs])
+      for (int ii2=0;ii2<s2-s1;ii2++)
+      for (int j=0;j<gs;j++)
+        val2b[ii2][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val3b[0:iN][0:gsp])
+      for (int ii3=0;ii3<s4-s3;ii3++)
+      for (int j=0;j<gsp;j++)
+        val3b[ii3][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val4b[0:iN][0:gsp])
+      for (int ii4=0;ii4<s4-s3;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4b[ii4][j] = 1.f;
+
+     //i1 on atom m
+      for (int i1=s1;i1<s2;i1++)
+      {
+        int ii1 = i1-s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        eval_sh(ii1,gs,grid1b,val1b[ii1],n1,l1,m1,zeta1);
+      }
+
+     //i2 on atom m
+      for (int i2=s1;i2<s2;i2++)
+      {
+        int ii2 = i2-s1;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+        eval_sh(ii2,gs,grid1b,val2b[ii2],n2,l2,m2,zeta2);
+      }
+
+     //i3 on atom n
+      for (int i3=s3;i3<s4;i3++)
+      {
+        int ii3 = i3-s3;
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+    
+        eval_sh(ii3,gsp,grid2d,val3b[ii3],n3,l3,m3,zeta3);
+      }
+
+     //i4 on atom n
+      for (int i4=s3;i4<s4;i4++)
+      {
+        int ii4 = i4-s3;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+    
+        eval_sh(ii4,gsp,grid2d,val4b[ii4],n4,l4,m4,zeta4);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val3a[0:iN][0:gsp])
+      for (int ii3=0;ii3<s4-s3;ii3++)
+      for (int j=0;j<gsp;j++)
+        val3a[ii3][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val4a[0:iN][0:gsp])
+      for (int ii4=0;ii4<s4-s3;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4a[ii4][j] = 1.f;
+
+     //i3 on atom n
+      for (int i3=s3;i3<s4;i3++)
+      {
+        int ii3 = i3-s3;
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+
+        eval_sh(ii3,gsp,grid2c,val3a[ii3],n3,l3,m3,zeta3);
+      }
+
+     //i4 on atom n
+      for (int i4=s3;i4<s4;i4++)
+      {
+        int ii4 = i4-s3;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+        eval_sh(ii4,gsp,grid2c,val4a[ii4],n4,l4,m4,zeta4);
+      }
+
+     //1122
+//    reduce_4cv_1(s1,s2,gs,gsp,grid1a,grid2c,val1a,val2a,V2c,wt1a);
+//    reduce_4vv_4(s1,s2,gsp,grid2a,grid2c,V2a,V2c,val3a,val4a,val3b,val4b,wt2a,gt);
+
+     //1122
+      //reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      //reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      //reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      //reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      //collect_4c_1(s1,s2,s3,s4,1,gs,gsp,M,N,gt,g);
+
+
+
+    //1121
+     #pragma acc parallel loop collapse(2) present(val4a[0:iN][0:gsp])
+      for (int ii4=0;ii4<s2-s1;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4a[ii4][j] = 1.f;
+
+     //i4 on atom m
+      for (int i4=s1;i4<s2;i4++)
+      {
+        int ii4 = i4-s1;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+        eval_sh(ii4,gsp,grid2a,val4a[ii4],n4,l4,m4,zeta4);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val4b[0:iN][0:gsp])
+      for (int ii4=0;ii4<s2-s1;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4b[ii4][j] = 1.f;
+
+     //i2 on atom m
+      for (int i4=s1;i4<s2;i4++)
+      {
+        int ii4 = i4-s1;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+        eval_sh(ii4,gsp,grid2b,val4b[ii4],n4,l4,m4,zeta4);
+      }
+
+     //1121
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      collect_4c_1b(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
+
+
+
+    //1221
+     #pragma acc parallel loop collapse(2) present(val2a[0:iN][0:gs])
+      for (int ii2=0;ii2<s4-s3;ii2++)
+      for (int j=0;j<gs;j++)
+        val2a[ii2][j] = 1.f;
+
+     //i2 on atom n
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii2 = i2-s3;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+        eval_sh(ii2,gs,grid1c,val2a[ii2],n2,l2,m2,zeta2);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val2b[0:iN][0:gs])
+      for (int ii2=0;ii2<s4-s3;ii2++)
+      for (int j=0;j<gs;j++)
+        val2b[ii2][j] = 1.f;
+
+     //i2 on atom n
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii2 = i2-s3;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+        eval_sh(ii2,gs,grid1d,val2b[ii2],n2,l2,m2,zeta2);
+      }
+
+     //1221
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      collect_4c_1c(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
+
+
+    //2221
+     #pragma acc parallel loop collapse(2) present(val1a[0:iN][0:gs])
+      for (int ii1=0;ii1<s4-s3;ii1++)
+      for (int j=0;j<gs;j++)
+        val1a[ii1][j] = 1.f;
+
+     //i1 on atom n
+      for (int i1=s3;i1<s4;i1++)
+      {
+        int ii1 = i1-s3;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        eval_sh(ii1,gs,grid1c,val1a[ii1],n1,l1,m1,zeta1);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val1b[0:iN][0:gs])
+      for (int ii1=0;ii1<s4-s3;ii1++)
+      for (int j=0;j<gs;j++)
+        val1b[ii1][j] = 1.f;
+
+     //i1 on atom n
+      for (int i1=s3;i1<s4;i1++)
+      {
+        int ii1 = i1-s3;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        eval_sh(ii1,gs,grid1d,val1b[ii1],n1,l1,m1,zeta1);
+      }
+
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      collect_4c_1d(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
+
+
+    } //loop n over second atom
+
+  } //loop m over natoms
+
+ //normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  for (int k=0;k<N;k++)
+  for (int l=0;l<N;l++)
+    g[i*N3+j*N2+k*N+l] *= basis[i][4]*basis[j][4]*basis[k][4]*basis[l][4];
+
+ //show the symmetry
+  if (prl>1)
+  for (int p=0;p<N;p++)
+  for (int q=0;q<=p;q++)
+  for (int r=0;r<=p;r++)
+  for (int s=0;s<=r;s++)
+  {
+    double v1 = g[p*N3+q*N2+r*N+s];
+    double v2 = g[p*N3+q*N2+s*N+r];
+    double v3 = g[q*N3+p*N2+r*N+s];
+    double v4 = g[q*N3+p*N2+s*N+r];
+
+    double v5 = g[r*N3+s*N2+p*N+q];
+    double v6 = g[s*N3+r*N2+p*N+q];
+    double v7 = g[r*N3+s*N2+q*N+p];
+    double v8 = g[s*N3+r*N2+q*N+p];
+
+    printf("   pqrs: %i %i %i %i: %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f \n",p,q,r,s,v1,v2,v3,v4,v5,v6,v7,v8);
+  }
+
+  if ((prl>0 && N<10) || prl>1)
+  {
+    printf("\n g: \n");
+    for (int i=0;i<N;i++)
+    for (int j=0;j<N;j++)
+    {
+      printf(" ij: %2i %2i \n",i,j);
+      print_square(N,&g[i*N3+j*N2]);
+    }
+  }
+
+
+#if USE_ACC
+  #pragma acc exit data delete(gt[0:M2*M2])
+
+  #pragma acc exit data delete(grid1[0:4][0:gs6],wt1[0:4][0:gs])
+  #pragma acc exit data delete(grid2[0:4][0:gsp6],wt2[0:4][0:gsp])
+  //#pragma acc exit data delete(grid3[0:4][0:gsp6],wt3[0:4][0:gsp])
+  //#pragma acc exit data delete(grid4[0:4][0:gsp6],wt4[0:4][0:gsp])
+  for (int n=0;n<4;n++)
+  {
+    float** val1n = val1[n]; float** val2n = val2[n]; float** val3n = val3[n]; float** val4n = val4[n];
+    #pragma acc exit data delete(val1n[0:iN][0:gs],val2n[0:iN][0:gs],val3n[0:iN][0:gsp],val4n[0:iN][0:gsp])
+  }
+
+  #pragma acc exit data delete(wtt[0:16][0:gsp])
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(n2i[0:natoms])
+#endif
+
+
+  delete [] gt;
+  delete [] n2i;
+
+  delete [] ang_g;
+  delete [] ang_w;
+
+  for (int i=0;i<4;i++) 
+  {
+    for (int j=0;j<iN;j++)
+      delete [] val1[i][j];
+    delete [] val1[i];
+    for (int j=0;j<iN;j++)
+      delete [] val2[i][j];
+    delete [] val2[i];
+    for (int j=0;j<iN;j++)
+      delete [] val3[i][j];
+    delete [] val3[i];
+    for (int j=0;j<iN;j++)
+      delete [] val4[i][j];
+    delete [] val4[i];
+  }
+ 
+  for (int i=0;i<4;i++)
+  {
+    delete [] grid1[i];
+    delete [] grid2[i];
+    delete [] wt1[i];
+    delete [] wt2[i];
+  }
+  delete [] grid1;
+  delete [] grid2;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
+
+
+//compares in the equality sense
+bool compare_ijkl(const vector<short>& ijkl1, const vector<short>& ijkl2)
+{
+  short i1 = ijkl1[0]; short i2 = ijkl1[1];
+  short i3 = ijkl1[2]; short i4 = ijkl1[3];
+
+  short j1 = ijkl2[0]; short j2 = ijkl2[1];
+  short j3 = ijkl2[2]; short j4 = ijkl2[3];
+
+  bool found = false;
+  if (i1==j1 && i2==j2)
+  {
+    if (i3==j3 && i4==j4)
+      found = true;
+    else if (i3==j4 && i4==j3)
+      found = true;
+  }
+  else if (i1==j2 && i2==j1)
+  {
+    if (i3==j3 && i4==j4)
+      found = true;
+    else if (i3==j4 && i4==j3)
+      found = true;
+  }
+  else if (i1==j3 && i2==j4)
+  {
+    if (i3==j1 && i4==j2)
+      found = true;
+    else if (i3==j2 && i4==j1)
+      found = true;
+  }
+  else if (i1==j4 && i2==j3)
+  {
+    if (i3==j1 && i4==j2)
+      found = true;
+    else if (i3==j2 && i4==j1)
+      found = true;
+  }
+
+  return found;
+}
+
+//compares in the less than sense
+bool compare_ijkl_2(const vector<short>& ijkl1, const vector<short>& ijkl2)
+{
+  short i1 = ijkl1[0]; short i2 = ijkl1[1];
+  short i3 = ijkl1[2]; short i4 = ijkl1[3];
+
+ //put in canonical order first
+  if (i1<i2) { short t1 = i1; i1 = i2; i2 = t1; } 
+  if (i3<i4) { short t3 = i3; i3 = i4; i4 = t3; } 
+  if (i1<i3) { short t1 = i1; short t2 = i2; i1 = i3; i2 = i4; i3 = t1; i4 = t2; }
+
+  short j1 = ijkl2[0]; short j2 = ijkl2[1];
+  short j3 = ijkl2[2]; short j4 = ijkl2[3];
+
+  if (j1<j2) { short t1 = j1; j1 = j2; j2 = t1; } 
+  if (j3<j4) { short t3 = j3; j3 = j4; j4 = t3; } 
+  if (j1<j3) { short t1 = j1; short t2 = j2; j1 = j3; j2 = j4; j3 = t1; j4 = t2; }
+
+  bool one_lt_two = false;
+  if (i1==j1)
+  {
+    if (i3==j3)
+    {
+      if (i2==j2)
+      {
+        if (i4<j4)
+          one_lt_two = true;
+      }
+      else if (i2<j2)
+        one_lt_two = true;
+    }
+    else if (i3<j3)
+      one_lt_two = true;
+  }
+  else if (i1<j1)
+    one_lt_two = true;
+
+  return one_lt_two;
+}
+
+void remove_duplicate_ijkl(vector<vector<short> >& ijkl0)
+{
+ #if 0
+  printf("  original ijkl: \n");
+  for (int i=0;i<ijkl0.size();i++)
+    printf("   %2i %2i %2i %2i \n",ijkl0[i][0],ijkl0[i][1],ijkl0[i][2],ijkl0[i][3]);
+ #endif
+
+  vector<vector<short> > ijkl1 = ijkl0;
+
+  sort(ijkl1.begin(),ijkl1.end(),compare_ijkl_2);
+
+  int ijkl1s = ijkl1.size();
+  bool list[ijkl1s];
+  for (int i=0;i<ijkl1s;i++)
+    list[i] = false;
+
+  for (int i=0;i<ijkl1s-1;i++)
+  {
+    bool same = compare_ijkl(ijkl1[i],ijkl1[i+1]);
+    if (same) list[i+1] = true;
+  }
+
+  ijkl0.clear();
+  for (int i=0;i<ijkl1s;i++)
+  if (!list[i])
+    ijkl0.push_back(ijkl1[i]);
+
+ #if 0
+  printf("  unique ijkl: \n");
+  for (int i=0;i<ijkl0.size();i++)
+    printf("   %2i %2i %2i %2i \n",ijkl0[i][0],ijkl0[i][1],ijkl0[i][2],ijkl0[i][3]);
+ #endif
+
+  return;
+}
+
+vector<vector<short> > enumerate_ijkl(int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8)
+{
+  vector<vector<short> > ijkl;
+
+  if (s2==s4 && s2==s6 && s2==s8)
+  {
+   //directly generating unique list for single-center case
+    for (int i1=s1;i1<s2;i1++)
+    {
+      for (int i2=s1;i2<=i1;i2++)
+      for (int i3=s1;i3<=i1;i3++)
+      for (int i4=s1;i4<=i3;i4++)
+      {
+        vector<short> list1;
+        list1.push_back(i1); list1.push_back(i2);
+        list1.push_back(i3); list1.push_back(i4);
+        ijkl.push_back(list1);
+      }
+    }
+  }
+  else
+  {
+    for (int i1=s1;i1<s2;i1++)
+    {
+      for (int i2=s3;i2<s4;i2++)
+      for (int i3=s5;i3<s6;i3++)
+      for (int i4=s7;i4<s8;i4++)
+      {
+        vector<short> list1;
+        list1.push_back(i1); list1.push_back(i2);
+        list1.push_back(i3); list1.push_back(i4);
+        ijkl.push_back(list1);
+      }
+    }
+    remove_duplicate_ijkl(ijkl);
+  }
+
+
+  return ijkl;
+}
+
+void clean_4c_grid(int gsa, int gspa, float* grid1, float* wt1, float* grid2, float* wt2)
+{
+  int gsa6 = 6*gsa;
+  int gspa6 = 6*gspa;
+
+  float MIN_DIST = 1.e-4;
+
+ #pragma acc parallel loop present(grid1[0:gsa6],wt1[0:gsa],grid2[0:gspa6],wt2[0:gspa])
+  for (int i=0;i<gsa;i++)
+  {
+    float A1 = grid1[6*i+0]; float B1 = grid1[6*i+1]; float C1 = grid1[6*i+2];
+    float wt1i = wt1[i];
+
+   #pragma acc loop
+    for (int j=0;j<gspa;j++)
+    {
+      float A2 = grid2[6*j+0]; float B2 = grid2[6*j+1]; float C2 = grid2[6*j+2];
+      float A12 = A1-A2; float B12 = B1-B2; float C12 = C1-C2;
+      float r12 = sqrtf(A12*A12+B12*B12+C12*C12);
+      if (r12<MIN_DIST)
+      {
+        if (wt1i<wt2[j])
+          wt1[i] = 0.;
+        else
+          wt2[j] = 0.;
+      }
+    }
+  }
+
+  return;
+}
+
+void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nrad, int nang, double* ang_g, double* ang_w, vector<vector<double> >& basis, int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8, int iN,
+   int gsa, double* grid, double* wt, double** val1, double** val2, double** val3, double** val4, double* ol)
+{
+ //this function needs much better batching,
+ // parallel utilization is poor
+
+  int nomp = ngpu;
+  int prl = 1;
+
+  int gc = 6;
+  int gsa6 = gsa*6;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  double minval = 1.e-16;
+ 
+ //list out integrals that need to be computed
+  vector<vector<short> > ijkl = enumerate_ijkl(s1,s2,s3,s4,s5,s6,s7,s8);
+  int ijkl_size = ijkl.size();
+
+  acc_set_device_num(0,acc_device_nvidia);
+
+ //integral-specific grids
+  get_becke_grid_full(natoms,atno,coordsf,nrad,nang,ang_g,ang_w,gc,grid,wt);
+
+  #pragma acc update self(grid[0:gsa6],wt[0:gsa])
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=1;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc update device(grid[0:gsa6],wt[0:gsa])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=0;n<nomp;n++)
+  {
+    //int tid = omp_get_thread_num();
+    acc_set_device_num(n,acc_device_nvidia);
+
+   #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
+    for (int ii1=0;ii1<s2-s1;ii1++)
+    for (int j=0;j<gsa;j++)
+      val1[ii1][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
+    for (int ii2=0;ii2<s4-s3;ii2++)
+    for (int j=0;j<gsa;j++)
+      val2[ii2][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gsa])
+    for (int ii3=0;ii3<s6-s5;ii3++)
+    for (int j=0;j<gsa;j++)
+      val3[ii3][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val4[0:iN][0:gsa])
+    for (int ii4=0;ii4<s8-s7;ii4++)
+    for (int j=0;j<gsa;j++)
+      val4[ii4][j] = 1.f;
+  }
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=0;n<nomp;n++)
+  {
+    //int tid = omp_get_thread_num();
+    acc_set_device_num(n,acc_device_nvidia);
+
+   //first compute single atom ints
+    for (int i1=s1;i1<s2;i1++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+      float A1 = basis1[5]; float B1 = basis1[6]; float C1 = basis1[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_shd(ii1,gsa,grid,val1[ii1],n1,l1,m1,zeta1);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i1
+
+    for (int i2=s3;i2<s4;i2++)
+    {
+      int ii2 = i2-s3;
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+      float A1 = basis2[5]; float B1 = basis2[6]; float C1 = basis2[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_shd(ii2,gsa,grid,val2[ii2],n2,l2,m2,zeta2);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i2
+
+    for (int i3=s5;i3<s6;i3++)
+    {
+      int ii3 = i3-s5;
+
+      vector<double> basis3 = basis[i3];
+      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+      float A1 = basis3[5]; float B1 = basis3[6]; float C1 = basis3[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_shd(ii3,gsa,grid,val3[ii3],n3,l3,m3,zeta3);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i3
+
+    for (int i4=s7;i4<s8;i4++)
+    {
+      int ii4 = i4-s7;
+
+      vector<double> basis4 = basis[i4];
+      int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+      float A1 = basis4[5]; float B1 = basis4[6]; float C1 = basis4[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_shd(ii4,gsa,grid,val4[ii4],n4,l4,m4,zeta4);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i4
+  }
+  //acc_set_device_num(0,acc_device_nvidia);
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int i0=0;i0<ijkl_size;i0++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid,acc_device_nvidia);
+
+    int i1 = ijkl[i0][0]; int i2 = ijkl[i0][1];
+    int i3 = ijkl[i0][2]; int i4 = ijkl[i0][3];
+    int ii1 = i1-s1; int ii2 = i2-s3;
+    int ii3 = i3-s5; int ii4 = i4-s7;
+
+    double v1 = 0.;
+   #pragma acc parallel loop present(grid[0:gsa6],val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gsa],val4[0:iN][0:gsa],wt[0:gsa]) reduction(+:v1)
+    for (int j=0;j<gsa;j++)
+      v1 += val1[ii1][j]*val2[ii2][j]*val3[ii3][j]*val4[ii4][j]*wt[j];
+
+    if (fabs(v1)<minval) v1 = 0.;
+  
+    ol[i1*N3+i2*N2+i3*N+i4] = v1;
+    ol[i1*N3+i2*N2+i4*N+i3] = v1;
+    ol[i2*N3+i1*N2+i3*N+i4] = v1;
+    ol[i2*N3+i1*N2+i4*N+i3] = v1;
+
+    ol[i3*N3+i4*N2+i1*N+i2] = v1;
+    ol[i4*N3+i3*N2+i1*N+i2] = v1;
+    ol[i3*N3+i4*N2+i2*N+i1] = v1;
+    ol[i4*N3+i3*N2+i2*N+i1] = v1;
+
+    if (prl>1) printf("  v1(%i %i %i %i): %8.5f \n",i1,i2,i3,i4,v1);
+
+  } //loop i0 over ijkl
+
+  return;
+}
+
+void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl)
+{
+  if (prl>-1) printf(" beginning compute_all_4c_ol_gend (ngpu: %i) \n",ngpu);
+
+  int nomp = ngpu;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  int gs = nrad*nang;
+
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
+ //grid will contain up to 4 nuclei
+  int natomsa = min(4,natoms);
+  int gsa = natomsa*gs;
+  int gsa6 = 6*gsa;
+
+  if (prl>0) printf("  gs: %4i  natomsa: %i \n",gs,natomsa);
+
+  //int estart = find_center_of_grid(1,nrad)*nang;
+  //int estart2 = find_center_of_grid(1,nrad+1)*nang;
+
+  int* n2i = new int[natoms];
+  int iN = get_imax_n2i(natoms,N,basis,n2i);
+
+  double* grid = new double[gsa6];
+  double* wt = new double[gsa];
+
+  double** val1 = new double*[iN];
+  double** val2 = new double*[iN];
+  double** val3 = new double*[iN];
+  double** val4 = new double*[iN];
+  for (int i=0;i<iN;i++)
+    val1[i] = new double[gsa];
+  for (int i=0;i<iN;i++)
+    val2[i] = new double[gsa];
+  for (int i=0;i<iN;i++)
+    val3[i] = new double[gsa];
+  for (int i=0;i<iN;i++)
+    val4[i] = new double[gsa];
+
+  for (int i=0;i<N2*N2;i++)
+    ol[i] = 0.;
+
+  if (prl>0 && N>40) printf("  working on ints");
+
+ #if USE_ACC
+  #pragma omp parallel for schedule(static) num_threads(nomp)
+ #endif
+  for (int n=0;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+    #pragma acc enter data copyin(n2i[0:natoms])
+
+    #pragma acc enter data create(grid[0:gsa6],wt[0:gsa])
+
+    #pragma acc enter data create(val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gsa],val4[0:iN][0:gsa])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+  for (int m=0;m<natoms;m++)
+  {
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+   //setup for grids
+    int natoms1 = 1;
+    int atno1[natoms1];
+    atno1[0] = atno[m];
+    float coordsf1[3*natoms1];
+    coordsf1[0] = A1; coordsf1[1] = B1; coordsf1[2] = C1;
+
+    if (prl>0 && N>40) { printf("."); fflush(stdout); }
+    int gsa1 = gs*natoms1;
+    compute_4c_ol_oned(ngpu,natoms1,atno1,coordsf1,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s1,s2,s1,s2,iN,gsa1,grid,wt,val1,val2,val3,val4,ol);
+
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = n2i[n-1]; int s4 = n2i[n];
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+
+      int natoms2 = 2;
+      int atno2[natoms2];
+      atno2[0] = atno[m];
+      atno2[1] = atno[n];
+      float coordsf2[3*natoms2];
+      coordsf2[0] = A1; coordsf2[1] = B1; coordsf2[2] = C1;
+      coordsf2[3] = A2; coordsf2[4] = B2; coordsf2[5] = C2;
+
+      int gsa2 = gs*natoms2;
+
+      if (prl>0) printf(".");
+      compute_4c_ol_oned(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s3,s4,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+      compute_4c_ol_oned(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s1,s2,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+
+      if (prl>0) printf(".");
+      compute_4c_ol_oned(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s1,s2,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+      compute_4c_ol_oned(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s3,s4,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+
+      for (int p=n+1;p<natoms;p++)
+      {
+        int s5 = n2i[p-1]; int s6 = n2i[p];
+        float Z3 = (float)atno[p];
+        float A3 = coords[3*p+0]; float B3 = coords[3*p+1]; float C3 = coords[3*p+2];
+
+        int natoms3 = 3;
+        int atno3[natoms3];
+        atno3[0] = atno[m];
+        atno3[1] = atno[n];
+        atno3[2] = atno[p];
+        float coordsf3[3*natoms3];
+        coordsf3[0] = A1; coordsf3[1] = B1; coordsf3[2] = C1;
+        coordsf3[3] = A2; coordsf3[4] = B2; coordsf3[5] = C2;
+        coordsf3[6] = A3; coordsf3[7] = B3; coordsf3[8] = C3;
+
+        int gsa3 = gs*natoms3;
+
+        if (prl>0) printf(".");
+       //11 35
+        compute_4c_ol_oned(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s3,s4,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+       //13 15
+        compute_4c_ol_oned(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s1,s2,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+
+        if (prl>0) printf(".");
+       //13 35
+        compute_4c_ol_oned(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s3,s4,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+       //15 33
+        compute_4c_ol_oned(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s3,s4,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+
+        if (prl>0) printf(".");
+       //13 55
+        compute_4c_ol_oned(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s5,s6,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+       //15 35
+        compute_4c_ol_oned(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+
+        for (int q=p+1;q<natoms;q++)
+        {
+          int s7 = n2i[q-1]; int s8 = n2i[q];
+          float Z4 = (float)atno[q];
+          float A4 = coords[3*q+0]; float B4 = coords[3*q+1]; float C4 = coords[3*q+2];
+
+          int natoms4 = 4;
+          int atno4[natoms4];
+          atno4[0] = atno[m];
+          atno4[1] = atno[n];
+          atno4[2] = atno[p];
+          atno4[3] = atno[q];
+          float coordsf4[3*natoms4];
+          coordsf4[0] = A1; coordsf4[1]  = B1; coordsf4[2]  = C1;
+          coordsf4[3] = A2; coordsf4[4]  = B2; coordsf4[5]  = C2;
+          coordsf4[6] = A3; coordsf4[7]  = B3; coordsf4[8]  = C3;
+          coordsf4[9] = A4; coordsf4[10] = B4; coordsf4[11] = C4;
+
+          int gsa4 = gs*natoms4;
+
+         //incomplete/untested
+          if (prl>0) printf(".");
+          compute_4c_ol_oned(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s5,s6,s7,s8,iN,gsa4,grid,wt,val1,val2,val3,val4,ol);
+          compute_4c_ol_oned(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s7,s8,iN,gsa4,grid,wt,val1,val2,val3,val4,ol);
+          compute_4c_ol_oned(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s7,s8,s3,s4,s5,s6,iN,gsa4,grid,wt,val1,val2,val3,val4,ol);
+
+        } //loop q over natoms
+
+      } //loop p over natoms
+
+    } //loop n over natoms
+
+  } //loop m over natoms
+
+ //normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  for (int k=0;k<N;k++)
+  for (int l=0;l<N;l++)
+    ol[i*N3+j*N2+k*N+l] *= basis[i][4]*basis[j][4]*basis[k][4]*basis[l][4];
+
+  if (prl>0 && N>40) { printf(" done \n"); fflush(stdout); }
+
+ //show the symmetry
+  if (prl>2)
+  for (int p=0;p<N;p++)
+  for (int q=0;q<=p;q++)
+  for (int r=0;r<=p;r++)
+  for (int s=0;s<=r;s++)
+  {
+    double v1 = ol[p*N3+q*N2+r*N+s];
+    double v2 = ol[p*N3+q*N2+s*N+r];
+    double v3 = ol[q*N3+p*N2+r*N+s];
+    double v4 = ol[q*N3+p*N2+s*N+r];
+
+    double v5 = ol[r*N3+s*N2+p*N+q];
+    double v6 = ol[s*N3+r*N2+p*N+q];
+    double v7 = ol[r*N3+s*N2+q*N+p];
+    double v8 = ol[s*N3+r*N2+q*N+p];
+
+    printf("   pqrs: %i %i %i %i: %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f \n",p,q,r,s,v1,v2,v3,v4,v5,v6,v7,v8);
+  }
+
+  if ((prl>1 && N<10) || prl>2)
+  {
+    printf("\n ol: \n");
+    for (int i=0;i<N;i++)
+    for (int j=0;j<N;j++)
+    {
+      printf(" ij: %2i %2i \n",i,j);
+      print_square(N,&ol[i*N3+j*N2]);
+    }
+  }
+
+
+ #if USE_ACC
+  #pragma omp parallel for schedule(static) num_threads(nomp)
+ #endif
+  for (int n=0;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc exit data delete(grid[0:gsa6],wt[0:gsa])
+    #pragma acc exit data delete(val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gsa],val4[0:iN][0:gsa])
+
+    #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+    #pragma acc exit data delete(n2i[0:natoms])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+  delete [] n2i;
+
+  for (int j=0;j<iN;j++)
+    delete [] val1[j];
+  delete [] val1;
+  for (int j=0;j<iN;j++)
+    delete [] val2[j];
+  delete [] val2;
+  for (int j=0;j<iN;j++)
+    delete [] val3[j];
+  delete [] val3;
+  for (int j=0;j<iN;j++)
+    delete [] val4[j];
+  delete [] val4;
+ 
+  delete [] grid;
+  delete [] wt;
+
+  return;
+}
+
+void compute_4c_ol_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad, int nang, float* ang_g, float* ang_w, vector<vector<double> >& basis, int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8, int iN,
+   int gsa, float* grid, float* wt, float** val1, float** val2, float** val3, float** val4, double* ol)
+{
+ //this function needs much better batching,
+ // parallel utilization is poor
+
+  int nomp = ngpu;
+  int prl = 1;
+
+  int gc = 6;
+  int gsa6 = gsa*6;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  double minval = 1.e-16;
+ 
+ //list out integrals that need to be computed
+  vector<vector<short> > ijkl = enumerate_ijkl(s1,s2,s3,s4,s5,s6,s7,s8);
+  int ijkl_size = ijkl.size();
+
+  acc_set_device_num(0,acc_device_nvidia);
+
+ //integral-specific grids
+  get_becke_grid_full(natoms,atno,coordsf,nrad,nang,ang_g,ang_w,gc,grid,wt);
+
+  #pragma acc update self(grid[0:gsa6],wt[0:gsa])
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=1;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc update device(grid[0:gsa6],wt[0:gsa])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=0;n<nomp;n++)
+  {
+    //int tid = omp_get_thread_num();
+    acc_set_device_num(n,acc_device_nvidia);
+
+   #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
+    for (int ii1=0;ii1<s2-s1;ii1++)
+    for (int j=0;j<gsa;j++)
+      val1[ii1][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
+    for (int ii2=0;ii2<s4-s3;ii2++)
+    for (int j=0;j<gsa;j++)
+      val2[ii2][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gsa])
+    for (int ii3=0;ii3<s6-s5;ii3++)
+    for (int j=0;j<gsa;j++)
+      val3[ii3][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val4[0:iN][0:gsa])
+    for (int ii4=0;ii4<s8-s7;ii4++)
+    for (int j=0;j<gsa;j++)
+      val4[ii4][j] = 1.f;
+  }
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=0;n<nomp;n++)
+  {
+    //int tid = omp_get_thread_num();
+    acc_set_device_num(n,acc_device_nvidia);
+
+   //first compute single atom ints
+    for (int i1=s1;i1<s2;i1++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+      float A1 = basis1[5]; float B1 = basis1[6]; float C1 = basis1[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_sh(ii1,gsa,grid,val1[ii1],n1,l1,m1,zeta1);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i1
+
+    for (int i2=s3;i2<s4;i2++)
+    {
+      int ii2 = i2-s3;
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+      float A1 = basis2[5]; float B1 = basis2[6]; float C1 = basis2[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_sh(ii2,gsa,grid,val2[ii2],n2,l2,m2,zeta2);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i2
+
+    for (int i3=s5;i3<s6;i3++)
+    {
+      int ii3 = i3-s5;
+
+      vector<double> basis3 = basis[i3];
+      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+      float A1 = basis3[5]; float B1 = basis3[6]; float C1 = basis3[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_sh(ii3,gsa,grid,val3[ii3],n3,l3,m3,zeta3);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i3
+
+    for (int i4=s7;i4<s8;i4++)
+    {
+      int ii4 = i4-s7;
+
+      vector<double> basis4 = basis[i4];
+      int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+      float A1 = basis4[5]; float B1 = basis4[6]; float C1 = basis4[7];
+
+      recenter_grid_zero(gsa,grid,-A1,-B1,-C1);
+      eval_sh(ii4,gsa,grid,val4[ii4],n4,l4,m4,zeta4);
+      recenter_grid_zero(gsa,grid,A1,B1,C1);
+    } //loop i4
+  }
+  //acc_set_device_num(0,acc_device_nvidia);
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int i0=0;i0<ijkl_size;i0++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid,acc_device_nvidia);
+
+    int i1 = ijkl[i0][0]; int i2 = ijkl[i0][1];
+    int i3 = ijkl[i0][2]; int i4 = ijkl[i0][3];
+    int ii1 = i1-s1; int ii2 = i2-s3;
+    int ii3 = i3-s5; int ii4 = i4-s7;
+
+    //float* val1n = val1[ii1]; float* val2n = val2[ii2];
+    //float* val3n = val3[ii3]; float* val4n = val4[ii4];
+
+    //printf(" tid %i working on ijkl: %i %i %i %i / %i %i %i %i \n",tid,i1,i2,i3,i4,ii1,ii2,ii3,ii4);
+
+    double v1 = 0.;
+   #pragma acc parallel loop present(grid[0:gsa6],val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gsa],val4[0:iN][0:gsa],wt[0:gsa]) reduction(+:v1)
+    for (int j=0;j<gsa;j++)
+    {
+      //float vj = val1n[j]*val2n[j]*wt1[j];
+      //float vj = val1[ii1][j]*val2[ii2][j]*wt1[j];
+
+      //v2 += val3n[k]*val4n[k]*wt2[k]/r1;
+      //v2 += val3[ii3][k]*val4[ii4][k]*wt2[k]/r1;
+
+      v1 += val1[ii1][j]*val2[ii2][j]*val3[ii3][j]*val4[ii4][j]*wt[j];
+    }
+
+    if (fabs(v1)<minval) v1 = 0.;
+  
+    ol[i1*N3+i2*N2+i3*N+i4] = v1;
+    ol[i1*N3+i2*N2+i4*N+i3] = v1;
+    ol[i2*N3+i1*N2+i3*N+i4] = v1;
+    ol[i2*N3+i1*N2+i4*N+i3] = v1;
+
+    ol[i3*N3+i4*N2+i1*N+i2] = v1;
+    ol[i4*N3+i3*N2+i1*N+i2] = v1;
+    ol[i3*N3+i4*N2+i2*N+i1] = v1;
+    ol[i4*N3+i3*N2+i2*N+i1] = v1;
+
+    if (prl>1) printf("  v1(%i %i %i %i): %8.5f \n",i1,i2,i3,i4,v1);
+
+  } //loop i0 over ijkl
+
+  return;
+}
+
+#if RED_DOUBLE
+void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* ol, int prl)
+#else
+void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* ol, int prl)
+#endif
+{
+  if (prl>-1) printf(" beginning compute_all_4c_ol_gen (ngpu: %i) \n",ngpu);
+
+  int nomp = ngpu;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  int gs = nrad*nang;
+
+ //grid will contain up to 4 nuclei
+  int natomsa = min(4,natoms);
+  int gsa = natomsa*gs;
+  int gsa6 = 6*gsa;
+
+  if (prl>0) printf("  gs: %4i  natomsa: %i \n",gs,natomsa);
+
+  //int estart = find_center_of_grid(1,nrad)*nang;
+  //int estart2 = find_center_of_grid(1,nrad+1)*nang;
+
+  int* n2i = new int[natoms];
+  int iN = get_imax_n2i(natoms,N,basis,n2i);
+
+  float* grid = new float[gsa6];
+  float* wt = new float[gsa];
+
+  float** val1 = new float*[iN];
+  float** val2 = new float*[iN];
+  float** val3 = new float*[iN];
+  float** val4 = new float*[iN];
+  for (int i=0;i<iN;i++)
+    val1[i] = new float[gsa];
+  for (int i=0;i<iN;i++)
+    val2[i] = new float[gsa];
+  for (int i=0;i<iN;i++)
+    val3[i] = new float[gsa];
+  for (int i=0;i<iN;i++)
+    val4[i] = new float[gsa];
+
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
+  for (int i=0;i<3*nang;i++)
+    ang_g[i] = ang_g0[i];
+  for (int i=0;i<nang;i++)
+    ang_w[i] = ang_w0[i];
+
+  for (int i=0;i<N2*N2;i++)
+    ol[i] = 0.;
+
+  if (prl>0 && N>40) printf("  working on ints");
+
+ #if USE_ACC
+  #pragma omp parallel for schedule(static) num_threads(nomp)
+ #endif
+  for (int n=0;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+    #pragma acc enter data copyin(n2i[0:natoms])
+
+    #pragma acc enter data create(grid[0:gsa6],wt[0:gsa])
+
+    #pragma acc enter data create(val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gsa],val4[0:iN][0:gsa])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+  for (int m=0;m<natoms;m++)
+  {
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+   //setup for grids
+    int natoms1 = 1;
+    int atno1[natoms1];
+    atno1[0] = atno[m];
+    float coordsf1[3*natoms1];
+    coordsf1[0] = A1; coordsf1[1] = B1; coordsf1[2] = C1;
+
+    if (prl>0 && N>40) printf(".");
+    int gsa1 = gs*natoms1;
+    compute_4c_ol_one(ngpu,natoms1,atno1,coordsf1,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s1,s2,s1,s2,iN,gsa1,grid,wt,val1,val2,val3,val4,ol);
+
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = n2i[n-1]; int s4 = n2i[n];
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+
+      int natoms2 = 2;
+      int atno2[natoms2];
+      atno2[0] = atno[m];
+      atno2[1] = atno[n];
+      float coordsf2[3*natoms2];
+      coordsf2[0] = A1; coordsf2[1] = B1; coordsf2[2] = C1;
+      coordsf2[3] = A2; coordsf2[4] = B2; coordsf2[5] = C2;
+
+      int gsa2 = gs*natoms2;
+
+      if (prl>0) printf(".");
+      compute_4c_ol_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s3,s4,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+      compute_4c_ol_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s1,s2,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+
+      if (prl>0) printf(".");
+      compute_4c_ol_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s1,s2,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+      compute_4c_ol_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s3,s4,s3,s4,iN,gsa2,grid,wt,val1,val2,val3,val4,ol);
+
+      for (int p=n+1;p<natoms;p++)
+      {
+        int s5 = n2i[p-1]; int s6 = n2i[p];
+        float Z3 = (float)atno[p];
+        float A3 = coords[3*p+0]; float B3 = coords[3*p+1]; float C3 = coords[3*p+2];
+
+        int natoms3 = 3;
+        int atno3[natoms3];
+        atno3[0] = atno[m];
+        atno3[1] = atno[n];
+        atno3[2] = atno[p];
+        float coordsf3[3*natoms3];
+        coordsf3[0] = A1; coordsf3[1] = B1; coordsf3[2] = C1;
+        coordsf3[3] = A2; coordsf3[4] = B2; coordsf3[5] = C2;
+        coordsf3[6] = A3; coordsf3[7] = B3; coordsf3[8] = C3;
+
+        int gsa3 = gs*natoms3;
+
+        if (prl>0) printf(".");
+       //11 35
+        compute_4c_ol_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s3,s4,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+       //13 15
+        compute_4c_ol_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s1,s2,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+
+        if (prl>0) printf(".");
+       //13 35
+        compute_4c_ol_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s3,s4,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+       //15 33
+        compute_4c_ol_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s3,s4,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+
+        if (prl>0) printf(".");
+       //13 55
+        compute_4c_ol_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s5,s6,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+       //15 35
+        compute_4c_ol_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s5,s6,iN,gsa3,grid,wt,val1,val2,val3,val4,ol);
+
+        for (int q=p+1;q<natoms;q++)
+        {
+          int s7 = n2i[q-1]; int s8 = n2i[q];
+          float Z4 = (float)atno[q];
+          float A4 = coords[3*q+0]; float B4 = coords[3*q+1]; float C4 = coords[3*q+2];
+
+          int natoms4 = 4;
+          int atno4[natoms4];
+          atno4[0] = atno[m];
+          atno4[1] = atno[n];
+          atno4[2] = atno[p];
+          atno4[3] = atno[q];
+          float coordsf4[3*natoms4];
+          coordsf4[0] = A1; coordsf4[1]  = B1; coordsf4[2]  = C1;
+          coordsf4[3] = A2; coordsf4[4]  = B2; coordsf4[5]  = C2;
+          coordsf4[6] = A3; coordsf4[7]  = B3; coordsf4[8]  = C3;
+          coordsf4[9] = A4; coordsf4[10] = B4; coordsf4[11] = C4;
+
+          int gsa4 = gs*natoms4;
+
+         //incomplete/untested
+          if (prl>0) printf(".");
+          compute_4c_ol_one(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s5,s6,s7,s8,iN,gsa4,grid,wt,val1,val2,val3,val4,ol);
+          compute_4c_ol_one(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s7,s8,iN,gsa4,grid,wt,val1,val2,val3,val4,ol);
+          compute_4c_ol_one(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s7,s8,s3,s4,s5,s6,iN,gsa4,grid,wt,val1,val2,val3,val4,ol);
+
+        } //loop q over natoms
+
+      } //loop p over natoms
+
+    } //loop n over natoms
+
+  } //loop m over natoms
+
+ //normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  for (int k=0;k<N;k++)
+  for (int l=0;l<N;l++)
+    ol[i*N3+j*N2+k*N+l] *= basis[i][4]*basis[j][4]*basis[k][4]*basis[l][4];
+
+  if (prl>0 && N>40) printf(" done \n");
+
+ //show the symmetry
+  if (prl>2)
+  for (int p=0;p<N;p++)
+  for (int q=0;q<=p;q++)
+  for (int r=0;r<=p;r++)
+  for (int s=0;s<=r;s++)
+  {
+    double v1 = ol[p*N3+q*N2+r*N+s];
+    double v2 = ol[p*N3+q*N2+s*N+r];
+    double v3 = ol[q*N3+p*N2+r*N+s];
+    double v4 = ol[q*N3+p*N2+s*N+r];
+
+    double v5 = ol[r*N3+s*N2+p*N+q];
+    double v6 = ol[s*N3+r*N2+p*N+q];
+    double v7 = ol[r*N3+s*N2+q*N+p];
+    double v8 = ol[s*N3+r*N2+q*N+p];
+
+    printf("   pqrs: %i %i %i %i: %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f \n",p,q,r,s,v1,v2,v3,v4,v5,v6,v7,v8);
+  }
+
+  if ((prl>1 && N<10) || prl>2)
+  {
+    printf("\n ol: \n");
+    for (int i=0;i<N;i++)
+    for (int j=0;j<N;j++)
+    {
+      printf(" ij: %2i %2i \n",i,j);
+      print_square(N,&ol[i*N3+j*N2]);
+    }
+  }
+
+
+ #if USE_ACC
+  #pragma omp parallel for schedule(static) num_threads(nomp)
+ #endif
+  for (int n=0;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc exit data delete(grid[0:gsa6],wt[0:gsa])
+    #pragma acc exit data delete(val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gsa],val4[0:iN][0:gsa])
+
+    #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+    #pragma acc exit data delete(n2i[0:natoms])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+  delete [] n2i;
+
+  delete [] ang_g;
+  delete [] ang_w;
+
+  for (int j=0;j<iN;j++)
+    delete [] val1[j];
+  delete [] val1;
+  for (int j=0;j<iN;j++)
+    delete [] val2[j];
+  delete [] val2;
+  for (int j=0;j<iN;j++)
+    delete [] val3[j];
+  delete [] val3;
+  for (int j=0;j<iN;j++)
+    delete [] val4[j];
+  delete [] val4;
+ 
+  delete [] grid;
+  delete [] wt;
+
+  return;
+}
+
+void compute_4c_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad, int nang, float* ang_g, float* ang_w, vector<vector<double> >& basis, int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8, int iN,
+   int gsa, int gspa, float* grid1, float* wt1, float* grid2, float* wt2, float** val1, float** val2, float** val3, float** val4, double* g)
+{
+  int nomp = ngpu;
+
+  int gc = 6;
+  int gsa6 = gsa*6;
+  int gspa6 = gspa*6;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+  //int M = iN;
+  //int M2 = M*M;
+  //int M3 = M2*M;
+  //int M4 = M2*M2;
+ 
+ //list out integrals that need to be computed
+  vector<vector<short> > ijkl = enumerate_ijkl(s1,s2,s3,s4,s5,s6,s7,s8);
+  int ijkl_size = ijkl.size();
+
+  acc_set_device_num(0,acc_device_nvidia);
+
+ //integral-specific grids
+  get_becke_grid_full(natoms,atno,coordsf,nrad,  nang,ang_g,ang_w,gc,grid1,wt1);
+  get_becke_grid_full(natoms,atno,coordsf,nrad+1,nang,ang_g,ang_w,gc,grid2,wt2);
+
+ //look for close-lying grid points
+  clean_4c_grid(gsa,gspa,grid1,wt1,grid2,wt2);
+
+  #pragma acc update self(grid1[0:gsa6],wt1[0:gsa],grid2[0:gspa6],wt2[0:gspa])
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=1;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc update device(grid1[0:gsa6],wt1[0:gsa],grid2[0:gspa6],wt2[0:gspa])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=0;n<nomp;n++)
+  {
+    //int tid = omp_get_thread_num();
+    acc_set_device_num(n,acc_device_nvidia);
+
+   #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
+    for (int ii1=0;ii1<s2-s1;ii1++)
+    for (int j=0;j<gsa;j++)
+      val1[ii1][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
+    for (int ii2=0;ii2<s4-s3;ii2++)
+    for (int j=0;j<gsa;j++)
+      val2[ii2][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gspa])
+    for (int ii3=0;ii3<s6-s5;ii3++)
+    for (int j=0;j<gspa;j++)
+      val3[ii3][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val4[0:iN][0:gspa])
+    for (int ii4=0;ii4<s8-s7;ii4++)
+    for (int j=0;j<gspa;j++)
+      val4[ii4][j] = 1.f;
+  }
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int n=0;n<nomp;n++)
+  {
+    //int tid = omp_get_thread_num();
+    acc_set_device_num(n,acc_device_nvidia);
+
+   //first compute single atom ints
+    for (int i1=s1;i1<s2;i1++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+      float A1 = basis1[5]; float B1 = basis1[6]; float C1 = basis1[7];
+
+      recenter_grid_zero(gsa,grid1,-A1,-B1,-C1);
+      eval_sh(ii1,gsa,grid1,val1[ii1],n1,l1,m1,zeta1);
+      recenter_grid_zero(gsa,grid1,A1,B1,C1);
+    } //loop i1
+
+    for (int i2=s3;i2<s4;i2++)
+    {
+      int ii2 = i2-s3;
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+      float A1 = basis2[5]; float B1 = basis2[6]; float C1 = basis2[7];
+
+      recenter_grid_zero(gsa,grid1,-A1,-B1,-C1);
+      eval_sh(ii2,gsa,grid1,val2[ii2],n2,l2,m2,zeta2);
+      recenter_grid_zero(gsa,grid1,A1,B1,C1);
+    } //loop i2
+
+    for (int i3=s5;i3<s6;i3++)
+    {
+      int ii3 = i3-s5;
+
+      vector<double> basis3 = basis[i3];
+      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+      float A1 = basis3[5]; float B1 = basis3[6]; float C1 = basis3[7];
+
+      recenter_grid_zero(gspa,grid2,-A1,-B1,-C1);
+      eval_sh(ii3,gspa,grid2,val3[ii3],n3,l3,m3,zeta3);
+      recenter_grid_zero(gspa,grid2,A1,B1,C1);
+    } //loop i3
+
+    for (int i4=s7;i4<s8;i4++)
+    {
+      int ii4 = i4-s7;
+
+      vector<double> basis4 = basis[i4];
+      int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+      float A1 = basis4[5]; float B1 = basis4[6]; float C1 = basis4[7];
+
+      recenter_grid_zero(gspa,grid2,-A1,-B1,-C1);
+      eval_sh(ii4,gspa,grid2,val4[ii4],n4,l4,m4,zeta4);
+      recenter_grid_zero(gspa,grid2,A1,B1,C1);
+    } //loop i4
+  }
+  //acc_set_device_num(0,acc_device_nvidia);
+
+#if USE_ACC
+ #pragma omp parallel for schedule(static,1) num_threads(nomp)
+#endif
+  for (int i0=0;i0<ijkl_size;i0++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid,acc_device_nvidia);
+
+    int i1 = ijkl[i0][0]; int i2 = ijkl[i0][1];
+    int i3 = ijkl[i0][2]; int i4 = ijkl[i0][3];
+    //int i1 = ijkl_gpu[4*i0+0]; int i2 = ijkl_gpu[4*i0+1];
+    //int i3 = ijkl_gpu[4*i0+2]; int i4 = ijkl_gpu[4*i0+3];
+    int ii1 = i1-s1; int ii2 = i2-s3;
+    int ii3 = i3-s5; int ii4 = i4-s7;
+
+    //float* val1n = val1[ii1]; float* val2n = val2[ii2];
+    //float* val3n = val3[ii3]; float* val4n = val4[ii4];
+
+    //printf(" tid %i working on ijkl: %i %i %i %i / %i %i %i %i \n",tid,i1,i2,i3,i4,ii1,ii2,ii3,ii4);
+
+    double v1 = 0.;
+   #pragma acc parallel loop present(grid1[0:gsa6],grid2[0:gspa6],val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gspa],val4[0:iN][0:gspa],wt1[0:gsa],wt2[0:gspa]) reduction(+:v1)
+    for (int j=0;j<gsa;j++) //cannot use collapse: total index too high
+    {
+      float x1 = grid1[6*j+0]; float y1 = grid1[6*j+1]; float z1 = grid1[6*j+2];
+
+      //float vj = val1n[j]*val2n[j]*wt1[j];
+      float vj = val1[ii1][j]*val2[ii2][j]*wt1[j];
+      float v2 = 0.f;
+
+      if (fabs(vj)>1.e-10)
+      #pragma acc loop reduction(+:v2)
+      for (int k=0;k<gspa;k++)
+      {
+        float x2 = grid2[6*k+0]; float y2 = grid2[6*k+1]; float z2 = grid2[6*k+2];
+        float x12 = x1-x2; float y12 = y1-y2; float z12 = z1-z2;
+
+        float r1 = sqrtf(x12*x12+y12*y12+z12*z12)+1.e-12;
+ 
+        //v2 += val3n[k]*val4n[k]*wt2[k]/r1;
+        v2 += val3[ii3][k]*val4[ii4][k]*wt2[k]/r1;
+      }
+  
+      v1 += v2*vj;
+    }
+  
+    g[i1*N3+i2*N2+i3*N+i4] = v1;
+    g[i1*N3+i2*N2+i4*N+i3] = v1;
+    g[i2*N3+i1*N2+i3*N+i4] = v1;
+    g[i2*N3+i1*N2+i4*N+i3] = v1;
+
+    g[i3*N3+i4*N2+i1*N+i2] = v1;
+    g[i4*N3+i3*N2+i1*N+i2] = v1;
+    g[i3*N3+i4*N2+i2*N+i1] = v1;
+    g[i4*N3+i3*N2+i2*N+i1] = v1;
+
+    //gt[ii1*M3+ii2*M2+ii3*M+ii4] = v1;
+    //printf("  v1(%i %i %i %i): %8.5f \n",i1,i2,i3,i4,v1);
+
+  } //loop i0 over ijkl
+
+  return;
+}
+
+#if RED_DOUBLE
+void compute_all_4c_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* g, int prl)
+#else
+void compute_all_4c_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl)
+#endif
+{
+  if (prl>-1) printf(" beginning compute_all_4c_gen (ngpu: %i) \n",ngpu);
+
+  int nomp = ngpu;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  int gs = nrad*nang;
+  int gsp = (nrad+1)*nang;
+
+ //grid will contain up to 4 nuclei
+  int natomsa = min(4,natoms);
+  int gsa = natomsa*gs;
+  int gspa = natomsa*gsp;
+  int gsa6 = 6*gsa;
+  int gspa6 = 6*gspa;
+
+  if (prl>0) printf("  gs/p: %4i %4i  natomsa: %i \n",gs,gsp,natomsa);
+
+
+  //int estart = find_center_of_grid(1,nrad)*nang;
+  //int estart2 = find_center_of_grid(1,nrad+1)*nang;
+
+  int* n2i = new int[natoms];
+  int iN = get_imax_n2i(natoms,N,basis,n2i);
+
+  float* grid1 = new float[gsa6];
+  float* wt1 = new float[gsa];
+
+  float* grid2 = new float[gspa6];
+  float* wt2 = new float[gspa];
+
+  float** val1 = new float*[iN];
+  float** val2 = new float*[iN];
+  float** val3 = new float*[iN];
+  float** val4 = new float*[iN];
+  for (int i=0;i<iN;i++)
+    val1[i] = new float[gsa];
+  for (int i=0;i<iN;i++)
+    val2[i] = new float[gsa];
+  for (int i=0;i<iN;i++)
+    val3[i] = new float[gspa];
+  for (int i=0;i<iN;i++)
+    val4[i] = new float[gspa];
+
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
+  for (int i=0;i<3*nang;i++)
+    ang_g[i] = ang_g0[i];
+  for (int i=0;i<nang;i++)
+    ang_w[i] = ang_w0[i];
+
+  for (int i=0;i<N2*N2;i++)
+    g[i] = 0.;
+
+ //g not on gpu (too large)
+  //int M = iN;
+  //int M2 = M*M;
+  //int M4 = M2*M2;
+
+ #if USE_ACC
+  #pragma omp parallel for schedule(static) num_threads(nomp)
+ #endif
+  for (int n=0;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+    #pragma acc enter data copyin(n2i[0:natoms])
+
+    #pragma acc enter data create(grid1[0:gsa6],wt1[0:gsa])
+    #pragma acc enter data create(grid2[0:gspa6],wt2[0:gspa])
+
+    #pragma acc enter data create(val1[0:iN][0:gsa],val2[0:iN][0:gsa],val3[0:iN][0:gspa],val4[0:iN][0:gspa])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+  if (prl>0) printf("  working on ints");
+  for (int m=0;m<natoms;m++)
+  {
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+   //setup for grids
+    int natoms1 = 1;
+    int atno1[natoms1];
+    atno1[0] = atno[m];
+    float coordsf1[3*natoms1];
+    coordsf1[0] = A1; coordsf1[1] = B1; coordsf1[2] = C1;
+
+    if (prl>0) printf(".");
+    int gsa1 = gs*natoms1; int gspa1 = gsp*natoms1;
+    compute_4c_one(ngpu,natoms1,atno1,coordsf1,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s1,s2,s1,s2,iN,gsa1,gspa1,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = n2i[n-1]; int s4 = n2i[n];
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+
+      int natoms2 = 2;
+      int atno2[natoms2];
+      atno2[0] = atno[m];
+      atno2[1] = atno[n];
+      float coordsf2[3*natoms2];
+      coordsf2[0] = A1; coordsf2[1] = B1; coordsf2[2] = C1;
+      coordsf2[3] = A2; coordsf2[4] = B2; coordsf2[5] = C2;
+
+      int gsa2 = gs*natoms2; int gspa2 = gsp*natoms2;
+
+      if (prl>0) printf(".");
+      compute_4c_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s3,s4,s3,s4,iN,gsa2,gspa2,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+      compute_4c_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s1,s2,s3,s4,iN,gsa2,gspa2,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+
+      if (prl>0) printf(".");
+      compute_4c_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s1,s2,s3,s4,iN,gsa2,gspa2,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+      compute_4c_one(ngpu,natoms2,atno2,coordsf2,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s3,s4,s3,s4,iN,gsa2,gspa2,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+
+      for (int p=n+1;p<natoms;p++)
+      {
+        int s5 = n2i[p-1]; int s6 = n2i[p];
+        float Z3 = (float)atno[p];
+        float A3 = coords[3*p+0]; float B3 = coords[3*p+1]; float C3 = coords[3*p+2];
+
+        int natoms3 = 3;
+        int atno3[natoms3];
+        atno3[0] = atno[m];
+        atno3[1] = atno[n];
+        atno3[2] = atno[p];
+        float coordsf3[3*natoms3];
+        coordsf3[0] = A1; coordsf3[1] = B1; coordsf3[2] = C1;
+        coordsf3[3] = A2; coordsf3[4] = B2; coordsf3[5] = C2;
+        coordsf3[6] = A3; coordsf3[7] = B3; coordsf3[8] = C3;
+
+        int gsa3 = gs*natoms3; int gspa3 = gsp*natoms3;
+
+        if (prl>0) printf(".");
+       //11 35
+        compute_4c_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s1,s2,s3,s4,s5,s6,iN,gsa3,gspa3,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+       //13 15
+        compute_4c_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s1,s2,s5,s6,iN,gsa3,gspa3,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+
+        if (prl>0) printf(".");
+       //13 35
+        compute_4c_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s3,s4,s5,s6,iN,gsa3,gspa3,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+       //15 33
+        compute_4c_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s3,s4,iN,gsa3,gspa3,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+
+        if (prl>0) printf(".");
+       //13 55
+        compute_4c_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s5,s6,s5,s6,iN,gsa3,gspa3,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+       //15 35
+        compute_4c_one(ngpu,natoms3,atno3,coordsf3,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s5,s6,iN,gsa3,gspa3,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+
+        for (int q=p+1;q<natoms;q++)
+        {
+          int s7 = n2i[q-1]; int s8 = n2i[q];
+          float Z4 = (float)atno[q];
+          float A4 = coords[3*q+0]; float B4 = coords[3*q+1]; float C4 = coords[3*q+2];
+
+          int natoms4 = 4;
+          int atno4[natoms4];
+          atno4[0] = atno[m];
+          atno4[1] = atno[n];
+          atno4[2] = atno[p];
+          atno4[3] = atno[q];
+          float coordsf4[3*natoms4];
+          coordsf4[0] = A1; coordsf4[1]  = B1; coordsf4[2]  = C1;
+          coordsf4[3] = A2; coordsf4[4]  = B2; coordsf4[5]  = C2;
+          coordsf4[6] = A3; coordsf4[7]  = B3; coordsf4[8]  = C3;
+          coordsf4[9] = A4; coordsf4[10] = B4; coordsf4[11] = C4;
+
+          int gsa4 = gs*natoms4; int gspa4 = gsp*natoms4;
+
+         //incomplete/untested
+          if (prl>0) printf(".");
+          compute_4c_one(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s3,s4,s5,s6,s7,s8,iN,gsa4,gspa4,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+          compute_4c_one(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s5,s6,s3,s4,s7,s8,iN,gsa4,gspa4,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+          compute_4c_one(ngpu,natoms4,atno4,coordsf4,nrad,nang,ang_g,ang_w,basis,s1,s2,s7,s8,s3,s4,s5,s6,iN,gsa4,gspa4,grid1,wt1,grid2,wt2,val1,val2,val3,val4,g);
+
+        } //loop q over natoms
+
+      } //loop p over natoms
+
+    } //loop n over natoms
+
+  } //loop m over natoms
+  if (prl>0) printf(" done \n");
+
+ //normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  for (int k=0;k<N;k++)
+  for (int l=0;l<N;l++)
+    g[i*N3+j*N2+k*N+l] *= basis[i][4]*basis[j][4]*basis[k][4]*basis[l][4];
+
+ //show the symmetry
+  if (prl>1)
+  for (int p=0;p<N;p++)
+  for (int q=0;q<=p;q++)
+  for (int r=0;r<=p;r++)
+  for (int s=0;s<=r;s++)
+  {
+    double v1 = g[p*N3+q*N2+r*N+s];
+    double v2 = g[p*N3+q*N2+s*N+r];
+    double v3 = g[q*N3+p*N2+r*N+s];
+    double v4 = g[q*N3+p*N2+s*N+r];
+
+    double v5 = g[r*N3+s*N2+p*N+q];
+    double v6 = g[s*N3+r*N2+p*N+q];
+    double v7 = g[r*N3+s*N2+q*N+p];
+    double v8 = g[s*N3+r*N2+q*N+p];
+
+    printf("   pqrs: %i %i %i %i: %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f \n",p,q,r,s,v1,v2,v3,v4,v5,v6,v7,v8);
+  }
+
+  if ((prl>0 && N<10) || prl>1)
+  {
+    printf("\n g: \n");
+    for (int i=0;i<N;i++)
+    for (int j=0;j<N;j++)
+    {
+      printf(" ij: %2i %2i \n",i,j);
+      print_square(N,&g[i*N3+j*N2]);
+    }
+  }
+
+
+ #if USE_ACC
+  #pragma omp parallel for schedule(static) num_threads(nomp)
+ #endif
+  for (int n=0;n<nomp;n++)
+  {
+    acc_set_device_num(n,acc_device_nvidia);
+
+    #pragma acc exit data delete(grid1[0:gsa6],wt1[0:gsa])
+    #pragma acc exit data delete(grid2[0:gspa6],wt2[0:gspa])
+    for (int n=0;n<iN;n++)
+    {
+      float* val1n = val1[n]; float* val2n = val2[n]; float* val3n = val3[n]; float* val4n = val4[n];
+      #pragma acc exit data delete(val1n[0:gsa],val2n[0:gsa],val3n[0:gspa],val4n[0:gspa])
+    }
+
+    #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+    #pragma acc exit data delete(n2i[0:natoms])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+
+  delete [] n2i;
+
+  delete [] ang_g;
+  delete [] ang_w;
+
+  for (int j=0;j<iN;j++)
+    delete [] val1[j];
+  delete [] val1;
+  for (int j=0;j<iN;j++)
+    delete [] val2[j];
+  delete [] val2;
+  for (int j=0;j<iN;j++)
+    delete [] val3[j];
+  delete [] val3;
+  for (int j=0;j<iN;j++)
+    delete [] val4[j];
+  delete [] val4;
+ 
+  delete [] grid1;
+  delete [] grid2;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
+
+#if RED_DOUBLE
+void compute_all_4c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* g, int prl)
+#else
+void compute_all_4c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl)
+#endif
+{
+  if (prl>-1) printf(" beginning compute_all_4c \n");
+  if (natoms>2)
+  {
+    printf("\n ERROR: compute_all_4c for 2-atom integrals only \n");
+  }
+
+  int N = basis.size();
+  int N2 = N*N;
+  int N3 = N2*N;
+
+  int gs = nrad*nang;
+  int gsp = (nrad+1)*nang;
+  int gs6 = 6*gs;
+  int gsp6 = 6*gsp;
+
+  if (prl>0) printf("  gs/p: %4i %4i \n",gs,gsp);
+
+  int estart = find_center_of_grid(1,nrad)*nang;
+  int estart2 = find_center_of_grid(1,nrad+1)*nang;
+
+  int* n2i = new int[natoms];
+  int iN = get_imax_n2i(natoms,N,basis,n2i);
+
+  float** grid1 = new float*[4]; for (int i=0;i<4;i++) grid1[i] = new float[gs6];
+  float** wt1 = new float*[4]; for (int i=0;i<4;i++) wt1[i] = new float[gs];
+
+  float** grid2 = new float*[4]; for (int i=0;i<4;i++) grid2[i] = new float[gsp6];
+  float** wt2 = new float*[4]; for (int i=0;i<4;i++) wt2[i] = new float[gsp];
+
+  //float** grid3 = new float*[4]; for (int i=0;i<4;i++) grid3[i] = new float[gsp6];
+  //float** wt3 = new float*[4]; for (int i=0;i<4;i++) wt3[i] = new float[gsp];
+
+  //float** grid4 = new float*[4]; for (int i=0;i<4;i++) grid4[i] = new float[gsp6];
+  //float** wt4 = new float*[4]; for (int i=0;i<4;i++) wt4[i] = new float[gsp];
+
+  float*** val1 = new float**[4];
+  float*** val2 = new float**[4];
+  float*** val3 = new float**[4];
+  float*** val4 = new float**[4];
+  for (int n=0;n<4;n++)
+  {
+    val1[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val1[n][i] = new float[gs];
+  }
+  for (int n=0;n<4;n++)
+  {
+    val2[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val2[n][i] = new float[gs];
+  }
+  for (int n=0;n<4;n++)
+  {
+    val3[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val3[n][i] = new float[gsp];
+  }
+  for (int n=0;n<4;n++)
+  {
+    val4[n] = new float*[iN];
+    for (int i=0;i<iN;i++) val4[n][i] = new float[gsp];
+  }
+
+  float** wtt = new float*[16]; for (int i=0;i<16;i++) wtt[i] = new float[gsp];
+
+  float* ang_g = new float[3*nang];
+  float* ang_w = new float[nang];
+  for (int i=0;i<3*nang;i++)
+    ang_g[i] = ang_g0[i];
+  for (int i=0;i<nang;i++)
+    ang_w[i] = ang_w0[i];
+
+  for (int i=0;i<N2*N2;i++)
+    g[i] = 0.;
+
+ //g not on gpu (too large)
+  int M = iN;
+  int M2 = M*M;
+  //int M3 = M2*M;
+  float* gt = new float[M2*M2];
+
+ #if USE_ACC
+  #pragma acc enter data create(gt[0:M2*M2])
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(n2i[0:natoms])
+
+  #pragma acc enter data create(grid1[0:4][0:gs6],wt1[0:4][0:gs])
+  #pragma acc enter data create(grid2[0:4][0:gsp6],wt2[0:4][0:gsp])
+  //#pragma acc enter data create(grid3[0:4][0:gsp6],wt3[0:4][0:gsp])
+  //#pragma acc enter data create(grid4[0:4][0:gsp6],wt4[0:4][0:gsp])
+  #pragma acc enter data create(wtt[0:16][0:gsp])
+
+  for (int n=0;n<4;n++)
+  {
+    float** val1n = val1[n]; float** val2n = val2[n]; float** val3n = val3[n]; float** val4n = val4[n];
+    #pragma acc enter data create(val1n[0:iN][0:gs],val2n[0:iN][0:gs],val3n[0:iN][0:gsp],val4n[0:iN][0:gsp])
+  }
+ #endif
+
+  #pragma acc parallel loop present(gt[0:M2*M2])
+  for (int j=0;j<M2*M2;j++)
+    gt[j] = 0.f;
+
+  for (int m=0;m<natoms;m++)
+  {
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+    float* grid1a = grid1[0]; float* grid2a = grid2[0];
+    float* wt1a = wt1[0]; float* wt2a = wt2[0];
+
+    generate_central_grid_2(grid1a,wt1a,Z1,nrad,  nang,ang_g,ang_w);
+    generate_central_grid_2(grid2a,wt2a,Z1,nrad+1,nang,ang_g,ang_w);
+
+    float** val1a = val1[0]; float** val2a = val2[0];
+    float** val3a = val3[0]; float** val4a = val4[0];
+
+   #pragma acc parallel loop collapse(2) present(val1a[0:iN][0:gs])
+    for (int ii1=0;ii1<s2-s1;ii1++)
+    for (int j=0;j<gs;j++)
+      val1a[ii1][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val2a[0:iN][0:gs])
+    for (int ii2=0;ii2<s2-s1;ii2++)
+    for (int j=0;j<gs;j++)
+      val2a[ii2][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val3a[0:iN][0:gsp])
+    for (int ii3=0;ii3<s2-s1;ii3++)
+    for (int j=0;j<gsp;j++)
+      val3a[ii3][j] = 1.f;
+   #pragma acc parallel loop collapse(2) present(val4a[0:iN][0:gsp])
+    for (int ii4=0;ii4<s2-s1;ii4++)
+    for (int j=0;j<gsp;j++)
+      val4a[ii4][j] = 1.f;
+
+   //first compute single atom ints
+    for (int i1=s1;i1<s2;i1++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+      eval_sh(ii1,gs,grid1a,val1a[ii1],n1,l1,m1,zeta1);
+    } //loop i1
+
+    for (int i2=s1;i2<s2;i2++)
+    {
+      int ii2 = i2-s1;
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+      eval_sh(ii2,gs,grid1a,val2a[ii2],n2,l2,m2,zeta2);
+    } //loop i2
+
+    for (int i3=s1;i3<s2;i3++)
+    {
+      int ii3 = i3-s1;
+
+      vector<double> basis3 = basis[i3];
+      int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+
+      eval_sh(ii3,gsp,grid2a,val3a[ii3],n3,l3,m3,zeta3);
+    } //loop i3
+
+    for (int i4=s1;i4<s2;i4++)
+    {
+      int ii4 = i4-s1;
+
+      vector<double> basis4 = basis[i4];
+      int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+      eval_sh(ii4,gsp,grid2a,val4a[ii4],n4,l4,m4,zeta4);
+    } //loop i4
+
+
+    reduce_4c_1(s1,s2,s1,s2,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wt1a,wt2a,gt);
+    collect_4c_1(s1,s2,s1,s2,0,gs,gsp,M,N,gt,g);
+
+
+   //two-atom ints
+    for (int n=0;n<m;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+
+      float* grid1b = grid1[1]; float* grid2b = grid2[1];
+      float* grid1d = grid1[3]; float* grid2d = grid2[3];
+      float* wt1b = wt1[1]; float* wt2b = wt2[1];
+
+      float** val1b = val1[1]; float** val2b = val2[1];
+      float** val3b = val3[1]; float** val4b = val4[1];
+
+     //grid1a at 0,0,0 now has r1 at 3, r2 at 4
+      add_r2_to_grid(gs, grid1a,A12,B12,C12);
+      add_r2_to_grid(gsp,grid2a,A12,B12,C12);
+
+      generate_central_grid_2(grid1b,wt1b,Z2,nrad,  nang,ang_g,ang_w);
+      generate_central_grid_2(grid2b,wt2b,Z2,nrad+1,nang,ang_g,ang_w);
+
+      copy_grid(gs, grid1d,grid1b); //centered at atom b
+      copy_grid(gsp,grid2d,grid2b); //centered at atom b
+
+      recenter_grid(gs, grid1b,A12,B12,C12); //r1 points to self, r2 points at first atom
+      recenter_grid(gsp,grid2b,A12,B12,C12);
+
+      float* wtt1a = wtt[0]; float* wtt1b = wtt[1];
+      float* wtt2a = wtt[4]; float* wtt2b = wtt[5];
+      acc_copyf(gs, wtt1a,wt1a); acc_copyf(gs, wtt1b,wt1b);
+      acc_copyf(gsp,wtt2a,wt2a); acc_copyf(gsp,wtt2b,wt2b);
+      becke_weight_2c(gs, grid1a,wtt1a,grid1b,wtt1b,Z1,Z2,A12,B12,C12);
+      becke_weight_2c(gsp,grid2a,wtt2a,grid2b,wtt2b,Z1,Z2,A12,B12,C12);
+
+      //eliminate_small_wt(estart, gs, wtt1a);
+      //eliminate_small_wt(estart, gs, wtt1b);
+      //eliminate_small_wt(estart2,gsp,wtt2a);
+      //eliminate_small_wt(estart2,gsp,wtt2b);
+
+      add_r1_to_grid(gs, grid1b,0.,0.,0.); //center is on atom a
+      add_r1_to_grid(gsp,grid2b,0.,0.,0.); //center is on atom a
+
+      float* grid1c = grid1[2]; float* grid2c = grid2[2];
+
+      copy_grid(gs, grid1c,grid1a);
+      copy_grid(gsp,grid2c,grid2a);
+
+      recenter_grid_zero(gs, grid1c,-A12,-B12,-C12);
+      recenter_grid_zero(gsp,grid2c,-A12,-B12,-C12);
+
+
+    //1122 (s12,s12,s34,s34)
+     #pragma acc parallel loop collapse(2) present(val1b[0:iN][0:gs])
+      for (int ii1=0;ii1<s2-s1;ii1++)
+      for (int j=0;j<gs;j++)
+        val1b[ii1][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val2b[0:iN][0:gs])
+      for (int ii2=0;ii2<s2-s1;ii2++)
+      for (int j=0;j<gs;j++)
+        val2b[ii2][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val3b[0:iN][0:gsp])
+      for (int ii3=0;ii3<s4-s3;ii3++)
+      for (int j=0;j<gsp;j++)
+        val3b[ii3][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val4b[0:iN][0:gsp])
+      for (int ii4=0;ii4<s4-s3;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4b[ii4][j] = 1.f;
+
+     //i1 on atom m
+      for (int i1=s1;i1<s2;i1++)
+      {
+        int ii1 = i1-s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        eval_sh(ii1,gs,grid1b,val1b[ii1],n1,l1,m1,zeta1);
+      }
+
+     //i2 on atom m
+      for (int i2=s1;i2<s2;i2++)
+      {
+        int ii2 = i2-s1;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+        eval_sh(ii2,gs,grid1b,val2b[ii2],n2,l2,m2,zeta2);
+      }
+
+     //i3 on atom n
+      for (int i3=s3;i3<s4;i3++)
+      {
+        int ii3 = i3-s3;
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+    
+        eval_sh(ii3,gsp,grid2d,val3b[ii3],n3,l3,m3,zeta3);
+      }
+
+     //i4 on atom n
+      for (int i4=s3;i4<s4;i4++)
+      {
+        int ii4 = i4-s3;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+    
+        eval_sh(ii4,gsp,grid2d,val4b[ii4],n4,l4,m4,zeta4);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val3a[0:iN][0:gsp])
+      for (int ii3=0;ii3<s4-s3;ii3++)
+      for (int j=0;j<gsp;j++)
+        val3a[ii3][j] = 1.f;
+
+     #pragma acc parallel loop collapse(2) present(val4a[0:iN][0:gsp])
+      for (int ii4=0;ii4<s4-s3;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4a[ii4][j] = 1.f;
+
+     //i3 on atom n
+      for (int i3=s3;i3<s4;i3++)
+      {
+        int ii3 = i3-s3;
+        vector<double> basis3 = basis[i3];
+        int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
+
+        eval_sh(ii3,gsp,grid2c,val3a[ii3],n3,l3,m3,zeta3);
+      }
+
+     //i4 on atom n
+      for (int i4=s3;i4<s4;i4++)
+      {
+        int ii4 = i4-s3;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+        eval_sh(ii4,gsp,grid2c,val4a[ii4],n4,l4,m4,zeta4);
+      }
+
+     //1122
+      reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      reduce_4c_1(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      collect_4c_1(s1,s2,s3,s4,1,gs,gsp,M,N,gt,g);
+
+
+
+    //1121
+     #pragma acc parallel loop collapse(2) present(val4a[0:iN][0:gsp])
+      for (int ii4=0;ii4<s2-s1;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4a[ii4][j] = 1.f;
+
+     //i4 on atom m
+      for (int i4=s1;i4<s2;i4++)
+      {
+        int ii4 = i4-s1;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+        eval_sh(ii4,gsp,grid2a,val4a[ii4],n4,l4,m4,zeta4);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val4b[0:iN][0:gsp])
+      for (int ii4=0;ii4<s2-s1;ii4++)
+      for (int j=0;j<gsp;j++)
+        val4b[ii4][j] = 1.f;
+
+     //i2 on atom m
+      for (int i4=s1;i4<s2;i4++)
+      {
+        int ii4 = i4-s1;
+        vector<double> basis4 = basis[i4];
+        int n4 = basis4[0]; int l4 = basis4[1]; int m4 = basis4[2]; double zeta4 = basis4[3];
+
+        eval_sh(ii4,gsp,grid2b,val4b[ii4],n4,l4,m4,zeta4);
+      }
+
+     //1121
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      reduce_4c_1b(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      collect_4c_1b(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
+
+
+
+    //1221
+     #pragma acc parallel loop collapse(2) present(val2a[0:iN][0:gs])
+      for (int ii2=0;ii2<s4-s3;ii2++)
+      for (int j=0;j<gs;j++)
+        val2a[ii2][j] = 1.f;
+
+     //i2 on atom n
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii2 = i2-s3;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+        eval_sh(ii2,gs,grid1c,val2a[ii2],n2,l2,m2,zeta2);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val2b[0:iN][0:gs])
+      for (int ii2=0;ii2<s4-s3;ii2++)
+      for (int j=0;j<gs;j++)
+        val2b[ii2][j] = 1.f;
+
+     //i2 on atom n
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii2 = i2-s3;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+        eval_sh(ii2,gs,grid1d,val2b[ii2],n2,l2,m2,zeta2);
+      }
+
+     //1221
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      reduce_4c_1c(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      collect_4c_1c(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
+
+
+    //2221
+     #pragma acc parallel loop collapse(2) present(val1a[0:iN][0:gs])
+      for (int ii1=0;ii1<s4-s3;ii1++)
+      for (int j=0;j<gs;j++)
+        val1a[ii1][j] = 1.f;
+
+     //i1 on atom n
+      for (int i1=s3;i1<s4;i1++)
+      {
+        int ii1 = i1-s3;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        eval_sh(ii1,gs,grid1c,val1a[ii1],n1,l1,m1,zeta1);
+      }
+
+     #pragma acc parallel loop collapse(2) present(val1b[0:iN][0:gs])
+      for (int ii1=0;ii1<s4-s3;ii1++)
+      for (int j=0;j<gs;j++)
+        val1b[ii1][j] = 1.f;
+
+     //i1 on atom n
+      for (int i1=s3;i1<s4;i1++)
+      {
+        int ii1 = i1-s3;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        eval_sh(ii1,gs,grid1d,val1b[ii1],n1,l1,m1,zeta1);
+      }
+
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2a,val1a,val2a,val3a,val4a,wtt1a,wtt2a,gt);
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1a,grid2b,val1a,val2a,val3b,val4b,wtt1a,wtt2b,gt);
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
+      reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
+      collect_4c_1d(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
+
+
+    } //loop n over second atom
+
+  } //loop m over natoms
+
+ //normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  for (int k=0;k<N;k++)
+  for (int l=0;l<N;l++)
+    g[i*N3+j*N2+k*N+l] *= basis[i][4]*basis[j][4]*basis[k][4]*basis[l][4];
+
+ //show the symmetry
+  if (prl>1)
+  for (int p=0;p<N;p++)
+  for (int q=0;q<=p;q++)
+  for (int r=0;r<=p;r++)
+  for (int s=0;s<=r;s++)
+  {
+    double v1 = g[p*N3+q*N2+r*N+s];
+    double v2 = g[p*N3+q*N2+s*N+r];
+    double v3 = g[q*N3+p*N2+r*N+s];
+    double v4 = g[q*N3+p*N2+s*N+r];
+
+    double v5 = g[r*N3+s*N2+p*N+q];
+    double v6 = g[s*N3+r*N2+p*N+q];
+    double v7 = g[r*N3+s*N2+q*N+p];
+    double v8 = g[s*N3+r*N2+q*N+p];
+
+    printf("   pqrs: %i %i %i %i: %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f \n",p,q,r,s,v1,v2,v3,v4,v5,v6,v7,v8);
+  }
+
+  if ((prl>0 && N<10) || prl>1)
+  {
+    printf("\n g: \n");
+    for (int i=0;i<N;i++)
+    for (int j=0;j<N;j++)
+    {
+      printf(" ij: %2i %2i \n",i,j);
+      print_square(N,&g[i*N3+j*N2]);
+    }
+  }
+
+
+#if USE_ACC
+  #pragma acc exit data delete(gt[0:M2*M2])
+
+  #pragma acc exit data delete(grid1[0:4][0:gs6],wt1[0:4][0:gs])
+  #pragma acc exit data delete(grid2[0:4][0:gsp6],wt2[0:4][0:gsp])
+  //#pragma acc exit data delete(grid3[0:4][0:gsp6],wt3[0:4][0:gsp])
+  //#pragma acc exit data delete(grid4[0:4][0:gsp6],wt4[0:4][0:gsp])
+  for (int n=0;n<4;n++)
+  {
+    float** val1n = val1[n]; float** val2n = val2[n]; float** val3n = val3[n]; float** val4n = val4[n];
+    #pragma acc exit data delete(val1n[0:iN][0:gs],val2n[0:iN][0:gs],val3n[0:iN][0:gsp],val4n[0:iN][0:gsp])
+  }
+
+  #pragma acc exit data delete(wtt[0:16][0:gsp])
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(n2i[0:natoms])
+#endif
+
+
+  delete [] gt;
+  delete [] n2i;
+
+  delete [] ang_g;
+  delete [] ang_w;
+
+  for (int i=0;i<4;i++) 
+  {
+    for (int j=0;j<iN;j++)
+      delete [] val1[i][j];
+    delete [] val1[i];
+    for (int j=0;j<iN;j++)
+      delete [] val2[i][j];
+    delete [] val2[i];
+    for (int j=0;j<iN;j++)
+      delete [] val3[i][j];
+    delete [] val3[i];
+    for (int j=0;j<iN;j++)
+      delete [] val4[i][j];
+    delete [] val4[i];
+  }
+ 
+  for (int i=0;i<4;i++)
+  {
+    delete [] grid1[i];
+    delete [] grid2[i];
+    delete [] wt1[i];
+    delete [] wt2[i];
+  }
+  delete [] grid1;
+  delete [] grid2;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
