@@ -3427,7 +3427,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
     }
   }
 
-  if (prl>-2)
+  if (prl>2)
   {
     printf("\n pVp: \n");
     for (int i=0;i<N;i++)
@@ -6288,6 +6288,9 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
   delete [] val1;
   delete [] val2;
 
+  delete [] grid1s;
+  delete [] grid2s;
+  
   return;
 }
 
@@ -6372,7 +6375,6 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
   int M2 = M*M;
   //int M3 = M2*M;
   float* gt = new float[M2*M2];
-
  #if USE_ACC
   #pragma acc enter data create(gt[0:M2*M2])
 
@@ -6479,6 +6481,7 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
    //two-atom ints
     for (int n=0;n<m;n++)
     {
+      if (prl > 0) printf("2 atom ints w/ m: %2i n: %2i \n",m,n);
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
       float Z2 = (float)atno[n];
@@ -6748,7 +6751,6 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
       reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
       reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
       collect_4c_1d(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
-
 
     } //loop n over second atom
 
