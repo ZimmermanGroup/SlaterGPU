@@ -6301,7 +6301,7 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
 void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl)
 #endif
 {
-  if (prl>-1) printf(" beginning compute_all_4c_v2 \n");
+  if (prl>1) printf(" beginning compute_all_4c_v2 \n");
   if (natoms>2)
   {
     printf("\n ERROR: compute_all_4c for 2-atom integrals only \n");
@@ -6481,7 +6481,6 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
    //two-atom ints
     for (int n=0;n<m;n++)
     {
-      if (prl > 0) printf("2 atom ints w/ m: %2i n: %2i \n",m,n);
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
       float Z2 = (float)atno[n];
