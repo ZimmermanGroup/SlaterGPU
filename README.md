@@ -34,6 +34,17 @@ make
 
 The executable will be generated at `build/examples/sgpu.exe`
 
+### Testing:
+Go to an example in the build directory. From the build directory, this would be:
+```
+cd examples/geom_ps/
+```
+
+Then run the SlaterGPU executable which will read the input files from the current working directory:
+```
+../sgpu.exe
+```
+
 ### Notes:
 If running on multiple GPUs, it's advised to have the number of
 OpenMP threads equal to the number of GPUs. i.e. set the following
