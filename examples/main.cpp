@@ -21,6 +21,7 @@ using namespace std;
 void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<vector<double> > basis, vector<vector<double> > basis_aux, int prl)
 {
  //prolate spheroidal coordinates
+  if (prl > 0) printf("Computing prolate spheroidal integrals:\n");
 
   int N = basis.size();
   int N2 = N*N;
@@ -160,9 +161,9 @@ int main(int argc, char* argv[]) {
 
     double* g = new double[N2*N2]();
 
-    int prl = 0;
-    int ps = 1;
-    int c4 = 1;
+    int prl = 1;
+    int c4 = 0;
+
     #pragma acc enter data create(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
     #pragma acc enter data create(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc])
     #pragma acc enter data create(g[0:N2*N2])
@@ -208,6 +209,7 @@ int main(int argc, char* argv[]) {
     auto elapsed67 = chrono::duration_cast<chrono::nanoseconds>(t7-t6).count();    
     auto elapsed17 = chrono::duration_cast<chrono::nanoseconds>(t7-t1).count();    
 
+    printf("-------------------------------\n");
     printf("Integral ST   time: %5.3e s\n",(double)elapsed12/1.e9);
     printf("Integral 2c2e time: %5.3e s\n",(double)elapsed23/1.e9);
     
@@ -226,12 +228,17 @@ int main(int argc, char* argv[]) {
     if (c4 > 0)
       printf("Integral 4c (v2)    time: %5.3e s\n",(double)elapsed67/1.e9);
 
+    printf("-------------------------------\n");
     printf("Integral tot  time: %5.3e s\n",(double)elapsed17/1.e9);
+    printf("-------------------------------\n");
 
     #pragma acc exit data copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
     #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc],g[0:N2*N2])
 
-    if (ps > 0)
+    int nmu, nnu, nphi;
+    read_gridps(nmu,nnu,nphi,1);
+    
+    if (nmu > 0)
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl);
     else 
     {
@@ -239,7 +246,7 @@ int main(int argc, char* argv[]) {
       write_square(N,pVp,"pVp",2);
       write_C(Naux, N2, C);
     }
-  
+
     delete [] A, Anorm, C, S, En, T, pVp;
     delete [] V, dV, Pao, coordsc;
 
@@ -247,6 +254,8 @@ int main(int argc, char* argv[]) {
   }
 
   delete [] ang_g, ang_w;
+
+  printf("\n  Done!\n");
   return 0;
 
 }
