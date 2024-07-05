@@ -65,8 +65,10 @@ void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<
   compute_2c_ps(0,0,gamma,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
   compute_3c_ps(0,gamma,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
 
+  if (prl > 0) printf("Printing PS Integral Files:\n");
   write_S_En_T(N,Ssp,Ensp,Tsp);
   write_square(N,pVpsp,"pVp",2);
+  write_C(Naux, N2, Csp);
 
   delete [] Asp;
   delete [] Csp;
@@ -242,6 +244,7 @@ int main(int argc, char* argv[]) {
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl);
     else 
     {
+      if (prl > 0) printf("Printing Standard Integral Files:\n");  
       write_S_En_T(N,S,En,T);
       write_square(N,pVp,"pVp",2);
       write_C(Naux, N2, C);
