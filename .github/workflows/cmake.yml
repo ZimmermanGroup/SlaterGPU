@@ -6,9 +6,11 @@ on:
   # Runs on push/pull of nate branch only
   push:
     branches:
+    - 5-add-cmake-test-of-compilation-and-basic-usage
     - nate
   pull_request:
     branches: 
+    - 5-add-cmake-test-of-compilation-and-basic-usage
     - nate
   
 env:
