@@ -49,7 +49,9 @@ jobs:
       run: |
         ompi_info --version
         pgcc --version
+        which mpicc
         mpicc --version
+        which mpicxx
         mpicxx --version
         test -d "${OPENMPI_DIR}"
     
@@ -59,11 +61,16 @@ jobs:
       run: |
         export CC=pgcc
         export CXX=pgc++
+        # Set MPI compilers explicitly
+        export MPI_C_COMPILER=/usr/lib/x86_64-linux-gnu/bin
+        export MPI_CXX_COMPILER=/usr/lib/x86_64-linux-gnu/bin
         cmake -B ${{github.workspace}}/build \
               -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
-              -DOPENMPI_DIR=${{env.OPENMPI_DIR}} 
-      #-DCMAKE_C_FLAGS="-acc -ta=tesla:ccall" \
-      #-DCMAKE_CXX_FLAGS="-acc -ta=tesla:ccall"
+              -DOPENMPI_DIR=${{env.OPENMPI_DIR}} \
+              -DMPI_C_COMPILER=${MPI_C_COMPILER} \
+              -DMPI_CXX_COMPILER=${MPI_CXX_COMPILER} 
+              -DCMAKE_C_FLAGS="-acc -ta=tesla:ccall" \
+              -DCMAKE_CXX_FLAGS="-acc -ta=tesla:ccall"
 
     - name: Build
       # Build your program with the given configuration
