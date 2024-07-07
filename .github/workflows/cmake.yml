@@ -48,6 +48,8 @@ jobs:
       run: |
         ompi_info --version
         pgcc --version
+        mpicc --version
+        mpicx --version
         test -d "${OPENMPI_DIR}"
     
     - name: Configure CMake
