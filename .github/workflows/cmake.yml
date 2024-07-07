@@ -50,7 +50,7 @@ jobs:
         ompi_info --version
         pgcc --version
         mpicc --version
-        mpicx --version
+        mpicxx --version
         test -d "${OPENMPI_DIR}"
     
     - name: Configure CMake
