@@ -1,6 +1,6 @@
 # This starter workflow is for a CMake project running on a single platform. There is a different starter workflow if you need cross-platform coverage.
 # See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
-name: CMake on a single platform
+name: CMake with OpenMPI and OpenACC for GCC
 
 on: 
   # Runs on push/pull of nate branch only
@@ -34,6 +34,25 @@ jobs:
         sudo apt install -y libopenmpi-dev openmpi-bin
         echo "OPENMPI_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
         echo "PATH=$PATH:/usr/lib/x86_64-linux-gnu/bin" >> $GITHUB_ENV
+
+    - name: Install OpenACC (GCC example)
+      run: |
+        sudo apt install -y gcc gfortran
+        echo "GCC with OpenACC support installed."
+
+    # Optionally, install CUDA for GPU support if your project requires it
+    # - name: Setup CUDA
+    #   uses: actions/setup-cuda@v1
+    #   with:
+    #     cuda-version: '11.0'
+    
+    - name: Verify Open MPI and OpenACC Installation
+      run: |
+        ompi_info --version
+        gcc --version
+        test -d "${OPENMPI_DIR}"
+        # Optionally, verify CUDA installation
+        #nvcc --version
     
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
