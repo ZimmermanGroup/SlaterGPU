@@ -56,7 +56,13 @@ jobs:
       run: |
         export CC=pgcc
         export CXX=pgc++
-        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DOPENMPI_DIR=${{env.OPENMPI_DIR}} -DCMAKE_C_FLAGS="-acc -ta=tesla:ccall" -DCMAKE_CXX_FLAGS="-acc -ta=tesla:ccall"
+        cmake -B ${{github.workspace}}/build \
+              -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+              -DOPENMPI_DIR=${{env.OPENMPI_DIR}} \
+              -DCMAKE_C_FLAGS="-acc -ta=tesla:ccall" \
+              -DCMAKE_CXX_FLAGS="-acc -ta=tesla:ccall" \
+              -DMPI_C_COMPILER=/usr/bin/mpicc \
+              -DMPI_CXX_COMPILER=/usr/bin/mpicxx
 
     - name: Build
       # Build your program with the given configuration
