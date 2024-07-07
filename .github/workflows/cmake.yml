@@ -30,8 +30,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get install -y pgi/20.7
-        sudo apt-get install -y openmpi/3.1.2-pgi-20.7
+        #sudo apt-get install -y pgi/20.7
+        sudo apt-get install -y openmpi
     
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
