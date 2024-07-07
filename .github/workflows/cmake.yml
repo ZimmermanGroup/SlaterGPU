@@ -1,6 +1,6 @@
 # This starter workflow is for a CMake project running on a single platform. There is a different starter workflow if you need cross-platform coverage.
 # See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
-name: CMake with OpenMPI and OpenACC for GCC
+name: CMake with OpenMPI and PGI
 
 on: 
   # Runs on push/pull of nate branch only
@@ -35,29 +35,28 @@ jobs:
         echo "OPENMPI_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
         echo "PATH=$PATH:/usr/lib/x86_64-linux-gnu/bin" >> $GITHUB_ENV
 
-    - name: Install OpenACC (GCC example)
+    - name: Install NVIDIA HPC SDK (PGI Compiler)
       run: |
-        sudo apt install -y gcc gfortran
-        echo "GCC with OpenACC support installed."
-
-    # Optionally, install CUDA for GPU support if your project requires it
-    # - name: Setup CUDA
-    #   uses: actions/setup-cuda@v1
-    #   with:
-    #     cuda-version: '11.0'
+        wget https://developer.download.nvidia.com/hpc-sdk/20.7/nvhpc-20-7_20.7_amd64.deb
+        wget https://developer.download.nvidia.com/hpc-sdk/20.7/nvhpc-2020_20.7_amd64.deb
+        wget https://developer.download.nvidia.com/hpc-sdk/20.7/nvhpc-20-7-cuda-multi_20.7_amd64.deb
+        sudo apt install ./nvhpc-20-7_20.7_amd64.deb ./nvhpc-2020_20.7_amd64.deb ./nvhpc-20-7-cuda-multi_20.7_amd64.deb
+        echo "PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/compilers/bin:$PATH" >> $GITHUB_ENV
+        echo "MANPATH=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/compilers/man:$MANPATH" >> $GITHUB_ENV
     
-    - name: Verify Open MPI and OpenACC Installation
+    - name: Verify Open MPI and PGI Installation
       run: |
         ompi_info --version
-        gcc --version
+        pgcc --version
         test -d "${OPENMPI_DIR}"
-        # Optionally, verify CUDA installation
-        #nvcc --version
     
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DOPENMPI_DIR=${{env.OPENMPI_DIR}}
+      run: |
+        export CC=pgcc
+        export CXX=pgc++
+        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DOPENMPI_DIR=${{env.OPENMPI_DIR}} -DCMAKE_C_FLAGS="-acc -ta=tesla:ccall" -DCMAKE_CXX_FLAGS="-acc -ta=tesla:ccall"
 
     - name: Build
       # Build your program with the given configuration
