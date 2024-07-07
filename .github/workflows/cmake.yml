@@ -28,17 +28,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install Open MPI for PGI
+    - name: Install Open MPI
       run: |
-        wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz
-        tar -xzf openmpi-4.0.5.tar.gz
-        cd openmpi-4.0.5
-        ./configure --prefix=/usr/local/openmpi-4.0.5 --with-pgi=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7
-        make all
-        sudo make install
-        echo "OPENMPI_DIR=/usr/local/openmpi-4.0.5" >> $GITHUB_ENV
-        echo "PATH=/usr/local/openmpi-4.0.5/bin:$PATH" >> $GITHUB_ENV
-        echo "LD_LIBRARY_PATH=/usr/local/openmpi-4.0.5/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        sudo apt update
+        sudo apt install -y libopenmpi-dev openmpi-bin
+        echo "OPENMPI_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+        echo "PATH=$PATH:/usr/lib/x86_64-linux-gnu/bin" >> $GITHUB_ENV
 
     - name: Install NVIDIA HPC SDK (PGI Compiler)
       run: |
@@ -53,8 +48,7 @@ jobs:
       run: |
         ompi_info --version
         pgcc --version
-        which mpicc
-        which mpicxx
+        echo ${{env.OPENMPI_DIR}}
         test -d "${OPENMPI_DIR}"
     
     - name: Configure CMake
@@ -63,13 +57,7 @@ jobs:
       run: |
         export CC=pgcc
         export CXX=pgc++
-        cmake -B ${{github.workspace}}/build \
-              -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
-              -DOPENMPI_DIR=${{env.OPENMPI_DIR}} \
-              -DMPI_C_COMPILER=mpicc \
-              -DMPI_CXX_COMPILER=mpicxx \ 
-              -DCMAKE_C_FLAGS="-acc -ta=tesla:ccall" \
-              -DCMAKE_CXX_FLAGS="-acc -ta=tesla:ccall"
+        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DOPENMPI_DIR=${{env.OPENMPI_DIR}} -DCMAKE_C_FLAGS="-acc -ta=tesla:ccall" -DCMAKE_CXX_FLAGS="-acc -ta=tesla:ccall"
 
     - name: Build
       # Build your program with the given configuration
@@ -80,4 +68,3 @@ jobs:
       # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest -C ${{env.BUILD_TYPE}}
-
