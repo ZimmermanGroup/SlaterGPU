@@ -68,7 +68,8 @@ void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<
   if (prl > 0) printf("Printing PS Integral Files:\n");
   write_S_En_T(N,Ssp,Ensp,Tsp);
   write_square(N,pVpsp,"pVp",2);
-  write_C(Naux, N2, Csp);
+  write_square(Naux,Asp,"A",2);
+  write_C(Naux,N2,Csp);
 
   delete [] Asp;
   delete [] Csp;
@@ -169,7 +170,7 @@ int main(int argc, char* argv[]) {
     #pragma acc enter data create(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
     #pragma acc enter data create(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc])
     #pragma acc enter data create(g[0:N2*N2])
-    printf("1e ints: %d\n2c2e ints: %d\n3c3e ints: %d\n",N2, Naux2, N2a);
+    printf("1e ints: %d\n2c2e ints: %d\n3c3e ints: %d\n4c4e ints: %d\n",N2, Naux2, N2a, N2*N2);
 
     printf("Computing Standard Integrals:\n");
 
@@ -177,7 +178,18 @@ int main(int argc, char* argv[]) {
     compute_ST(natoms, atno, coordsf, basis, nrad, size_ang, ang_g, ang_w, S, T, prl);
 
     auto t2 = chrono::high_resolution_clock::now();
-    compute_all_2c_v2(0,natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
+    
+    bool do_2c_v1 = read_int("DO_2c_V1");
+    if (do_2c_v1)
+    {
+      if (prl > 0) printf("  using compute_all_2c instead of compute_all_2c_v2 \n");
+      //compute_all_2c(natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
+    }
+    else
+    {
+      if (prl > 0) printf("  using compute_all_2c_v2 \n");
+      compute_all_2c_v2(0,natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
+    }
 
     auto t3 = chrono::high_resolution_clock::now();
     auto t4 = chrono::high_resolution_clock::now();
@@ -185,12 +197,22 @@ int main(int argc, char* argv[]) {
     {
       compute_Enp(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
       auto t4 = chrono::high_resolution_clock::now();
-      compute_all_3c_v2(0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
+
+      bool do_3c_v1 = read_int("DO_3C_V1");
+      if (do_3c_v1)
+      {
+        if (prl > 0) printf("  using compute_all_3c instead of compute_all_3c_v2 \n");
+        //compute_all_3c(natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
+      }
+      else
+        if (prl > 0) printf("  using compute_all_3c_v2 \n");
+        compute_all_3c_v2(0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
     } 
     else
     {
       compute_Enp_para(ngpu,natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
       auto t4 = chrono::high_resolution_clock::now();
+      
       compute_all_3c_para(ngpu,0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
     }
 
@@ -246,8 +268,10 @@ int main(int argc, char* argv[]) {
     {
       if (prl > 0) printf("Printing Standard Integral Files:\n");  
       write_S_En_T(N,S,En,T);
+      write_square(Naux,A,"A",2);
       write_square(N,pVp,"pVp",2);
       write_C(Naux, N2, C);
+      write_square(N2,g,"g",2);
     }
 
     delete [] A, Anorm, C, S, En, T, pVp;

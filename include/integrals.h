@@ -77,6 +77,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 void compute_cusp(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* pb, int prl);
 
 void compute_all_2c(int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* A, int prl);
+//void compute_all_2c(int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* A, int prl);
 
 void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* A, int prl);
 void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* A, int prl);
@@ -86,6 +87,7 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
 void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl);
 
 void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* C, int prl);
+//void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* C, int prl);
 
 void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* C, int prl);
 void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* C, int prl);
