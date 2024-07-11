@@ -8,6 +8,7 @@
 #include <chrono>
 
 #include "read.h"
+#include "write.h"
 #include "lebedev2.h"
 #include "integrals.h"
 #include "grid_util.h"
@@ -111,6 +112,12 @@ int main(int argc, char* argv[]) {
     #pragma acc exit data \
       copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
     
+    if (prl > 0) printf("Printing Standard Integral Files:\n");
+    write_S_En_T(N,S,En,T);
+    write_square(Naux,A,"A",2);
+    write_square(N,pVp,"pVp",2);
+    write_C(Naux, N2, C);
+
     int mprint = min(N,10);
     for (int i = 0; i < mprint; i++) {
       for (int j = 0; j < mprint; j++) {
