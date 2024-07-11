@@ -107,8 +107,13 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
 void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* ol, int prl);
 void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* ol, int prl);
 
+//Nate's Edits
+void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* g, int prl);
+void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl);
+
 double compute_2c(int Z1, int Z2, float zeta10, float zeta20, float A20, float B20, float C20, int nrad, int nang, double* ang_g0, double* ang_w0, int prl);
 double compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
+
 //float compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
 
 

@@ -1102,15 +1102,16 @@ void read_gridps(int& nmu, int& nnu, int& nphi, int type)
   string filename = "GRIDPS";
   if (type==2) filename = "GRIDPS2";
 
-  nmu = 24;
-  nnu = 12;
-  nphi = 8;
+  nmu  = 8; //default
+  nnu  = 8; //default
+  nphi = 8; //default
 
   ifstream infile;
   infile.open(filename.c_str());    
   if (!infile)
   {
     printf("  couldn't open GRIDPS file. \n");
+    nmu = nnu = nphi = 0;
     return;
   }
   

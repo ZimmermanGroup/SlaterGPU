@@ -14,6 +14,8 @@ it is not recommended to go beyond 4f in the main basis. The
 library requires user supplied basis sets. See the examples folder 
 for formatting inputs. Atoms up to Zn are currently supported.
 
+Note: This repository is an experimental research project, and functionality related to the prolate spheroidal coordinate system is still in progress and particularly unstable.
+
 ### Example of getting dependencies on Zimmerman group cluster
 
 Source the script that automatically loads modules on the cluster:
@@ -32,7 +34,18 @@ cmake ..
 make
 ```
 
-The executable will be generated at `build/examples/geom_timings/sgpu.exe`
+The executable will be generated at `build/examples/sgpu.exe`
+
+### Testing:
+Go to an example in the build directory. From the build directory, this would be:
+```
+cd examples/geom_ps/
+```
+
+Then run the SlaterGPU executable which will read the input files from the current working directory:
+```
+../sgpu.exe
+```
 
 ### Notes:
 If running on multiple GPUs, it's advised to have the number of

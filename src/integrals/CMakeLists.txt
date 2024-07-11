@@ -1,25 +1,29 @@
 set(INTEGRALS_SOURCES
     integrals.cpp
     integrals_d.cpp 
+    integrals_aux.cpp
+    integrals_ps.cpp
+    spherical.cpp
+    sphericald.cpp
+    pVp.cpp
+    pVpd.cpp
+    becke2.cpp
     gamma.cpp
     lebedev2.cpp     
     murak.cpp
-    pVp.cpp
     reduce.cpp
-    spherical.cpp
     Vinr.cpp
+    quad.cpp
+    prosph.cpp
+    ps_grid.cpp
+    ps_first_second_order.cpp
     grid_util.cpp
-    becke2.cpp
-    sphericald.cpp
-    pVpd.cpp
-    integrals_aux.cpp
+    gpu_util.cpp
     )
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
 target_include_directories(SlaterGPU PUBLIC
-    "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
     "${CMAKE_SOURCE_DIR}/include"
-    "${CMAKE_SOURCE_DIR}/src/libcintw/"
     "${CMAKE_SOURCE_DIR}/src/libio/"
     )
 

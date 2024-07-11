@@ -2036,7 +2036,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
 {
   if (nc<1) return;
 
-  if (prl>1) printf(" beginning compute_VdV \n");
+  if (prl>0) printf(" beginning compute_VdV \n");
 
   int N = basis.size();
   int N2 = N*N;
@@ -2544,7 +2544,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
   #pragma acc exit data copyout(V[0:nc],dV[0:nc3])
  #endif
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n V(no nn): \n");
     for (int i=0;i<nc;i++)
@@ -2552,7 +2552,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
     printf("\n");
   }
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n dV(no nn): \n");
     for (int i=0;i<nc;i++)
@@ -2681,7 +2681,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
  //#pragma omp parallel
   //nomp = omp_get_num_threads(); 
 
-  if (prl>1) printf(" beginning compute_Enp_para (%i) \n",nomp);
+  if (prl>0) printf(" beginning compute_Enp_para (%i) \n",nomp);
 
   int N = basis.size();
   int N2 = N*N;
@@ -3427,7 +3427,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
     }
   }
 
-  if (prl>-2)
+  if (prl>2)
   {
     printf("\n pVp: \n");
     for (int i=0;i<N;i++)
@@ -3523,7 +3523,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
 void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* En, float* pVp, int prl)
 #endif
 {
-  if (prl>1) printf(" beginning compute_Enp \n");
+  if (prl>0) printf(" beginning compute_Enp \n");
 
   int N = basis.size();
   int N2 = N*N;
@@ -4304,7 +4304,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
 // currently does x,y,z directions only
 void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl)
 {
-  if (prl>1) printf(" beginning compute_E (double precision) \n");
+  if (prl>0) printf(" beginning compute_E (double precision) \n");
 
   int N = basis.size();
   int N2 = N*N;
@@ -4567,7 +4567,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
 //high-precision overlap integrals
 void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, int prl)
 {
-  if (prl>1) printf(" beginning compute_S (double precision) \n");
+  if (prl>0) printf(" beginning compute_S (double precision) \n");
 
   int N = basis.size();
   int N2 = N*N;
@@ -4847,7 +4847,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* S, float* T, int prl)
 #endif
 {
-  if (prl>1) printf(" beginning compute_ST \n");
+  if (prl>0) printf(" beginning compute_ST \n");
 
   int N = basis.size();
   int N2 = N*N;
@@ -5252,7 +5252,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 //high precision 2-center Coulomb
 void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl)
 {
-  if (prl>-1) printf(" beginning compute_all_2c_v2d \n");
+  if (prl>0) printf(" beginning compute_all_2c_v2d \n");
 
  //2c integrals are all in auxiliary basis
   int N = basis.size();
@@ -5610,7 +5610,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
 void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* An, int prl)
 #endif
 {
-  if (prl>1) printf(" beginning compute_all_2c_v2 \n");
+  if (prl>0) printf(" beginning compute_all_2c_v2 \n");
 
  //2c integrals are all in auxiliary basis
   int N = basis.size();
@@ -5972,7 +5972,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
 
 void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* A, int prl)
 {
-  if (prl>1) printf(" beginning compute_all_2c \n");
+  if (prl>0) printf(" beginning compute_all_2c \n");
 
  //2c integrals are all in auxiliary basis
   int N = basis.size();
@@ -6288,6 +6288,9 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
   delete [] val1;
   delete [] val2;
 
+  delete [] grid1s;
+  delete [] grid2s;
+  
   return;
 }
 
@@ -6298,7 +6301,7 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
 void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl)
 #endif
 {
-  if (prl>-1) printf(" beginning compute_all_4c_v2 \n");
+  if (prl>0) printf(" beginning compute_all_4c_v2 \n");
   if (natoms>2)
   {
     printf("\n ERROR: compute_all_4c for 2-atom integrals only \n");
@@ -6313,7 +6316,7 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
   int gs6 = 6*gs;
   int gsp6 = 6*gsp;
 
-  if (prl>0) printf("  gs/p: %4i %4i \n",gs,gsp);
+  if (prl>1) printf("  gs/p: %4i %4i \n",gs,gsp);
 
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
@@ -6372,7 +6375,6 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
   int M2 = M*M;
   //int M3 = M2*M;
   float* gt = new float[M2*M2];
-
  #if USE_ACC
   #pragma acc enter data create(gt[0:M2*M2])
 
@@ -6748,7 +6750,6 @@ void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<doubl
       reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2a,val1b,val2b,val3a,val4a,wtt1b,wtt2a,gt);
       reduce_4c_1d(s1,s2,s3,s4,gs,gsp,M,grid1b,grid2b,val1b,val2b,val3b,val4b,wtt1b,wtt2b,gt);
       collect_4c_1d(s1,s2,s3,s4,gs,gsp,M,N,gt,g);
-
 
     } //loop n over second atom
 
@@ -7210,7 +7211,7 @@ void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nra
 
 void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl)
 {
-  if (prl>-1) printf(" beginning compute_all_4c_ol_gend (ngpu: %i) \n",ngpu);
+  if (prl>0) printf(" beginning compute_all_4c_ol_gend (ngpu: %i) \n",ngpu);
 
   int nomp = ngpu;
 
@@ -7646,7 +7647,7 @@ void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vecto
 void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* ol, int prl)
 #endif
 {
-  if (prl>-1) printf(" beginning compute_all_4c_ol_gen (ngpu: %i) \n",ngpu);
+  if (prl>0) printf(" beginning compute_all_4c_ol_gen (ngpu: %i) \n",ngpu);
 
   int nomp = ngpu;
 
@@ -8106,7 +8107,7 @@ void compute_all_4c_gen(int ngpu, int natoms, int* atno, float* coords, vector<v
 void compute_all_4c_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl)
 #endif
 {
-  if (prl>-1) printf(" beginning compute_all_4c_gen (ngpu: %i) \n",ngpu);
+  if (prl>0) printf(" beginning compute_all_4c_gen (ngpu: %i) \n",ngpu);
 
   int nomp = ngpu;
 
@@ -8388,7 +8389,7 @@ void compute_all_4c(int natoms, int* atno, float* coords, vector<vector<double> 
 void compute_all_4c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl)
 #endif
 {
-  if (prl>-1) printf(" beginning compute_all_4c \n");
+  if (prl>0) printf(" beginning compute_all_4c \n");
   if (natoms>2)
   {
     printf("\n ERROR: compute_all_4c for 2-atom integrals only \n");
