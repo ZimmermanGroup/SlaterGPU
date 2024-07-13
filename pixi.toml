@@ -5,8 +5,7 @@ channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [tasks]
-configure = { cmd = "cmake ..", cwd = "build" , depends-on = ["make_build_dir"]}
-make_build_dir = "mkdir -p build"
+configure = "cmake -Bbuild"
 clean = "rm -rf build"
 
 [system-requirements]
