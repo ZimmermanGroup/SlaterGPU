@@ -21,7 +21,9 @@
 
 #include <chrono>
 
+#if USE_ACC
 #include "accel.h"
+#endif
 #include <omp.h>
 
 using namespace std;
