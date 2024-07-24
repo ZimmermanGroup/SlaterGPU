@@ -13,13 +13,14 @@ set(INTEGRALS_SOURCES
     sphericald.cpp
     pVpd.cpp
     integrals_aux.cpp
+    opt.cpp
+    hess.cpp
     )
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
 target_include_directories(SlaterGPU PUBLIC
     "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
     "${CMAKE_SOURCE_DIR}/include"
-    "${CMAKE_SOURCE_DIR}/src/libcintw/"
     "${CMAKE_SOURCE_DIR}/src/libio/"
     )
 

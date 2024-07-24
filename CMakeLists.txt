@@ -7,10 +7,11 @@ set(USE_ACC True)
 set(USE_MPI True)
 set(USE_OMP True)
 
-if(NOT DO_GTO)
-    set(DO_GTO False)
-endif()
+#if(NOT DO_GTO)
+#    set(DO_GTO False)
+#endif()
 
+set(DO_GTO True)
 set(DO_GTO ${DO_GTO})
 
 if(NOT CMAKE_BUILD_TYPE)
