@@ -32,7 +32,7 @@ cmake ..
 make
 ```
 
-The executable will be generated at `build/examples/geom_timings/sgpu.exe`
+The executable will be generated at `build/examples/sgpu.exe`
 
 ### Notes:
 If running on multiple GPUs, it's advised to have the number of
