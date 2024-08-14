@@ -23,9 +23,9 @@ target_include_directories(SlaterGPU PUBLIC
     "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
     "${CMAKE_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/src/libio/"
-    "/export/zimmerman/vkchem/libxc-5.1.6/src/"
-    "/export/zimmerman/vkchem/libxc-5.1.6/"
-    "/export/zimmerman/vkchem/libxc-5.1.6/build/src/"
+    "$ENV{LIBXC_PATH}/src/"
+    "$ENV{LIBXC_PATH}/"
+    "$ENV{LIBXC_PATH}/build/src/"
     )
 
 target_link_libraries(SlaterGPU PUBLIC
