@@ -26,19 +26,28 @@ void get_becke_grid_full(int natoms, int* atno, float* coords, int nrad, int nan
 void get_becke_grid_full(int natoms, int* atno, float* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, float* grid, float* wt);
 void get_becke_grid_full(int natoms, int* atno, float* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt);
 void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt);
-//void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int gs, double* grid, double* rho, double* drho, int prl);
-//void compute_rho(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gs, float* grid, double* rho, double* drho, int prl);
-//void compute_rho(bool gbasis, int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gs, float* grid, double* rho, double* drho, int prl);
+void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int gs, double* grid, double* rho, double* drho, int prl);
+void compute_rho(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gs, float* grid, double* rho, double* drho, int prl);
+void compute_rho(bool gbasis, int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gs, float* grid, double* rho, double* drho, int prl);
 
-//void compute_fxc(int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int gsa, double* grid, double* wt, double* fxc, int prl);
-//void compute_fxc(int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int gsa, float* grid, float* wt, double* fxc, int prl);
-//void compute_fxc(int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, float* vxc, float* vxcs, int gs, float* grid, float* wt, double* fxc, int prl);
-//void compute_fxc(bool gbasis, int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool need_wt, int gsa, float* grid, float* wt, double* vxc, double* fxc, int prl);
-//void compute_fxc(bool gbasis, int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool need_wt, int gsa, float* grid, float* wt, float* vxc, double* fxc, int prl);
+void compute_rho_ext(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gsa, float* grid, double* rho, double* drho, int prl);
 
-//void compute_delta(int natoms, int* atno, float* coords, vector<vector<double> > &basis1, vector<vector<double> > &basis2, int No, double* jCA, bool gga, bool tau, float* rho, int gsa, float* grid, float* wt, double* diff, int prl);
+void rho_grid(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gs, float* grid, double* rho, double* drho, float* delt, int prl);
 
-//void compute_dft_grad(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, bool is_gga, double* vxc, double* vxcs, int gs, float* grid, double* grad, int prl);
+void compute_fxc(int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool gga, double* vxc, double* vxcs, int gsa, float* grid, float* wt, double* fxc, int prl);
+void compute_fxc(int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int gs, float* grid, float* wt, double* fxc, int prl);
+
+void compute_fxc(int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int gsa, double* grid, double* wt, double* fxc, int prl);
+void compute_fxc(int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int gsa, float* grid, float* wt, double* fxc, int prl);
+void compute_fxc(int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, float* vxc, float* vxcs, int gs, float* grid, float* wt, double* fxc, int prl);
+void compute_fxc(bool gbasis, int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool need_wt, int gsa, float* grid, float* wt, double* vxc, double* fxc, int prl);
+void compute_fxc(bool gbasis, int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool need_wt, int gsa, float* grid, float* wt, float* vxc, double* fxc, int prl);
+
+
+
+void compute_delta(int natoms, int* atno, float* coords, vector<vector<double> > &basis1, vector<vector<double> > &basis2, int No, double* jCA, bool gga, bool tau, float* rho, int gsa, float* grid, float* wt, double* diff, int prl);
+
+void compute_dft_grad(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, bool is_gga, double* vxc, double* vxcs, int gs, float* grid, double* grad, int prl);
 
 void atomic_charges(int natoms, int gs, float* chg, double* rho, float** wta, int prl);
 void atomic_charges(int natoms, int gs, float* chg, double* rho, float* zta, float** gridall, float** wta, int prl);
@@ -57,5 +66,10 @@ float becke_a(float alpha, int Z1, int Z2);
 
 //ratio based on exponents
 double becke_a_zeta(double zeta1, double zeta2);
+
+float bf3_2(float f1);
+
+float get_3c_bw2(float r1, float r2, float r3, float a12, float a13, float a23, float a21, float a31, float a32, float oR12, float oR13, float oR23);
+
 
 #endif

@@ -33,6 +33,7 @@ using namespace std;
 #include "murak.h"
 #include "becke.h"
 #include "sortUtil.h"
+#include "gpu_util.h"
 
 extern void sortByKeys( fp_t * A, xyz<fp_t> * Av, size_t N);
 
@@ -202,5 +203,11 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vect
 void copy_symm_3c_ps(int natoms, int N, int Naux, int* n2i, int* na2i, double* C);
 void copy_symm_4c_ps(int natoms, int* n2i, int N, double* olp);
 int get_natoms_with_basis(int natoms, int* atno, vector<vector<double> >& basis);
+
+
+void collect_4c_1(int s1, int s2, int s3, int s4, bool lr_copy, int gs, int gsp, int M, int N, float* gt, double* g);
+void collect_4c_1b(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g);
+void collect_4c_1c(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g);
+void collect_4c_1d(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g);
 
 #endif
