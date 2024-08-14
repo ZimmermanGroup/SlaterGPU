@@ -15,6 +15,7 @@ set(INTEGRALS_SOURCES
     integrals_aux.cpp
     opt.cpp
     hess.cpp
+    gpu_util.cpp
     )
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
@@ -22,6 +23,13 @@ target_include_directories(SlaterGPU PUBLIC
     "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
     "${CMAKE_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/src/libio/"
+    "/export/zimmerman/vkchem/libxc-5.1.6/src/"
+    "/export/zimmerman/vkchem/libxc-5.1.6/"
+    "/export/zimmerman/vkchem/libxc-5.1.6/build/src/"
+    )
+
+target_link_libraries(SlaterGPU PUBLIC
+    "$ENV{LIBXC_PATH}/install/lib/libxc.a"
     )
 
 add_definitions("-w")
