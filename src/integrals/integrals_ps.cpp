@@ -211,24 +211,23 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
  //this calculation not accurate yet
   int Nmax = 150;
-  double mem0 = gs*7.+1.*nmu*nnu*nphi;
+  //double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
-    //double mem1 = 8.*(gs*3.*Nmax + 1.*mem0);
-    double mem1 = 8.*(3.*gs*Nmax + mem0 + 3.*N2 + 4.*gs6 + 1.*gs);
+    double mem1 = 8.*(gs*3.*Nmax + gs*7.+1.*nmu*nnu*nphi);
+    //double mem1 = 8.*(3.*gs*Nmax + 3.*N2 + 4.*gs6 + 1.*gs);
+    //printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
     if (mem1<gpumem)
     {
-      printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      Nmax = int(ceil(Nmax*=.85));
+      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
       break;
     }
     Nmax--;
   }
-  //if (Nmax>8)
-  //  Nmax -= 8;
-  //Nmax = 50;
-  //int NNm = read_int("NMAX");
-  //Nmax = NNm;
-  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements (mem0: %5.3f mem1: %5.3f) \n",mem0*togb,8.*(3.*gs*Nmax + mem0 + 3.*N2 + 4.*gs6 + 1.*gs)*togb); exit(-1); }
+
+  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements (mem0: %5.3f mem1: %5.3f) \n",mem0*togb,8.*(3.*gs*Nmax + mem0 + 3.*N2 + 4.*gs6 + 1.*gs)*togb); exit(-1); }
+  if (Nmax<=0) {printf("\n ERROR: loop iter'd out. Setting Nmax to 1\n"); Nmax = 1;}
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
@@ -703,14 +702,16 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
  //this calculation not accurate yet
   int Nmax = 150;
-  double mem0 = gs*7.+1.*nmu*nnu*nphi;
+  //double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
-    //double mem1 = 8.*(gs*6.*Nmax + 1.*mem0);
-    double mem1 = 8.*(mem0 + 1.*N2 + 3.*gs6 + 2.*gs + 2.*Nmax*gs3);
+    double mem1 = 8.*(gs*6.*Nmax + gs*7.+1.*nmu*nnu*nphi);
+    //double mem1 = 8.*(1.*N2 + 3.*gs6 + 2.*gs + 2.*Nmax*gs3);
+    //printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
     if (mem1<gpumem)
     {
-      //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      Nmax = int(ceil(Nmax*=.8));
+      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
       break;
     }
     Nmax--;
@@ -721,7 +722,8 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
   //int NNm = read_int("NMAX");
   //Nmax = NNm;
 
-  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  if (Nmax<=0) { printf("\n ERROR: loop iter'd out. Setting Nmax to 1... \n"); Nmax = 1; }
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
@@ -1100,27 +1102,30 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
  //this calculation not accurate yet
   int Nmax = 150;
-  double mem0 = gs*7.+1.*nmu*nnu*nphi;
+  //double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
     //double mem1 = 8.*(gs*2.*Nmax + 1.*mem0);
-    double mem1 = 8.*(gs*2.*Nmax + 1.*mem0 + 1.*N2 + 2.*gs6 + 2.*gs);
+    double mem1 = 8.*(gs*2.*Nmax + 1.*N2 + 2.*gs6 + 2.*gs);
+    //printf("    mem1: %5.3f Nmax: %2i \n", mem1*togb, Nmax);
     if (mem1<gpumem)
     {
-      //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      Nmax = int(ceil(Nmax*=.8));
+      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
       break;
     }
     Nmax--;
   }
   //if (Nmax>5)
   //  Nmax -= 5;
-  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  if (Nmax<=0) { printf("\n ERROR:loop iter'd out. Setting Nmax to 1 \n"); Nmax = 1; }
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
   printf("   imaxN: %2i \n",imaxN);
 
-  double gsxvalsv = 8.*(imaxN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
+  double gsxvalsv = 8.*(imaxN*gs*2. + gs*7.+1.*nmu*nnu*nphi); //vals+grid/wt+gridm
   double gsxvalsv_gb = gsxvalsv/1024./1024./1024.;
   printf("   estimated memory needed (2c): %6.3f GB \n",gsxvalsv_gb);
 
@@ -1648,21 +1653,24 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
 
  //this calculation not accurate yet
   int Nmax = 150;
-  double mem0 = gs6+2*gsh;
+  //double mem0 = gs6+2*gsh;
   while (Nmax>0)
   {
-    //double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0);
-    double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0 + 1.*N2 + 3.*gs6 + 2.*gsh);
+    double mem1 = 8.*(2.*Nmax*gs3 + gs6+2*gsh);
+    //double mem1 = 8.*(2.*Nmax*gs3 + 1.*N2 + 3.*gs6 + 2.*gsh);
+    //printf("    mem1: %5.3f Nmax: %2i \n", mem1*togb, Nmax);
     if (mem1<gpumem)
     {
-      //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      Nmax = int(ceil(Nmax*=.9));
+      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
       break;
     }
     Nmax--;
   }
   //if (Nmax>4)
   //  Nmax -= 4;
-  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  if (Nmax<=0) { printf("\n ERROR: loop iter'd out. Setting Nmax to 1... \n"); Nmax = 1; }
     
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
@@ -1928,20 +1936,28 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   double togb = 1./1024./1024./1024.;
 
  //need to improve this estimate
-  int Nmax = 100;
+  int Nmax = 150;
   while (Nmax>0)
   {
     double mem1 = 8.*(2.*gsh*iN + 1.*N2 + 2.*N2a + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
+    //double mem1 = 8.*(2.*gsh*iN + 1.*gsh*Nmax + 7.*gsh + 1.*nmu*nnu*nphi);
+
+    //printf("    mem1: %6.1f Nmax: %2i \n",mem1*togb,Nmax);
     if (mem1<gpumem)
     {
-      printf("    mem1: %6.1f \n",mem1*togb);
+      Nmax = int(ceil(Nmax*=.6));
+      double mem1 = 8.*(2.*gsh*iN + 1.*N2 + 2.*N2a + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
+
+      //Nmax = Nmax - 6;
+      printf("    mem1: %6.1f Nmax: %2i \n",mem1*togb,Nmax);
       break;
     }
     Nmax--;
   }
 
 
-  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+  if (Nmax<=0) { printf("\n ERROR: loop iter'd out. Setting Nmax to 1... \n"); Nmax = 1; }
 
   vector<vector<int> > n2aip;
   int iNa = get_imax_n2ip(Nmax,natoms,Naux,basis_aux,n2aip);
