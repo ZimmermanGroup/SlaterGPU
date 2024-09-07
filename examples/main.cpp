@@ -13,7 +13,6 @@
 #include "integrals.h"
 #include "grid_util.h"
 
-#include "fp_def.h"
 
 using namespace std;
 

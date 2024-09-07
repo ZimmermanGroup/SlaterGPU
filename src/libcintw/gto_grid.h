@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <map>
-#include "fp_def.h"
 
 using namespace std;
 
@@ -39,7 +38,7 @@ extern "C" {
 
 void compute_ovlp_grid(
   int bas_idx, int * bas, double * env,
-  FP1 * grid, double * gto_vals, int grid_size, int atom, double * at_coord
+  float * grid, double * gto_vals, int grid_size, int atom, double * at_coord
 );
 
 void setup_env_bas_grid(

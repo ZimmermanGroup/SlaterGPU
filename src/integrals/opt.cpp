@@ -1,5 +1,4 @@
 #include "opt.h"
-//#include "fp_def.h"
 
 double cg_step(float scalar, float maxstep, double& grmsp, int natoms, double* step, double* grad, float* xyz)
 {

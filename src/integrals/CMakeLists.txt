@@ -20,16 +20,8 @@ set(INTEGRALS_SOURCES
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
 target_include_directories(SlaterGPU PUBLIC
-    "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
     "${CMAKE_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/src/libio/"
-    "$ENV{LIBXC_PATH}/src/"
-    "$ENV{LIBXC_PATH}/"
-    "$ENV{LIBXC_PATH}/build/src/"
-    )
-
-target_link_libraries(SlaterGPU PUBLIC
-    "$ENV{LIBXC_PATH}/install/lib/libxc.a"
     )
 
 add_definitions("-w")

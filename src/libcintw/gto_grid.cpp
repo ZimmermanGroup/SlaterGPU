@@ -195,7 +195,7 @@ template void gen_gto_on_grid<float>(
 
 void compute_ovlp_grid(
   int bas_idx, int * bas0, double * env0,
-  FP1 * grid, double * gto_vals, int grid_size, int atom, double * at_coord
+  float * grid, double * gto_vals, int grid_size, int atom, double * at_coord
 ) {
   int shls[2] = {0,1};
   int di = BT::DO_CART ? CINTcgto_cart(bas_idx,bas0) : CINTcgto_spheric(bas_idx,bas0);

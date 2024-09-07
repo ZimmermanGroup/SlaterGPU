@@ -9,7 +9,6 @@ export PGI_LIBS=/export/apps/CentOS7/pgi/2020/Linux_x86_64/20.7/
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/khoi/Modules/libraries/libcint/gcc-8.2.0/lib64
 export LIBCINT_PATH=/home/khoi/Modules/libraries/libcint/gcc-8.2.0
 
-export LIBXC_PATH=/export/zimmerman/vkchem/libxc-5.1.6/
 
 export OMP_NUM_THREADS=2
 

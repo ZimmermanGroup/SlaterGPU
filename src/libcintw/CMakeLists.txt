@@ -20,7 +20,6 @@ add_definitions("-w")
 target_compile_options(cintw PRIVATE ${CINTW_COMP_FLAGS})
 target_include_directories(cintw PRIVATE
     "${LIBCINT_PATH}/include"
-    "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
     "$ENV{BLAS_INCLUDE_DIR}"
     )
 target_link_libraries(cintw PRIVATE
