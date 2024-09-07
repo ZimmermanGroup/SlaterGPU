@@ -34,6 +34,19 @@ make
 
 The executable will be generated at `build/examples/sgpu.exe`
 
+### Testing:
+From the build directory, go into one of the example directories.
+```
+cd examples/geom_1
+```
+
+Then execute SlaterGPU within this directory to run the test.
+```
+../sgpu.exe
+```
+
+After running, if successful the directory should contain the output files "A", "Ciap", "SENT", and "pVp".
+
 ### Notes:
 If running on multiple GPUs, it's advised to have the number of
 OpenMP threads equal to the number of GPUs. i.e. set the following
