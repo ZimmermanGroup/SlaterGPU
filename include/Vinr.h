@@ -12,7 +12,6 @@ void eval_dke(int gs, float* grid, float* val, int n, int l, float zeta);
 void eval_ne_3(int gs, float* grid, float** val, int s1, int s2, int natoms, int* atno, float* coords, float A0, float B0, float C0);
 
 void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, int index);
-void eval_inr_r12(int gs, float* grid, double* val, int n1, int l1, float zeta1, int index);
 void eval_inr_r12(int gs, double* grid, double* val, int n1, int l1, double zeta1, int index);
 
 void eval_inr_d(int gs, float* grid, float* val, int n1, int l1, float zeta1);

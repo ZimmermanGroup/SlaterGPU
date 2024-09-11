@@ -9,7 +9,7 @@ set(INTEGRALS_SOURCES
     spherical.cpp
     Vinr.cpp
     grid_util.cpp
-    becke2.cpp
+    becke.cpp
     sphericald.cpp
     pVpd.cpp
     integrals_aux.cpp
