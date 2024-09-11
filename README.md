@@ -4,7 +4,9 @@ Library for numerically computing Slater-type orbital integrals.
 For running on GPU, OpenACC is required. Code has been tested
 and compiled with Nvidia HPC SDK 20.7, 21.7 and 21.9. A wrapper
 library for Libcint (https://github.com/sunqm/libcint) is also
-provided for Gaussian integrals. This library uses the resolution
+provided for Gaussian integrals. It should be noted that version 5.3.0 of libcint is required at the moment.
+
+This library uses the resolution
 of the identity (RI) approximation. Thus, auxiliary and main
 basis sets must be specified.
 
@@ -16,10 +18,10 @@ for formatting inputs. Atoms up to Zn are currently supported.
 
 ### Example of getting dependencies on Zimmerman group cluster
 
-Source the script that automatically loads modules on the cluster:
+Source the script that automatically loads modules and adds dependencies to PATH:
 
 ```
-source go
+source env.set.local0
 ```
 
 For other users, this bash script may be a helpful example to see how to install / load necessary dependencies.
@@ -55,7 +57,6 @@ environment variable
 export OMP_NUM_THREADS=<ngpu>
 ```
 
-An example for computing the integrals is provided in the 
-`examples` folder.
+There are example calculations in `SlaterGPU/examples/` with integral files denoted generally as `INT_ref`.
 
 Please see LICENSE file for licensing information.
