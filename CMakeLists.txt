@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(SlaterGPU VERSION 0.1 
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
-                  LANGUAGES C CXX)
+                  LANGUAGES C CXX CUDA)
 
 set(USE_ACC True)
 set(USE_MPI True)
