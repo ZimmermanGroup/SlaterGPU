@@ -14,7 +14,8 @@ linux = "3.10"
 libc = { family="glibc", version="2.17" }
 
 [dependencies]
-gcc = ">=13.2.0,<13.3"
+# gcc = ">=13.2.0,<13.3"
+cuda-nvcc = ">=12,<13"
 
 [build-dependencies]
 cmake = ">=3.21.0,<4"
