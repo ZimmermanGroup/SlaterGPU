@@ -2945,16 +2945,6 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
     prl++;
   }
 
-  if (auto_ri>=2)
-  {
-    basis_aux.clear();
-    if (auto_ri==3)
-      create_basis_aux_v3(natoms,basis,basis_aux);
-    else
-      create_basis_aux(natoms,basis,basis_aux);
-    prl++;
-  }
-
   print_basis(natoms,basis,basis_aux,prl);
 
   return natoms;
