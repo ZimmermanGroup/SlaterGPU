@@ -11,6 +11,8 @@
 #define GDEBUG 0
 #define HDEBUG 0
 
+#define LMAX_AUX 5
+
 #include "read.h"
 
 #include <sstream>
@@ -2313,7 +2315,11 @@ bool check_valid_basis(int n1, int l1)
   if (l1==3 && n1>6) return 0;
   if (l1==4 && n1>5) return 0;
   if (l1==5 && n1>6) return 0;
-  if (l1>=6) return 0;
+  if (l1==6 && n1>7) return 0;
+  if (l1==7 && n1>8) return 0;
+  if (l1>=8) return 0;
+
+  if (l1>LMAX_AUX) return 0;
 
   return 1;
 }
@@ -2433,6 +2439,239 @@ int get_bsize(double ztmin, double ztmax)
   return 1;
 }
 
+void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+{
+  if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
+
+ //lz parameter: for l>=lz, include only z ftns
+ // invoked only if lz>10
+ // untested
+  int no_lz = 6;
+  if (lz<10) lz = 10; else lz -= 10;
+
+  int plus_s = 2;
+  int plus_p = 0;
+  int plus_d = 0;
+
+  vector<vector<double> > basis_max;
+  vector<vector<double> > basis_min;
+  vector<int> basis_size;
+
+ //CPMZ parameter
+  const double zsc = 1.2;
+
+ //gather basis set, skipping m sequence
+ //taking only the min and max values of zeta
+  for (int a=0;a<natoms;a++)
+  for (int l=0;l<8;l++)
+  {
+    double ztmin = 1000.; int minz = -1;
+    double ztmax = 0.;    int maxz = -1;
+    int bsize = 0;
+
+   //find basis ftns with specific l(m=0) on atom a
+    for (int i1=0;i1<basis_std.size();i1++)
+    if (basis_std[i1][9]==a && basis_std[i1][1]==l && basis_std[i1][2]==0)
+    {
+      int n = basis_std[i1][0];
+      int l = basis_std[i1][1];
+      double zt0 = basis_std[i1][3];
+
+      double zt1 = zt0*pow(zsc,-(n-l-1));
+      //printf("  nl: %i %i zt01: %8.5f %8.5f \n",n,l,zt0,zt1);
+      if (zt1<ztmin) { ztmin = zt1; minz = i1; }
+      if (zt1>ztmax) { ztmax = zt1; maxz = i1; }
+      bsize++;
+    }
+
+    if (l==0 && bsize>5)
+      plus_s = 5;
+    if (l==1 && bsize>5)
+      plus_p = 3;
+    if (l==2 && bsize>5)
+      plus_d = 2;
+
+    //printf("  minmaxz: %i %i - %8.5f %8.5f \n",minz,maxz,ztmin,ztmax);
+    if (minz!=-1 && maxz!=-1 && l!=8)
+    {
+      basis_min.push_back(basis_std[minz]);
+      basis_min[basis_min.size()-1][3] = ztmin;
+      basis_max.push_back(basis_std[maxz]);
+      basis_max[basis_max.size()-1][3] = ztmax;
+      basis_size.push_back(bsize);
+    }
+    else if (minz!=-1 && l>=8)
+    {
+      printf("\n WARNING: K and higher angular momentum in standard basis not supported \n");
+      exit(-1);
+    }
+  }
+
+ //using the truncated, no m basis
+  int N = basis_max.size();
+
+ //gather all pairs of basis (nl) on each atom
+  vector<vector<double> > bpair;
+  int lmax = 0;
+  for (int n=0;n<natoms;n++)
+  for (int i1=0;i1<N;i1++)
+  if (basis_max[i1][9]==n)
+  {
+    vector<double> basis1 = basis_min[i1];
+    vector<double> basis2 = basis_max[i1];
+    int bs1 = basis_size[i1];
+
+    int n1 = basis1[0]; int l1 = basis1[1]; double zt1 = basis1[3];
+    int n2 = basis2[0]; int l2 = basis2[1]; double zt2 = basis2[3];
+    n1 = l1+1;
+    n2 = l2+1;
+
+    for (int i2=0;i2<=i1;i2++)
+    if (basis_max[i2][9]==n)
+    {
+      vector<double> basis3 = basis_min[i2];
+      vector<double> basis4 = basis_max[i2];
+      int bs2 = basis_size[i2];
+
+      int n3 = basis3[0]; int l3 = basis3[1]; double zt3 = basis3[3];
+      int n4 = basis4[0]; int l4 = basis4[1]; double zt4 = basis4[3];
+      n3 = l3+1;
+      n4 = l4+1;
+
+      int n13 = get_n12(n1,n3,l1,l3);
+      int l13 = l1+l3;
+      double zt13 = zt1+zt3;
+      double zt24 = zt2+zt4;
+
+      int n24 = get_n12(n2,n4,l2,l4); 
+      int l24 = l2+l4;
+
+      //printf("  n13/24: %i %i l13/24: %i %i ztmm: %8.5f %8.5f \n",n13,n24,l13,l24,zt13,zt24);
+
+      vector<double> p1;
+      p1.push_back(n);
+      p1.push_back(n13);  //1
+      p1.push_back(n24);
+      p1.push_back(l13);  //3
+      p1.push_back(l24);
+      p1.push_back(zt13); //5
+      p1.push_back(zt24); //6
+      p1.push_back(i1);   //7
+      p1.push_back(i2);
+
+      bpair.push_back(p1);
+    }
+  }
+
+ //consolidate into unique nl elements
+  vector<vector<double> > bpairs;
+  for (int n=0;n<natoms;n++)
+  {
+    for (int j=0;j<bpair.size();j++)
+    if (bpair[j][0]==n)
+    {
+      vector<double> p1 = bpair[j];
+      int n1 = p1[1];
+      int l1 = p1[3];
+
+      bool found = 0;
+      for (int k=0;k<bpairs.size();k++)
+      if (bpairs[k][0]==n)
+      {
+        vector<double> p2 = bpairs[k];
+        int n2 = p2[1];
+        int l2 = p2[3];
+        if (n1==n2 && l1==l2)
+        {
+          double ztmin = min(p1[5],p2[5]);
+          double ztmax = max(p1[6],p2[6]);
+          bpairs[k][5] = ztmin;
+          bpairs[k][6] = ztmax;
+          found = 1;
+          break;
+        }
+      }
+      if (!found)
+        bpairs.push_back(p1);
+    }
+  }
+  //if (prl>1) printf("  aux_basis_v4:  %2i pairs of basis, %2i are unique \n",(int)bpair.size(),(int)bpairs.size());
+
+  for (int n=0;n<natoms;n++)
+  {
+    for (int j=0;j<bpairs.size();j++)
+    if (bpairs[j][0]==n)
+    {
+      vector<double> p1 = bpairs[j];
+      int n13 = p1[1];
+      int n24 = p1[2];
+      int l13 = p1[3];
+      int l24 = p1[4];
+      double zt13 = p1[5];
+      double zt24 = p1[6];
+
+      int i1 = p1[7];
+      vector<double> basis1 = basis_min[i1];
+
+      int nmax = get_bsize(zt13,zt24);
+      if (l24==0) nmax += plus_s;
+      if (l24==1) nmax += plus_p;
+      if (l24==2) nmax += plus_d;
+      if (l24>=2 && nmax>4) nmax--; //trimming
+      if (l24>=3 && nmax>2) nmax--; //trimming
+      if (l24>=4 && nmax>2) nmax--; //trimming
+
+     //hard limits
+      if (l24==2 && nmax>4) nmax = 4;
+      if (l24==3 && nmax>3) nmax = 3;
+      if (l24==4 && nmax>2) nmax = 2;
+
+     //restriction to z-axis (m=0)
+      int lm13 = l13;
+      if (lm13>=lz) lm13 = 0;
+
+     //max zt only for higher angular momentum
+      if (l13>5 || l13>=lz) { nmax = 1; zt13 = zt24; }
+
+     //skip r^n higher angular momentum entirely
+      //if (l13>0 && n13-l13-1>0) { nmax = 1; zt13 = zt24; }
+      //if (l13>=3 && n13-l13-1>0) nmax = 0;
+
+      double zf = zt24/zt13;
+      double B = 1;
+      if (nmax>1) B = exp(log(zf)/(nmax-1));
+
+      bool valid_basis = check_valid_basis(n13,l13);
+
+      if (valid_basis)
+      for (int ns=nmax-1;ns>=0;ns--)
+      {
+        double ztn = zt13*pow(B,ns);
+        vector<double> b1 = basis1;
+        b1[0] = n13; b1[1] = l13; b1[3] = ztn;
+
+        for (int m=-lm13;m<=lm13;m++)
+        //if (!(m==0 && l13>=no_lz))
+        {
+          b1[2] = m;
+          b1[4] = norm(n13,l13,m,ztn);
+          basis_aux.push_back(b1);
+        }
+      } //adding ftns
+
+      if (valid_basis && l13>lmax) lmax = l13;
+
+    } //pairs of ftns on same atom
+  } //loop n
+
+  //screen_basis_aux(basis_aux,1);
+  printf("  lmax in auxiliary basis: %i \n",lmax);
+
+  if (basis_aux.size()<1) printf(" WARNING: didn't find any auxiliary basis ftns \n");
+
+  return;
+}
+
 void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
@@ -2445,7 +2684,8 @@ void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<
  //taking only the min and max values of zeta
   for (int a=0;a<natoms;a++)
   for (int n=1;n<10;n++)
-  for (int l=0;l<6;l++)
+  for (int l=0;l<8;l++)
+  //for (int l=0;l<min(8,n-1);l++)
   {
     double ztmin = 1000.; int minz = -1;
     double ztmax = 0.;    int maxz = -1;
@@ -2460,15 +2700,15 @@ void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<
       if (zt1>ztmax) { ztmax = zt1; maxz = i1; }
       bsize++;
     }
-    if (minz!=-1 && maxz!=-1 && l!=5)
+    if (minz!=-1 && maxz!=-1 && l!=8)
     {
       basis_min.push_back(basis_std[minz]);
       basis_max.push_back(basis_std[maxz]);
       basis_size.push_back(bsize);
     }
-    else if (minz!=-1 && l==5)
+    else if (minz!=-1 && l>=8)
     {
-      printf("\n WARNING: H functions in standard basis not supported by RI==3 \n");
+      printf("\n WARNING: K and higher angular momentum in standard basis not supported \n");
       exit(-1);
     }
   }
@@ -2692,6 +2932,18 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
   if (gbasis) return natoms;
 
   int auto_ri = read_ri();
+  //if (auto_ri <= 0) auto_ri = 4; //comment out this if statement before posting on GitHub
+  if (auto_ri>=2)
+  {
+    basis_aux.clear();
+    if (auto_ri>=4)
+      create_basis_aux_v4(auto_ri,natoms,basis,basis_aux);
+    else if (auto_ri==3)
+      create_basis_aux_v3(natoms,basis,basis_aux);
+    else
+      create_basis_aux(natoms,basis,basis_aux);
+    prl++;
+  }
 
   if (auto_ri>=2)
   {
