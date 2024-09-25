@@ -14,12 +14,14 @@ set_property(TARGET cintw PROPERTY CXX_STANDARD 11)
 set(CINTW_COMP_FLAGS ${CMAKE_CXX_FLAGS} 
     -O2 -g
     )
+
+add_definitions("-w")
+
 target_compile_options(cintw PRIVATE ${CINTW_COMP_FLAGS})
 target_include_directories(cintw PRIVATE
     "${LIBCINT_PATH}/include"
-    "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
     "$ENV{BLAS_INCLUDE_DIR}"
     )
 target_link_libraries(cintw PRIVATE
-    "${LIBCINT_PATH}/lib64/libcint.so" 
+    "${LIBCINT_PATH}/lib64/libcint.so.5.3.0" 
     )

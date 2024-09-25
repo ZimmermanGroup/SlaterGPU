@@ -8,8 +8,10 @@ set(USE_MPI True)
 set(USE_OMP True)
 
 if(NOT DO_GTO)
-    set(DO_GTO False)
+    set(DO_GTO True)
 endif()
+
+set(DO_GTO ${DO_GTO})
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -37,4 +39,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 add_subdirectory(src)
 add_subdirectory(examples)
 
-message("${CMAKE_CXX_FLAGS}")
+add_definitions("-w")
+message(STATUS "${CMAKE_CXX_FLAGS}")
+message(STATUS "DO_GTO: ${DO_GTO}")

@@ -1,21 +1,30 @@
 set(INTEGRALS_SOURCES
-    integrals.cpp integrals_d.cpp integrals.h
-    braggslater.h 
-    gamma.h gamma.cpp
-    lebedev2.cpp lebedev2.h
-    murak.cpp murak.h
-    pVp.cpp pVp.h
-    reduce.cpp reduce.h
-    spherical.cpp spherical.h
-    Vinr.cpp Vinr.h
-    grid_util.cpp grid_util.h
-    opt.h opt.cpp
+    integrals.cpp
+    integrals_d.cpp 
+    gamma.cpp
+    lebedev2.cpp     
+    murak.cpp
+    pVp.cpp
+    reduce.cpp
+    spherical.cpp
+    Vinr.cpp
+    grid_util.cpp
+    becke.cpp
+    sphericald.cpp
+    pVpd.cpp
+    integrals_aux.cpp
+    opt.cpp
+    hess.cpp
+    gpu_util.cpp
     )
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
 target_include_directories(SlaterGPU PUBLIC
-    "${CMAKE_SOURCE_DIR}/include/SlaterGPU"
+    "${CMAKE_SOURCE_DIR}/include"
+    "${CMAKE_SOURCE_DIR}/src/libio/"
     )
+
+add_definitions("-w")
 
 set_property(TARGET SlaterGPU PROPERTY CXX_STANDARD 11)
 set_property(TARGET SlaterGPU PROPERTY POSITION_INDEPENDENT_CODE ON)

@@ -4,7 +4,9 @@ Library for numerically computing Slater-type orbital integrals.
 For running on GPU, OpenACC is required. Code has been tested
 and compiled with Nvidia HPC SDK 20.7, 21.7 and 21.9. A wrapper
 library for Libcint (https://github.com/sunqm/libcint) is also
-provided for Gaussian integrals. This library uses the resolution
+provided for Gaussian integrals. It should be noted that version 5.3.0 of libcint is required at the moment.
+
+This library uses the resolution
 of the identity (RI) approximation. Thus, auxiliary and main
 basis sets must be specified.
 
@@ -14,26 +16,40 @@ it is not recommended to go beyond 4f in the main basis. The
 library requires user supplied basis sets. See the examples folder 
 for formatting inputs. Atoms up to Zn are currently supported.
 
-For compiling run 
+### Example of getting dependencies on Zimmerman group cluster
+
+Source the script that automatically loads modules and adds dependencies to PATH:
+
+```
+source env.set.local0
+```
+
+For other users, this bash script may be a helpful example to see how to install / load necessary dependencies.
+
+### For compiling run :
 ```
 mkdir build
 cd build
 cmake ..
 make
 ```
-By default, the integration grid is evaluated in double precision.
-For additional performance, one can specify mixed precision at
-compile time by setting `-DEVL64=0` in `CMake_CXX_FLAGS` i.e.
-by passing `-DCMake_CXX_FLAGS="-DEVL64=0"` when configuring.
 
-By default the GTO wrapper library is not built. To build this
-wrapper include `-DDO_GTO=True` as a CMake flag, and set an 
-environment variable `LIBCINT_PATH` to your Libcint install.
-When using a GTO basis, a main basis file named `basis` and an
-auxiliary basis file named `aux` are required. These files
-should be in Gaussian format and include the specification for
-all atoms of interest.
+The executable will be generated at `build/examples/sgpu.exe`
 
+### Testing:
+From the build directory, go into one of the example directories.
+```
+cd examples/geom_1
+```
+
+Then execute SlaterGPU within this directory to run the test.
+```
+../sgpu.exe
+```
+
+After running, if successful the directory should contain the output files "A", "Ciap", "SENT", and "pVp".
+
+### Notes:
 If running on multiple GPUs, it's advised to have the number of
 OpenMP threads equal to the number of GPUs. i.e. set the following
 environment variable
@@ -41,7 +57,6 @@ environment variable
 export OMP_NUM_THREADS=<ngpu>
 ```
 
-An example for computing the integrals is provided in the 
-`examples` folder.
+There are example calculations in `SlaterGPU/examples/` with integral files denoted generally as `INT_ref`. It should be noted that normally, the three center coefficients, `Ciap`, are generated, but were omitted due to Git's file size limit.
 
 Please see LICENSE file for licensing information.

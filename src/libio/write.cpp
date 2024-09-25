@@ -1,5 +1,4 @@
 #include "write.h"
-#include "fp_def.h"
 
 #include <sstream>
 #define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(8) << scientific << x ) ).str()
@@ -50,7 +49,7 @@ string get_iarray_name(short type1, short type2, short i1)
   return filename;
 }
 
-void write_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
+void write_iarray(short type1, short type2, short i1, int s1, int s2, float* A)
 {
   printf("\n shouldn't be here (for now) \n"); 
 
@@ -70,8 +69,7 @@ void write_iarray(short type1, short type2, short i1, int s1, int s2, FP1* A)
   return;
 }
 
-#if !EVL64
-void write_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
+void write_iarray(short type1, short type2, short i1, int s1, int s2, double* A)
 {
   printf("\n shouldn't be here (for now) \n"); 
 
@@ -90,13 +88,12 @@ void write_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A)
 
   return;
 }
-#endif
 
-void save_geoms(int natoms, int* atno, vector<FP1> E, vector<FP1*> geoms, string fname)
+void save_geoms(int natoms, int* atno, vector<float> E, vector<float*> geoms, string fname)
 {
   int ng = geoms.size();
 
-  FP2 B2A = 1./A2B;
+  double B2A = 1./A2B;
 
   string filename = fname;
   ofstream outfile;
@@ -106,12 +103,12 @@ void save_geoms(int natoms, int* atno, vector<FP1> E, vector<FP1*> geoms, string
 
   for (int i=0;i<ng;i++)
   {
-    FP1* coords = geoms[i];
+    float* coords = geoms[i];
     outfile << natoms << endl << E[i] << endl;
     for (int j=0;j<natoms;j++)
     {
       string aname = get_aname(atno[j]);
-      FP2 x1 = coords[3*j]*B2A; FP2 y1 = coords[3*j+1]*B2A; FP2 z1 = coords[3*j+2]*B2A;
+      double x1 = coords[3*j]*B2A; double y1 = coords[3*j+1]*B2A; double z1 = coords[3*j+2]*B2A;
       outfile << " " << aname << " " << x1 << " " << y1 << " " << z1 << endl;
     }
   }
@@ -132,9 +129,9 @@ void get_nxyzr(int n1, int l1, int m1, int& nx, int& ny, int& nz, int& nr)
       nr = 1;
     else if (l1==1)
     {
-      if (m1==0)      nx = 1;
-      else if (m1==1) ny = 1;
-      else            nz = 1;
+      if (m1==0)      nz = 1;
+      else if (m1==1) nx = 1;
+      else            ny = 1;
     }
   }
   else if (n1==3)
@@ -144,9 +141,9 @@ void get_nxyzr(int n1, int l1, int m1, int& nx, int& ny, int& nz, int& nr)
     else if (l1==1)
     {
       nr = 1;
-      if (m1==0)      nx = 1;
-      else if (m1==1) ny = 1;
-      else            nz = 1;
+      if (m1==0)      nz = 1;
+      else if (m1==1) nx = 1;
+      else            ny = 1;
     }
     else if (l1==2)
     {
@@ -169,17 +166,17 @@ void get_nxyzr(int n1, int l1, int m1, int& nx, int& ny, int& nz, int& nr)
   }
   else if (n1==4)
   {
-    printf(" WARNING: n=4 MO print incomplete \n");
+    //printf(" WARNING: n=4 MO print incomplete \n");
     if (l1==0)
       nr = 3;
     else if (l1==1)
     {
       nr = 2;
-      if (m1==0)      nx = 1;
-      else if (m1==1) ny = 1;
-      else            nz = 1;
+      if (m1==0)      nz = 1;
+      else if (m1==1) nx = 1;
+      else            ny = 1;
     }
-    else if (l1==3)
+    else if (l1==2)
     {
       nr = 1;
      #if CART_D
@@ -197,11 +194,20 @@ void get_nxyzr(int n1, int l1, int m1, int& nx, int& ny, int& nz, int& nr)
       if (m1== 2) { nx = 2; ny = 2; }
      #endif
     }
+    else if (l1==3)
+    {
+     //INCOMPLETE
+      if (m1==-2) { nx = 1; ny = 1; nz = 1; }
+      else if (m1==0) { nz = 3; }
+      else
+        nx = nx = nz = 444;
+    }
+
   }
   return;
 }
 
-void write_molden_g(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &basis, FP2* jCA, int No, string fname)
+void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname)
 {
   int N = basis.size();
 
@@ -209,7 +215,7 @@ void write_molden_g(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &ba
   ofstream outfile;
   outfile.open(filename.c_str());
 
-  FP2 B2A = 1./A2B;
+  double B2A = 1./A2B;
 
   outfile << fixed << setprecision(8);
 
@@ -218,7 +224,7 @@ void write_molden_g(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &ba
   for (int i=0;i<natoms;i++)
   {
     string aname = get_aname(atno[i]);
-    FP2 x1 = coords[3*i]*B2A; FP2 y1 = coords[3*i+1]*B2A; FP2 z1 = coords[3*i+2]*B2A;
+    double x1 = coords[3*i]*B2A; double y1 = coords[3*i+1]*B2A; double z1 = coords[3*i+2]*B2A;
     outfile << " " << aname << "     " << i+1 << "   " << atno[i] << "   ";
     outfile << x1 << "   " << y1 << "   " << z1 << endl;
   }
@@ -228,7 +234,7 @@ void write_molden_g(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &ba
 
   for (int i=0;i<natoms;i++)
   {
-    //FP2 x1 = coords[3*i]; FP2 y1 = coords[3*i+1]; FP2 z1 = coords[3*i+2];
+    //double x1 = coords[3*i]; double y1 = coords[3*i+1]; double z1 = coords[3*i+2];
 
     string aname = get_aname(atno[i]);
     string b1 = read_basis_text(aname);
@@ -259,23 +265,31 @@ void write_molden_g(int natoms, int* atno, FP2* coords, vector<vector<FP2> > &ba
   return;
 }
 
-void write_molden(bool gbasis, int natoms, int* atno, FP2* coords, vector<vector<FP2> > &basis, FP2* jCA, int No, string fname)
+bool close_val(double v1, double v2)
+{
+  if (fabs(v1-v2)<1.e-4) return true;
+  return false;
+}
+
+void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname)
 {
   if (gbasis) return write_molden_g(natoms,atno,coords,basis,jCA,No,fname);
 
   int N = basis.size();
 
+  bool missing_ftns = 0;
   for (int j=0;j<N;j++)
   if (basis[j][0]>3)
-    return;
-
-  printf(" WARNING: cannot print spherical d functions to molden \n"); 
+    missing_ftns = 1;
+  if (missing_ftns)
+    printf(" WARNING: n=4 MO print incomplete \n");
+  //printf("\n WARNING: no f function printing to molden \n");
 
   string filename = fname;
   ofstream outfile;
   outfile.open(filename.c_str());
 
-  FP2 B2A = 1./A2B;
+  double B2A = 1./A2B;
 
   outfile << fixed << setprecision(8);
 
@@ -284,7 +298,7 @@ void write_molden(bool gbasis, int natoms, int* atno, FP2* coords, vector<vector
   for (int i=0;i<natoms;i++)
   {
     string aname = get_aname(atno[i]);
-    FP2 x1 = coords[3*i]*B2A; FP2 y1 = coords[3*i+1]*B2A; FP2 z1 = coords[3*i+2]*B2A;
+    double x1 = coords[3*i]*B2A; double y1 = coords[3*i+1]*B2A; double z1 = coords[3*i+2]*B2A;
     outfile << " " << aname << "     " << i+1 << "   " << atno[i] << "   ";
     outfile << x1 << "   " << y1 << "   " << z1 << endl;
   }
@@ -294,18 +308,82 @@ void write_molden(bool gbasis, int natoms, int* atno, FP2* coords, vector<vector
 
   for (int i=0;i<natoms;i++)
   {
-    FP2 x1 = coords[3*i]; FP2 y1 = coords[3*i+1]; FP2 z1 = coords[3*i+2];
+    double x1 = coords[3*i]; double y1 = coords[3*i+1]; double z1 = coords[3*i+2];
 
     for (int j=0;j<N;j++)
     {
-      if (x1==basis[j][5] && y1==basis[j][6] && z1==basis[j][7])
+      if (close_val(x1,basis[j][5]) && close_val(y1,basis[j][6]) && close_val(z1,basis[j][7]))
       {
-        int n1 = basis[j][0]; int l1 = basis[j][1]; int m1 = basis[j][2]; FP2 zeta = basis[j][3]*B2A; FP2 norm = basis[j][4];
+        int n1 = basis[j][0]; int l1 = basis[j][1]; int m1 = basis[j][2]; double zeta = basis[j][3]*B2A; double norm = basis[j][4];
         int nx,ny,nz,nr;
         get_nxyzr(n1,l1,m1,nx,ny,nz,nr);
 
-        outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
-        outfile << nr << " " << zeta << " " << norm << " " << endl;
+        if (l1<2)
+        {
+          outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+          outfile << nr << " " << zeta << " " << norm << " " << endl;
+        }
+        else if (l1==2)
+        {
+         //for 2 of the 5 3d functions, divide into parts
+          if (nz==2)
+          {
+           //3dz2 --> 2.z2 - x2 - y2
+            nz = 2; nx = ny = 0;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << 2.*norm << " " << endl;
+            nz = 0; nx = 2; ny = 0;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << norm << " " << endl;
+            nz = 0; nx = 0; ny = 2;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << norm << " " << endl;
+          }
+          else if (nx==2 && ny==2)
+          {
+            //x2-y2 --> x2 - y2
+            nx = 2; ny = 0;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << norm << " " << endl;
+            nx = 0; ny = 2;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << norm << " " << endl;
+          }
+          else
+          {
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << norm << " " << endl;
+          }
+        } //if l1==2
+
+       #if 0
+       //just drop most f or higher functions
+        else if (l1==3)
+        {
+         //m==-2
+          if (nx==1 && ny==1 && nz==1) //fxyz is the simplest 4f orbital
+          {
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << norm << " " << endl;
+          }
+         //m==0
+          if (nz==3)
+          {
+           //5z3
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << 5.*norm << " " << endl;
+           //-3zr2
+            nz = 1; nr = 2;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << -3.*norm << " " << endl;
+          }
+          else
+          {
+            //incomplete
+          }
+        } //if l1==3
+       #endif
+
       }
     }
   }
@@ -320,8 +398,42 @@ void write_molden(bool gbasis, int natoms, int* atno, FP2* coords, vector<vector
     outfile << "Spin=Alpha" << endl;
     outfile << "Occup=" << occ << endl;
 
+    int wj = 0;
     for (int j=0;j<N;j++)
-      outfile << " " << j+1 << "  " << jCA[j*N+i] << endl;
+    {
+      int n1 = basis[j][0]; int l1 = basis[j][1]; int m1 = basis[j][2];
+      int nx,ny,nz,nr;
+      get_nxyzr(n1,l1,m1,nx,ny,nz,nr);
+
+      if (l1<2)
+        outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+      else if (l1==2)
+      {
+        if (nz==2)
+        {
+          outfile << " " << 1+wj++ << "  " <<  jCA[j*N+i] << endl;
+          outfile << " " << 1+wj++ << "  " << -jCA[j*N+i] << endl;
+          outfile << " " << 1+wj++ << "  " << -jCA[j*N+i] << endl;
+        }
+        else if (nx==2 && ny==2)
+        {
+          outfile << " " << 1+wj++ << "  " <<  jCA[j*N+i] << endl;
+          outfile << " " << 1+wj++ << "  " << -jCA[j*N+i] << endl;
+        }
+        else
+          outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+      }
+     #if 0
+      else if (l1==3)
+      {
+       //incomplete
+        if (nx==1 && ny==1 && nz==1) //m==-2
+          outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+        else if (nz==3) //m==0
+          outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+      }
+     #endif
+    }
   }
 
 
@@ -330,7 +442,137 @@ void write_molden(bool gbasis, int natoms, int* atno, FP2* coords, vector<vector
   return;
 }
 
-void write_gridpts(int s1, int s2, FP1* A, string filename)
+void write_graph(int size, double* h, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
+  outfile << "<gexf xmlns=\"http://gexf.net/1.2\" version=\"1.2\">" << endl;
+
+  outfile << "  <graph mode=\"static\" defaultedgetype=\"directed\">" << endl;
+
+  outfile << "    <attributes class=\"node\">" << endl;
+  outfile << "      <attribute id=\"0\" title=\"twos\" type=\"float\"/>" << endl;
+  outfile << "    </attributes>" << endl;
+  outfile << "    <nodes>" << endl;
+  for (int i=0;i<size;i++)
+  {
+    double v1 = h[i*size+i];
+    double v2 = -(v1-h[0])+2.;
+    if (v2<0.) v2 = 0.;
+    //outfile << "      <node id=\"" << i << "\" label=\"" << v1 << "\" twos=\"" << v2 << "\" />" << endl;
+    outfile << "      <node id=\"" << i << "\" label=\"" << v1 << "\" >" << endl; 
+    outfile << "        <attvalues>" << endl;
+    outfile << "          <attvalue for=\"0\" value=\"" << v2 << "\" />" << endl;
+    outfile << "        </attvalues>" << endl;
+    outfile << "      </node>" << endl;
+  }
+  outfile << "    </nodes>" << endl;
+
+  double threshw = 1.e-3;
+
+  outfile << "    <edges>" << endl;
+  int wi = 0;
+  for (int i=0;i<size;i++)
+  for (int j=0;j<size;j++)
+  if (i!=j)
+  {
+    double wt = fabs(h[i*size+j]);
+    if (wt>=threshw)
+    {
+      outfile << "      <edge id=\"" << wi << "\" source=\"" << i << "\" target=\"" << j << "\" weight=\"" << wt << "\" />" << endl;
+      wi++;
+    }
+  }
+  outfile << "    </edges>" << endl;
+
+  outfile << "  </graph>" << endl;
+  outfile << "</gexf>" << endl;
+
+ #if 0
+ //CSV file
+  for (int i=0;i<size;i++)
+  {
+    outfile << ";" << i+1;
+  }
+  outfile << endl;
+
+  for (int i=0;i<size;i++)
+  {
+    outfile << i+1 << ";";
+    for (int j=0;j<size;j++)
+    {
+      if (i==j)
+        outfile << "0";
+      else
+        outfile << fabs(h[i*size+j]);
+      if (j!=size-1)
+        outfile << ";";
+    }
+    outfile << endl;
+  }
+ #endif
+
+  outfile.close();
+  return;
+}
+
+
+void write_vector(int size, double* vals, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+  outfile << fixed << setprecision(14);
+
+  for (int j=0;j<size;j++)
+  {
+    string line = SSTRF2(vals[j]);
+
+    outfile << line << " ";
+  }
+  outfile << endl;
+
+  outfile.close();
+
+  return;
+}
+
+void write_vector(int size, float* vals, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+  outfile << fixed << setprecision(14);
+
+  for (int j=0;j<size;j++)
+  {
+    string line = SSTRF2(vals[j]);
+
+    outfile << line << " ";
+  }
+  outfile << endl;
+
+  outfile.close();
+
+  return;
+}
+
+void write_float(double val, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+  outfile << fixed << setprecision(10);
+
+  string line = SSTRF(val);
+
+  outfile << line << endl;
+
+  outfile.close();
+
+  return;
+}
+
+void write_gridpts(int s1, int s2, float* A, string filename)
 {
   ofstream outfile;
   outfile.open(filename.c_str());
@@ -350,9 +592,9 @@ void write_gridpts(int s1, int s2, FP1* A, string filename)
   return;
 }
 
-void write_square(int N, FP2* A, string fname, int prl)
+void write_square(int N, double* A, string fname, int prl)
 {
-  if (prl>1) printf(" writing %s to file \n",fname.c_str());
+  if (prl>1) printf("  writing %s to file \n",fname.c_str());
 
   string filename = fname;
   ofstream outfile;
@@ -373,8 +615,7 @@ void write_square(int N, FP2* A, string fname, int prl)
   return;
 }
 
-#if !EVL64
-void write_square(int N, FP1* A, string fname, int prl)
+void write_square(int N, float* A, string fname, int prl)
 {
   if (prl>1) printf(" writing %s to file \n",fname.c_str());
 
@@ -396,11 +637,10 @@ void write_square(int N, FP1* A, string fname, int prl)
   outfile.close();
   return;
 }
-#endif
 
-void write_C(int Naux, int N2, FP1* C)
+void write_C(int Naux, int N2, float* C)
 {
-  printf(" writing C to file \n");
+  printf("  writing C to file \n");
 
   string filename = "Ciap";
   ofstream outfile;
@@ -434,10 +674,9 @@ void write_C(int Naux, int N2, FP1* C)
   return;
 }
 
-#if !EVL64
-void write_C(int Naux, int N2, FP2* C)
+void write_C(int Naux, int N2, double* C)
 {
-  printf(" writing C to file \n");
+  printf("  writing C to file \n");
 
   string filename = "Ciap";
   ofstream outfile;
@@ -470,11 +709,33 @@ void write_C(int Naux, int N2, FP2* C)
   outfile.close();
   return;
 }
-#endif
 
-void write_S_En_T(int N, FP1* S, FP1* En, FP1* T)
+void write_Cy(int Naux, int N2, double* C)
 {
-  printf(" writing S/En/T to file \n");
+  printf("  writing Cy to file \n");
+
+  string filename = "Cyiap";
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(16);
+
+  outfile << "Cyiap:" << endl;
+  for (int i=0;i<N2;i++)
+  {
+    string line = "";
+    for (int j=0;j<Naux;j++)
+      line += " " + SSTRF2(C[i*Naux+j]);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
+void write_S_En_T(int N, float* S, float* En, float* T)
+{
+  printf("  writing S/En/T to file \n");
    
   string filename = "SENT";
   ofstream outfile;
@@ -513,10 +774,10 @@ void write_S_En_T(int N, FP1* S, FP1* En, FP1* T)
   return;
 }
 
-#if !EVL64
-void write_S_En_T(int N, FP2* S, FP2* En, FP2* T)
+
+void write_S_En_T(int N, double* S, double* En, double* T)
 {
-  printf(" writing S/En/T to file \n");
+  printf("  writing S/En/T to file \n");
    
   string filename = "SENT";
   ofstream outfile;
@@ -554,4 +815,4 @@ void write_S_En_T(int N, FP2* S, FP2* En, FP2* T)
   outfile.close();
   return;
 }
-#endif
+

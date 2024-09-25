@@ -7,6 +7,55 @@
 using namespace std;
 
 #pragma acc routine seq
+double spherical_bessel_1(int l, double gr)
+{
+ //does not include i^(l+2) term
+  double val = 0.;
+  for (int m=0;m<=l;m++)
+  {
+   //inlined mchn_v2
+    int f1 = 1;
+    for (int i=2;i<l+m;i++)
+      f1 *= i;
+    for (int i=1;i<m;i++)
+      f1 /= i;
+    for (int i=1;i<l-m;i++)
+      f1 /= i;
+
+    double o2gr = pow(2.*gr,-(m+1));
+    double f2 = pow(-1.,l-m+1);
+    double egr = exp(-gr);
+    double egrp = exp(gr);
+
+    val += f1*o2gr*(egr+f2*egrp);
+  }
+  return val;
+}
+
+#pragma acc routine seq
+double spherical_bessel_3(int l, double gr)
+{
+ //does not include i^(l+2) term
+  double val = 0.;
+  for (int m=0;m<=l;m++)
+  {
+    int f1 = 1;
+    for (int i=2;i<l+m;i++)
+      f1 *= i;
+    for (int i=1;i<m;i++)
+      f1 /= i;
+    for (int i=1;i<l-m;i++)
+      f1 /= i;
+
+    double o2gr = pow(2.*gr,-(m+1));
+    double egr = exp(-gr);
+
+    val += f1*o2gr*egr;
+  }
+  return 2.*val;
+}
+
+#pragma acc routine seq
 float igamf(float aa, float xx) {
   float a = aa;
   float x = xx;
@@ -153,12 +202,28 @@ float dvinr_gamf(int n, int l, float r, float z) {
 }
 
 #pragma acc routine seq
+double igamn(int a, double x)
+{
+  int f1 = a-1;
+  for (int i=2;i<a-1;i++)
+    f1 *= i;
+  double v1 = 1.;
+  double d  = 1.;
+  for (int i=1;i<a;i++)
+  {
+    v1 += pow(x,i)/d;
+    d *= i;
+  }
+  return f1*(1.-v1*exp(-x));
+}
+
+#pragma acc routine seq
 double igam(double aa, double xx) {
   double a = aa;
   double x = xx;
 
   // x,a <= 0 should never happen for our code
-  
+
   // x > 1 and x > a should be dealt with outside
   // this function. 
   if (x > 1. && x > a) {
