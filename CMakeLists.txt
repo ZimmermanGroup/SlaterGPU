@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
+# set(CMAKE_CXX_COMPILER nvcc)
 project(SlaterGPU VERSION 0.1 
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
                   LANGUAGES C CXX CUDA)
 
+# set_source_files_properties(test.cpp PROPERTIES LANGUAGE CUDA)
 set(USE_ACC True)
 set(USE_MPI True)
 set(USE_OMP True)
