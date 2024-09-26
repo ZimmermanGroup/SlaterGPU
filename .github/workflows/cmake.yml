@@ -41,22 +41,18 @@ jobs:
         sudo apt install ./nvhpc-20-7_20.7_amd64.deb ./nvhpc-2020_20.7_amd64.deb ./nvhpc-20-7-cuda-multi_20.7_amd64.deb
         echo "PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/compilers/bin:$PATH" >> $GITHUB_ENV
         echo "MANPATH=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/compilers/man:$MANPATH" >> $GITHUB_ENV
-
-    - name: Downgrade GCC
-      run: |
-        sudo apt remove gcc
-        sudo apt-get install gcc-8 g++-8 -y
-        sudo ln -s /usr/bin/gcc-8 /usr/bin/gcc
-        sudo ln -s /usr/bin/g++-8 /usr/bin/g++
-        sudo ln -s /usr/bin/gcc-8 /usr/bin/cc
-        sudo ln -s /usr/bin/g++-8 /usr/bin/c++
-        echo "PATH=$PATH:/usr/bin/gcc-8" >> $GITHUB_ENV
-        echo "PATH=$PATH:/usr/bin/g++-8" >> $GITHUB_ENV
-    
+        
+    - name: Set up GCC
+      uses: egor-tensin/setup-gcc@v1
+      with:
+        version: 8
+        platform: x64
+        
     - name: Verify Open MPI and PGI Installation
       run: |
         ompi_info --version
         pgcc --version
+        gcc --version
         echo ${{env.OPENMPI_DIR}}
         test -d "${OPENMPI_DIR}"
     
