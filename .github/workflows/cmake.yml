@@ -7,11 +7,9 @@ on:
   push:
     branches:
     - 5-add-cmake-test-of-compilation-and-basic-usage
-    - nate
   pull_request:
     branches: 
     - 5-add-cmake-test-of-compilation-and-basic-usage
-    - nate
   
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -61,7 +59,10 @@ jobs:
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: |
+        export CC=pgcc
+        export CXX=pgc++
+        cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
