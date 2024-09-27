@@ -6,6 +6,7 @@ project(SlaterGPU VERSION 0.1
 set(USE_ACC True)
 set(USE_MPI True)
 set(USE_OMP True)
+set(RED_DOUBLE True)
 
 if(NOT DO_GTO)
     set(DO_GTO True)
