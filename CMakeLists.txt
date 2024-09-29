@@ -3,8 +3,10 @@ project(SlaterGPU VERSION 0.1
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
                   LANGUAGES C CXX CUDA)
 
-# set_source_files_properties(test.cpp PROPERTIES LANGUAGE CUDA)
+message("Checkpoint 1")
+set_source_files_properties(test.cpp PROPERTIES LANGUAGE CUDA)
 # Set NVHPC compilers
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_COMPILER nvc)
 set(CMAKE_CXX_COMPILER nvcc)
 
