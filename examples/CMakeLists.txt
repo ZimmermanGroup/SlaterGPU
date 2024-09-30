@@ -16,7 +16,7 @@ if(USE_ACC)
         )
 endif()
 
-set_property(TARGET sgpu.exe PROPERTY CXX_STANDARD 11)
+set_property(TARGET sgpu.exe PROPERTY CXX_STANDARD 14)
 target_compile_options(sgpu.exe PRIVATE ${TEST_COMP_FLAGS} -O2)
 target_link_libraries(sgpu.exe PRIVATE SlaterGPU io)
 file(COPY geom_1 DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

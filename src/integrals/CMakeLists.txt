@@ -31,7 +31,7 @@ target_include_directories(SlaterGPU PUBLIC
 
 add_definitions("-w")
 
-set_property(TARGET SlaterGPU PROPERTY CXX_STANDARD 11)
+set_property(TARGET SlaterGPU PROPERTY CXX_STANDARD 14)
 set_property(TARGET SlaterGPU PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 set(SLATER_COMP_FLAGS ${CMAKE_CXX_FLAGS} -DRED_DOUBLE=1 -O2

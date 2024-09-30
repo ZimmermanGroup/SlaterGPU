@@ -12,7 +12,7 @@ message("${BLAS_LIBRARIES}")
 set(LIBCINT_PATH $ENV{LIBCINT_PATH})
 
 add_library(cintw SHARED ${CINT_SOURCES})
-set_property(TARGET cintw PROPERTY CXX_STANDARD 11)
+set_property(TARGET cintw PROPERTY CXX_STANDARD 14)
 set(CINTW_COMP_FLAGS ${CMAKE_CXX_FLAGS} 
     -O2 -g
     )
