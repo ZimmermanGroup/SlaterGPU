@@ -1,5 +1,10 @@
 version: 5
 environments:
+  athena:
+    channels:
+    - url: https://conda.anaconda.org/nvidia/
+    - url: https://conda.anaconda.org/conda-forge/
+    packages: {}
   default:
     channels:
     - url: https://conda.anaconda.org/nvidia/

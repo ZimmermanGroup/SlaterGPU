@@ -6,14 +6,16 @@ platforms = ["linux-64"]
 
 [tasks]
 clean = "rm -rf build"
-build = "cmake --build build"
+build = "cmake --build build -j 16"
+test = {cmd = ["../sgpu.exe"], cwd = "build/examples/geom_1"}
+start = {depends-on = ["configure", "build", "test"]}
 
-[tasks.configure]
+[feature.athena.tasks.configure]
 cmd = "cmake -Bbuild"
 depends_on = ["clean"]
-[tasks.configure.env]
-CXX = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc++"
-CC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc"
+# [tasks.configure.env]
+# CXX = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc++"
+# CC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc"
 
 [system-requirements]
 linux = "3.10"
@@ -31,3 +33,6 @@ cmake = ">=3.21.0,<4"
 openmpi = "=3.1"
 openmpi-mpicc = "=3.1"
 openmpi-mpicxx = "=3.1"
+
+[environments]
+athena = {features = ["athena"], no-default-feature = true}
