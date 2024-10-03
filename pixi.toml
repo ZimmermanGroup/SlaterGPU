@@ -16,6 +16,9 @@ platforms = ["linux-64"]
 [feature.linux-64]
 platforms = ["linux-64"]
 
+[feature.athena.tasks]
+slurm-job = "srun -p zimA10 -N1 -n16 --gpus=1 --pty /bin/bash"
+
 [feature.athena.tasks.configure]
 cmd = "cmake -Bbuild"
 depends-on = ["clean"]
