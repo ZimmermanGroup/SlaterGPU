@@ -34,30 +34,45 @@ FC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/
 F90 = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
 F77 = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
 CPP = "cpp"
-PATH = """/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/bin:\
+PATH = """\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/bin:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/mpi/bin:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/bin:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/2024/comm_libs/mpi/bin:$PATH"""
-LD_LIBRARY_PATH = """/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/lib64:\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/2024/comm_libs/mpi/bin:\
+$PATH\
+"""
+LD_LIBRARY_PATH = """\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/lib64:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/lib:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/lib:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/lib64:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/lib:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/lib:$LD_LIBRARY_PATH:\
-/home/ndmeier/libraries/libcint/lib64"""
-CPATH = """/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/lib:\
+$LD_LIBRARY_PATH:\
+/home/ndmeier/libraries/libcint/lib64\
+"""
+CPATH = """\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:$CPATH"""
-C_INCLUDE_PATH = """export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
+$CPATH\
+"""
+C_INCLUDE_PATH = """\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:$C_INCLUDE_PATH"""
-CPLUS_INCLUDE_PATH = """/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
+$C_INCLUDE_PATH\
+"""
+CPLUS_INCLUDE_PATH = """\
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:$CPLUS_INCLUDE_PATH"""
+/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
+$CPLUS_INCLUDE_PATH\
+"""
 MANPATH = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/man:$MANPATH"
 
 [system-requirements]
