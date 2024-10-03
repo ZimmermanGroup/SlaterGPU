@@ -2,37 +2,48 @@
 name = "SlaterGPU"
 version = "0.1.0"
 channels = ["nvidia", "conda-forge"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "linux-aarch64"]
 
 [tasks]
+# load = "module load nvidia-sdk"
 clean = "rm -rf build"
 build = "cmake --build build -j 16"
 test = {cmd = ["../sgpu.exe"], cwd = "build/examples/geom_1"}
 start = {depends-on = ["configure", "build", "test"]}
 
+[feature.athena]
+platforms = ["linux-64"]
+[feature.linux-64]
+platforms = ["linux-64"]
+
 [feature.athena.tasks.configure]
 cmd = "cmake -Bbuild"
-depends_on = ["clean"]
-# [tasks.configure.env]
+depends-on = ["clean"]
+[feature.athena.tasks.configure.env]
 # CXX = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc++"
 # CC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc"
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/home/ndmeier/libraries/libcint/lib64"
+LIBCINT_PATH="/home/ndmeier/libraries/libcint"
+BLAS_INCLUDE_DIR="/usr/include/openblas"
+OMP_NUM_THREADS="2"
 
 [system-requirements]
 linux = "3.10"
 libc = { family="glibc", version="2.17" }
 
 [dependencies]
+cmake = ">=3.21.0,<4"
+
+[feature.linux-64.dependencies]
 # gcc = ">=13.2.0,<13.3"
 # cuda = ">=12,<13"
 # cuda-nvcc = ">=12,<13"
 cuda-toolkit = ">=12,<13"
-
-[build-dependencies]
-cmake = ">=3.21.0,<4"
 # openmpi = ">=5.0.3,<5.1"
 openmpi = "=3.1"
 openmpi-mpicc = "=3.1"
 openmpi-mpicxx = "=3.1"
 
 [environments]
-athena = {features = ["athena"], no-default-feature = true}
+athena = {features = ["athena"]}
+linux-64 = {features = ["linux-64"]}

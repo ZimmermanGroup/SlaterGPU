@@ -62,3 +62,10 @@ export OMP_NUM_THREADS=<ngpu>
 There are example calculations in `SlaterGPU/examples/` with integral files denoted generally as `INT_ref`. It should be noted that normally, the three center coefficients, `Ciap`, are generated, but were omitted due to Git's file size limit.
 
 Please see LICENSE file for licensing information.
+
+### Experimental pixi install
+```
+pixi run start
+```
+
+To see individual tasks, check the pixi.toml file.
