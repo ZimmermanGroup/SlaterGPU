@@ -3419,25 +3419,3 @@ void eval_pd(int gs, double* grid, double* val, int n1, int l1, int m1, double z
 
   return;
 }
-
-//should remove this ftn
-void eval_pdke(int gs, double* grid, double* val, double* tmp, int n1, int l1, int m1, double zeta1)
-{
-  int gs3 = 3*gs;
-  #pragma acc parallel loop present(tmp[0:gs3])
-  for (int j=0;j<gs3;j++)
-    tmp[j] = 1.;
-
-  eval_pd(gs,grid,tmp,n1,l1,m1,zeta1);
-
-  #pragma acc parallel loop present(val[0:gs],tmp[0:gs3])
-  for (int j=0;j<gs;j++)
-  {
-    double vx = tmp[3*j+0];
-    double vy = tmp[3*j+1];
-    double vz = tmp[3*j+2];
-    val[j] = vx*vx + vy*vy + vz*vz;
-  }
-
-  return;
-}

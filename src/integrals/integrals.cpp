@@ -5252,7 +5252,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 //high precision 2-center Coulomb
 void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl)
 {
-  if (prl>-1) printf(" beginning compute_all_2c_v2d \n");
+  if (prl>1) printf(" beginning compute_all_2c_v2d \n");
 
  //2c integrals are all in auxiliary basis
   int N = basis.size();

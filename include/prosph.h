@@ -15,7 +15,7 @@ using namespace std;
 
 void print_square_fine(int N, double* S);
 
-//
+
 void test_prosph();
 
 void generate_ps_quad_grid(double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);

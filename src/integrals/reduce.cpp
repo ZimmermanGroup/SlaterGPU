@@ -1215,33 +1215,6 @@ void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, double** val1, double**
   return;
 }
 
-//for PS batching
-void reduce_3c1br(int s1, int s2, int s3, int s4, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C)
-{
-  int N2 = N*N;
-  int N2a = N2*Naux;
-
-#if USE_ACC
- #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],C[0:N2a]) 
-#endif
-  for (int i1=s1;i1<s2;i1++)
-  for (int i2=s3;i2<s4;i2++)
-  for (int i3=s3;i3<s4;i3++)
-  {
-    int ii1 = i1-s1; int ii2 = i2-s3; int ii3 = i3-s3;
-
-    double val = 0.;
-
-   #pragma acc loop reduction(+:val)
-    for (int j=0;j<gs;j++)
-      val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
- 
-    C[i1*N2+i2*N+i3] += val;
-  } //i1,i2,i3
-
-  return;
-}
-
 //fully double precision
 void reduce_3c1b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C)
 {

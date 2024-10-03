@@ -21,17 +21,6 @@ void get_angular_grid(int size_ang, double* ang_g, double* ang_w)
   delete [] ya;
   delete [] za;
 
-#if 0
-  float sumawt = 0.;
-  for (int j=0;j<size_ang;j++)
-    sumawt += ang_w[j];
-  printf(" ang_w: ");
-  for (int j=0;j<size_ang;j++)
-    printf(" %8.5f",ang_w[j]);
-  printf("\n");
-  printf(" sum(ang_w): %8.5f \n",sumawt);
-#endif
-
   return;
 }
 

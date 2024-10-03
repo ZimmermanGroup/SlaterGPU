@@ -2966,12 +2966,8 @@ double norm_sh(int l, int m)
     if (m== 0) return 0.116950322453424;
     if (m== 1) return 0.452946651195697;
     if (m== 2) return 2.396768392486662;
-    //if (m== 2) return 2.*2.396768392486662; //was this
-    //if (m== 2) return 4.7935367850; //?
     if (m== 3) return 0.489238299435250;
     if (m== 4) return 2.075662314881041;
-    //if (m== 4) return 4.*2.075662314881041; //was this
-    //if (m== 4) return 8.3026492595; //?
     if (m== 5) return 0.656382056840170;
   }
   if (l==6) //i

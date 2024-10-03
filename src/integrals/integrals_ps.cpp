@@ -2146,7 +2146,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
         eval_s12v3(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3);
 
         //printf("    m: %i   s12: %2i %2i s56: %2i %2i \n",m,s1,s2,s5,s6);
-        reduce_3c1br(s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+        reduce_3c1b(s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
 
       } //loop sp
 

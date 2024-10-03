@@ -41,7 +41,6 @@ void compute_delta(int natoms, int* atno, float* coords, vector<vector<double> >
 
 void compute_dft_grad(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, bool is_gga, double* vxc, double* vxcs, int gs, float* grid, double* grad, int prl);
 
-//void atomic_charges(int natoms, int gs, float* chg, double* rho, float** wta, int prl);
 void atomic_charges(int natoms, int gs, float* chg, double* rho, float* zta, float** gridall, float** wta, int prl);
 void batomic_charges(float alpha, int natoms, int* atno, float* coords, int nrad, int nang, float* ang_g, float* ang_w, float* chg, double* rho, int prl);
 
