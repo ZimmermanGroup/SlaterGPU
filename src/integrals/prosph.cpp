@@ -973,13 +973,13 @@ void do_4c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
 
  //this will be uneven effort distribution
   int mmax = 4;
-  if (prl>-1) printf("  outer m loop");
+  if (prl>0) printf("  outer m loop");
   for (int m=mmax;m>=0;m--)
   {
     double phi_phase = 0.;
     if (m>0) phi_phase = PI/m/2.;
 
-    if (prl>-1) { printf("."); fflush(stdout); }
+    if (prl>0) { printf("."); fflush(stdout); }
     double cospp = cos(phi_phase); double sinpp = sin(phi_phase);
    #pragma omp parallel for schedule(static,1) num_threads(nomp)
     for (int n=0;n<nomp;n++)
@@ -1078,7 +1078,7 @@ void do_4c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
     acc_set_device_num(0,acc_device_nvidia);
 
   } //outer rotation phi
-  if (prl>-1) printf("\n");
+  if (prl>0) printf("\n");
 
   for (int n=0;n<nomp;n++)
   {

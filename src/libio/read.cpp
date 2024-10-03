@@ -1,8 +1,10 @@
 //use only m=0 components of spherical harmonics
 //do this for l>#
 //#define CYLINDER_Z 1
-#define CYLINDER_Z 6
+#define CYLINDER_Z 8
 //#define CYLINDER_Z 10
+
+#define LMAX_AUX 5
 
 #define GEOM_DEBUG 0
 #define PDEBUG 0
@@ -10,14 +12,14 @@
 #define FDEBUG 0
 #define GDEBUG 0
 #define HDEBUG 0
-
-#define LMAX_AUX 5
+#define IDEBUG 0
+#define JDEBUG 0
 
 #include "read.h"
 
 #include <sstream>
 #define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
-#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
+//#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
 
 double norm(int n, int l, int m, double zeta);
 
@@ -62,6 +64,16 @@ void print_square_diff(int N, double* S1, double* S2)
 void print_square_fine(int N, float* S) 
 {
   for (int n=0;n<N;n++)
+  {
+    for (int m=0;m<N;m++)
+      printf(" %12.8f",S[n*N+m]);
+    printf("\n");
+  }
+}
+
+void print_square_fine(int M, int N, double* S) 
+{
+  for (int n=0;n<M;n++)
   {
     for (int m=0;m<N;m++)
       printf(" %12.8f",S[n*N+m]);
@@ -634,6 +646,37 @@ int read_symm()
   return pp;
 }
 
+int read_mo_symmetry(int N, int* symm)
+{
+  string filename = "SYMM_MO";
+
+  for (int j=0;j<N;j++)
+    symm[j] = 0;
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+  {
+    vector<string> tok_line = split1(line,' ');
+    int Nr = tok_line.size();
+    for (int j=0;j<Nr;j++)
+      symm[j] = atoi(line.c_str());
+    //unassigned
+    for (int j=Nr;j<N;j++)
+      symm[j] = 9;
+  }
+
+  infile.close();
+
+  return 1;
+}
+
 int read_vnuc()
 {
   string filename = "VNUC";
@@ -1099,21 +1142,34 @@ int read_restart()
   return is_restart;
 }
 
+bool check_PS()
+{
+  string filename = "GRIDPS";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  infile.close();
+
+  return 1;
+}
+
 void read_gridps(int& nmu, int& nnu, int& nphi, int type)
 {
   string filename = "GRIDPS";
   if (type==2) filename = "GRIDPS2";
 
-  nmu  = 8; //default
-  nnu  = 8; //default
-  nphi = 8; //default
+  nmu  = 16;
+  nnu  = 8;
+  nphi = 8;
 
   ifstream infile;
   infile.open(filename.c_str());    
   if (!infile)
   {
     printf("  couldn't open GRIDPS file. \n");
-    nmu = nnu = nphi = 0;
     return;
   }
   
@@ -1296,6 +1352,34 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, double* A)
 }
 
 int read_gridpts(int s1, int s2, float* A, string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+  int wi = 0;
+  while (wi<s1)
+  {
+    success = (bool)getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
+    if (tok_line.size()>0)
+    {
+      if (tok_line.size()<s2) { printf(" ERROR: file size incorrect (read_gridpts. file: %s) \n",filename.c_str()); exit(1); }
+      for (int m=0;m<s2;m++)
+        A[wi*s2+m] = atof(tok_line[m+1].c_str());
+      wi++;
+    }
+  }
+  
+  infile.close();
+
+  return 1;
+}
+
+int read_gridpts(int s1, int s2, double* A, string filename)
 {
   ifstream infile;
   infile.open(filename.c_str());
@@ -1730,6 +1814,23 @@ void add_p(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   return;
 }
 
+void add_pz(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta)
+{
+ //2p
+  ao1[0] = n; ao1[1] = 1;
+  ao1[3] = zeta;
+
+  int m = 0;
+  {
+    ao1[2] = m;
+    ao1[4] = norm(n,1,m,zeta);
+
+    basis1.push_back(ao1);
+  }
+
+  return;
+}
+
 void add_dz2(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta)
 {
  //3d
@@ -1740,6 +1841,57 @@ void add_dz2(vector<vector<double> > &basis1, vector<double> ao1, int n, double 
   {
     ao1[2] = m;
     ao1[4] = norm(n,2,m,zeta);
+
+    basis1.push_back(ao1);
+  }
+
+  return;
+}
+
+void add_fz3(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta)
+{
+ //4f
+  ao1[0] = n; ao1[1] = 3;
+  ao1[3] = zeta;
+
+  int m = 0;
+  {
+    ao1[2] = m;
+    ao1[4] = norm(n,3,m,zeta);
+
+    basis1.push_back(ao1);
+  }
+
+  return;
+}
+
+void add_gz4(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta)
+{
+ //5g
+  ao1[0] = n; ao1[1] = 4;
+  ao1[3] = zeta;
+
+  int m = 0;
+  {
+    ao1[2] = m;
+    ao1[4] = norm(n,4,m,zeta);
+
+    basis1.push_back(ao1);
+  }
+
+  return;
+}
+
+void add_hz5(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta)
+{
+ //6h
+  ao1[0] = n; ao1[1] = 5;
+  ao1[3] = zeta;
+
+  int m = 0;
+  {
+    ao1[2] = m;
+    ao1[4] = norm(n,5,m,zeta);
 
     basis1.push_back(ao1);
   }
@@ -1883,6 +2035,70 @@ void add_h(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   return;
 }
 
+void add_i(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int ni)
+{
+ //7i
+  ao1[0] = n; ao1[1] = 6;
+  ao1[3] = zeta;
+
+ #if CYLINDER_Z<=6
+  ao1[2] = 0;
+  ao1[4] = norm(n,6,0,zeta);
+  basis1.push_back(ao1);
+  return;
+ #endif
+ #if IDEBUG
+  ao1[2] = 0;
+  ao1[4] = norm(n,6,0,zeta);
+  basis1.push_back(ao1);
+  return;
+ #endif
+ 
+  int bf = 0;
+  for (int m=-6;m<=6;m++)
+  {
+    ao1[2] = m;
+    ao1[4] = norm(n,6,m,zeta);
+    basis1.push_back(ao1);
+ 
+    bf++; if (bf>ni) break;
+  }
+ 
+  return;
+}
+
+void add_j(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nj)
+{
+ //6h
+  ao1[0] = n; ao1[1] = 7;
+  ao1[3] = zeta;
+
+ #if CYLINDER_Z<=7
+  ao1[2] = 0;
+  ao1[4] = norm(n,7,0,zeta);
+  basis1.push_back(ao1);
+  return;
+ #endif
+ #if HDEBUG
+  ao1[2] = 0;
+  ao1[4] = norm(n,7,0,zeta);
+  basis1.push_back(ao1);
+  return;
+ #endif
+ 
+  int bf = 0;
+  for (int m=-7;m<=7;m++)
+  {
+    ao1[2] = m;
+    ao1[4] = norm(n,7,m,zeta);
+    basis1.push_back(ao1);
+ 
+    bf++; if (bf>nj) break;
+  }
+ 
+  return;
+}
+
 void get_n_l(string aotype, int& n, int& l)
 {
   int size = aotype.length(); 
@@ -1908,9 +2124,18 @@ void get_n_l(string aotype, int& n, int& l)
   else if (char_array[1]=='J')
     l = 7;
 
-  if (char_array[1]=='D' && char_array[2]=='Z' && char_array[3]=='2')
+  if (char_array[1]=='P' && char_array[2]=='Z') // && char_array[3]=='1')
+    l = 11;
+  if (char_array[1]=='D' && char_array[2]=='Z') // && char_array[3]=='2')
     l = 22;
-  else if (n<l+1)
+  if (char_array[1]=='F' && char_array[2]=='Z') // && char_array[3]=='3')
+    l = 33;
+  if (char_array[1]=='G' && char_array[2]=='Z') // && char_array[3]=='4')
+    l = 44;
+  if (char_array[1]=='H' && char_array[2]=='Z') // && char_array[3]=='5')
+    l = 55;
+
+  if (l<11 && n<l+1)
   {
     printf(" ERROR: basis invalid. n: %i l: %i \n",n,l);
     exit(1);
@@ -1968,10 +2193,15 @@ bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vec
             if (l==3) add_f(basis1,b1,n,zeta,7);
             if (l==4) add_g(basis1,b1,n,zeta,9);
             if (l==5) add_h(basis1,b1,n,zeta,11);
-            //if (l==6) add_i(basis1,b1,n,zeta,13);
+            if (l==6) add_i(basis1,b1,n,zeta,13);
+            if (l==7) add_j(basis1,b1,n,zeta,15);
 
-           //add just dz2 function
+           //add just z symmetry function (m=0)
+            if (l==11) add_pz (basis1,b1,n,zeta);
             if (l==22) add_dz2(basis1,b1,n,zeta);
+            if (l==33) add_fz3(basis1,b1,n,zeta);
+            if (l==44) add_gz4(basis1,b1,n,zeta);
+            if (l==55) add_hz5(basis1,b1,n,zeta);
           }
           else if (on_basis==2)
           {
@@ -1981,7 +2211,8 @@ bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vec
             if (l==3) add_f(basis_aux1,b1,n,zeta,7);
             if (l==4) add_g(basis_aux1,b1,n,zeta,9);
             if (l==5) add_h(basis_aux1,b1,n,zeta,11);
-            //if (l==6) add_i(basis_aux1,b1,n,zeta,13);
+            if (l==6) add_i(basis_aux1,b1,n,zeta,13);
+            if (l==7) add_j(basis_aux1,b1,n,zeta,15);
           }
         }
       }
@@ -2290,16 +2521,12 @@ void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<doubl
   if (prl>-1)
   {
     for (int n=0;n<N;n++)
-      printf("   basis(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f Z: %3.2f) \n",n,(int)basis[n][0],(int)basis[n][1],(int)basis[n][2],basis[n][3],basis[n][4],basis[n][5],basis[n][6],basis[n][7],basis[n][8]);
+      printf("   basis(%3i):  %i %i %2i  %6.3f  norm: %8.2f  (XYZ: %8.5f %8.5f %8.5f Z: %3.2f) \n",n,(int)basis[n][0],(int)basis[n][1],(int)basis[n][2],basis[n][3],basis[n][4],basis[n][5],basis[n][6],basis[n][7],basis[n][8]);
   }
 
   int Naux = basis_aux.size();
   printf("  found %2i auxiliary basis functions \n",Naux);
-#if DDEBUG || FDEBUG || GDEBUG
-  if (prl>-1 && Naux<250)
-#else
   if (prl>1)
-#endif
   {
     for (int n=0;n<Naux;n++)
       printf("   basis_aux(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis_aux[n][0],(int)basis_aux[n][1],(int)basis_aux[n][2],basis_aux[n][3],basis_aux[n][4],basis_aux[n][5],basis_aux[n][6],basis_aux[n][7]);
@@ -2910,10 +3137,10 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
   int natoms = read_input(geomfile,gbasis,basis,basis_aux,charge,unpaired,atno,coords);
   //void set_zero_coords_basis(int natoms, double* coords, vector<vector<double> >& basis, vector<vector<double> >& basis_aux)
 
-  bool do_ps_integrals = read_int("PS");
-  if (!do_ps_integrals) do_ps_integrals = read_int("QUAD");
-  if (do_ps_integrals)
-    set_zero_coords_basis(natoms,coords,basis,basis_aux);
+  //bool do_ps_integrals = read_int("PS");
+  //if (!do_ps_integrals) do_ps_integrals = read_int("QUAD");
+  //if (do_ps_integrals)
+  //  set_zero_coords_basis(natoms,coords,basis,basis_aux);
 
   if (natoms<1)
   {
@@ -2929,11 +3156,11 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
   Enn = nuclear_repulsion(natoms,atno,coords);
   if (prl>0) printf("  nuclear repulsion: %12.8f \n",Enn);
 
-
   if (gbasis) return natoms;
 
   int auto_ri = read_ri();
-  //if (auto_ri <= 0) auto_ri = 4; //comment out this if statement before posting on GitHub
+  if (auto_ri<=0) auto_ri = 4;
+
   if (auto_ri>=2)
   {
     basis_aux.clear();
@@ -2946,7 +3173,29 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
     prl++;
   }
 
-  print_basis(natoms,basis,basis_aux,prl);
+ //after creating aux, make tail of Jellium basis match original input exponents
+  bool jellium = read_int("JELLIUM");
+  if (jellium)
+  {
+    double Rc = 1.;
+    double Rc_read = read_float("RC");
+    if (Rc_read>0.) Rc = Rc_read;
+
+    for (int i=0;i<basis.size();i++)
+    {
+      double zt1 = basis[i][3];
+      double zt2 = zt1/(2.*Rc);
+      basis[i][3] = zt2;
+    }
+  }
+
+  int prl1 = prl; 
+ #if PDEBUG || DDEBUG || FDEBUG || GDEBUG || HDEBUG || IDEBUG || JDEBUG
+  prl1 = 2;
+ #endif
+
+  prl1++;
+  print_basis(natoms,basis,basis_aux,prl1);
 
   return natoms;
 }

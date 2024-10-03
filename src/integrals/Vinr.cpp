@@ -2925,9 +2925,9 @@ double norm_sh(int l, int m)
  // l==5 are numerical
   if (l==0)
     return 0.2820947917738782;
-  if (l==1)
+  if (l==1) //p
     return 0.4886025119029200;
-  if (l==2)
+  if (l==2) //d
   {
     if (m==0)
       return 0.3153915652525202;
@@ -2935,7 +2935,7 @@ double norm_sh(int l, int m)
       return 0.5462742152960397;
     return 1.092548430592080;
   }
-  if (l==3)
+  if (l==3) //f
   {
     if (m==-3) return 0.5900435899266435;
     if (m==-2) return 2.890611442640554;
@@ -2945,52 +2945,68 @@ double norm_sh(int l, int m)
     if (m== 2) return 1.445305721320277;
     if (m== 3) return 0.5900435899266435;
   }
-  if (l==4)
+  if (l==4) //g
   {
-    if (m==-4) return 2.503342941797;
-    if (m==-3 || m==3) return 1.770130769780;
-    if (m==-2) return 0.946174695758;
-    if (m==-1) return 0.669046543557;
-    //if (m==-1) return 0.423142187661;
-    if (m== 0) return 0.105785546915;
-    //if (m== 0) return 0.042963579755;
-    if (m== 1) return 0.669046543557;
-    if (m== 2) return 0.473087347879;
-    if (m== 4) return 0.625835735449;
-    //if (m==-4 || m==-3 || m==-2) return 0.62583574;
-    //if (m==-1 || m== 0 || m== 1) return 2.50334294;
-    //if (m== 2 || m== 3 || m== 4) return 1.77013077;
+    if (m==-4) return 2.503342941796705;
+    if (m==-3 || m==3) return 1.770130769779931;
+    if (m==-2) return 0.946174695757560;
+    if (m==-1) return 0.669046543557289;
+    if (m== 0) return 0.105785546915204;
+    if (m== 1) return 0.669046543557289;
+    if (m== 2) return 0.473087347878780;
+    if (m== 4) return 0.625835735449176;
   }
-  if (l==5)
+  if (l==5) //h
   {
-   #if 0
-    if (m==-5) return 0.6563820568;
-    if (m==-4) return 8.3026492595;
-    if (m==-3) return 0.6563820568;
-    if (m==-2) return 0.4892382994;
-    if (m==-1) return 2.0756623149;
-    if (m== 0) return 4.793536785;
-    if (m== 1) return 0.4892382994;
-    if (m== 2) return 0.4529466512;
-    if (m== 3) return 2.3967683925;
-    if (m== 4) return 0.1169503225;
-    if (m== 5) return 0.4529466512;
-   #endif
-    if (m==-5) return 0.6563820568;
-    if (m==-4) return 8.3026492595;
-    if (m==-3) return 0.4892382994;
-    if (m==-2) return 4.7935367850;
-    if (m==-1) return 0.4529466512;
-    if (m== 0) return 0.1169503225;
-    if (m== 1) return 0.4529466512;
-    if (m== 2) return 4.7935367850;
-    if (m== 3) return 0.4892382994;
-    if (m== 4) return 8.3026492595;
-    if (m== 5) return 0.6563820568;
+    if (m==-5) return 0.656382056840170;
+    if (m==-4) return 8.302649259524165;
+    if (m==-3) return 0.489238299435250;
+    if (m==-2) return 4.793536784973324;
+    if (m==-1) return 0.452946651195697;
+    if (m== 0) return 0.116950322453424;
+    if (m== 1) return 0.452946651195697;
+    if (m== 2) return 2.396768392486662;
+    //if (m== 2) return 2.*2.396768392486662; //was this
+    //if (m== 2) return 4.7935367850; //?
+    if (m== 3) return 0.489238299435250;
+    if (m== 4) return 2.075662314881041;
+    //if (m== 4) return 4.*2.075662314881041; //was this
+    //if (m== 4) return 8.3026492595; //?
+    if (m== 5) return 0.656382056840170;
   }
-  if (l==6)
+  if (l==6) //i
   {
-
+    if (m==-6) return 1.366368210383829;
+    if (m==-5) return 2.366619162231752;
+    if (m==-4) return 2.018259602914897;
+    if (m==-3) return 0.921205259514923;
+    if (m==-2) return 0.921205259514923;
+    if (m==-1) return 0.582621362518731;
+    if (m== 0) return 0.063569202267628;
+    if (m== 1) return 0.582621362518731;
+    if (m== 2) return 0.460602629757462;
+    if (m== 3) return 0.921205259514923;
+    if (m== 4) return 0.504564900728724;
+    if (m== 5) return 2.366619162231752;
+    if (m== 6) return 0.683184105191914;
+  }
+  if (l==7) //j
+  {
+    if (m==-7) return 0.707162732524596;
+    if (m==-6) return 5.2919213236038;
+    if (m==-5) return 0.51891557872026;
+    if (m==-4) return 4.151324629762083;
+    if (m==-3) return 0.156458933862294;
+    if (m==-2) return 0.442532692444983;
+    if (m==-1) return 0.090331607582517;
+    if (m== 0) return 0.068284276912005;
+    if (m== 1) return 0.090331607582517;
+    if (m== 2) return 0.221266346222491;
+    if (m== 3) return 0.156458933862294;
+    if (m== 4) return 1.037831157440521;
+    if (m== 5) return 0.51891557872026;
+    if (m== 6) return 2.6459606618019;
+    if (m== 7) return 0.707162732524596;
   }
 
   printf(" ERROR: norm not implemented for l=%i m=%i \n",l,m);

@@ -42,11 +42,16 @@ void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<
   double gm_read = read_float("GAMMA");
   if (gm_read>0.) gamma = gm_read;
 
+  int nbatch = 1;
+  int nbatch_read = read_int("NBATCH");
+  if (nbatch_read>0) nbatch = nbatch_read;
+
  #if 0
   nmu = 8;
   nnu = 4;
   nphi = 4;
  #endif
+
   printf("  PS grid size: %2i %2i %2i quad_order: %2i %2i  w/quad: %6i \n",nmu,nnu,nphi,nquad,nquad2,nmu*nnu*nphi*nquad*nquad*nquad);
 
   double Ssp[N2];
@@ -62,8 +67,8 @@ void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<
   compute_STEn_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,Ssp,Tsp,Ensp,prl);
   compute_pVp_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,pVpsp,prl);
   compute_pVp_3c_ps(natoms,atno,coords,basis,nquad,nquad2,nsplit,nmu,nnu,nphi,pVpsp,prl);
-  compute_2c_ps(0,0,gamma,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
-  compute_3c_ps(0,gamma,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
+  compute_2c_ps(1,0,gamma,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
+  compute_3c_ps(1,0,gamma,nbatch,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
 
   if (prl > 0) printf("Printing PS Integral Files:\n");
   write_S_En_T(N,Ssp,Ensp,Tsp);
@@ -259,10 +264,7 @@ int main(int argc, char* argv[]) {
     #pragma acc exit data copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
     #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc],g[0:N2*N2])
 
-    int nmu, nnu, nphi;
-    read_gridps(nmu,nnu,nphi,1);
-    
-    if (nmu > 0)
+    if (check_PS() > 0)
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl);
     else 
     {

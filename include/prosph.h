@@ -15,11 +15,16 @@ using namespace std;
 
 void print_square_fine(int N, double* S);
 
-
+//
 void test_prosph();
 
-void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
+void generate_ps_quad_grid(double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
+void generate_ps_quad_grid(int wb, int nb, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
+void generate_ps_quad_grid(double cfn, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
+void generate_ps_quad_grid(double cfn, int wb, int nb, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
 void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
+void generate_ps_quad_grid_3c_refine(int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
+void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt);
 
 
 void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, double phi0, double* grid, double* gridm, double* wt, int prl);
@@ -65,6 +70,7 @@ void get_ab_2d(int gs, const double z0, double* val1, double* val2, double* val1
 void get_ab_3d(int gs, const double z0, double* val1, double* val2, double* val1p, double* val2p, double* grid, double* gridm, double* wt, double* val);
 void get_ab_mnp(int gs, const double a, bool do_r12, double Z1, double Z2, int n1, int l1, int m1, int n2, int l2, int m2, double norm1, double norm2, double zt1, double zt2, double* grid, double* gridm, double* wt, double* val);
 
-int sign(double val);
 
 #endif
+
+int sign(double val);

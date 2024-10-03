@@ -442,6 +442,101 @@ void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vec
   return;
 }
 
+/*
+void write_molden_vcf(int natoms, int* atno, double* coords, vector<vector<vcf> > &vcfs, string fname)
+{
+  for (int n=0;n<natoms;n++)
+  for (int j=0;j<vcfs[n].size();j++)
+  if (vcfs[n][j].numerical)
+    return;
+
+  int nvcft = 0;
+  for (int n=0;n<natoms;n++)
+    nvcft += vcfs[n].size();
+  bool found_mu = 0;
+  for (int n=0;n<natoms;n++)
+  for (int j=0;j<vcfs[n].size();j++)
+  if (vcfs[n][j].mu)
+  { found_mu = 1; nvcft++; }
+  if (found_mu) printf(" WARNING: mu lobes from p orbitals in molden output \n");
+
+  int N = nvcft;
+  int N2 = N*N;
+
+  double* jCA = new double[N2]();
+  double R12 = 1.;
+  if (natoms==2) { double a12 = coords[0]-coords[3]; double b12 = coords[1]-coords[4]; double c12 = coords[2]-coords[5]; R12 = sqrt(a12*a12+b12*b12+c12*c12); }
+
+  vector<vector<double> > vbasis;
+  int s1 = 0;
+  for (int n=0;n<natoms;n++)
+  {
+    float A1 = coords[3*n+0]; float B1 = coords[3*n+1]; float C1 = coords[3*n+2];
+
+    vector<vcf> vcf1 = vcfs[n];
+    int nvcf = vcf1.size();
+
+    int jc = 0;
+    for (int j=0;j<nvcf;j++)
+    {
+      float v1 = vcf1[j].v1;
+
+      int n1 = vcf1[j].n; int l1 = vcf1[j].l; int m1 = vcf1[j].m;
+      vector<double> b1;
+      for (int m=0;m<10;m++) b1.push_back(0);
+      b1[5] = A1; b1[6] = B1; b1[7] = C1; 
+      b1[8] = atno[n]; b1[9] = atno[n];
+
+      b1[0] = n1; b1[1] = l1; b1[2] = m1;
+      b1[3] = vcf1[j].zeta;
+      b1[4] = vcf1[j].norm;
+
+      vbasis.push_back(b1);
+
+      if (vcf1[j].mu>0)
+      {
+       //ftns on 2 atoms
+        vbasis.back()[3] = b1[3] = vcf1[j].zeta/R12;
+        if (n==0) { b1[5] = coords[3]; b1[6] = coords[4]; b1[7] = coords[5]; }
+        if (n==1) { b1[5] = coords[0]; b1[6] = coords[1]; b1[7] = coords[2]; }
+        vbasis.push_back(b1);
+
+        jCA[(s1+jc)*N+0] = v1;
+        jCA[(s1+jc+1)*N+0] = -v1;
+
+        jc++;
+      }
+      else if (vcf1[j].Vatom==0) //can't write Vatom
+      {
+        jCA[(s1+jc)*N+0] = v1;
+       //to visualize individual components (all but first component)
+        jCA[(s1+jc)*N+s1+jc] = v1;
+      }
+      jc++;
+
+    } //loop j for atom n
+    s1 += jc;
+  }
+
+  write_molden(0,natoms,atno,coords,vbasis,jCA,1,fname);
+
+  delete [] jCA;
+
+  return;
+}
+*/
+
+
+/*
+void write_molden_vcf(int natoms, int* atno, float* coordsf, vector<vector<vcf> > &vcfs, string fname)
+{
+  double coords[3*natoms];
+  for (int j=0;j<3*natoms;j++)
+    coords[j] = coordsf[j];
+  return write_molden_vcf(natoms,atno,coords,vcfs,fname);
+}
+*/
+
 void write_graph(int size, double* h, string filename)
 {
   ofstream outfile;
@@ -557,6 +652,20 @@ void write_vector(int size, float* vals, string filename)
   return;
 }
 
+void write_int(int val, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  string line = to_string(val);
+
+  outfile << line << endl;
+
+  outfile.close();
+
+  return;
+}
+
 void write_float(double val, string filename)
 {
   ofstream outfile;
@@ -564,6 +673,21 @@ void write_float(double val, string filename)
   outfile << fixed << setprecision(10);
 
   string line = SSTRF(val);
+
+  outfile << line << endl;
+
+  outfile.close();
+
+  return;
+}
+
+void write_double(double val, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+  outfile << fixed << setprecision(10);
+
+  string line = SSTRF2(val);
 
   outfile << line << endl;
 
@@ -585,6 +709,52 @@ void write_gridpts(int s1, int s2, float* A, string filename)
     string line = "";
     for (int j=0;j<s2;j++)
       line += " " + SSTRF(A[i*s2+j]);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
+void write_gridpts(int s1, int s2, double* A, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(15);
+
+  outfile << filename << ":" << endl;
+  for (int i=0;i<s1;i++)
+  {
+    string line = "";
+    for (int j=0;j<s2;j++)
+      line += " " + SSTRF2(A[i*s2+j]);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
+void write_square_clean(int N, double* A, string fname, double thresh, int prl)
+{
+  if (prl>1) printf("  writing %s to file \n",fname.c_str());
+
+  string filename = fname;
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(14);
+
+  outfile << fname << ":" << endl;
+  for (int i=0;i<N;i++)
+  {
+    string line = "";
+    for (int j=0;j<N;j++)
+    if (fabs(A[i*N+j])>thresh)
+      line += " " + SSTRF2(A[i*N+j]);
+    else
+      line += " 0.";
     outfile << line << endl;
   }
 
@@ -721,6 +891,29 @@ void write_Cy(int Naux, int N2, double* C)
   outfile << fixed << setprecision(16);
 
   outfile << "Cyiap:" << endl;
+  for (int i=0;i<N2;i++)
+  {
+    string line = "";
+    for (int j=0;j<Naux;j++)
+      line += " " + SSTRF2(C[i*Naux+j]);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
+void write_Col(int Naux, int N2, double* C)
+{
+  printf("  writing Col to file \n");
+
+  string filename = "Coiap";
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(16);
+
+  outfile << "Coiap:" << endl;
   for (int i=0;i<N2;i++)
   {
     string line = "";

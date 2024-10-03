@@ -5,9 +5,8 @@
 
 using namespace std;
 
-void get_angular_grid(int size_ang, double*& ang_g, double*& ang_w)
+void get_angular_grid(int size_ang, double* ang_g, double* ang_w)
 {
- #if 1
   double* xa = new double[size_ang];
   double* ya = new double[size_ang];
   double* za = new double[size_ang];
@@ -21,25 +20,6 @@ void get_angular_grid(int size_ang, double*& ang_g, double*& ang_w)
   delete [] xa;
   delete [] ya;
   delete [] za;
- #elif 1
-  printf("\n\n\n WARNING: using libgrid \n\n\n");
- //this version is not correct
-  double* ang = new double[3*size_ang];
-  libgrid::lebedev(ang,ang_w,size_ang);
-  for (int i=0;i<3;i++)
-  for (int j=0;j<size_ang;j++)
-    ang_g[j*3+i] = ang[i*size_ang+j];
-  //printf(" ang_w: ");
-  //for (int j=0;j<size_ang;j++)
-  //  printf(" %8.5f",ang_w[j]);
-  //printf("\n");
- #else
-  arma::mat ang(3,size_ang);
-  arma::vec wang(size_ang);
-  libgrid::lebedev(ang, wang);
-  ang_g = ang.memptr();
-  ang_w = wang.memptr();
- #endif
 
 #if 0
   float sumawt = 0.;

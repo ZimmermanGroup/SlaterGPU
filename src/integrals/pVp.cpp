@@ -1824,7 +1824,7 @@ void get_p_5gp1(int gs, float* grid, float* val, float zeta)
 
     val[3*i]   *= z*(zeta*x2*f1+r*f0)*ezor;
     val[3*i+1] *= x*y*z*(zeta*f1 - 6.f*r)*ezor;
-    val[3*i+2] *= x*(zeta*f1*z2 - 3.f*(x2py2-4.f*z2))*ezor;
+    val[3*i+2] *= x*(zeta*f1*z2 - 3.f*r*(x2py2-4.f*z2))*ezor;
   }
   return;
 }
@@ -1872,7 +1872,7 @@ void get_p_5gp3(int gs, float* grid, float* val, float zeta)
     float f0 = x2-3.f*y2;
 
     val[3*i]   *= z*(-zeta*x2*f0 + 3.f*(x-y)*(x+y)*r)*ezor;
-    val[3*i+1] *= x*y*z*(zeta*f0 + 6.f*r)*ezor;
+    val[3*i+1] *= -x*y*z*(zeta*f0 + 6.f*r)*ezor;
     val[3*i+2] *= x*f0*(-zeta*z2 + r)*ezor;
   }
   return;
@@ -1895,7 +1895,7 @@ void get_p_5gp4(int gs, float* grid, float* val, float zeta)
     float f0 = x2*x2-6.f*x2*y2+y2*y2;
 
     val[3*i]   *= x*(-zeta*f0 + 4.f*(x2-3.f*y2)*r)*ezor;
-    val[3*i+1] *= y*(zeta*f0 + 4.f*(3.f*x2-y2)*r)*ezor;
+    val[3*i+1] *= -y*(zeta*f0 + 4.f*(3.f*x2-y2)*r)*ezor;
     val[3*i+2] *= z*zeta*f0*ezor;
   }
   return;
