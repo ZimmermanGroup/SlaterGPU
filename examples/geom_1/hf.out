@@ -96,21 +96,14 @@ This is a GPU run with 1 GPUs found
 Computing Standard Integrals:
   using compute_all_2c_v2 
   using compute_all_3c_v2 
-
- V(no nn): 
-    0.00000
-
- dV(no nn): 
-     0.000000     0.000000     0.000000
-
 -------------------------------
-Integral ST   time: 2.355e-02 s
-Integral 2c2e time: 1.226e-01 s
-Integral Vne  time: 3.000e-08 s
-Integral 3c2e time: 4.516e-01 s
-Integral VdV  time: 8.197e-03 s
+Integral ST   time: 2.453e-02 s
+Integral 2c2e time: 1.216e-01 s
+Integral Vne  time: 2.000e-08 s
+Integral 3c2e time: 4.401e-01 s
+Integral VdV  time: 7.612e-03 s
 -------------------------------
-Integral tot  time: 6.060e-01 s
+Integral tot  time: 5.938e-01 s
 -------------------------------
 Printing Standard Integral Files:
   writing S/En/T to file 

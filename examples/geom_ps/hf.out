@@ -114,73 +114,27 @@ This is a GPU run with 1 GPUs found
 2c2e ints: 6241
 3c3e ints: 31600
 4c4e ints: 160000
-Computing Standard Integrals:
-  using compute_all_2c_v2 
-  using compute_all_3c_v2 
-
- V(no nn): 
-    0.00000
-
- dV(no nn): 
-     0.000000     0.000000     0.000000
-
--------------------------------
-Integral ST   time: 6.536e-03 s
-Integral 2c2e time: 4.628e-02 s
-Integral Vne  time: 3.000e-08 s
-Integral 3c2e time: 7.856e-02 s
-Integral VdV  time: 5.906e-03 s
--------------------------------
-Integral tot  time: 1.373e-01 s
--------------------------------
 Computing prolate spheroidal integrals:
   PS grid size: 36 24  8 quad_order: 12 12  w/quad: 11943936 
   beginning compute_STEn_ps 
-    mem0: 0.078 mem1: 21.535 
-   imaxN: 10 
-   gpu memory available: 21.765 GB 
-   after alloc, gpu memory available: 18.355 GB 
-    using atomic grid (Z:  6).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
-    cf:   1.0  c1:  2.06681  rmax:   44.903 
-    using atomic grid (Z:  8).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
+   gpu memory available: 21.776 GB 
+   after alloc, gpu memory available: 18.366 GB 
   S diagonals accuracy: 
  -14.1 -14.2 -14.5 -15.5 -14.3 -14.3 -14.3 -14.6 -14.6 -14.6 -14.6 -13.9 -14.6 -14.3 -14.2 -14.2 -14.2 -15.0 -15.0 -15.0
   beginning compute_pVp_ps 
-   imaxN: 10 
-   gpu memory available: 21.735 GB 
-   after alloc, gpu memory available: 15.672 GB 
-    using atomic grid (Z:  6).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
-    cf:   1.0  c1:  2.06681  rmax:   44.903 
-    using atomic grid (Z:  8).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
+   gpu memory available: 21.747 GB 
+   after alloc, gpu memory available: 15.683 GB 
   beginning compute_pVp_3c_ps 
-   gs(h): 11943936  11943936 
-   imaxN: 10 
-   gpu memory available: 21.723 GB 
-   after alloc, gpu memory available: 15.672 GB 
-
- WARNING: testing do_overlap in compute_2c_ps 
+   gpu memory available: 21.735 GB 
+   after alloc, gpu memory available: 15.683 GB 
   beginning compute_2c_ps 
-   l: 2 ztmin:  1.92000 
-   imaxN: 41 
    estimated memory needed (2c):  7.920 GB 
-   gpu memory available: 21.723 GB 
-   after alloc, gpu memory available: 13.759 GB 
-    using atomic grid (Z:  6).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
-    cf:   1.0  c1:  2.06681  rmax:   44.903 
-    using atomic grid (Z:  8).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
+   gpu memory available: 21.735 GB 
+   after alloc, gpu memory available: 13.771 GB 
   beginning compute_3c_ps 
-
- WARNING: testing do_overlap in compute_3c_ps 
-   gs(h): 11943936  11943936  nb:  1 
-    mem0:    0.4 mem1:   15.4 
-   iNa: 41 
    estimated memory needed (3c):  6.051 GB 
-   gpu memory available: 21.679 GB 
-   after alloc, gpu memory available: 15.539 GB 
-    using atomic grid (Z:  6).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
-    cf:   1.0  c1:  2.06681  rmax:   44.903 
-    using atomic grid (Z:  8).  nrad: 2000  nang: 2030  gs: 4060000  gsq: 11943936 
-    cf:   1.0  c1:  2.06681  rmax:   44.903 
+   gpu memory available: 21.691 GB 
+   after alloc, gpu memory available: 15.551 GB 
 Printing PS Integral Files:
   writing S/En/T to file 
   writing pVp to file 
