@@ -74,6 +74,58 @@ void reduce_3cenp(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int 
   return;
 }
 
+void reduce_3cenp_v2(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs0, int qos, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* pVp1)
+{
+  return reduce_3cenp(Z3,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp1);
+
+ //slower version of integration
+ // integrates within cells first, then adds it up
+ // could batch over multiple cells
+ // tested against first version, no real difference
+  int gs3 = 3*gs;
+  int gs6 = 6*gs;
+  int N2 = N*N;
+
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s3;i2<s4;i2++)
+  {
+    int ii1 = i1-s1; int ii2 = i2-s3;
+    double* valm = valS1[ii1]; 
+    double* valn = valS2[ii2];
+
+   #pragma acc parallel loop present(valt[0:gs],grid[0:gs6],wt[0:gs])
+    for (int j=0;j<gs;j++)
+    {
+      double R = grid[6*j+3];
+      valt[j] = -Z3/R*wt[j];
+    }
+
+   #pragma acc parallel loop present(valm[0:gs3],valn[0:gs3],valt[0:gs]) 
+    for (int j=0;j<gs0;j++)
+    {
+      double val1 = 0.;
+     #pragma acc loop reduction(+:val1)
+      for (int k=0;k<qos;k++)
+      {
+        int jk = j*qos+k;
+        double dp = valm[3*jk+0]*valn[3*jk+0] + valm[3*jk+1]*valn[3*jk+1] + valm[3*jk+2]*valn[3*jk+2];
+        val1 += dp*valt[jk];
+      }
+      valt[j] = val1;
+    }
+
+    double val = 0.;
+   #pragma acc parallel loop present(valt[0:gs]) reduction(+:val)
+    for (int j=0;j<gs0;j++)
+      val += valt[j];
+
+   #pragma acc serial present(pVp1[0:N2])
+    pVp1[i1*N+i2] += val;
+  }
+
+  return;
+}
+
 void reduce_3cen(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* En1)
 {
   int gs6 = 6*gs;
@@ -211,27 +263,28 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
  //this calculation not accurate yet
   int Nmax = 150;
-  //double mem0 = gs*7.+1.*nmu*nnu*nphi;
+  double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
-    double mem1 = 8.*(gs*3.*Nmax + gs*7.+1.*nmu*nnu*nphi);
-    //double mem1 = 8.*(3.*gs*Nmax + 3.*N2 + 4.*gs6 + 1.*gs);
-    //printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
+    //double mem1 = 8.*(gs*3.*Nmax + 1.*mem0);
+    double mem1 = 8.*(3.*gs*Nmax + mem0 + 3.*N2 + 4.*gs6 + 1.*gs);
     if (mem1<gpumem)
     {
-      Nmax = int(ceil(Nmax*=.85));
-      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
   }
-
-  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements (mem0: %5.3f mem1: %5.3f) \n",mem0*togb,8.*(3.*gs*Nmax + mem0 + 3.*N2 + 4.*gs6 + 1.*gs)*togb); exit(-1); }
-  if (Nmax<=0) {printf("\n ERROR: loop iter'd out. Setting Nmax to 1\n"); Nmax = 1;}
+  //if (Nmax>8)
+  //  Nmax -= 8;
+  //Nmax = 50;
+  //int NNm = read_int("NMAX");
+  //Nmax = NNm;
+  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements (mem0: %5.3f mem1: %5.3f) \n",mem0*togb,8.*(3.*gs*Nmax + mem0 + 3.*N2 + 4.*gs6 + 1.*gs)*togb); exit(-1); }
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1) printf("   imaxN: %2i \n",imaxN);
 
   //double gsxvalsv = 8.*(imaxN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
   //double gsxvalsv_gb = gsxvalsv/1024./1024./1024.;
@@ -287,7 +340,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
     double coordn[6];
     coordn[0] = coordn[1] = coordn[2] = 0.;
 
-    generate_ps_quad_grid(1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+    generate_ps_quad_grid(Z1,1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
     //generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
     add_r1_to_grid(gs,grid,0.,0.,0.);
 
@@ -379,7 +432,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
 
-      generate_ps_quad_grid(2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+      generate_ps_quad_grid(0.,2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
       add_r1_to_grid(gs,grid,0.,0.,0.);
 
       //int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
@@ -413,7 +466,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
           vector<double> basis1 = basis[i1];
           int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
-  
+
          //S
           eval_shd(ii1,gs,grid,valS1[ii1],n1,l1,m1,zeta1);
         }
@@ -687,7 +740,8 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
   get_atnod(natoms,basis,atnod);
 
   int qos = quad_order*quad_order*quad_order;
-  int gs = nmu*nnu*nphi*qos;
+  int gs0 = nmu*nnu*nphi;
+  int gs = gs0*qos;
   int gs3 = 3*gs;
   int gs6 = 6*gs;
 
@@ -702,32 +756,25 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
  //this calculation not accurate yet
   int Nmax = 150;
-  //double mem0 = gs*7.+1.*nmu*nnu*nphi;
+  double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
-    double mem1 = 8.*(gs*6.*Nmax + gs*7.+1.*nmu*nnu*nphi);
-    //double mem1 = 8.*(1.*N2 + 3.*gs6 + 2.*gs + 2.*Nmax*gs3);
-    //printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
+    //double mem1 = 8.*(gs*6.*Nmax + 1.*mem0);
+    double mem1 = 8.*(mem0 + 1.*N2 + 3.*gs6 + 2.*gs + 2.*Nmax*gs3);
     if (mem1<gpumem)
     {
-      Nmax = int(ceil(Nmax*=.8));
-      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
   }
-  //if (Nmax>4)
-  //  Nmax -= 4;
-  //if (Nmax>40) Nmax = 40;
-  //int NNm = read_int("NMAX");
-  //Nmax = NNm;
 
-  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
-  if (Nmax<=0) { printf("\n ERROR: loop iter'd out. Setting Nmax to 1... \n"); Nmax = 1; }
+
+  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1)printf("   imaxN: %2i \n",imaxN);
 
   double gpumem_gb = gpumem/1024./1024./1024.;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
@@ -770,7 +817,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
     double coordn[6];
     coordn[0] = coordn[1] = coordn[2] = 0.;
 
-    generate_ps_quad_grid(1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+    generate_ps_quad_grid(Z1,1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
     add_r1_to_grid(gs,grid,0.,0.,0.);
 
     //j>i
@@ -837,7 +884,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
 
      //pull this out of loop later on
-      generate_ps_quad_grid(2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+      generate_ps_quad_grid(0.,2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
       add_r1_to_grid(gs,grid,0.,0.,0.);
 
      //basis functions on each center
@@ -1061,14 +1108,14 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
 void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl)
 {
-  if (do_overlap) { printf("\n ERROR: cannot do_overlap in compute_2c_ps \n"); exit(-1); }
+  if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_2c_ps \n"); }
 
   if (prl>-1) { if (do_yukawa) printf("  beginning compute_2c_ps (Yukawa. gamma: %5.3f) \n",gamma); else printf("  beginning compute_2c_ps \n"); }
 
   int nomp_max = 1;
  #pragma omp parallel
   nomp_max = omp_get_num_threads();
-  
+
   int ngpu = 0;
  #if USE_ACC
   ngpu = acc_get_num_devices(acc_device_nvidia);
@@ -1094,6 +1141,29 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
 
+ //expand volume?
+  double cfn = 1.1;
+  int lmax = 0;
+  double ztminl[10];
+  for (int l=0;l<10;l++) ztminl[l] = 10000.;
+  for (int l=0;l<10;l++)
+  {
+    for (int j=0;j<N;j++)
+    {
+      int l1 = basis[j][1];
+      if (l1>lmax) lmax = l1;
+      if (l1==l && basis[j][3]<ztminl[l])
+        ztminl[l] = basis[j][3];
+    }
+    if (lmax==l && prl>1)
+      printf("   l: %i ztmin: %8.5f \n",l,ztminl[l]);
+  }
+
+  cfn = 1.;
+  //if (maxl>3) cfn = 1.1;
+
+  //printf("   cfn: %5.2f \n",cfn);
+
   double* grid = new double[gs6];
   double* wt = new double[gs];
 
@@ -1101,31 +1171,28 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   double togb = 1./1024./1024./1024.;
 
  //this calculation not accurate yet
-  int Nmax = 150;
-  //double mem0 = gs*7.+1.*nmu*nnu*nphi;
+  int Nmax = 300;
+  double mem0 = gs*7.+1.*nmu*nnu*nphi;
   while (Nmax>0)
   {
     //double mem1 = 8.*(gs*2.*Nmax + 1.*mem0);
-    double mem1 = 8.*(gs*2.*Nmax + 1.*N2 + 2.*gs6 + 2.*gs);
-    //printf("    mem1: %5.3f Nmax: %2i \n", mem1*togb, Nmax);
+    double mem1 = 8.*(gs*2.*Nmax + 1.*mem0 + 1.*N2 + 2.*gs6 + 2.*gs);
     if (mem1<gpumem)
     {
-      Nmax = int(ceil(Nmax*=.8));
-      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
   }
   //if (Nmax>5)
   //  Nmax -= 5;
-  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
-  if (Nmax<=0) { printf("\n ERROR:loop iter'd out. Setting Nmax to 1 \n"); Nmax = 1; }
+  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1)printf("   imaxN: %2i \n",imaxN);
 
-  double gsxvalsv = 8.*(imaxN*gs*2. + gs*7.+1.*nmu*nnu*nphi); //vals+grid/wt+gridm
+  double gsxvalsv = 8.*(imaxN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
   double gsxvalsv_gb = gsxvalsv/1024./1024./1024.;
   printf("   estimated memory needed (2c): %6.3f GB \n",gsxvalsv_gb);
 
@@ -1170,7 +1237,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
     double coordn[6];
     coordn[0] = 0.; coordn[1] = 0.; coordn[2] = 0.;
 
-    generate_ps_quad_grid(1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+    generate_ps_quad_grid(cfn,Z1,1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
     add_r1_to_grid(gs,grid,0.,0.,0.);
 
     for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
@@ -1222,12 +1289,19 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
         vector<double> basis2 = basis[i2];
         int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
-       //V
-        if (dy)
-          eval_inr_yukawa(gs,grid,valV2[ii2],n2,l2,zeta2,gamma);
+        if (do_overlap)
+        {
+          eval_shd(ii2,gs,grid,valV2[ii2],n2,l2,m2,zeta2);
+        }
         else
-          eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2);
-        eval_sh_3rd(gs,grid,valV2[ii2],n2,l2,m2);
+        {
+         //V
+          if (dy)
+            eval_inr_yukawa(gs,grid,valV2[ii2],n2,l2,zeta2,gamma);
+          else
+            eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2);
+          eval_sh_3rd(gs,grid,valV2[ii2],n2,l2,m2);
+        }
       } //loop i2 evaluate
 
       #pragma acc wait
@@ -1238,8 +1312,6 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
    //two-atom ints
     for (int n=m+1;n<natoms;n++)
-    //for (int n=0;n<natoms;n++)
-    //if (n!=m)
     {
       double Z2 = (double)atno[n];
       //double Z2 = atnod[n];
@@ -1247,7 +1319,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
 
-      generate_ps_quad_grid(2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+      generate_ps_quad_grid(cfn,0.,2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
       add_r1_to_grid(gs,grid,0.,0.,0.);
 
       for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
@@ -1300,15 +1372,25 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
           vector<double> basis2 = basis[i2];
           int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
-         //V
-          if (dy)
-            eval_inr_yukawa(gs,grid,valV2[ii2],n2,l2,zeta2,gamma);
+          if (do_overlap)
+          {
+            eval_shd(ii2,gs,grid,valV2[ii2],n2,l2,m2,zeta2);
+          }
           else
-            eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2);
-          eval_sh_3rd(gs,grid,valV2[ii2],n2,l2,m2);
+          {
+           //V
+            if (dy)
+              eval_inr_yukawa(gs,grid,valV2[ii2],n2,l2,zeta2,gamma);
+            else
+              eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2);
+            eval_sh_3rd(gs,grid,valV2[ii2],n2,l2,m2);
+          }
         }
 
         reduce_2c1(s1,s2,s3,s4,gs,valS1,valV2,iN,N,A);
+
+       //put grid back in place?
+        recenter_grid_zero(gs,grid,A12,B12,C12);
 
       } //sp partition over n
     } //loop n over second atom
@@ -1343,11 +1425,14 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
   double norm1[N];
   double norm2[N];
+  if (do_overlap)
   for (int i=0;i<N;i++)
-  {
+    norm1[i] = norm(basis[i][0],basis[i][1],basis[i][2],basis[i][3]);
+  else
+  for (int i=0;i<N;i++)
     norm1[i] = norm_sv(basis[i][0],basis[i][1],basis[i][2],basis[i][3]);
+  for (int i=0;i<N;i++)
     norm2[i] = basis[i][4];
-  }
   #pragma acc enter data copyin(norm1[0:N],norm2[0:N])
 
   #pragma acc parallel loop independent present(A[0:N2],norm1[0:N],norm2[0:N])
@@ -1416,8 +1501,6 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   //printf(" done with dealloc in 2c integrals \n"); fflush(stdout);
   //auto_crash();
 
-  //delete [] n2i;
-
   for (int i=0;i<iN;i++) delete [] valS1[i];
   for (int i=0;i<iN;i++) delete [] valV2[i];
   delete [] valS1; delete [] valV2;
@@ -1467,7 +1550,7 @@ void init_s12v3(bool dy, int s1, int s2, int s3, int s4, int s5, int s6, int iN,
   return;
 }
 
-void eval_s12v3(bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3)
+void eval_s12v3(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3)
 {
  //single-center evaluations
 
@@ -1497,12 +1580,17 @@ void eval_s12v3(bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, i
     vector<double> basis3 = basis_aux[i3];
     int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
 
-   //V
-    if (dy)
-      eval_inr_yukawa(gs,grid,val3[ii3],n3,l3,zeta3,gamma);
+    if (dol)
+      eval_shd(ii3,gs,grid,val3[ii3],n3,l3,m3,zeta3);
     else
-      eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3);
-    eval_sh_3rd (gs,grid,val3[ii3],n3,l3,m3);
+    {
+     //V
+      if (dy)
+        eval_inr_yukawa(gs,grid,val3[ii3],n3,l3,zeta3,gamma);
+      else
+        eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3);
+      eval_sh_3rd (gs,grid,val3[ii3],n3,l3,m3);
+    }
   }
 
   #pragma acc wait
@@ -1510,7 +1598,7 @@ void eval_s12v3(bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, i
   return;
 }
 
-void eval_s12v3_2(bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3, int type, double A12, double B12, double C12, double A13, double B13, double C13)
+void eval_s12v3_2(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3, int type, double A12, double B12, double C12, double A13, double B13, double C13)
 {
  //multi-center evaluations
 
@@ -1545,18 +1633,24 @@ void eval_s12v3_2(bool dy, double gamma, int s1, int s2, int s3, int s4, int s5,
   if (type==3)
     recenter_grid_zero(gs,grid,A12-A13,B12-B13,C12-C13);
 
+  if (val3!=NULL)
   for (int i3=s5;i3<s6;i3++)
   {
     int ii3 = i3-s5;
     vector<double> basis3 = basis_aux[i3];
     int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
 
-   //V
-    if (dy)
-      eval_inr_yukawa(gs,grid,val3[ii3],n3,l3,zeta3,gamma);
+    if (dol)
+      eval_shd(ii3,gs,grid,val3[ii3],n3,l3,m3,zeta3);
     else
-      eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3);
-    eval_sh_3rd (gs,grid,val3[ii3],n3,l3,m3);
+    {
+     //V
+      if (dy)
+        eval_inr_yukawa(gs,grid,val3[ii3],n3,l3,zeta3,gamma);
+      else
+        eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3);
+      eval_sh_3rd (gs,grid,val3[ii3],n3,l3,m3);
+    }
   }
 
  //return grid to original position
@@ -1627,17 +1721,25 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
 
   int qoh = quad_r_order; //refined grid region
 
+  if (quad_order!=quad_r_order)
+  {
+    printf("\n WARNING: 3c pVp requires quad_orders to be equal \n");
+    qoh = quad_r_order = quad_order;
+  }
+
   int qos = quad_order*quad_order*quad_order;
   int qosh = qoh*qoh*qoh;
   if (natoms<3) nsplit = 1;
   int nsg = nsplit*nsplit*nsplit;
-  int gs = (nmu*nnu*nphi)*qos; //2-atom grid size
-  int gsh = (nmu*nnu*nphi-8)*qos+8*nsg*qosh; //3-atom grid size
+  int gs0 = nmu*nnu*nphi;
+  int gs = gs0*qos; //2-atom grid size
+  int gsh = (gs0-8)*qos+8*nsg*qosh; //3-atom grid size
+  gs0 = nmu*nnu*nphi + 8*(nsg-1); //okay since qos==qoh
   int gs3 = 3*gsh;
   int gs6 = 6*gsh;
 
   //printf("   qos/h: %3i %3i \n",qos,qosh);
-  printf("   gs(h): %8i  %8i \n",gs,gsh);
+  if (prl>1) printf("   gs(h): %8i  %8i \n",gs,gsh);
 
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
@@ -1653,28 +1755,25 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
 
  //this calculation not accurate yet
   int Nmax = 150;
-  //double mem0 = gs6+2*gsh;
+  double mem0 = gs6+2*gsh;
   while (Nmax>0)
   {
-    double mem1 = 8.*(2.*Nmax*gs3 + gs6+2*gsh);
-    //double mem1 = 8.*(2.*Nmax*gs3 + 1.*N2 + 3.*gs6 + 2.*gsh);
-    //printf("    mem1: %5.3f Nmax: %2i \n", mem1*togb, Nmax);
+    //double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0);
+    double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0 + 1.*N2 + 3.*gs6 + 2.*gsh);
     if (mem1<gpumem)
     {
-      Nmax = int(ceil(Nmax*=.9));
-      printf("    mem1: %5.3f Nmax: %2i \n",mem1*togb,Nmax);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
   }
   //if (Nmax>4)
   //  Nmax -= 4;
-  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
-  if (Nmax<=0) { printf("\n ERROR: loop iter'd out. Setting Nmax to 1... \n"); Nmax = 1; }
+  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
     
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl<1) printf("   imaxN: %2i \n",imaxN);
 
   double gpumem_gb = gpumem/1024./1024./1024.;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
@@ -1880,9 +1979,10 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   return;
 }
 
-void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
+void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
 {
   if (prl>-1) { if (do_yukawa) printf("  beginning compute_3c_ps (Yukawa. gamma: %5.3f) \n",gamma); else printf("  beginning compute_3c_ps \n"); }
+  if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_3c_ps \n"); }
 
   int nomp_max = 1;
  #pragma omp parallel
@@ -1896,7 +1996,10 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   int nomp = nomp_max;
  #endif
 
+  double cfn_en = 1.0;
+
   bool dy = do_yukawa;
+  bool dol = do_overlap;
   if (En!=NULL && dy)
   { printf("\n ERROR: cannot run En with Yukawa in compute_3c_ps \n"); exit(-1); }
 
@@ -1917,11 +2020,20 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   int qosh = qoh*qoh*qoh;
   if (natoms<3) nsplit = 1;
   int nsg = nsplit*nsplit*nsplit;
-  int gs = (nmu*nnu*nphi)*qos; //2-atom grid size
-  int gsh = (nmu*nnu*nphi-8)*qos+8*nsg*qosh; //3-atom grid size
+
+  if (0)
+  if (nbatch>1 && natoms>2)
+  {
+    printf("\n WARNING: cannot use nbatch with natoms>2 yet \n");
+    nbatch = 1;
+  }
+
+ //batching both grids
+  int gs = (nmu*nnu*nphi)*qos/nbatch; //2-atom grid size
+  int gsh = ((nmu*nnu*nphi-8)*qos+8*nsg*qosh)/nbatch; //3-atom grid size
   int gs6 = 6*gsh;
 
-  printf("   gs(h): %8i  %8i \n",gs,gsh);
+  if (prl>1) printf("   gs(h): %8i  %8i  nb: %2i \n",gs,gsh,nbatch);
 
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
@@ -1936,32 +2048,25 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   double togb = 1./1024./1024./1024.;
 
  //need to improve this estimate
-  int Nmax = 150;
+  int Nmax = 100;
+  double mem0 = gsh*iN*2. + gsh*7. + 1.*nmu*nnu*nphi + 1.*gs6 + 1.*N2 + 2.*N2a;
   while (Nmax>0)
   {
-    double mem1 = 8.*(2.*gsh*iN + 1.*N2 + 2.*N2a + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
-    //double mem1 = 8.*(2.*gsh*iN + 1.*gsh*Nmax + 7.*gsh + 1.*nmu*nnu*nphi);
-
-    //printf("    mem1: %6.1f Nmax: %2i \n",mem1*togb,Nmax);
+    double mem1 = 8.*(2.*gsh*iN + mem0 + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
     if (mem1<gpumem)
     {
-      Nmax = int(ceil(Nmax*=.6));
-      double mem1 = 8.*(2.*gsh*iN + 1.*N2 + 2.*N2a + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
-
-      //Nmax = Nmax - 6;
-      printf("    mem1: %6.1f Nmax: %2i \n",mem1*togb,Nmax);
+      if (prl>1) printf("    mem0: %6.1f mem1: %6.1f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
   }
-
-
-  //if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
-  if (Nmax<=0) { printf("\n ERROR: loop iter'd out. Setting Nmax to 1... \n"); Nmax = 1; }
+  //if (Nmax>5)
+  //  Nmax -= 5;
+  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements (mem0: %6.1f) \n",mem0*togb); exit(-1); }
 
   vector<vector<int> > n2aip;
   int iNa = get_imax_n2ip(Nmax,natoms,Naux,basis_aux,n2aip);
-  printf("   iNa: %2i \n",iNa);
+  if (prl>1) printf("   iNa: %2i \n",iNa);
 
   int* na2i = new int[natoms]; //needed for copy_symm
   get_imax_n2i(natoms,Naux,basis_aux,na2i);
@@ -1996,6 +2101,8 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
     #pragma acc enter data create(valS1[0:iN][0:gsh],valS2[0:iN][0:gsh],valV3[0:iNa][0:gsh])
     #pragma acc enter data create(valt[0:gsh])
 
+    acc_assign(gs6,grid,0.);
+    acc_assign(gsh,grid,0.);
     acc_assign(N2,Enp,0.);
     acc_assign(N2a,Cp,0.);
   }
@@ -2012,31 +2119,34 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
     int tid = omp_get_thread_num();
     acc_set_device_num(tid,acc_device_nvidia);
 
-    //double Z1 = atnod[m];
+    double Z1 = atnod[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
     double coordn[9];
     coordn[0] = coordn[1] = coordn[2] = 0.;
-
-    generate_ps_quad_grid(1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
-    add_r1_to_grid(gs,grid,0.,0.,0.);
 
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
     int s3 = s1; int s4 = s2;
 
-    for (int sp=0;sp<n2aip[m].size()-1;sp++)
+    for (int wb=0;wb<nbatch;wb++)
     {
-      //int s5 = 0; if (m>0) s5 = na2i[m-1];  int s6 = na2i[m];
-      int s5 = n2aip[m][sp]; int s6 = n2aip[m][sp+1];
+      generate_ps_quad_grid(1.,wb,nbatch,Z1,1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+      add_r1_to_grid(gs,grid,0.,0.,0.);
 
-     //all basis on one atom
-      init_s12v3(dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,valS1,valS2,valV3,wt);
-      eval_s12v3(dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3);
+      for (int sp=0;sp<n2aip[m].size()-1;sp++)
+      {
+        int s5 = n2aip[m][sp]; int s6 = n2aip[m][sp+1];
 
-      //printf("    m: %i   s12: %2i %2i s56: %2i %2i \n",m,s1,s2,s5,s6);
-      reduce_3c1b(s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+       //all basis on one atom
+        init_s12v3(dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,valS1,valS2,valV3,wt);
+        eval_s12v3(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3);
 
-    } //loop sp
+        //printf("    m: %i   s12: %2i %2i s56: %2i %2i \n",m,s1,s2,s5,s6);
+        reduce_3c1b(s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+
+      } //loop sp
+
+    } //loop wb over batches
 
    //two-atom ints
     for (int n=0;n<natoms;n++)
@@ -2047,33 +2157,36 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
 
-      //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i s56: %2i %2i \n",m,n,s1,s2,s3,s4,s5,s6);
-      generate_ps_quad_grid(2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
-      add_r1_to_grid(gs,grid,0.,0.,0.);
-
       s3 = 0; if (n>0) s3 = n2i[n-1]; s4 = n2i[n];
 
-      for (int sp=0;sp<n2aip[n].size()-1;sp++)
+      //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i s56: %2i %2i \n",m,n,s1,s2,s3,s4,s5,s6);
+      for (int wb=0;wb<nbatch;wb++)
       {
-        //s5 = 0; if (n>0) s5 = na2i[n-1]; s6 = na2i[n];
-        int s5 = n2aip[n][sp]; int s6 = n2aip[n][sp+1];
-        //printf(" n: %i  s5/6: %3i %3i \n",n,s5,s6);
+        generate_ps_quad_grid(1.,wb,nbatch,0.,2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+        add_r1_to_grid(gs,grid,0.,0.,0.);
 
-       //s1 on atom 1, s2v3 on atom 2
-        init_s12v3  (dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
-        eval_s12v3_2(dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,1,A12,B12,C12,0.,0.,0.);
+        for (int sp=0;sp<n2aip[n].size()-1;sp++)
+        {
+          int s5 = n2aip[n][sp]; int s6 = n2aip[n][sp+1];
+          //printf(" n: %i  s5/6: %3i %3i \n",n,s5,s6);
 
-        reduce_3c1b(s5,s6,s1,s2,s3,s4,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+         //s1 on atom 1, s2v3 on atom 2
+          init_s12v3  (dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
+          eval_s12v3_2(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,1,A12,B12,C12,0.,0.,0.);
 
-       //s12 on atom 1, v3 on atom 2
-        int s3b = s1; int s4b = s2;
-        //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i s56: %2i %2i \n",m,n,s1,s2,s3,s4,s5,s6);
+          reduce_3c1b(s5,s6,s1,s2,s3,s4,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
 
-        init_s12v3  (dy,s1,s2,s3b,s4b,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
-        eval_s12v3_2(dy,gamma,s1,s2,s3b,s4b,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,2,A12,B12,C12,0.,0.,0.);
+         //s12 on atom 1, v3 on atom 2
+          int s3b = s1; int s4b = s2;
+          //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i s56: %2i %2i \n",m,n,s1,s2,s3,s4,s5,s6);
 
-        reduce_3c1b(s5,s6,s1,s2,s3b,s4b,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
-      }
+          init_s12v3  (dy,s1,s2,s3b,s4b,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
+          eval_s12v3_2(dol,dy,gamma,s1,s2,s3b,s4b,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,2,A12,B12,C12,0.,0.,0.);
+
+          reduce_3c1b(s5,s6,s1,s2,s3b,s4b,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+        }
+      } //loop wb over nbatch
+
     } //loop n over second atom
 
    //three-atom case
@@ -2097,7 +2210,6 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
 
         for (int sp=0;sp<n2aip[p].size()-1;sp++)
         {
-          //s5 = 0; if (p>0) s5 = na2i[p-1]; s6 = na2i[p];
           int s5 = n2aip[p][sp]; int s6 = n2aip[p][sp+1];
           //printf(" p: %i  s5/6: %3i %3i \n",p,s5,s6);
 
@@ -2108,18 +2220,20 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
           get_ztm_lm(s3,s4,basis,ztm2,lm2);
           //printf("    3c ztm/lm: %8.5f %i - %8.5f %i \n",ztm1,lm1,ztm2,lm2);
 
-          //generate_ps_quad_grid(3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
-          generate_ps_quad_grid_3c_refine(ztm1,ztm2,nsplit,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
-          add_r1_to_grid(gsh,grid,0.,0.,0.);
+          for (int wb=0;wb<nbatch;wb++)
+          {
+            generate_ps_quad_grid_3c_refine(wb,nbatch,ztm1,ztm2,nsplit,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+            add_r1_to_grid(gsh,grid,0.,0.,0.);
 
-         //s1 on atom 1, s2 on atom 2, v3 on atom 3
-          init_s12v3  (dy,s1,s2,s3,s4,s5,s6,iN,iNa,gsh,              valS1,valS2,valV3,wt);
-          eval_s12v3_2(dy,gamma,s1,s2,s3,s4,s5,s6,gsh,grid,basis,basis_aux,valS1,valS2,valV3,3,A12,B12,C12,A13,B13,C13);
+           //s1 on atom 1, s2 on atom 2, v3 on atom 3
+            init_s12v3  (dy,s1,s2,s3,s4,s5,s6,iN,iNa,gsh,              valS1,valS2,valV3,wt);
+            eval_s12v3_2(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gsh,grid,basis,basis_aux,valS1,valS2,valV3,3,A12,B12,C12,A13,B13,C13);
 
-          reduce_3c1b(s5,s6,s1,s2,s3,s4,gsh,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+            reduce_3c1b(s5,s6,s1,s2,s3,s4,gsh,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+          }
         }
 
-        if (!dy)
+        if (!dol && !dy)
         {
          //////////////////////////////////////////////////////////////////////////////////////////////////////
          // reduction over E-n attraction
@@ -2131,20 +2245,25 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
           coordn[6] = A12; coordn[7] = B12; coordn[8] = C12;
         #endif
 
+          //printf("  mnp: %i %i %i  xyz: %8.5f %8.5f %8.5f  %8.5f %8.5f %8.5f  %8.5f %8.5f %8.5f \n",m,n,p,coordn[0],coordn[1],coordn[2],coordn[3],coordn[4],coordn[5],coordn[6],coordn[7],coordn[8]);
+
           double ztm1 = 0.; int lm1 = 0; double ztm2 = 0.; int lm2 = 0;
           get_ztm_lm(s1,s2,basis,ztm1,lm1);
           get_ztm_lm(s3,s4,basis,ztm2,lm2);
           //printf("    3c ztm/lm: %8.5f %i - %8.5f %i \n",ztm1,lm1,ztm2,lm2);
 
-          //generate_ps_quad_grid(3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
-          generate_ps_quad_grid_3c_refine(ztm1,ztm2,nsplit,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
-          add_r1_to_grid(gsh,grid,0.,0.,0.);
+          for (int wb=0;wb<nbatch;wb++)
+          {
+            //generate_ps_quad_grid(3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+            generate_ps_quad_grid_3c_refine(cfn_en,wb,nbatch,ztm1,ztm2,nsplit,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+            add_r1_to_grid(gsh,grid,0.,0.,0.);
 
-          init_s12v3  (0,s1,s2,s3,s4,0,0,iN,iNa,gsh,              valS1,valS2,NULL,wt);
-          eval_s12v3_2(0,0.,s1,s2,s3,s4,0,0,gsh,grid,basis,basis_aux,valS1,valS2,NULL,3,A12,B12,C12,A13,B13,C13);
+            init_s12v3  (0,s1,s2,s3,s4,0,0,iN,iNa,gsh,              valS1,valS2,NULL,wt);
+            eval_s12v3_2(0,0,0.,s1,s2,s3,s4,0,0,gsh,grid,basis,basis_aux,valS1,valS2,NULL,3,A12,B12,C12,A13,B13,C13);
 
-          recenter_grid_zero(gsh,grid,-A13,-B13,-C13);
-          reduce_3cen(Z3,s1,s2,s3,s4,N,iN,gsh,grid,valS1,valS2,valt,wt,Enp);
+            recenter_grid_zero(gsh,grid,-A13,-B13,-C13);
+            reduce_3cen(Z3,s1,s2,s3,s4,N,iN,gsh,grid,valS1,valS2,valt,wt,Enp);
+          }
          //////////////////////////////////////////////////////////////////////////////////////////////////////
         }
 
@@ -2158,8 +2277,12 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
 
   double norm1[Naux];
   double norm2[N];
+  if (!dol)
   for (int i=0;i<Naux;i++)
     norm1[i] = norm_sv(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3]);
+  else
+  for (int i=0;i<Naux;i++)
+    norm1[i] = norm(basis_aux[i][0],basis_aux[i][1],basis_aux[i][2],basis_aux[i][3]);
   for (int i=0;i<N;i++)
     norm2[i] = basis[i][4];
   #pragma acc enter data copyin(norm1[0:Naux],norm2[0:N])
@@ -2186,7 +2309,7 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
     acc_set_device_num(0,acc_device_nvidia);
     #pragma acc update device(C[0:N2a])
 
-    if (!dy)
+    if (!dol && !dy)
     {
       for (int i=0;i<N;i++)
       for (int j=0;j<N;j++)
@@ -2203,7 +2326,7 @@ void compute_3c_ps(bool do_yukawa, double gamma, int natoms, int* atno, double* 
   }
   else
   {
-    if (!dy)
+    if (!dol && !dy)
     {
      #pragma acc parallel loop independent present(Enp[0:N2],norm2[0:N])
       for (int i=0;i<N;i++)
@@ -2506,12 +2629,84 @@ void eval_s14c(int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8, i
   return;
 }
 
-void reduce_4c_ol1(int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8, int gs, double** val1, double** val2, double** val3, double** val4, int N, int iN, double* olp)
+void reduce_4c_ol1(int ii1, int ii2, int s5, int s6, int s7, int s8, int gs, double* valm, double* valn, double** val3, double** val4, int iN, int M, int M2, int M3, int M4, double* tmp)
+{
+ //integrate second pair of ftns
+
+ #pragma acc parallel loop collapse(2) present(valm[0:gs],valn[0:gs],val3[0:iN][0:gs],val4[0:iN][0:gs],tmp[0:M4])
+  for (int i3=s5;i3<s6;i3++)
+  for (int i4=s7;i4<s8;i4++)
+  {
+    int ii3 = i3-s5;
+    int ii4 = i4-s7;
+
+    double* valp = val3[ii3];
+    double* valq = val4[ii4];
+
+    double v1 = 0.;
+   #pragma acc loop reduction(+:v1)
+    for (int j=0;j<gs;j++)
+      v1 += valm[j]*valn[j]*valp[j]*valq[j];
+
+    tmp[ii1*M3+ii2*M2+ii3*M+ii4] = v1;
+  }
+
+  return;
+}
+
+//worth exploring acc optimization
+void reduce_4c_ol1(int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8, int gs, double** val1, double** val2, double** val3, double** val4, int N, int iN, double* tmp, double* olp)
 {
   int N2 = N*N;
   int N3 = N2*N;
-  int N4 = N3*N;
 
+ //save GPU memory for N4 array
+  int s12 = s2-s1;
+  int s34 = s4-s3;
+  int s56 = s6-s5;
+  int s78 = s8-s7;
+  int M = s78;
+  int M2 = s56*M;
+  int M3 = s34*M2;
+  int M4 = s12*M3;
+
+ //integrals have 24-fold symmetry.
+ // currently using only 2-fold
+  bool symm_one = 0;
+  bool symm_two = 0;
+  if (s1==s3)
+    symm_one = 1;
+  if (s5==s7)
+    symm_two = 1;
+
+  //if (symm_one)
+  //  printf("    using symm_one \n");
+
+  if (symm_one)
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s3;i2<=i1;i2++)
+  {
+    int ii1 = i1-s1;
+    int ii2 = i2-s3;
+
+    double* valm = val1[ii1];
+    double* valn = val2[ii2];
+
+    reduce_4c_ol1(ii1,ii2,s5,s6,s7,s8,gs,valm,valn,val3,val4,iN,M,M2,M3,M4,tmp);
+
+   #pragma acc serial present(tmp[0:M4])
+    for (int i3=s5;i3<s6;i3++)
+    for (int i4=s7;i4<s8;i4++)
+    {
+      int ii3 = i3-s5;
+      int ii4 = i4-s7;
+
+      double v1 = tmp[ii1*M3+ii2*M2+ii3*M+ii4];
+      tmp[ii2*M3+ii1*M2+ii3*M+ii4] = v1;
+    }
+  }
+
+  if (!symm_one)
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   {
@@ -2521,24 +2716,15 @@ void reduce_4c_ol1(int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s
     double* valm = val1[ii1];
     double* valn = val2[ii2];
 
-   #pragma acc parallel loop collapse(2) present(valm[0:gs],valn[0:gs],val3[0:iN][0:gs],val4[0:iN][0:gs],olp[0:N4])
-    for (int i3=s5;i3<s6;i3++)
-    for (int i4=s7;i4<s8;i4++)
-    {
-      int ii3 = i3-s5;
-      int ii4 = i4-s7;
-
-      double* valp = val3[ii3];
-      double* valq = val4[ii4];
-
-      double v1 = 0.;
-     #pragma acc loop reduction(+:v1)
-      for (int j=0;j<gs;j++)
-        v1 += valm[j]*valn[j]*valp[j]*valq[j];
-
-      olp[i1*N3+i2*N2+i3*N+i4] = v1;
-    }
+    reduce_4c_ol1(ii1,ii2,s5,s6,s7,s8,gs,valm,valn,val3,val4,iN,M,M2,M3,M4,tmp);
   }
+
+  #pragma acc update self(tmp[0:M4])
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s3;i2<s4;i2++)
+  for (int i3=s5;i3<s6;i3++)
+  for (int i4=s7;i4<s8;i4++)
+    olp[i1*N3+i2*N2+i3*N+i4] = tmp[(i1-s1)*M3+(i2-s3)*M2+(i3-s5)*M+(i4-s7)];
 
   return;
 }
@@ -2565,6 +2751,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
   int N3 = N2*N;
   int N4 = N3*N;
 
+//  quad_r_order = quad_order;
   int qos = quad_order*quad_order*quad_order;
   int qoh = quad_r_order;
   int qosh = qoh*qoh*qoh;
@@ -2588,8 +2775,10 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
   double** valS3 = new double*[iN]; for (int i=0;i<iN;i++) valS3[i] = new double[gshh];
   double** valS4 = new double*[iN]; for (int i=0;i<iN;i++) valS4[i] = new double[gshh];
   double* valt = new double[gshh];
- //CPMZ reconfigure this
-  double* olp = new double[N4];
+ //CPMZ reconfiguring this
+  int M4 = iN*iN*iN*iN;
+  double* tmp = new double[M4];
+  double* olp = new double[N4]();
 
  #if USE_ACC
  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
@@ -2598,12 +2787,14 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
     int tid = n;
     acc_set_device_num(tid,acc_device_nvidia);
 
-    #pragma acc enter data create(olp[0:N4])
+    //#pragma acc enter data create(olp[0:N4])
+    #pragma acc enter data create(tmp[0:M4])
     #pragma acc enter data create(grid[0:gs6],wt[0:gshh])
     #pragma acc enter data create(valS1[0:iN][0:gshh],valS2[0:iN][0:gshh],valS3[0:iN][0:gshh],valS4[0:iN][0:gshh])
     #pragma acc enter data create(valt[0:gshh])
 
-    acc_assign(N4,olp,0.);
+    acc_assign(M4,tmp,0.);
+    //acc_assign(N4,olp,0.);
   }
   acc_set_device_num(0,acc_device_nvidia);
  #endif
@@ -2622,7 +2813,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
     double coordn[12];
     coordn[0] = coordn[1] = coordn[2] = 0.;
 
-    generate_ps_quad_grid(1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+    generate_ps_quad_grid(Z1,1,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
     add_r1_to_grid(gs,grid,0.,0.,0.);
 
    //all basis on one atom
@@ -2630,7 +2821,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
     eval_s14(s1,s2,s1,s2,s1,s2,s1,s2,gs,grid,basis,valS1,valS2,valS3,valS4,0,0.,0.,0.);
 
     //printf("    m: %i   s12: %2i %2i s56: %2i %2i \n",m,s1,s2,s5,s6);
-    reduce_4c_ol1(s1,s2,s1,s2,s1,s2,s1,s2,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+    reduce_4c_ol1(s1,s2,s1,s2,s1,s2,s1,s2,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
    //two-atom ints
     for (int n=m+1;n<natoms;n++)
@@ -2643,26 +2834,26 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
 
       //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i \n",m,n,s1,s2,s3,s4);
-      generate_ps_quad_grid(2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+      generate_ps_quad_grid(0.,2,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
       add_r1_to_grid(gs,grid,0.,0.,0.);
 
      //s1 on atom 1, s234 on atom 2
       init_s14(s1,s2,s3,s4,s3,s4,s3,s4,iN,gs,valS1,valS2,valS3,valS4,wt);
       eval_s14(s1,s2,s3,s4,s3,s4,s3,s4,gs,grid,basis,valS1,valS2,valS3,valS4,1,A12,B12,C12);
 
-      reduce_4c_ol1(s1,s2,s3,s4,s3,s4,s3,s4,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+      reduce_4c_ol1(s1,s2,s3,s4,s3,s4,s3,s4,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
      //s12 on atom 1, s34 on atom 2
       init_s14(0,0,s1,s2,0,0,0,0,iN,gs,valS1,valS2,valS3,valS4,wt);
       eval_s14(0,0,s1,s2,0,0,0,0,gs,grid,basis,valS1,valS2,valS3,valS4,0,A12,B12,C12);
 
-      reduce_4c_ol1(s1,s2,s1,s2,s3,s4,s3,s4,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+      reduce_4c_ol1(s1,s2,s1,s2,s3,s4,s3,s4,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
      //s123 on atom 1, s4 on atom 2
       init_s14(0,0,0,0,s1,s2,0,0,iN,gs,valS1,valS2,valS3,valS4,wt);
       eval_s14(0,0,0,0,s1,s2,0,0,gs,grid,basis,valS1,valS2,valS3,valS4,0,A12,B12,C12);
 
-      reduce_4c_ol1(s1,s2,s1,s2,s1,s2,s3,s4,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+      reduce_4c_ol1(s1,s2,s1,s2,s1,s2,s3,s4,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
     } //loop n over second atom
 
@@ -2691,7 +2882,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
         double ztm = 0.; int lm = 0;
         get_ztm_lm(s5,s6,basis,ztm,lm);
 
-        generate_ps_quad_grid(3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+        generate_ps_quad_grid(0.,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
         add_r1_to_grid(gsh,grid,0.,0.,0.);
 
        //need all unique combinations, as each atom is unique
@@ -2700,13 +2891,13 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
         init_s14(s1,s2,s1,s2,s3,s4,s5,s6,iN,gsh,valS1,valS2,valS3,valS4,wt);
         eval_s14b(s1,s2,s1,s2,s3,s4,s5,s6,gsh,grid,basis,valS1,valS2,valS3,valS4,1,A12,B12,C12,A13,B13,C13);
 
-        reduce_4c_ol1(s1,s2,s1,s2,s3,s4,s5,s6,gsh,valS1,valS2,valS3,valS4,N,iN,olp);
+        reduce_4c_ol1(s1,s2,s1,s2,s3,s4,s5,s6,gsh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
        //s1 on atom 1, s23 on atom 2, s4 on atom 3 (type==2)
         init_s14(0,0,s3,s4,0,0,0,0,iN,gsh,valS1,valS2,valS3,valS4,wt);
         eval_s14b(0,0,s3,s4,0,0,0,0,gsh,grid,basis,valS1,valS2,valS3,valS4,2,A12,B12,C12,A13,B13,C13);
 
-        reduce_4c_ol1(s1,s2,s3,s4,s3,s4,s5,s6,gsh,valS1,valS2,valS3,valS4,N,iN,olp);
+        reduce_4c_ol1(s1,s2,s3,s4,s3,s4,s5,s6,gsh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
        //s1 on atom 1, s2 on atom 2, s34 on atom 3 (type==3)
        // works but most basis ftns should be on atoms 1+2
@@ -2718,7 +2909,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
         //init_s14(0,0,s3,s4,s5,s6,s5,s6,iN,gsh,valS1,valS2,valS3,valS4,wt);
         //eval_s14b(0,0,s3,s4,s5,s6,s5,s6,gsh,grid,basis,valS1,valS2,valS3,valS4,4,A12,B12,C12,A13,B13,C13);
 
-        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s5,s6,gsh,valS1,valS2,valS3,valS4,N,iN,olp);
+        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s5,s6,gsh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
       } //loop p over third atom
 
@@ -2748,7 +2939,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
         coordn[9] = A14; coordn[10] = B14; coordn[11] = C14;
 
        //CPMZ need to fix this up
-        generate_ps_quad_grid(4,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+        generate_ps_quad_grid(0.,4,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
         add_r1_to_grid(gshh,grid,0.,0.,0.);
 
         int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
@@ -2762,7 +2953,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
         init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gshh,valS1,valS2,valS3,valS4,wt);
         eval_s14c(s1,s2,s3,s4,s5,s6,s7,s8,gshh,grid,basis,valS1,valS2,valS3,valS4,A12,B12,C12,A13,B13,C13,A14,B14,C14);
 
-        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gshh,valS1,valS2,valS3,valS4,N,iN,olp);
+        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gshh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
       } //loop pq over third and fourth atoms
     } //loop n over second atom
@@ -2773,8 +2964,10 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
   double norm[N];
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
-  #pragma acc enter data copyin(norm[0:N])
+  //#pragma acc enter data copyin(norm[0:N])
 
+ #if 0
+ //olp no longer stored on GPU
   if (nomp>1)
   {
     double* olt = new double[N4]();
@@ -2797,10 +2990,11 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
 
     delete [] olt;
   }
+ #endif
 
-  copy_symm_4c_ps(natoms,n2i,N,olp);
+  copy_symm_4c_ps_cpu(natoms,n2i,N,olp);
 
- #pragma acc parallel loop collapse(4) present(olp[0:N4],norm[0:N])
+ //#pragma acc parallel loop collapse(4) present(olp[0:N4],norm[0:N])
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
   for (int k=0;k<N;k++)
@@ -2809,7 +3003,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
     double n1234 = norm[i]*norm[j]*norm[k]*norm[l];
     olp[i*N3+j*N2+k*N+l] *= n1234;
   }
-  #pragma acc update self(olp[0:N4])
+  //#pragma acc update self(olp[0:N4])
 
   for (int j=0;j<N4;j++)
     ol[j] = olp[j];
@@ -2828,6 +3022,8 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
     }
   }
 
+  #pragma acc exit data delete(norm[0:N])
+
  #if USE_ACC
  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
   for (int n=0;n<nomp;n++)
@@ -2836,7 +3032,6 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
     acc_set_device_num(tid,acc_device_nvidia);
 
     #pragma acc exit data delete(olp[0:N4])
-    #pragma acc exit data delete(norm[0:N])
     #pragma acc exit data delete(grid[0:gs6],wt[0:gshh])
     #pragma acc exit data delete(valS1[0:iN][0:gshh],valS2[0:iN][0:gshh],valS3[0:iN][0:gshh],valS4[0:iN][0:gshh])
     #pragma acc exit data delete(valt[0:gshh])
@@ -2863,7 +3058,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
 void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl)
 {
   int Nmax = 50;
-  if (basis.size()<Nmax && quad_order<24)
+  if (basis.size()<Nmax && quad_order<10)
     return compute_4c_ol_ps_fast(natoms,atno,coords,basis,quad_order,quad_r_order,nmu,nnu,nphi,ol,prl);
 
   if (prl>-1) printf("  beginning compute_4c_ol_ps \n");
@@ -2885,6 +3080,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   int N3 = N2*N;
   int N4 = N3*N;
 
+//  quad_r_order = quad_order;
   int qos = quad_order*quad_order*quad_order;
   int qoh = quad_r_order;
   int qosh = qoh*qoh*qoh;
@@ -2906,7 +3102,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1) printf("   imaxN: %2i \n",imaxN);
 
  //needed for copy_symm ftn
   int* n2i = new int[natoms];
@@ -2920,8 +3116,10 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   double** valS3 = new double*[iN]; for (int i=0;i<iN;i++) valS3[i] = new double[gshh];
   double** valS4 = new double*[iN]; for (int i=0;i<iN;i++) valS4[i] = new double[gshh];
   double* valt = new double[gshh];
- //CPMZ reconfigure this
-  double* olp = new double[N4];
+ //CPMZ reconfiguring this
+  int M4 = iN*iN*iN*iN;
+  double* tmp = new double[M4];
+  double* olp = new double[N4]();
 
  #if USE_ACC
  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
@@ -2930,13 +3128,15 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
     int tid = n;
     acc_set_device_num(tid,acc_device_nvidia);
 
-    #pragma acc enter data create(olp[0:N4])
+    //#pragma acc enter data create(olp[0:N4])
+    #pragma acc enter data create(tmp[0:M4])
 
     #pragma acc enter data create(grid[0:gs6],wt[0:gshh])
     #pragma acc enter data create(valS1[0:iN][0:gshh],valS2[0:iN][0:gshh],valS3[0:iN][0:gshh],valS4[0:iN][0:gshh])
     #pragma acc enter data create(valt[0:gshh])
 
-    acc_assign(N4,olp,0.);
+    acc_assign(M4,tmp,0.);
+    //acc_assign(N4,olp,0.);
   }
   acc_set_device_num(0,acc_device_nvidia);
  #endif
@@ -2956,7 +3156,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
     double coordn[12];
     coordn[0] = coordn[1] = coordn[2] = 0.;
 
-    generate_ps_quad_grid(1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+    generate_ps_quad_grid(Z1,1,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
     add_r1_to_grid(gs,grid,0.,0.,0.);
 
    //all basis on one atom
@@ -2975,7 +3175,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
       init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gs,valS1,valS2,valS3,valS4,wt);
       eval_s14(s1,s2,s3,s4,s5,s6,s7,s8,gs,grid,basis,valS1,valS2,valS3,valS4,0,0.,0.,0.);
 
-      reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+      reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
     }
 
    //two-atom ints
@@ -2986,7 +3186,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
 
-      generate_ps_quad_grid(2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+      generate_ps_quad_grid(0.,2,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
       add_r1_to_grid(gs,grid,0.,0.,0.);
 
       //int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
@@ -3006,7 +3206,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
         init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gs,valS1,valS2,valS3,valS4,wt);
         eval_s14(s1,s2,s3,s4,s5,s6,s7,s8,gs,grid,basis,valS1,valS2,valS3,valS4,1,A12,B12,C12);
 
-        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
       }
 
       for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
@@ -3025,7 +3225,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
         init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gs,valS1,valS2,valS3,valS4,wt);
         eval_s14(s1,s2,s3,s4,s5,s6,s7,s8,gs,grid,basis,valS1,valS2,valS3,valS4,2,A12,B12,C12);
 
-        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
       }
 
       for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
@@ -3044,7 +3244,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
         init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gs,valS1,valS2,valS3,valS4,wt);
         eval_s14(s1,s2,s3,s4,s5,s6,s7,s8,gs,grid,basis,valS1,valS2,valS3,valS4,3,A12,B12,C12);
 
-        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,olp);
+        reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gs,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
       } //loop sp12
 
     } //loop n over second atom
@@ -3074,7 +3274,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
           get_ztm_lm(s7,s8,basis,ztm,lm);
         }
 
-        generate_ps_quad_grid(3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+        generate_ps_quad_grid(0.,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
         add_r1_to_grid(gsh,grid,0.,0.,0.);
 
        //need all unique combinations, as each atom is unique
@@ -3092,7 +3292,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
           init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gsh,valS1,valS2,valS3,valS4,wt);
           eval_s14b(s1,s2,s3,s4,s5,s6,s7,s8,gsh,grid,basis,valS1,valS2,valS3,valS4,1,A12,B12,C12,A13,B13,C13);
 
-          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gsh,valS1,valS2,valS3,valS4,N,iN,olp);
+          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gsh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
         }
 
         for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
@@ -3109,7 +3309,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
           init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gsh,valS1,valS2,valS3,valS4,wt);
           eval_s14b(s1,s2,s3,s4,s5,s6,s7,s8,gsh,grid,basis,valS1,valS2,valS3,valS4,2,A12,B12,C12,A13,B13,C13);
 
-          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gsh,valS1,valS2,valS3,valS4,N,iN,olp);
+          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gsh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
         }
 
         for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
@@ -3127,7 +3327,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
           init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gsh,valS1,valS2,valS3,valS4,wt);
           eval_s14b(s1,s2,s3,s4,s5,s6,s7,s8,gsh,grid,basis,valS1,valS2,valS3,valS4,3,A12,B12,C12,A13,B13,C13);
 
-          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gsh,valS1,valS2,valS3,valS4,N,iN,olp);
+          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gsh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
         }
 
       } //loop p over third atom
@@ -3158,7 +3358,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
         coordn[9] = A14; coordn[10] = B14; coordn[11] = C14;
 
        //CPMZ need to fix this up
-        generate_ps_quad_grid(4,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+        generate_ps_quad_grid(0.,4,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
         add_r1_to_grid(gshh,grid,0.,0.,0.);
 
         //printf("  mnpq: %i %i %i %i   s12: %2i %2i  s34: %2i %2i  s56: %2i %2i  s78: %2i %2i \n",m,n,p,q,s1,s2,s3,s4,s5,s6,s7,s8);
@@ -3177,7 +3377,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
           init_s14(s1,s2,s3,s4,s5,s6,s7,s8,iN,gshh,valS1,valS2,valS3,valS4,wt);
           eval_s14c(s1,s2,s3,s4,s5,s6,s7,s8,gshh,grid,basis,valS1,valS2,valS3,valS4,A12,B12,C12,A13,B13,C13,A14,B14,C14);
 
-          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gshh,valS1,valS2,valS3,valS4,N,iN,olp);
+          reduce_4c_ol1(s1,s2,s3,s4,s5,s6,s7,s8,gshh,valS1,valS2,valS3,valS4,N,iN,tmp,olp);
 
         } //loop sp
 
@@ -3190,8 +3390,10 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   double norm[N];
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
-  #pragma acc enter data copyin(norm[0:N])
+  //#pragma acc enter data copyin(norm[0:N])
 
+ #if 0
+ //olp no longer stored on GPU
   if (nomp>1)
   {
     double* olt = new double[N4]();
@@ -3214,10 +3416,11 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
 
     delete [] olt;
   }
+ #endif
 
-  copy_symm_4c_ps(natoms,n2i,N,olp);
+  copy_symm_4c_ps_cpu(natoms,n2i,N,olp);
 
- #pragma acc parallel loop collapse(4) present(olp[0:N4],norm[0:N])
+ //#pragma acc parallel loop collapse(4) present(olp[0:N4],norm[0:N])
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
   for (int k=0;k<N;k++)
@@ -3226,7 +3429,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
     double n1234 = norm[i]*norm[j]*norm[k]*norm[l];
     olp[i*N3+j*N2+k*N+l] *= n1234;
   }
-  #pragma acc update self(olp[0:N4])
+  //#pragma acc update self(olp[0:N4])
 
   for (int j=0;j<N4;j++)
     ol[j] = olp[j];
@@ -3245,6 +3448,8 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
     }
   }
 
+  #pragma acc exit data delete(norm[0:N])
+
  #if USE_ACC
  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
   for (int n=0;n<nomp;n++)
@@ -3253,7 +3458,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
     acc_set_device_num(tid,acc_device_nvidia);
 
     #pragma acc exit data delete(olp[0:N4])
-    #pragma acc exit data delete(norm[0:N])
+    #pragma acc exit data delete(tmp[0:M4])
     #pragma acc exit data delete(grid[0:gs6],wt[0:gshh])
     #pragma acc exit data delete(valS1[0:iN][0:gshh],valS2[0:iN][0:gshh],valS3[0:iN][0:gshh],valS4[0:iN][0:gshh])
     #pragma acc exit data delete(valt[0:gshh])
@@ -3269,6 +3474,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   for (int i=0;i<iN;i++) delete [] valS4[i];
   delete [] valS1; delete [] valS2; delete [] valS3; delete [] valS4;
   delete [] valt;
+  delete [] tmp;
   delete [] olp;
 
   delete [] grid;

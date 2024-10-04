@@ -1,21 +1,36 @@
 #include "prosph.h"
+#include "lebedev2.h"
+
+//just edited  get_munuphi and munuphi_to_xyz
+
 
 //enable zeta-dependent maximum volume (over mu)
-#define VOLUME_RESIZE 1
+#define VOLUME_RESIZE 0
+
+#define RMAX 1.
+//was 2.3 until recently
+#define CF0 2.1
 
 
-int sign(double x)
-{    
-  if (x>0) return 1;
-  else if (x<=0) return -1;
- 
-  return 0;
+
+
+void shift_grid(const double shift_z, int gs, double* grid)
+{
+  printf(" shifting grid by %8.5f in z \n",shift_z);
+
+  int gs6 = 6*gs;
+ #pragma acc parallel loop present(grid[0:gs6])
+  for (int j=0;j<gs;j++)
+    grid[6*j+2] += shift_z;
+
+  return;
 }
 
 //everything already on gpu
 void reorient_grid(const double z0, int gs, double* grid, double* grid2, double* rot)
 {
   int gs6 = 6*gs;
+  //printf("  z0 in reorient grid: %8.5f \n",z0);
 
 #if 0
  //already done in initialize_ps_coords/quad_grid_munu
@@ -395,6 +410,13 @@ void gen_total_rot_n3(int natoms, double* coords, double* trot)
   return;    
 }
 
+int sign(double x)
+  {
+    if (x>0) return 1;
+    else if (x<=0) return -1;
+    return 0;
+  }
+
 void munuphi_to_xyz(double a, double mu, double nu, double phi, double& x, double& y, double& z)
 {
   double sinhm = sinh(mu);
@@ -403,7 +425,7 @@ void munuphi_to_xyz(double a, double mu, double nu, double phi, double& x, doubl
   double cosn = cos(nu);
   x = a*sinhm*sinn*cos(phi);
   y = a*sinhm*sinn*sin(phi);
-  z = a*coshm*cosn;
+  z = a*coshm*cosn - a;
 }
 
 #pragma acc routine seq
@@ -415,7 +437,7 @@ void munuphi_to_xyz_gpu(double a, double mu, double nu, double phi, double& x, d
   double cosn = cos(nu);
   x = a*sinhm*sinn*cos(phi);
   y = a*sinhm*sinn*sin(phi);
-  z = a*coshm*cosn;
+  z = a*coshm*cosn - a;
 }
 
 void munuphi_to_xyz(double a, int gs, double* gridm, double* grid, double* wt)
@@ -455,12 +477,107 @@ void munuphi_to_xyz(double a, int gs, double* gridm, double* grid, double* wt)
   //if (prl>1) printf("  xyz max: %9.5f %9.5f %9.5f \n",xmax,ymax,zmax);
 }
 
+//determines range of mu values
+double get_c0(double a, double nmu, double cf, double rm)
+{
+  double ca = CF0*cf*pow(a,-0.25);
+  // rm *= cf;
+  //double cb = 2./log(3.) * acosh(1.+rm/a);
+
+  return ca;
+}
+
+void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
+{
+  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
+  //if (nnu<2 || nphi<2) { printf(" ERROR: cannot initialize PS coordinates with nnu<2 or nphi<2 \n"); exit(-1); }
+
+  double c0 = get_c0(a,nmu,cf,RMAX);
+  if (cf<0.) c0 = -cf; //c1 passed to ftn
+  const double c1 = c0;
+
+  int gs = nmu*nnu*abs(nphi);
+  int gs6 = 6*gs;
+
+  const double dnx = PI/nnu;
+  double dphi0 = 2.*PI/nphi;
+  if (nphi==-1) dphi0 = 1.;
+  nphi = abs(nphi);
+  const double dphi = dphi0;
+  const double dx1 = 1./(nmu+1);
+  const double dx2 = 1/nnu;
+  double a3 = a*a*a;
+
+  double rmax = a*cosh(c1*atanh(nmu*dx1));
+  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f  c2: %8.5f \n",cf,c1,rmax,c2);
+
+  //double xmax = 0.; double ymax = 0.; double zmax = 0.;
+  for (int i=0;i<nmu;i++)
+  {
+    double x0  =  i*dx1;
+    double x1  = x0+dx1;
+    double mu0 = c1*atanh(x0);
+    double mu1 = c1*atanh(x1);
+    double mu = 0.5*(mu1+mu0); //"average" mu value
+
+    double sinhm = sinh(mu);
+    double coshm = cosh(mu);
+    double dmu = mu1-mu0;
+
+    for (int j=0;j<nnu;j++)
+    {
+      double x20 = j*dnx;
+      double x21 = (j+1)*dnx;
+
+     //removed 2.*x2
+      double nu0 = x20 + c2*sin(x20);
+      double nu1 = x21 + c2*sin(x21);
+
+      double nu = 0.5*(nu0+nu1);
+      double dnu = nu1 - nu0;
+
+      if (nnu<12) printf("  x2: %8.5f %8.5f  nu: %8.5f %8.5f  nu(m): %8.5f  dnu: %8.5f \n",x20,x21,nu0,nu1,nu,dnu);
+
+      double sinn = sin(nu);
+      double cosn = cos(nu);
+
+      int i1 = i*nnu*nphi + j*nphi;
+     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs])
+      for (int k=0;k<nphi;k++)
+      {
+        int i2 = i1+k;
+        double phi = k*dphi + phi_zero;
+
+        gridm[6*i2+0] = mu; gridm[6*i2+1] = nu; gridm[6*i2+2] = phi;
+        gridm[6*i2+3] = dmu; gridm[6*i2+4] = dnu; gridm[6*i2+5] = dphi;
+
+        //if (prl>2) printf("    mu/nu/phi: %8.5f %8.5f %8.5f  wt: %8.5f \n",mu,nu,phi,wt1);
+
+      } //loop phi
+    } //loop nu
+  } //loop mu
+
+  munuphi_to_xyz(a,gs,gridm,grid,wt);
+
+ #if 0
+  #pragma acc update self(gridm[0:gs6])
+  for (int i=0;i<nmu;i++)
+  {
+    double mu1 = gridm[6*i*nnu*nphi+0];
+    double r1 = a*cosh(mu1);
+    printf("  mu: %8.5f  r: %5.2f \n",mu1,r1);
+  }
+ #endif
+
+  return;
+}
+
 void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
 {
   if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
   //if (nnu<2 || nphi<2) { printf(" ERROR: cannot initialize PS coordinates with nnu<2 or nphi<2 \n"); exit(-1); }
 
-  double c0 = 2.3*cf*pow(a,-0.25);
+  double c0 = get_c0(a,nmu,cf,RMAX);
   if (cf<0.) c0 = -cf; //c1 passed to ftn
   const double c1 = c0;
 
@@ -480,8 +597,8 @@ void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, do
 
   if (prl>0)
     printf("\n   init_ps_coords. a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",a,nmu,nnu,nphi,dnu,dphi,dx1);
-  if (cf<0.)
-    printf("   init_ps_coords  a: %8.5f  c1: %8.5f \n",a,c1);
+  double rmax = a*cosh(c1*atanh(nmu*dx1));
+  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
   for (int i=0;i<nmu;i++)
@@ -523,6 +640,16 @@ void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, do
   } //loop mu
 
   munuphi_to_xyz(a,gs,gridm,grid,wt);
+
+ #if 0
+  #pragma acc update self(gridm[0:gs6])
+  for (int i=0;i<nmu;i++)
+  {
+    double mu1 = gridm[6*i*nnu*nphi+0];
+    double r1 = a*cosh(mu1);
+    printf("  mu: %8.5f  r: %5.2f \n",mu1,r1);
+  }
+ #endif
 
  #if 0
   if (grid!=NULL && wt!=NULL)
@@ -568,7 +695,7 @@ void initialize_ps_coords_2c_phi(double a, double cf, int nmu, int nnu, int nphi
 
   printf("  testing initialize_ps_coords_2c_phi \n");
 
-  double c0 = 2.3*cf*pow(a,-0.25);
+  double c0 = get_c0(a,nmu,cf,RMAX);
   const double c1 = c0;
 
   int gs = nmu*nnu*abs(nphi);
@@ -683,6 +810,8 @@ void initialize_ps_coords_2c_phi(double a, double cf, int nmu, int nnu, int nphi
 
 void get_munuphi(double a, double A3, double B3, double C3, double& mu, double& nu, double& phi)
 {
+ //just changed this, due to first atom being at zero
+  C3 += a;
   double ab2 = A3*A3+B3*B3;
   double rr = a*a + ab2 + C3*C3;
   double rrm = a*a + ab2 - C3*C3;
@@ -709,6 +838,9 @@ void get_munuphi(double a, double A3, double B3, double C3, double& mu, double& 
 
 void shift_boundary_munu(double mu, double nu, int ix, int jx, int ib, int ia, int jb, int ja, int kb, int ka, int gs, double* gridm)
 {
+  if (ix<0 || jx<0 || ib<0 || ia<0 || jb<0 || ja<0 || kb<0 || ka<0)
+  { printf(" ERROR: shift_boundary_munu \n"); exit(-1); }
+
   int gs6 = 6*gs;
 
   double mu_ib  = gridm[ix*ib+0];
@@ -791,6 +923,9 @@ void shift_boundary_munu(double mu, double nu, int ix, int jx, int ib, int ia, i
 
 void shift_boundary_nu(double nu, int ix, int jx, int jb, int ja, int kb, int ka, int gs, double* gridm)
 {
+  if (ix<0 || jx<0 || jb<0 || ja<0 || kb<0 || ka<0)
+  { printf(" ERROR: shift_boundary_nu \n"); exit(-1); }
+
  //mu is close to zero
   int ib = 0;
 
@@ -834,6 +969,9 @@ void shift_boundary_nu(double nu, int ix, int jx, int jb, int ja, int kb, int ka
 
 void shift_boundary_mu(double mu, int ix, int jx, int ib, int ia, int jb, int kb, int ka, int gs, double* gridm)
 {
+  if (ix<0 || jx<0 || ib<0 || ia<0 || jb<0 || kb<0 || ka<0)
+  { printf(" ERROR: shift_boundary_mu \n"); exit(-1); }
+
   int gs6 = 6*gs;
 
   double mu_ib  = gridm[ix*ib+0];
@@ -1242,7 +1380,7 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
     printf("   mu/nu/phi(4): %8.5f %8.5f %8.5f \n",mu4,nu4,phi4);
   }
 
-  if (prl>1)
+  if (prl>0)
   {
     double x; double y; double z;
     munuphi_to_xyz(a,mu3,nu3,phi3,x,y,z);
@@ -1276,11 +1414,13 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
 
   int jb4 = 0; int ja4 = 0;
   for (int j=0;j<nnu;j++) if (gridm[jx*j+1]<=nu4) jb4 = j; else break;
+
   for (int j=nnu-1;j>=0;j--) if (gridm[jx*j+1]>=nu4) ja4 = j;  else break;
 
   int kba = 0;
   for (int k=0;k<nphi;k++) if (fabs(gridm[kx*k+2]-phi4)<1.e-6) { kba = k; break; }
   int kb4 = kba-1; int ka4 = kba;
+  if (kb4<0) kb4 = nphi-1;
 
  //check if munu are near the boundaries already
   double munu_thresh = 1.e-3;
@@ -1310,7 +1450,7 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
   }
 
 
-  if (prl>-1)
+  if (prl>0)
   {
     printf("   iba(3): %2i %2i  jba: %2i %2i  kba: %2i %2i \n",ib3,ia3,jb3,ja3,kb3,ka3);
     printf("   iba(4): %2i %2i  jba: %2i %2i  kba: %2i %2i \n",ib4,ia4,jb4,ja4,kb4,ka4);
@@ -1496,26 +1636,27 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
   if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
   //if (nnu<2 || nphi<2) { printf(" ERROR: cannot initialize PS coordinates with nnu<2 or nphi<2 \n"); exit(-1); }
 
-//  double c0 = 2.3*cf/a;
-  double c0 = 2.3*cf*pow(a,-0.25);
+  double c0 = get_c0(a,nmu,cf,RMAX);
+  if (cf<0.) c0 = -cf; //c1 passed to ftn
   const double c1 = c0;
 
-  int gs = nmu*nnu*nphi/nbatch;
+  int gs = nmu*nnu*abs(nphi)/nbatch;
   int gs6 = 6*gs;
 
   const double dnu = PI/nnu;
-  double dphi0 = 2.*PI/abs(nphi);
+  double dphi0 = 2.*PI/nphi;
   if (nphi==-1) dphi0 = 1.;
-  const double dphi = dphi0;
   nphi = abs(nphi);
+  const double dphi = dphi0;
   const double dx1 = 1./(nmu+1);
   double a3 = a*a*a;
 
   if (prl>0)
     printf("\n init_ps_coords. wb/nbatch: %i %i -- a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",wb,nbatch,a,nmu,nnu,nphi,dnu,dphi,dx1);
+  double rmax = a*cosh(c1*atanh(nmu*dx1));
+  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
   int ic = 0;
-  //double zmax = 0.;
   for (int i=0;i<nmu;i++)
   if (i%nbatch==wb)
   {
@@ -1528,6 +1669,8 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
     double sinhm = sinh(mu);
     double coshm = cosh(mu);
     double dmu = mu1-mu0;
+
+    //printf("  wb: %i  mu: %8.5f \n",wb,mu);
 
     for (int j=0;j<nnu;j++)
     {
@@ -1543,22 +1686,26 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
         int i2 = i1+k;
         double phi = k*dphi + phi_zero;
 
-        double x = a*sinhm*sinn*cos(phi);
-        double y = a*sinhm*sinn*sin(phi);
-        double z = a*coshm*cosn;
-        double wt1 = a3*ps_dV(mu0,mu1,nu-0.5*dnu,nu+0.5*dnu) * dphi;
-
-        grid[6*i2+0] = x;
-        grid[6*i2+1] = y;
-        grid[6*i2+2] = z-a;
         gridm[6*i2+0] = mu; gridm[6*i2+1] = nu; gridm[6*i2+2] = phi;
         gridm[6*i2+3] = dmu; gridm[6*i2+4] = dnu; gridm[6*i2+5] = dphi;
-        wt[i2] = wt1;
       } //loop phi
     } //loop nu
     ic++;
   } //loop mu
 
+  //munuphi_to_xyz(a,gs,gridm,grid,wt);
+
+ #if 0
+  #pragma acc update self(gridm[0:gs6])
+  for (int i=0;i<nmu;i++)
+  {
+    double mu1 = gridm[6*i*nnu*nphi+0];
+    double r1 = a*cosh(mu1);
+    printf("  mu: %8.5f  r: %5.2f \n",mu1,r1);
+  }
+ #endif
+
+ #if 0
   ic = 0;
   if (grid!=NULL && wt!=NULL)
   for (int i=0;i<nmu;i++)
@@ -1595,8 +1742,7 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
     }
     ic++;
   }
-
-  //printf(" cf: %8.5f a: %8.5f c1: %8.5f zmax: %8.5f \n",cf,a,c1,zmax);
+ #endif
 
   return;
 }
@@ -1620,9 +1766,10 @@ double get_rsp(int nsplit, double ztm, double* rsp, int prl)
 
 void refine_3c_grid(int nsplit, double ztm, double a, double A3, double B3, double C3, int gs, int nsg, double* gridm, double* rot, int prl)
 {
-  if (nsplit<2) return;
+  //if (nsplit<2) return;
+  if (nsg<1) return;
 
-  printf("   refine_3c_grid (gs: %4i  nsplit: %2i  nsg: %2i) \n",gs,nsplit,nsg);
+  if (prl>1) printf("   refine_3c_grid (gs: %4i  nsplit: %2i  nsg: %2i) \n",gs,nsplit,nsg);
 
  //put third center in PS plane
   rotate_3xyz(A3,B3,C3,rot);
@@ -1753,14 +1900,22 @@ void refine_3c_grid(int nsplit, double ztm, double a, double A3, double B3, doub
 
       double x,y,z;
       munuphi_to_xyz(a,mu1,nu1,phi1,x,y,z);
+      printf(" xyz(1): %8.5f %8.5f %8.5f ",x,y,z);
+
       double x1 = x-A3; double y1 = y-B3; double z1 = z-C3;
       double R1 = sqrt(x1*x1+y1*y1+z1*z1);
 
       munuphi_to_xyz(a,mu2,nu1,phi1,x,y,z);
+      printf(" xyz(mu2): %8.5f %8.5f %8.5f ",x,y,z);
+
       double x2 = x-A3; double y2 = y-B3; double z2 = z-C3;
       munuphi_to_xyz(a,mu1,nu2,phi1,x,y,z);
+      printf(" xyz(nu2): %8.5f %8.5f %8.5f ",x,y,z);
+
       double x3 = x-A3; double y3 = y-B3; double z3 = z-C3;
       munuphi_to_xyz(a,mu1,nu1,phi2,x,y,z);
+      printf(" xyz(phi2): %8.5f %8.5f %8.5f ",x,y,z);
+
       double x4 = x-A3; double y4 = y-B3; double z4 = z-C3;
       double Rmu  = sqrt(x2*x2+y2*y2+z2*z2);
       double Rnu  = sqrt(x3*x3+y3*y3+z3*z3);
@@ -1830,14 +1985,15 @@ double get_cfn_3c(double ztm1, double ztm2, int nmu, double* coordn)
 }
 
 
-void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   if (natoms<3) { printf("\n ERROR: cannot use refined grid with natoms<3 \n"); exit(-1); }
   int prl = 0;
   if (prl>1) printf("\n in generate_ps_quad_grid_3c_refine (natoms: %i) \n",natoms);
+  if (wb>=nb) { printf("\n ERROR: wb cannot be larger than nb \n"); exit(-1); }
 
-  double cfn = 1.1; //3-atom specific
- #if VOLUME_RESIZE
+  //double cfn = 1.1; //3-atom specific
+ #if VOLUME_RESIZE && 0
   cfn = get_cfn_3c(ztm1,ztm2,nmu,coordn);
  #endif
 
@@ -1863,8 +2019,13 @@ void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int n
   int nsg = 8*nsplit*nsplit*nsplit;
   int gs = gs0+nsg;
   int gsq = gs0*qos+nsg*qosh; //3-atom grid size
+  if (gsq%nb>0) { printf("\n ERROR: couldn't divide up grid in 3c_refine (remainder: %i) \n",gsq%nb); exit(-1); }
+  gsq /= nb;
   int gs6 = 6*gs; // w/o quad
   int gsq6 = 6*gsq; // w/ quad
+  //if (nsg==8) nsg = 0; //call quad only once (debug)
+
+  //printf("  gs: %4i  gsq: %5i  wb/nb: %i %i \n",gs,gsq,wb,nb);
 
   double* gridq = new double[gsq6];
   double* gridm = new double[gs6];
@@ -1889,30 +2050,23 @@ void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int n
 
     initialize_ps_coords_3c(cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
 
-   #if 0
-    double A1 = coordn[0]; double B1 = coordn[1]; double C1 = coordn[2];
-    double A2 = coordn[3]; double B2 = coordn[4]; double C2 = coordn[5];
-    rotate_3xyz(A1,B1,C1,rot);
-    printf("  ABC: %8.5f %8.5f %8.5f \n",A1,B1,C1);
-    rotate_3xyz(A2,B2,C2,rot);
-    printf("  ABC: %8.5f %8.5f %8.5f \n",A2,B2,C2);
-
-    for (int j=0;j<3;j++)
-      printf("  XYZ(%i): %8.5f %8.5f %8.5f \n",j,coordn[3*j+0],coordn[3*j+1],coordn[3*j+2]);
-   #endif
-
     refine_3c_grid(nsplit,0.,z0,A3,B3,C3,gs,nsg,gridm,rot,prl);
 
-    quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs-nsg,0,gridm,gridq,wt);
+   //now w/batching
+    quad_grid_munuphi(wb,nb,qo,qo,qo,0,z0,Qx,Qy,Qz,gs-nsg,0,gridm,gridq,wt);
 
-    double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
-    get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
-    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+   //if splitting, create rest of grid
+    if (nsg>0)
+    {
+      double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
+      get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
+      #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
 
-   //nsg pts surrounding third nucleus w/refined grid
-    quad_grid_munuphi(qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-nsg,gridm,gridq,wt);
+     //nsg pts surrounding third nucleus w/refined grid
+      quad_grid_munuphi(wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-nsg,gridm,gridq,wt);
 
-    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+      #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+    }
 
     reorient_grid(z0,gsq,gridq,grid,rot);
   }
@@ -1921,6 +2075,15 @@ void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int n
   #pragma acc exit data delete(rot[0:9])
   #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6])
 
+  if (0)
+  {
+    printf("  coordn(1/2): %8.5f %8.5f %8.5f   %8.5f %8.5f %8.5f \n",coordn[0],coordn[1],coordn[2],coordn[3],coordn[4],coordn[5]);
+    printf("  grid around atom 3 (%8.5f %8.5f %8.5f) \n",coordn[6],coordn[7],coordn[8]);
+    #pragma acc update self(grid[0:gsq6],wt[0:gsq])
+    for (int j=gsq-nsg*qosh;j<gsq;j++)
+      printf("  xyz: %8.5f %8.5f %8.5f  wt: %9.6f \n",grid[6*j+0],grid[6*j+1],grid[6*j+2],wt[j]);
+  }
+ 
   delete [] Qx;
   delete [] Qy;
   delete [] Qz;
@@ -1930,14 +2093,44 @@ void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int n
   return;
 }
 
-void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid_3c_refine(int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+{
+  double cfn = 1.;
+  return generate_ps_quad_grid_3c_refine(cfn,wb,nb,ztm1,ztm2,nsplit,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+}
+
+void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+{
+  double cfn = 1.;
+  int wb = 0; int nb = 1;
+  return generate_ps_quad_grid_3c_refine(cfn,wb,nb,ztm1,ztm2,nsplit,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+}
+
+void get_nrad_nang_order(int& nrad, int& nang, int ang_order, int nb, int gsq)
+{
+  while (nrad<500)
+  {
+    ang_order--;
+    nang = get_npts_from_order(ang_order);
+    if (nang<1) { printf("\n ERROR: couldn't construct an atomic grid \n"); exit(-1); }
+    nrad = gsq/nang;
+  }
+  if (nrad<1) { printf("\n ERROR: couldn't construct an atomic grid \n"); exit(-1); }
+
+  if (nrad>2000)
+    nrad = 2000;
+  nrad -= nrad%nb;
+
+  return;
+}
+
+//wb,nb --> batches over grid
+void generate_ps_quad_grid(double cfn, int wb, int nb, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   int prl = 0;
   if (prl>1) printf("\n in generate_ps_quad_grid (natoms: %i) \n",natoms);
-
-//update this for 3-atom? etc?
-  double cfn = 1.; 
-  if (natoms>2) cfn = 1.1;
+  if (nb>1 && natoms>2) printf(" TESTING: batching for 3c systems \n");
+  if (wb>=nb) { printf("\n ERROR: wb cannot be larger than nb \n"); exit(-1); }
 
   int qo = quad_order;
   int qoh = quad_r_order;
@@ -1959,18 +2152,26 @@ void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_
   #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])
 
   int gs = nmu*nnu*nphi;
-  int gs6 = 6*gs;
   int gsq = qos*gs;
   int nqa = min(2,natoms-2);
   if (natoms>=3)
     gsq = (gs-nqa*8)*qos+nqa*8*qosh;
+
+  if (natoms<=2 && nmu%nb>0) { printf("\n ERROR: batch must divide nmu \n"); exit(-1); }
+  if (natoms>2 && nb>1) { printf("\n ERROR: cannot use batching here when natoms>2 \n"); exit(-1); }
+  if (gs%nb>0) { printf("\n ERROR: batch must divide gs \n"); exit(-1); }
+  if (gsq%nb>0) { printf("\n ERROR: batch must divide gsq \n"); exit(-1); }
+
+  gs /= nb;
+  gsq /= nb;
+  int gs6 = 6*gs;
   int gsq6 = 6*gsq;
 
-  //if (natoms>=3)
-  //  printf("  natoms: %i  gs/q: %6i %6i \n",natoms,gs,gsq);
+  if (natoms>=3)
+    printf("    natoms: %i  gs/q: %6i %6i \n",natoms,gs,gsq);
 
   double* gridq = new double[gsq6];
-  double* gridm = new double[6*gs];
+  double* gridm = new double[gs6];
 
   #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6])
 
@@ -1985,14 +2186,57 @@ void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_
 
   double A2 = coordn[3]; double B2 = coordn[4]; double C2 = coordn[5];
   double z0 = sqrt(A2*A2+B2*B2+C2*C2)*0.5;
-  if (natoms==1) z0 = 0.5;
+  if (natoms==1) z0 = 2.;
 
-  if (natoms<3)
+  #define ATOMIC_GRID 1
+ 
+  if (natoms==1)
   {
-    if (natoms==2)
-      get_2c_position(coordn,rot);
+   #if ATOMIC_GRID
+    int nrad = 0;
+    int nang = 0;
 
-    initialize_ps_coords_2c(z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
+   //maximum degree of Lebedev grid
+    int ang_order = 24;
+    get_nrad_nang_order(nrad,nang,ang_order,nb,gsq*nb);
+    int gsb = nrad*nang/nb;
+
+   //zero weight on unused data pts. also need r1 to be nonzero
+    #pragma acc parallel loop present(wt[0:gsq])
+    for (int j=0;j<gsq;j++)
+      wt[j] = 0.;
+    #pragma acc parallel loop present(grid[0:gsq6])
+    for (int j=0;j<gsq6;j++)
+      grid[j] = 1.e4;
+    if (nrad<1) { printf("\n ERROR: could not form atomic grid \n"); exit(-1); }
+
+    if (prl > 1) printf("    using atomic grid (Z: %2i).  nrad: %4i  nang: %4i  gs: %7i  gsq: %7i \n",(int)Z1,nrad,nang,gsb,gsq);
+    generate_central_grid_2d(wb,nb,1,grid,wt,Z1,nrad,nang);
+
+   #else
+   //realigned PS grid
+    //double c2 = read_float_2("C2");
+    //if (c2<=-1.) c2 = 0.;
+    //if (c2<-0.5) { c2 = -0.5; printf("\n WARNING: C2 cannot be less than -0.5 \n"); } 
+    //if (c2>0.5)  { c2 =  0.5; printf("\n WARNING: C2 cannot be larger than 0.5 \n"); } 
+
+    //initialize_ps_coords_1c(z0,cfn,c2,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
+    initialize_ps_coords_batch(wb,nb,z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
+
+    quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wt);
+
+    #pragma acc parallel loop present(gridq[0:gsq6],grid[0:gsq6])
+    for (int j=0;j<gsq6;j++)
+      grid[j] = gridq[j];
+    //shift_grid(z0,gsq,grid);
+   #endif
+  }
+  else if (natoms==2)
+  {
+    get_2c_position(coordn,rot);
+
+    initialize_ps_coords_batch(wb,nb,z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
+    //initialize_ps_coords_2c(z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
 
     quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wt);
 
@@ -2011,7 +2255,7 @@ void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_
     #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
 
    //8 pts surrounding third nucleus w/refined grid
-    quad_grid_munuphi(qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-8,gridm,gridq,wt);
+    quad_grid_munuphi(wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-8,gridm,gridq,wt);
 
     #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
 
@@ -2019,6 +2263,8 @@ void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_
   }
   else if (natoms==4)
   {
+    if (nb>1) { printf("\n ERROR: shouldn't be here (4-atom grid) with nbatch>1 \n"); exit(-1); }
+
    //first rotation matrix that takes three atoms into xz plane
     get_4c_position(coordn,rot);
 
@@ -2047,6 +2293,15 @@ void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_
   #pragma acc exit data delete(rot[0:9])
   #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6])
 
+ #if 1
+  if (natoms==1 && gsq<10000 && prl > 1)
+  {
+    #pragma acc update self(grid[0:gsq6],wt[0:gsq])
+    for (int j=0;j<gsq;j++)
+      printf("  xyz: %8.5f %8.5f %8.5f  wt: %9.6f \n",grid[6*j+0],grid[6*j+1],grid[6*j+2],wt[j]);
+  }
+ #endif
+
   delete [] Qx;
   delete [] Qy;
   delete [] Qz;
@@ -2054,4 +2309,17 @@ void generate_ps_quad_grid(int natoms, double* coordn, int quad_order, int quad_
   delete [] gridm;
 
   return;
+}
+
+void generate_ps_quad_grid(double cfn, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+{
+  int wb = 0; int nb = 1;
+  return generate_ps_quad_grid(cfn,wb,nb,Z1,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+}
+
+void generate_ps_quad_grid(double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+{
+  double cfn = 1.;
+  int wb = 0; int nb = 1;
+  return generate_ps_quad_grid(cfn,wb,nb,Z1,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
 }

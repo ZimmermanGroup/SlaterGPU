@@ -7,7 +7,7 @@ set(CINT_SOURCES
     )
 
 find_package(BLAS REQUIRED)
-message("${BLAS_LIBRARIES}")
+message(STATUS "${BLAS_LIBRARIES}")
 
 set(LIBCINT_PATH $ENV{LIBCINT_PATH})
 

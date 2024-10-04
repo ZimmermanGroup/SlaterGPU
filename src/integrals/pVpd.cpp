@@ -3,6 +3,9 @@
 //sign convention:
 // plain derivatives (d/dx,d/dy,d/dz)
 
+//tests through 5g look okay
+//6h untested
+
 void get_p_1sd(int gs, double* grid, double* val, double zeta)
 {
 #if USE_ACC
@@ -1793,6 +1796,10 @@ void get_p_5g0d(int gs, double* grid, double* val, double zeta)
 
 void get_p_5gp1d(int gs, double* grid, double* val, double zeta)
 {
+ //rederived this one. could use as 6g,7g, etc
+  //int nlm = 0;
+  //int pw = nlm-3;
+
 #if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
 #endif
@@ -1803,15 +1810,21 @@ void get_p_5gp1d(int gs, double* grid, double* val, double zeta)
     double z = grid[6*i+2];
     double r = grid[6*i+3];
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    //double x4 = x2*x2; double y4 = y2*z2; double z4 = z2*z2;
     double zr = zeta*r;
+    //double ezr = exp(-zr);
+    //double rp = pow(r,pw);
     double ezor = exp(-zr)/r;
     double x2py2 = x2+y2;
     double f0 = 4.*z2-9.*x2-3.*y2;
     double f1 = 3.*x2py2 - 4.*z2;
 
+    //val[3*i+0] *= z*(zeta*x2*(3.*x4 + 3.*y4 - y2*z2 - 4.*z4 + x2*(6.*y2 - z2)) + r*((-9. - 3.*nlm)*x4 - 3.*y4 + y2*z2 + 4.*z4 + x2*((-12. - 3.*nlm)*y2 + (-5. + 4.*nlm)*z2)))*rp*ezr;
+    //val[3*i+1] *= x*y*z*(r*((-6. - 3.*nlm)*x2 + (-6. - 3.*nlm)*y2 + (-6. + 4.*nlm)*z2) + zeta*(3.*x4 + 3.*y4 - y2*z2 - 4.*z4 + x2*(6.*y2 - z2)))*rp*ezr;
+    //val[3*i+2] *= x*(r*(-3.*x4 - 6.*x2*y2 - 3.*y4 + (9. - 3.*nlm)*(x2 + y2)*z2 + (12. + 4.*nlm)*z4) + zeta*z2*(3.*x4 + 3.*y4 - y2*z2 - 4.*z4 + x2*(6.*y2 - z2)))*rp*ezr;
     val[3*i]   *= z*(zeta*x2*f1+r*f0)*ezor;
     val[3*i+1] *= x*y*z*(zeta*f1 - 6.*r)*ezor;
-    val[3*i+2] *= x*(zeta*f1*z2 - 3.*(x2py2-4.*z2))*ezor;
+    val[3*i+2] *= x*(zeta*f1*z2 - 3.*r*(x2py2-4.*z2))*ezor;
   }
   return;
 }
@@ -1859,7 +1872,7 @@ void get_p_5gp3d(int gs, double* grid, double* val, double zeta)
     double f0 = x2-3.*y2;
 
     val[3*i]   *= z*(-zeta*x2*f0 + 3.*(x-y)*(x+y)*r)*ezor;
-    val[3*i+1] *= x*y*z*(zeta*f0 + 6.*r)*ezor;
+    val[3*i+1] *= -x*y*z*(zeta*f0 + 6.*r)*ezor;
     val[3*i+2] *= x*f0*(-zeta*z2 + r)*ezor;
   }
   return;
@@ -1882,7 +1895,7 @@ void get_p_5gp4d(int gs, double* grid, double* val, double zeta)
     double f0 = x2*x2-6.*x2*y2+y2*y2;
 
     val[3*i]   *= x*(-zeta*f0 + 4.*(x2-3.*y2)*r)*ezor;
-    val[3*i+1] *= y*(zeta*f0 + 4.*(3.*x2-y2)*r)*ezor;
+    val[3*i+1] *= -y*(zeta*f0 + 4.*(3.*x2-y2)*r)*ezor;
     val[3*i+2] *= z*zeta*f0*ezor;
   }
   return;
@@ -3392,6 +3405,7 @@ void eval_pd(int gs, double* grid, double* val, int n1, int l1, int m1, double z
     }
     else if (l1==3)
     {
+      printf(" WARNING: 7d derivatives not available \n");
     }
   }
   else if (n1==8)

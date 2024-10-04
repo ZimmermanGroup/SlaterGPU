@@ -16,8 +16,6 @@
 
 using namespace std;
 
-//#include "cpu_util.h"
-
 //#define A2B 1.8897261
 
 vector<string> split1(const string &s, char delim);
@@ -41,6 +39,7 @@ int read_opt();
 bool read_dft(int& dt1, int& dt2, int type);
 int read_ri();
 int read_symm();
+int read_mo_symmetry(int N, int* symm);
 int read_pp();
 int read_vnuc();
 int read_hfx();
@@ -72,9 +71,12 @@ bool read_integrals(string dirname, int N, int Naux, double* S, double* T, doubl
 bool read_yukawa_potentials(int N, int Naux, double*& Ayd, double*& Cyd);
 int read_iarray(short type1, short type2, short i1, int s1, int s2, double* A);
 int read_gridpts(int s1, int s2, float* A, string filename);
+int read_gridpts(int s1, int s2, double* A, string filename);
 int read_square_check(int N, double* Pao, string filename);
 int read_square(int N, double* Pao, string filename);
 int read_square(vector<vector<double> > basis, double* Pao, string filename);
+
+bool check_PS();
 
 string get_aname(int Z);
 

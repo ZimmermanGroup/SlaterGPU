@@ -523,11 +523,12 @@ void one_twenty_eight_point_quad(double* Qi)
 
 void get_quad(int npts, double* Qi)
 {
-  if (npts<1) { printf("\n ERROR: npts in get_quad less than zero \n"); exit(-1); }
+  if (npts<1) { printf("\n ERROR: npts in get_quad less than one \n"); exit(-1); }
   if (npts==1)
   {
     Qi[0] = 0.5;
     Qi[1] = 1.;
+    return;
   }
   else if (npts==2)
     return two_point_quad(Qi);
@@ -564,8 +565,97 @@ void get_quad(int npts, double* Qi)
   return get_quad(npts-1,Qi);
 }
 
+void quad_grid_munuphi(int wb, int nb, const int nptsx, const int nptsy, const int nptsz, int qosp, double a, double* Qx, double* Qy, double* Qz, int gs, int offset, double* gridm, double* grid, double* wt)
+{
+  if (offset>=gs) return;
+
+ //Qx: quad pts over first DOF
+ //Qy: quad pts over second DOF
+ //Qz: quad pts over third DOF
+
+  double a3 = a*a*a;
+  int qos = nptsx*nptsy*nptsz;
+
+  int gsq = qos*gs;
+  if (offset>0)
+    gsq = (qos*8 + offset*qosp);
+  if (gsq%nb>0) { printf(" WARNING: can't divide nb \n"); exit(-1); }
+  gsq /= nb;
+
+  int nptsyz = nptsy*nptsz;
+ 
+  //printf("  qos/p: %2i %2i  offset: %6i  gsq(quad_grid): %6i  wb: %i  nb: %i \n",qos,qosp,offset,gsq,wb,nb);
+
+ #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq])
+  for (int n=offset;n<gs;n++)
+  if (n%nb==wb)
+  {
+    double mu   = gridm[6*n+0]; double nu  = gridm[6*n+1]; double phi  = gridm[6*n+2];
+    double dmu  = gridm[6*n+3]; double dnu = gridm[6*n+4]; double dphi = gridm[6*n+5];
+    double mu1  = mu-0.5*dmu;
+    double nu1  = nu-0.5*dnu;
+    double phi1 = phi; //was phi-0.5*dphi
+
+    double dJ = fabs(dmu*dnu*dphi);
+
+    int n1 = (n-offset)/nb;
+    int ip = offset*qosp/nb;
+    int i0 = ip + n1*qos;
+    //printf(" n: %3i %3i  ip/0: %5i %5i \n",n,n1,ip,i0);
+
+   #pragma acc loop independent
+    for (int i=0;i<nptsx;i++)
+    {
+      double qm = Qx[2*i+0];
+      double wm = Qx[2*i+1];
+      double mu = mu1+qm*dmu;
+
+      double sinhm = sinh(mu);
+      double coshm = cosh(mu);
+
+     #pragma acc loop independent
+      for (int j=0;j<nptsy;j++)
+      {
+        double qn = Qy[2*j+0];
+        double wn = Qy[2*j+1];
+        double nu = nu1+qn*dnu;
+
+        double sinn = sin(nu);
+        double cosn = cos(nu);
+
+       #pragma acc loop independent
+        for (int k=0;k<nptsz;k++)
+        {
+          double qp = Qz[2*k+0];
+          double wp = Qz[2*k+1];
+          double phi = phi1+qp*dphi;
+
+          int i1 = i0+i*nptsyz+j*nptsz+k; //index for xyz grid pt
+
+          double wtv = a3*sinhm*sinn*(sinhm*sinhm+sinn*sinn)*dJ;
+          wt[i1] = wm*wn*wp*wtv;
+
+          double x = a*sinhm*sinn*cos(phi);
+          double y = a*sinhm*sinn*sin(phi);
+          double z = a*coshm*cosn;
+
+          grid[6*i1+0] = x;
+          grid[6*i1+1] = y;
+          grid[6*i1+2] = z-a;
+
+        } //loop over 3rd DOF
+      } //loop over 2nd DOF
+    } //loop over 1st DOF
+
+  } //loop over outer grid
+
+  return;
+}
+
 void quad_grid_munuphi(const int nptsx, const int nptsy, const int nptsz, int qosp, double a, double* Qx, double* Qy, double* Qz, int gs, int offset, double* gridm, double* grid, double* wt)
 {
+  if (offset>=gs) return;
+
  //Qx: quad pts over first DOF
  //Qy: quad pts over second DOF
  //Qz: quad pts over third DOF
