@@ -1,5 +1,5 @@
 #include "integrals.h"
-
+#include "grid_util.h"
 
 void auto_crash()
 {
@@ -242,6 +242,17 @@ void copy_grid(int gs, float* grid1, float* grid2)
     grid1[6*i+2] = grid2[6*i+2];
     grid1[6*i+3] = grid2[6*i+3];
   }
+
+  return;
+}
+
+void copy_grid(int gs, double* grid1, float* grid2)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs])
+#endif
+  for (int j=0;j<6*gs;j++)
+    grid1[j] = grid2[j];
 
   return;
 }
@@ -579,7 +590,7 @@ int find_center_of_grid(float Z1, int nrad)
   return s1;
 }
 
-void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
+void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
 {
   double* r = new double[nrad];
   double* w = new double[nrad];
@@ -604,21 +615,22 @@ void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float 
   }
  #endif
 
-  int gs = nrad*nang;
+  int gs = nrad*nang/nb;
 
-#if USE_ACC
- #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
-#endif
+  //int ic = 0;
   for (int i=0;i<nrad;i++)
+  if (i%nb==wb)
   {
-    double r1 = r[i];
-    double wr1 = w[i];
+    int i1 = i/nb;
+    //printf(" (%i/%i) \n",i1,ic);
 
   #if USE_ACC
-   #pragma acc loop independent 
+   #pragma acc parallel loop present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
   #endif
     for (int j=0;j<nang;j++)
     {
+      double r1 = r[i];
+      double wr1 = w[i];
       double w1 = wr1*ang_w[j];
 
      //grid positions
@@ -626,7 +638,7 @@ void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float 
       double y1 = r1 * ang_g[3*j+1];
       double z1 = r1 * ang_g[3*j+2];
 
-      int wg = i*nang+j;
+      int wg = i1*nang+j;
       grid1[6*wg+0] = x1;
       grid1[6*wg+1] = y1;
       grid1[6*wg+2] = z1;
@@ -635,16 +647,42 @@ void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float 
       grid1[6*wg+5] = r1;
       wt1[wg] = w1;
     }
+    //ic++;
   }
 
-#if USE_ACC
+ #if USE_ACC
   #pragma acc exit data delete(r[0:nrad],w[0:nrad])
-#endif
+ #endif
 
   delete [] r;
   delete [] w;
 
   return;
+}
+
+void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
+{
+  return generate_central_grid_2d(0,1,use_murak,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+}
+
+void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang)
+{
+  double* ang_g = new double[nang*3];
+  double* ang_w = new double[nang];
+
+  get_angular_grid(nang,ang_g,ang_w);
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  generate_central_grid_2d(wb,nb,use_murak,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  delete [] ang_g;
+  delete [] ang_w;
+}
+
+void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang)
+{
+  return generate_central_grid_2d(0,1,use_murak,grid1,wt1,Z1,nrad,nang);
 }
 
 void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w)
@@ -1123,6 +1161,191 @@ void copy_symm_4c_ps(int natoms, int* n2i, int N, double* olp)
         int s7 = 0; if (q>0) s7 = n2i[q-1]; int s8 = n2i[q];
 
        #pragma acc parallel loop collapse(4) present(olp[0:N4])
+        for (int i=s1;i<s2;i++)
+        for (int j=s3;j<s4;j++)
+        for (int k=s5;k<s6;k++)
+        for (int l=s7;l<s8;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          //printf("   D: %i%i%i%i: %8.3e \n",i,j,k,l,v1);
+          olp[i*N3+j*N2+l*N+k] = v1;
+          olp[i*N3+k*N2+j*N+l] = v1;
+          olp[i*N3+k*N2+l*N+j] = v1;
+          olp[i*N3+l*N2+j*N+k] = v1;
+          olp[i*N3+l*N2+k*N+j] = v1;
+
+          olp[j*N3+i*N2+k*N+l] = v1;
+          olp[j*N3+i*N2+l*N+k] = v1;
+          olp[j*N3+k*N2+i*N+l] = v1;
+          olp[j*N3+k*N2+l*N+i] = v1;
+          olp[j*N3+l*N2+i*N+k] = v1;
+          olp[j*N3+l*N2+k*N+i] = v1;
+
+          olp[k*N3+i*N2+j*N+l] = v1;
+          olp[k*N3+i*N2+l*N+j] = v1;
+          olp[k*N3+j*N2+i*N+l] = v1;
+          olp[k*N3+j*N2+l*N+i] = v1;
+          olp[k*N3+l*N2+i*N+j] = v1;
+          olp[k*N3+l*N2+j*N+i] = v1;
+
+          olp[l*N3+i*N2+k*N+j] = v1;
+          olp[l*N3+i*N2+j*N+k] = v1;
+          olp[l*N3+k*N2+i*N+j] = v1;
+          olp[l*N3+k*N2+j*N+i] = v1;
+          olp[l*N3+j*N2+i*N+k] = v1;
+          olp[l*N3+j*N2+k*N+i] = v1;
+        }
+      }
+    } //4-center cases
+  }
+
+  return;
+}
+
+void copy_symm_4c_ps_cpu(int natoms, int* n2i, int N, double* olp)
+{
+  int N2 = N*N;
+  int N3 = N2*N;
+  //int N4 = N3*N;
+
+  for (int m=0;m<natoms;m++)
+  {
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+
+      for (int i=s1;i<s2;i++)
+      for (int j=s3;j<s4;j++)
+      for (int k=s3;k<s4;k++)
+      for (int l=s3;l<s4;l++)
+      {
+        double v1 = olp[i*N3+j*N2+k*N+l];
+        olp[j*N3+i*N2+k*N+l] = v1;
+        olp[k*N3+l*N2+i*N+j] = v1;
+        olp[k*N3+l*N2+j*N+i] = v1;
+      }
+      for (int i=s1;i<s2;i++)
+      for (int j=s1;j<s2;j++)
+      for (int k=s3;k<s4;k++)
+      for (int l=s3;l<s4;l++)
+      {
+        double v1 = olp[i*N3+j*N2+k*N+l];
+        olp[k*N3+l*N2+i*N+j] = v1;
+
+        olp[i*N3+l*N2+k*N+j] = v1;
+        olp[l*N3+i*N2+k*N+j] = v1;
+        olp[i*N3+l*N2+j*N+k] = v1;
+        olp[l*N3+i*N2+j*N+k] = v1;
+      }
+      for (int i=s1;i<s2;i++)
+      for (int j=s1;j<s2;j++)
+      for (int k=s1;k<s2;k++)
+      for (int l=s3;l<s4;l++)
+      {
+        double v1 = olp[i*N3+j*N2+k*N+l];
+        olp[l*N3+i*N2+j*N+k] = v1;
+        olp[i*N3+l*N2+j*N+k] = v1;
+        olp[i*N3+j*N2+l*N+k] = v1;
+      }
+    } //2-center cases
+
+    for (int n=m+1;n<natoms;n++)
+    {
+      for (int p=n+1;p<natoms;p++)
+      if (p!=m)
+      {
+        int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+        int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+        int s5 = 0; if (p>0) s5 = n2i[p-1]; int s6 = n2i[p];
+
+        for (int i=s1;i<s2;i++)
+        for (int j=s1;j<s2;j++)
+        for (int k=s3;k<s4;k++)
+        for (int l=s5;l<s6;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          olp[i*N3+j*N2+l*N+k] = v1;
+
+          olp[i*N3+k*N2+j*N+l] = v1;
+          olp[i*N3+l*N2+j*N+k] = v1;
+
+          olp[i*N3+k*N2+l*N+j] = v1;
+          olp[i*N3+l*N2+k*N+j] = v1;
+
+          olp[k*N3+i*N2+j*N+l] = v1;
+          olp[l*N3+i*N2+j*N+k] = v1;
+
+          olp[k*N3+l*N2+i*N+j] = v1;
+          olp[l*N3+k*N2+i*N+j] = v1;
+
+          olp[k*N3+i*N2+l*N+j] = v1;
+          olp[l*N3+i*N2+k*N+j] = v1;
+        }
+
+        for (int i=s1;i<s2;i++)
+        for (int j=s3;j<s4;j++)
+        for (int k=s3;k<s4;k++)
+        for (int l=s5;l<s6;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          olp[l*N3+j*N2+k*N+i] = v1;
+
+          olp[j*N3+k*N2+i*N+l] = v1;
+          olp[j*N3+k*N2+l*N+i] = v1;
+
+          olp[j*N3+i*N2+k*N+l] = v1;
+          olp[j*N3+l*N2+k*N+i] = v1;
+
+          olp[j*N3+i*N2+l*N+k] = v1;
+          olp[j*N3+l*N2+i*N+k] = v1;
+
+          olp[i*N3+l*N2+j*N+k] = v1;
+          olp[l*N3+i*N2+j*N+k] = v1;
+
+          olp[i*N3+j*N2+l*N+k] = v1;
+          olp[l*N3+j*N2+i*N+k] = v1;
+        }
+
+        for (int i=s1;i<s2;i++)
+        for (int j=s3;j<s4;j++)
+        for (int k=s5;k<s6;k++)
+        for (int l=s5;l<s6;l++)
+        {
+          double v1 = olp[i*N3+j*N2+k*N+l];
+          olp[j*N3+i*N2+k*N+l] = v1;
+
+          olp[k*N3+l*N2+i*N+j] = v1;
+          olp[k*N3+l*N2+j*N+i] = v1;
+
+          olp[k*N3+i*N2+l*N+j] = v1;
+          olp[k*N3+j*N2+l*N+i] = v1;
+
+          olp[k*N3+i*N2+j*N+l] = v1;
+          olp[k*N3+j*N2+i*N+l] = v1;
+
+          olp[i*N3+k*N2+l*N+j] = v1;
+          olp[j*N3+k*N2+l*N+i] = v1;
+
+          olp[i*N3+k*N2+j*N+l] = v1;
+          olp[j*N3+k*N2+i*N+l] = v1;
+        }
+      }
+    } //3-center cases
+
+   //4-center
+    for (int n=m+1;n<natoms;n++)
+    {
+      for (int p=n+1;p<natoms;p++)
+      if (p!=m)
+      for (int q=p+1;q<natoms;q++)
+      if (q!=m && q!=n)
+      {
+        int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+        int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+        int s5 = 0; if (p>0) s5 = n2i[p-1]; int s6 = n2i[p];
+        int s7 = 0; if (q>0) s7 = n2i[q-1]; int s8 = n2i[q];
+
         for (int i=s1;i<s2;i++)
         for (int j=s3;j<s4;j++)
         for (int k=s5;k<s6;k++)

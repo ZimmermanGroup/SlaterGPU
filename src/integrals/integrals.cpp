@@ -2544,7 +2544,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
   #pragma acc exit data copyout(V[0:nc],dV[0:nc3])
  #endif
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n V(no nn): \n");
     for (int i=0;i<nc;i++)
@@ -2552,7 +2552,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
     printf("\n");
   }
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n dV(no nn): \n");
     for (int i=0;i<nc;i++)
@@ -3427,7 +3427,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
     }
   }
 
-  if (prl>-2)
+  if (prl>2)
   {
     printf("\n pVp: \n");
     for (int i=0;i<N;i++)
@@ -5252,7 +5252,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 //high precision 2-center Coulomb
 void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl)
 {
-  if (prl>-1) printf(" beginning compute_all_2c_v2d \n");
+  if (prl>1) printf(" beginning compute_all_2c_v2d \n");
 
  //2c integrals are all in auxiliary basis
   int N = basis.size();

@@ -25,4 +25,6 @@ void eval_shd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1
 void eval_sh_s(int tid, int gs, float* grid, float* val, int l1, int m1, float A1, float B1, float C1);
 void eval_sh_4r(int tid, int gs, float* grid, float* val, int l1, int m1, float A1, float B1, float C1);
 
+void eval_sgsd(int tid, int gs1, int gs2, double* grid, double* val, int n1, int l1, int m1, double zeta1, double Rc);
+
 #endif

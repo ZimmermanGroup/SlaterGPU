@@ -134,7 +134,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
  // nomp = omp_get_num_threads();
 
  //CPMZ this function not done
-  if (prl>0) printf(" compute_d_3c_para (ngpu: %i) \n",nomp);
+  if (prl>0) printf(" WARNING: check this ftn. compute_d_3c_para (ngpu: %i) \n",nomp);
 
   int N = basis.size();
   int N2 = N*N;

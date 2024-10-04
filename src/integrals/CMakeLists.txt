@@ -1,21 +1,26 @@
 set(INTEGRALS_SOURCES
     integrals.cpp
     integrals_d.cpp 
+    integrals_aux.cpp
+    integrals_ps.cpp
+    spherical.cpp
+    sphericald.cpp
+    pVp.cpp
+    pVpd.cpp
+    becke.cpp
     gamma.cpp
     lebedev2.cpp     
     murak.cpp
-    pVp.cpp
     reduce.cpp
-    spherical.cpp
     Vinr.cpp
+    quad.cpp
+    prosph.cpp
+    ps_grid.cpp
+    ps_first_second_order.cpp
     grid_util.cpp
-    becke.cpp
-    sphericald.cpp
-    pVpd.cpp
-    integrals_aux.cpp
-    opt.cpp
-    hess.cpp
     gpu_util.cpp
+    hess.cpp
+    opt.cpp
     )
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
@@ -26,7 +31,7 @@ target_include_directories(SlaterGPU PUBLIC
 
 add_definitions("-w")
 
-set_property(TARGET SlaterGPU PROPERTY CXX_STANDARD 11)
+set_property(TARGET SlaterGPU PROPERTY CXX_STANDARD 14)
 set_property(TARGET SlaterGPU PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 set(SLATER_COMP_FLAGS ${CMAKE_CXX_FLAGS} -DRED_DOUBLE=1 -O2
