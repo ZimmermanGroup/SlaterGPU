@@ -177,97 +177,97 @@ int main(int argc, char* argv[]) {
     #pragma acc enter data create(g[0:N2*N2])
     printf("1e ints: %d\n2c2e ints: %d\n3c3e ints: %d\n4c4e ints: %d\n",N2, Naux2, N2a, N2*N2);
 
-    printf("Computing Standard Integrals:\n");
-
-    auto t1 = chrono::high_resolution_clock::now();
-    compute_ST(natoms, atno, coordsf, basis, nrad, size_ang, ang_g, ang_w, S, T, prl);
-
-    auto t2 = chrono::high_resolution_clock::now();
-    
-    bool do_2c_v1 = read_int("DO_2c_V1");
-    if (do_2c_v1)
-    {
-      if (prl > 0) printf("  using compute_all_2c instead of compute_all_2c_v2 \n");
-      //compute_all_2c(natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
-    }
-    else
-    {
-      if (prl > 0) printf("  using compute_all_2c_v2 \n");
-      compute_all_2c_v2(0,natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
-    }
-
-    auto t3 = chrono::high_resolution_clock::now();
-    auto t4 = chrono::high_resolution_clock::now();
-    if (ngpu == 1)
-    {
-      compute_Enp(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
-      auto t4 = chrono::high_resolution_clock::now();
-
-      bool do_3c_v1 = read_int("DO_3C_V1");
-      if (do_3c_v1)
-      {
-        if (prl > 0) printf("  using compute_all_3c instead of compute_all_3c_v2 \n");
-        //compute_all_3c(natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
-      }
-      else
-        if (prl > 0) printf("  using compute_all_3c_v2 \n");
-        compute_all_3c_v2(0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
-    } 
-    else
-    {
-      compute_Enp_para(ngpu,natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
-      auto t4 = chrono::high_resolution_clock::now();
-      
-      compute_all_3c_para(ngpu,0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
-    }
-
-    auto t5 = chrono::high_resolution_clock::now();
-    compute_VdV(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,nc,coordsc,Pao,V,dV,prl);
-
-    auto t6 = chrono::high_resolution_clock::now();
-    if (c4 > 0)
-      compute_all_4c_v2(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,g,prl);
-    
-    auto t7 = chrono::high_resolution_clock::now();
-
-    auto elapsed12 = chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
-    auto elapsed23 = chrono::duration_cast<chrono::nanoseconds>(t3-t2).count();
-    auto elapsed34 = chrono::duration_cast<chrono::nanoseconds>(t4-t3).count();
-    auto elapsed45 = chrono::duration_cast<chrono::nanoseconds>(t5-t4).count();
-    auto elapsed56 = chrono::duration_cast<chrono::nanoseconds>(t6-t5).count();
-    auto elapsed67 = chrono::duration_cast<chrono::nanoseconds>(t7-t6).count();    
-    auto elapsed17 = chrono::duration_cast<chrono::nanoseconds>(t7-t1).count();    
-
-    printf("-------------------------------\n");
-    printf("Integral ST   time: %5.3e s\n",(double)elapsed12/1.e9);
-    printf("Integral 2c2e time: %5.3e s\n",(double)elapsed23/1.e9);
-    
-    if (nomp == 1)
-    {
-      printf("Integral Vne  time: %5.3e s\n",(double)elapsed34/1.e9);
-      printf("Integral 3c2e time: %5.3e s\n",(double)elapsed45/1.e9);
-    } 
-    else
-    {
-      printf("Integral Vne  (para)  time: %5.3e s\n",(double)elapsed34/1.e9);
-      printf("Integral 3c2e (para)  time: %5.3e s\n",(double)elapsed45/1.e9);
-    }
-
-    printf("Integral VdV  time: %5.3e s\n",(double)elapsed56/1.e9);
-    if (c4 > 0)
-      printf("Integral 4c (v2)    time: %5.3e s\n",(double)elapsed67/1.e9);
-
-    printf("-------------------------------\n");
-    printf("Integral tot  time: %5.3e s\n",(double)elapsed17/1.e9);
-    printf("-------------------------------\n");
-
-    #pragma acc exit data copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
-    #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc],g[0:N2*N2])
-
     if (check_PS() > 0)
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl);
     else 
     {
+      printf("Computing Standard Integrals:\n");
+
+      auto t1 = chrono::high_resolution_clock::now();
+      compute_ST(natoms, atno, coordsf, basis, nrad, size_ang, ang_g, ang_w, S, T, prl);
+
+      auto t2 = chrono::high_resolution_clock::now();
+      
+      bool do_2c_v1 = read_int("DO_2c_V1");
+      if (do_2c_v1)
+      {
+        if (prl > 0) printf("  using compute_all_2c instead of compute_all_2c_v2 \n");
+        //compute_all_2c(natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
+      }
+      else
+      {
+        if (prl > 0) printf("  using compute_all_2c_v2 \n");
+        compute_all_2c_v2(0,natoms,atno,coordsf,basis_aux,nrad,size_ang,ang_g,ang_w,A,prl);
+      }
+
+      auto t3 = chrono::high_resolution_clock::now();
+      auto t4 = chrono::high_resolution_clock::now();
+      if (ngpu == 1)
+      {
+        compute_Enp(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
+        auto t4 = chrono::high_resolution_clock::now();
+
+        bool do_3c_v1 = read_int("DO_3C_V1");
+        if (do_3c_v1)
+        {
+          if (prl > 0) printf("  using compute_all_3c instead of compute_all_3c_v2 \n");
+          //compute_all_3c(natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
+        }
+        else
+          if (prl > 0) printf("  using compute_all_3c_v2 \n");
+          compute_all_3c_v2(0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
+      } 
+      else
+      {
+        compute_Enp_para(ngpu,natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
+        auto t4 = chrono::high_resolution_clock::now();
+        
+        compute_all_3c_para(ngpu,0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
+      }
+
+      auto t5 = chrono::high_resolution_clock::now();
+      compute_VdV(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,nc,coordsc,Pao,V,dV,prl);
+
+      auto t6 = chrono::high_resolution_clock::now();
+      if (c4 > 0)
+        compute_all_4c_v2(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,g,prl);
+      
+      auto t7 = chrono::high_resolution_clock::now();
+
+      auto elapsed12 = chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
+      auto elapsed23 = chrono::duration_cast<chrono::nanoseconds>(t3-t2).count();
+      auto elapsed34 = chrono::duration_cast<chrono::nanoseconds>(t4-t3).count();
+      auto elapsed45 = chrono::duration_cast<chrono::nanoseconds>(t5-t4).count();
+      auto elapsed56 = chrono::duration_cast<chrono::nanoseconds>(t6-t5).count();
+      auto elapsed67 = chrono::duration_cast<chrono::nanoseconds>(t7-t6).count();    
+      auto elapsed17 = chrono::duration_cast<chrono::nanoseconds>(t7-t1).count();    
+
+      printf("-------------------------------\n");
+      printf("Integral ST   time: %5.3e s\n",(double)elapsed12/1.e9);
+      printf("Integral 2c2e time: %5.3e s\n",(double)elapsed23/1.e9);
+      
+      if (nomp == 1)
+      {
+        printf("Integral Vne  time: %5.3e s\n",(double)elapsed34/1.e9);
+        printf("Integral 3c2e time: %5.3e s\n",(double)elapsed45/1.e9);
+      } 
+      else
+      {
+        printf("Integral Vne  (para)  time: %5.3e s\n",(double)elapsed34/1.e9);
+        printf("Integral 3c2e (para)  time: %5.3e s\n",(double)elapsed45/1.e9);
+      }
+
+      printf("Integral VdV  time: %5.3e s\n",(double)elapsed56/1.e9);
+      if (c4 > 0)
+        printf("Integral 4c (v2)    time: %5.3e s\n",(double)elapsed67/1.e9);
+
+      printf("-------------------------------\n");
+      printf("Integral tot  time: %5.3e s\n",(double)elapsed17/1.e9);
+      printf("-------------------------------\n");
+
+      #pragma acc exit data copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
+      #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc],g[0:N2*N2])
+
       if (prl > 0) printf("Printing Standard Integral Files:\n");  
       write_S_En_T(N,S,En,T);
       write_square(Naux,A,"A",2);

@@ -509,7 +509,7 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
   double a3 = a*a*a;
 
   double rmax = a*cosh(c1*atanh(nmu*dx1));
-  printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f  c2: %8.5f \n",cf,c1,rmax,c2);
+  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f  c2: %8.5f \n",cf,c1,rmax,c2);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
   for (int i=0;i<nmu;i++)
@@ -598,7 +598,7 @@ void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, do
   if (prl>0)
     printf("\n   init_ps_coords. a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",a,nmu,nnu,nphi,dnu,dphi,dx1);
   double rmax = a*cosh(c1*atanh(nmu*dx1));
-  printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
+  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
   for (int i=0;i<nmu;i++)
@@ -1654,7 +1654,7 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
   if (prl>0)
     printf("\n init_ps_coords. wb/nbatch: %i %i -- a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",wb,nbatch,a,nmu,nnu,nphi,dnu,dphi,dx1);
   double rmax = a*cosh(c1*atanh(nmu*dx1));
-  printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
+  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
   int ic = 0;
   for (int i=0;i<nmu;i++)
@@ -2210,7 +2210,7 @@ void generate_ps_quad_grid(double cfn, int wb, int nb, double Z1, int natoms, do
       grid[j] = 1.e4;
     if (nrad<1) { printf("\n ERROR: could not form atomic grid \n"); exit(-1); }
 
-    printf("    using atomic grid (Z: %2i).  nrad: %4i  nang: %4i  gs: %7i  gsq: %7i \n",(int)Z1,nrad,nang,gsb,gsq);
+    if (prl > 1) printf("    using atomic grid (Z: %2i).  nrad: %4i  nang: %4i  gs: %7i  gsq: %7i \n",(int)Z1,nrad,nang,gsb,gsq);
     generate_central_grid_2d(wb,nb,1,grid,wt,Z1,nrad,nang);
 
    #else

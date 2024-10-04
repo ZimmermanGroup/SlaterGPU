@@ -270,7 +270,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
     double mem1 = 8.*(3.*gs*Nmax + mem0 + 3.*N2 + 4.*gs6 + 1.*gs);
     if (mem1<gpumem)
     {
-      printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
@@ -284,7 +284,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1) printf("   imaxN: %2i \n",imaxN);
 
   //double gsxvalsv = 8.*(imaxN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
   //double gsxvalsv_gb = gsxvalsv/1024./1024./1024.;
@@ -763,22 +763,18 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
     double mem1 = 8.*(mem0 + 1.*N2 + 3.*gs6 + 2.*gs + 2.*Nmax*gs3);
     if (mem1<gpumem)
     {
-      //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
   }
-  //if (Nmax>4)
-  //  Nmax -= 4;
-  //if (Nmax>40) Nmax = 40;
-  //int NNm = read_int("NMAX");
-  //Nmax = NNm;
+
 
   if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1)printf("   imaxN: %2i \n",imaxN);
 
   double gpumem_gb = gpumem/1024./1024./1024.;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
@@ -1112,7 +1108,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
 void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl)
 {
-  if (do_overlap) { printf("\n WARNING: testing do_overlap in compute_2c_ps \n"); }
+  if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_2c_ps \n"); }
 
   if (prl>-1) { if (do_yukawa) printf("  beginning compute_2c_ps (Yukawa. gamma: %5.3f) \n",gamma); else printf("  beginning compute_2c_ps \n"); }
 
@@ -1159,7 +1155,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
       if (l1==l && basis[j][3]<ztminl[l])
         ztminl[l] = basis[j][3];
     }
-    if (lmax==l)
+    if (lmax==l && prl>1)
       printf("   l: %i ztmin: %8.5f \n",l,ztminl[l]);
   }
 
@@ -1183,7 +1179,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
     double mem1 = 8.*(gs*2.*Nmax + 1.*mem0 + 1.*N2 + 2.*gs6 + 2.*gs);
     if (mem1<gpumem)
     {
-      //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
@@ -1194,7 +1190,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1)printf("   imaxN: %2i \n",imaxN);
 
   double gsxvalsv = 8.*(imaxN*gs*2. + 1.*mem0); //vals+grid/wt+gridm
   double gsxvalsv_gb = gsxvalsv/1024./1024./1024.;
@@ -1743,7 +1739,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   int gs6 = 6*gsh;
 
   //printf("   qos/h: %3i %3i \n",qos,qosh);
-  printf("   gs(h): %8i  %8i \n",gs,gsh);
+  if (prl>1) printf("   gs(h): %8i  %8i \n",gs,gsh);
 
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
@@ -1766,7 +1762,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
     double mem1 = 8.*(2.*Nmax*gs3 + 1.*mem0 + 1.*N2 + 3.*gs6 + 2.*gsh);
     if (mem1<gpumem)
     {
-      //printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
@@ -1777,7 +1773,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
     
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl<1) printf("   imaxN: %2i \n",imaxN);
 
   double gpumem_gb = gpumem/1024./1024./1024.;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
@@ -1986,7 +1982,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
 void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
 {
   if (prl>-1) { if (do_yukawa) printf("  beginning compute_3c_ps (Yukawa. gamma: %5.3f) \n",gamma); else printf("  beginning compute_3c_ps \n"); }
-  if (do_overlap) { printf("\n WARNING: testing do_overlap in compute_3c_ps \n"); }
+  if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_3c_ps \n"); }
 
   int nomp_max = 1;
  #pragma omp parallel
@@ -2037,7 +2033,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   int gsh = ((nmu*nnu*nphi-8)*qos+8*nsg*qosh)/nbatch; //3-atom grid size
   int gs6 = 6*gsh;
 
-  printf("   gs(h): %8i  %8i  nb: %2i \n",gs,gsh,nbatch);
+  if (prl>1) printf("   gs(h): %8i  %8i  nb: %2i \n",gs,gsh,nbatch);
 
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
@@ -2059,7 +2055,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
     double mem1 = 8.*(2.*gsh*iN + mem0 + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
     if (mem1<gpumem)
     {
-      printf("    mem0: %6.1f mem1: %6.1f \n",mem0*togb,mem1*togb);
+      if (prl>1) printf("    mem0: %6.1f mem1: %6.1f \n",mem0*togb,mem1*togb);
       break;
     }
     Nmax--;
@@ -2070,7 +2066,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
 
   vector<vector<int> > n2aip;
   int iNa = get_imax_n2ip(Nmax,natoms,Naux,basis_aux,n2aip);
-  printf("   iNa: %2i \n",iNa);
+  if (prl>1) printf("   iNa: %2i \n",iNa);
 
   int* na2i = new int[natoms]; //needed for copy_symm
   get_imax_n2i(natoms,Naux,basis_aux,na2i);
@@ -3106,7 +3102,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
 
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
-  printf("   imaxN: %2i \n",imaxN);
+  if (prl>1) printf("   imaxN: %2i \n",imaxN);
 
  //needed for copy_symm ftn
   int* n2i = new int[natoms];

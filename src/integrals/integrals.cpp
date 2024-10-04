@@ -2544,7 +2544,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
   #pragma acc exit data copyout(V[0:nc],dV[0:nc3])
  #endif
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n V(no nn): \n");
     for (int i=0;i<nc;i++)
@@ -2552,7 +2552,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
     printf("\n");
   }
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n dV(no nn): \n");
     for (int i=0;i<nc;i++)
