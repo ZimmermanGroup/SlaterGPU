@@ -21,7 +21,7 @@ platforms = ["linux-64"]
 slurm-job = "srun -p zimA10 -N1 -n16 --gpus=1 --pty /bin/bash"
 
 [feature.athena.tasks.configure-athena]
-cmd = "cmake -Bbuild"
+cmd = "printenv >env-athena.txt && cmake -Bbuild"
 depends-on = ["clean"]
 [feature.athena.tasks.configure-athena.env]
 LIBCINT_PATH="/home/ndmeier/libraries/libcint"
@@ -77,7 +77,7 @@ $CPLUS_INCLUDE_PATH\
 MANPATH = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/man:$MANPATH"
 
 [feature.linux-64.tasks.configure-linux-64]
-cmd = "cmake -Bbuild"
+cmd = "printenv >env-linux-64.txt && cmake --trace-expand -Bbuild 2>cmake-linux-64-output.txt"
 depends-on = ["clean"]
 [feature.linux-64.tasks.configure-linux-64.env]
 LIBCINT_PATH="/home/ndmeier/libraries/libcint"
@@ -131,6 +131,10 @@ CPLUS_INCLUDE_PATH = """\
 $CPLUS_INCLUDE_PATH\
 """
 MANPATH = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/man:$MANPATH"
+# testing setting additional environment variables to undo some of what conda is doing
+CFLAGS = ""
+CPPFLAGS = ""
+CXXFLAGS = ""
 
 [system-requirements]
 linux = "3.10"
@@ -139,11 +143,11 @@ libc = { family="glibc", version="2.17" }
 [dependencies]
 cmake = ">=3.21.0,<4"
 
-# [feature.linux-64.dependencies]
+[feature.linux-64.dependencies]
 # # gcc = ">=13.2.0,<13.3"
 # # cuda = ">=12,<13"
 # # cuda-nvcc = ">=12,<13"
-# cuda-toolkit = ">=12,<13"
+cuda-toolkit = ">=12,<13"
 # # openmpi = ">=5.0.3,<5.1"
 # openmpi = "=3.1"
 # openmpi-mpicc = "=3.1"
