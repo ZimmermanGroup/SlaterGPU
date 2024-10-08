@@ -87,9 +87,6 @@ NVHPC = "/export/apps/RockyOS8/nvidia_hpc/2024_249"
 NVHPC_ROOT = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9"
 CC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc"
 CXX = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc++"
-FC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
-F90 = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
-F77 = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
 CPP = "cpp"
 PATH = """\
 /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/bin:\
