@@ -178,6 +178,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgcc-14.1.0-h77fa898_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/libgcc-devel_linux-64-12.4.0-ha4f9413_101.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgcc-ng-14.1.0-h69a702a_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libgfortran-ng-7.5.0-h14aa051_20.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libgfortran4-7.5.0-h14aa051_20.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgomp-14.1.0-h77fa898_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libnghttp2-1.58.0-h47da74e_1.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/libnpp-12.3.1.54-0.conda
@@ -195,8 +197,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-14.1.0-h4852527_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.49.0-hb9d3cd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.1-h4ab18f5_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/mpi-1.0-openmpi.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-he02047a_1.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/nsight-compute-2024.1.1.4-0.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/openmpi-3.1.4-hc99cbb1_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.3.2-hb9d3cd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/rhash-1.4.4-hd590300_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-64-2.17-h4a8ded7_17.conda
@@ -1809,6 +1813,36 @@ packages:
   size: 52203
   timestamp: 1724802545317
 - kind: conda
+  name: libgfortran-ng
+  version: 7.5.0
+  build: h14aa051_20
+  build_number: 20
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/libgfortran-ng-7.5.0-h14aa051_20.tar.bz2
+  sha256: 7347a7a57f992d3d4fdb1bf98582ec0963d45b16d9dfb3efe2045ff2cb157527
+  md5: c3b2ad091c043c08689e64b10741484b
+  depends:
+  - libgfortran4 7.5.0.*
+  license: GPL-3.0-only WITH GCC-exception-3.1
+  license_family: GPL
+  size: 23435
+  timestamp: 1644093859248
+- kind: conda
+  name: libgfortran4
+  version: 7.5.0
+  build: h14aa051_20
+  build_number: 20
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/libgfortran4-7.5.0-h14aa051_20.tar.bz2
+  sha256: a8f3ae8e6c9fbe52f7403bfb2e00bf0c5169ab0702a4a5f3ad88494867e03427
+  md5: a072eab836c3a9578ce72b5640ce592d
+  constrains:
+  - libgfortran-ng 7.5.0 *_20
+  license: GPL-3.0-only WITH GCC-exception-3.1
+  license_family: GPL
+  size: 1309697
+  timestamp: 1644093800802
+- kind: conda
   name: libgomp
   version: 14.1.0
   build: h77fa898_1
@@ -2204,6 +2238,18 @@ packages:
   size: 67199
   timestamp: 1716874136348
 - kind: conda
+  name: mpi
+  version: '1.0'
+  build: openmpi
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/mpi-1.0-openmpi.tar.bz2
+  sha256: 54cf44ee2c122bce206f834a825af06e3b14fc4fd58c968ae9329715cc281d1e
+  md5: 1dcc49e16749ff79ba2194fa5d4ca5e7
+  arch: x86_64
+  platform: linux
+  license: BSD 3-clause
+  size: 4204
+- kind: conda
   name: ncurses
   version: '6.5'
   build: hcccb83c_1
@@ -2242,6 +2288,23 @@ packages:
   md5: 217ed2ff255f52cbef787aba3f9b9637
   size: 699526661
   timestamp: 1709778043113
+- kind: conda
+  name: openmpi
+  version: 3.1.4
+  build: hc99cbb1_0
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/openmpi-3.1.4-hc99cbb1_0.tar.bz2
+  sha256: 1a7fe7007fa7f3252072c9e5fe6deb07c8a9d365fc67ac5136b1f8013fe34a04
+  md5: 4d5e3fbea36b8e179d9eeb45fa775e5e
+  depends:
+  - libgcc-ng >=7.3.0
+  - libgfortran-ng >=7,<8.0a0
+  - libstdcxx-ng >=7.3.0
+  - mpi 1.0 openmpi
+  license: BSD 3-Clause
+  license_family: BSD
+  size: 4225931
+  timestamp: 1556027797592
 - kind: conda
   name: openssl
   version: 3.3.2

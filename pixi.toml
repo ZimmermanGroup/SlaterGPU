@@ -132,9 +132,9 @@ $CPLUS_INCLUDE_PATH\
 """
 MANPATH = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/man:$MANPATH"
 # testing setting additional environment variables to undo some of what conda is doing
-CFLAGS = ""
-CPPFLAGS = ""
-CXXFLAGS = ""
+CFLAGS = " "
+CPPFLAGS = " "
+CXXFLAGS = " "
 
 [system-requirements]
 linux = "3.10"
@@ -149,7 +149,7 @@ cmake = ">=3.21.0,<4"
 # # cuda-nvcc = ">=12,<13"
 cuda-toolkit = ">=12,<13"
 # # openmpi = ">=5.0.3,<5.1"
-# openmpi = "=3.1"
+openmpi = "=3.1"
 # openmpi-mpicc = "=3.1"
 # openmpi-mpicxx = "=3.1"
 
