@@ -104,6 +104,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.32.3-h4bc722e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2024.8.30-hbcca054_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cmake-3.30.4-hf9cb763_0.conda
+      - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-12.6.2-0.conda
       - conda: https://conda.anaconda.org/nvidia/noarch/cuda-cccl_linux-64-12.6.77-0.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-command-line-tools-12.6.2-0.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-compiler-12.6.2-0.conda
@@ -144,6 +145,7 @@ environments:
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-opencl-12.6.77-0.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-opencl-dev-12.6.77-0.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-profiler-api-12.6.77-0.conda
+      - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-runtime-12.6.2-0.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-sanitizer-api-12.6.77-0.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-toolkit-12.6.2-0.conda
       - conda: https://conda.anaconda.org/nvidia/linux-64/cuda-tools-12.6.2-0.conda
@@ -416,6 +418,21 @@ packages:
   license_family: BSD
   size: 19707706
   timestamp: 1727459501915
+- kind: conda
+  name: cuda
+  version: 12.6.2
+  build: '0'
+  subdir: linux-64
+  url: https://conda.anaconda.org/nvidia/linux-64/cuda-12.6.2-0.conda
+  sha256: b6d38ce0d56a641ebcaa9b3d49427f5bff98d0c728239306b9b687ac471eda73
+  md5: 00b820d5bf78613a3474a89d7f102110
+  depends:
+  - __linux
+  - cuda-runtime 12.6.2.*
+  - cuda-toolkit 12.6.2.*
+  license: LicenseRef-NVIDIA-End-User-License-Agreement
+  size: 16946
+  timestamp: 1726770341191
 - kind: conda
   name: cuda-cccl_linux-64
   version: 12.6.77
@@ -1092,6 +1109,20 @@ packages:
   license: LicenseRef-NVIDIA-End-User-License-Agreement
   size: 19487
   timestamp: 1726136439451
+- kind: conda
+  name: cuda-runtime
+  version: 12.6.2
+  build: '0'
+  subdir: linux-64
+  url: https://conda.anaconda.org/nvidia/linux-64/cuda-runtime-12.6.2-0.conda
+  sha256: 62d1482c9ad7bd4ce0606cd7904c21381606025ad6cd7250b18e49f709806a2a
+  md5: c694eab398b1cf0c710bf2a40a960d34
+  depends:
+  - __linux
+  - cuda-libraries 12.6.2.*
+  license: LicenseRef-NVIDIA-End-User-License-Agreement
+  size: 16905
+  timestamp: 1726770304705
 - kind: conda
   name: cuda-sanitizer-api
   version: 12.6.77

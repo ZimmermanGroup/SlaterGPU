@@ -8,9 +8,13 @@ platforms = ["linux-64", "linux-aarch64"]
 # load = "module load nvidia-sdk"
 clean = "rm -rf build"
 build = "cmake --build build -j 16"
-test = {cmd = ["../sgpu.exe"], cwd = "build/examples/geom_1"}
 start-athena = {depends-on = ["configure-athena", "build", "test"]}
 start-linux-64 = {depends-on = ["configure-linux-64", "build", "test"]}
+
+[tasks.test]
+description = "Test SlaterGPU executable on a small molecular system"
+cwd = "build/examples/geom_1"
+cmd = "srun -p zimA10 -N1 -n1 -c2 --gpus=1 ../sgpu.exe"
 
 [feature.athena]
 platforms = ["linux-64"]
@@ -142,9 +146,9 @@ cmake = ">=3.21.0,<4"
 
 [feature.linux-64.dependencies]
 # # gcc = ">=13.2.0,<13.3"
-# # cuda = ">=12,<13"
+cuda = ">=12,<13"
 # # cuda-nvcc = ">=12,<13"
-cuda-toolkit = ">=12,<13"
+# cuda-toolkit = ">=12,<13"
 # # openmpi = ">=5.0.3,<5.1"
 openmpi = "=3.1"
 # openmpi-mpicc = "=3.1"
