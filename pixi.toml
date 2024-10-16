@@ -5,10 +5,14 @@ channels = ["nvidia", "conda-forge"]
 platforms = ["linux-64", "linux-aarch64"]
 
 [tasks]
-clean = "rm -rf build"
-build = "cmake --build build -j 16"
-start-athena = {depends-on = ["configure-athena", "build", "test"]}
+clean = {cmd = "rm -rf build", description = "Delete build directory"}
+build = {cmd = "cmake --build build -j 16", description = "Invoke cmake to compile and link the executable"}
 start-linux-64 = {depends-on = ["configure-linux-64", "build", "test"]}
+
+[tasks.start-athena]
+description = "Configure, build, and test on the Zimmerman group cluster"
+cmd = "echo 'Finished pixi start-athena!'"
+depends-on = ["configure-athena", "build", "test"]
 
 [tasks.test]
 description = "Test SlaterGPU executable on a small molecular system"
@@ -24,6 +28,7 @@ platforms = ["linux-64"]
 slurm-job = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n16 --gpus=1 --pty /bin/bash"
 
 [feature.athena.tasks.configure-athena]
+description = "Invoke cmake to create build directory with build configuration"
 cmd = "printenv >env-athena.txt && cmake -Bbuild"
 depends-on = ["clean"]
 [feature.athena.tasks.configure-athena.env]
