@@ -1,8 +1,8 @@
 # SlaterGPU
 
 Library for numerically computing Slater-type orbital integrals.
-For running on GPU, OpenACC is required. Code has been tested
-and compiled with Nvidia HPC SDK 20.7, 21.7 and 21.9. A wrapper
+For running on GPU, OpenACC is required. A compatible compiler should be used.
+Testing has been done with NVHPC SDK version 24.9. A wrapper
 library for Libcint (https://github.com/sunqm/libcint) is also
 provided for Gaussian integrals. It should be noted that version 5.3.0 of libcint is required at the moment.
 
@@ -30,18 +30,16 @@ For other users, this bash script may be a helpful example to see how to install
 
 ### For compiling run :
 ```
-mkdir build
-cd build
-cmake ..
-make
+cmake -Bbuild
+cmake --build build -j 16
 ```
 
 The executable will be generated at `build/examples/sgpu.exe`
 
 ### Testing:
-From the build directory, go into one of the example directories.
+Go into one of the example directories inside the build directory.
 ```
-cd examples/geom_1
+cd build/examples/geom_1
 ```
 
 Then execute SlaterGPU within this directory to run the test.
@@ -62,3 +60,16 @@ export OMP_NUM_THREADS=<ngpu>
 There are example calculations in `SlaterGPU/examples/` with integral files denoted generally as `INT_ref`. It should be noted that normally, the three center coefficients, `Ciap`, are generated, but were omitted due to Git's file size limit.
 
 Please see LICENSE file for licensing information.
+
+## Experimental pixi build for athena:
+Run tasks with `pixi run <TASK>` where \<TASK\> is one of the following:
+```
+ - build           Invoke cmake to compile and link the executable
+ - clean           Delete build directory
+ - configure-athena Invoke cmake to create build directory with build configuration
+ - start-athena    Configure, build, and test on the Zimmerman group cluster
+ - test            Test SlaterGPU executable on a small molecular system
+```
+Above list generated with `pixi task list`
+
+Configuration of tasks and dependencies can be found in the `pixi.toml` file.
