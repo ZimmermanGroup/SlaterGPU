@@ -1,5 +1,5 @@
 #include "integrals.h"
-
+ 
 #define TEST_SORT 0
 //symmetrize wrt atom swap
 #define SYMM_ST 1
@@ -2544,7 +2544,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
   #pragma acc exit data copyout(V[0:nc],dV[0:nc3])
  #endif
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n V(no nn): \n");
     for (int i=0;i<nc;i++)
@@ -2552,7 +2552,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
     printf("\n");
   }
 
-  if (prl>0)
+  if (prl>1)
   {
     printf("\n dV(no nn): \n");
     for (int i=0;i<nc;i++)
@@ -3427,7 +3427,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
     }
   }
 
-  if (prl>-2)
+  if (prl>2)
   {
     printf("\n pVp: \n");
     for (int i=0;i<N;i++)
@@ -4392,7 +4392,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
         valz += val1m[j]*val2m[j]*z;
       }
 
-     #pragma acc serial
+     #pragma acc serial present(E[0:3*N2])
       {
         E[i1*N+i2]      = E[i2*N+i1] = valx;
         E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
@@ -4669,7 +4669,7 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
       for (int j=0;j<gs;j++)
         val += val1m[j]*val2m[j];
 
-     #pragma acc serial
+     #pragma acc serial present(S[0:N2])
       S[i1*N+i2] = S[i2*N+i1] = val;
 
     } //pairs of basis on single atoms
@@ -4716,10 +4716,10 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
        //needs to happen after becke weighting
         add_r1_to_grid(gs,grid2m,0.,0.,0.);
 
-        #pragma acc parallel loop present(val1n[0:gs],val2m[0:gs])
+        #pragma acc parallel loop present(val2n[0:gs],val2m[0:gs])
         for (int j=0;j<gs;j++)
-          val2m[j] = val2n[j] = 1.; 
-        #pragma acc parallel loop present(val1m[0:gs],val2n[0:gs],wt1[0:gs],wt2[0:gs])
+          val2m[j] = val2n[j] = 1.;
+        #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],wt1[0:gs],wt2[0:gs])
         for (int j=0;j<gs;j++)
         {
           val1m[j] = wt1[j];
@@ -4737,7 +4737,7 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
         for (int j=0;j<gs;j++)
           val += val1m[j]*val2m[j] + val1n[j]*val2n[j];
 
-       #pragma acc serial
+       #pragma acc serial present(S[0:N2])
         S[i1*N+i2] = S[i2*N+i1] = val;
       }
 
@@ -5252,7 +5252,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 //high precision 2-center Coulomb
 void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl)
 {
-  if (prl>-1) printf(" beginning compute_all_2c_v2d \n");
+  if (prl>1) printf(" beginning compute_all_2c_v2d \n");
 
  //2c integrals are all in auxiliary basis
   int N = basis.size();

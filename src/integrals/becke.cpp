@@ -1077,7 +1077,7 @@ void density_in_basis2(int natoms, int* atno, float* coords, vector<vector<doubl
  //basis1 --> basis for No MOs
  //basis2 --> new AO basis
 
-  if (prl>-1) printf("\n density_in_basis2 (No: %i) \n",No);
+  if (prl>0) printf("\n density_in_basis2 (No: %i) \n",No);
 
   //int gs = gsa/natoms;
   int gsa6 = 6*gsa;

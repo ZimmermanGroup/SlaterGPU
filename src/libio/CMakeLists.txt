@@ -4,7 +4,7 @@ set(IO_SOURCES
     )
 
 add_library(io SHARED "${IO_SOURCES}")
-set_property(TARGET io PROPERTY CXX_STANDARD 11)
+set_property(TARGET io PROPERTY CXX_STANDARD 14)
 
 target_include_directories(io PRIVATE 
     "${CMAKE_SOURCE_DIR}/src/integrals"
