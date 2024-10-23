@@ -30,6 +30,7 @@ void compute_rho(int natoms, int* atno, float* coords, vector<vector<double> > &
 void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int gsa, double* grid, double* rho, double* drho, int prl);
 void compute_rhod(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gsa, float* grid, double* rho, double* drho, int prl);
 void compute_rho(bool gbasis, int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gsa, float* grid, double* rho, double* drho, int prl);
+void rho_grid(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* Pao, int gs, float* grid, double* rho, double* drho, float* delt, int prl);
 
 void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int gsa, double* grid, double* wt, double* fxc, int prl);
 void compute_fxc(int natoms, int* atno, float* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int gsa, float* grid, float* wt, double* fxc, int prl);
