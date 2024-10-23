@@ -13,3 +13,5 @@ build*
 # pixi environments
 .pixi
 *.egg-info
+# .git folder for rattler-build's sake
+.git
