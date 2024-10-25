@@ -19,6 +19,11 @@ description = "Test SlaterGPU executable on a small molecular system"
 cwd = "build/examples/geom_1"
 cmd = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n1 -c2 --gpus=1 ../sgpu.exe"
 
+[tasks.rattler-build]
+description = "Invoke rattler-build to create a conda package"
+cwd = "rattler-build"
+cmd = "rm -rf output && rattler-build build --no-test"
+
 [feature.athena]
 platforms = ["linux-64"]
 [feature.linux-64]
