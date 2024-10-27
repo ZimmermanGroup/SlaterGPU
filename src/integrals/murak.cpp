@@ -101,6 +101,7 @@ void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, cons
  //working this in double precision, otherwise limit on grid size
 void get_murak_grid_f(int size, float* r, float* w, int Z, const int m)
 {
+
   if (Z==0) Z = 1;
 
  //assuming alpha scalar == 1
@@ -108,12 +109,6 @@ void get_murak_grid_f(int size, float* r, float* w, int Z, const int m)
   const int mm1 = m-1;
   const double w0 = 1./size;
   const double mal = m*alpha;
-
-  if (size>165)
-  {
-    printf(" WARNING: single precision cannot handle this many radial grid points \n");
-    //exit(1.);
-  }
 
 #if USE_ACC
  #pragma acc parallel loop independent present(r[0:size],w[0:size])
@@ -184,9 +179,13 @@ void get_murak_grid(int size, double* r, double* w, int Z, const int m)
 
   if (size>165 && 0)
   {
+    int npr = 10;
    #pragma acc update self(r[0:size])
     printf("\n r:");
-    for (int m=0;m<size;m++)
+    for (int m=0;m<npr;m++)
+      printf(" %14.12f",r[m]);
+    printf(" ... ");
+    for (int m=size-npr;m<size;m++)
       printf(" %14.12f",r[m]);
   }
 

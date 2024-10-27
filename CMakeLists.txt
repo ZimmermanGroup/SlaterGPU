@@ -6,6 +6,7 @@ project(SlaterGPU VERSION 0.1
 set(USE_ACC True)
 set(USE_MPI True)
 set(USE_OMP True)
+set(RED_DOUBLE True)
 
 if(NOT DO_GTO)
     set(DO_GTO True)
@@ -16,6 +17,9 @@ set(DO_GTO ${DO_GTO})
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
+
+# use this flag for verbose OpenACC compilation output to troubleshoot memory issues
+# set(CMAKE_CXX_FLAGS " -Minfo=accel ")
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
@@ -30,7 +34,7 @@ if (USE_ACC)
     find_package(OpenACC REQUIRED)
 endif()
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

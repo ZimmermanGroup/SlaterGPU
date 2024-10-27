@@ -1209,7 +1209,7 @@ void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, double** val1, double**
     for (int j=0;j<gs;j++)
       val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
  
-    C[i1*N2+i2*N+i3] = val;
+    C[i1*N2+i2*N+i3] += val;
   } //i1,i2,i3
 
   return;
@@ -1236,7 +1236,7 @@ void reduce_3c1b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, double*
     for (int j=0;j<gs;j++)
       val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
  
-    C[i1*N2+i2*N+i3] = val;
+    C[i1*N2+i2*N+i3] += val;
   } //i1,i2,i3
 
   return;
