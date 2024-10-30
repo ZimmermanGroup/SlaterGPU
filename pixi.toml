@@ -19,9 +19,17 @@ description = "Test SlaterGPU executable on a small molecular system"
 cwd = "build/examples/geom_1"
 cmd = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n1 -c2 --gpus=1 ../sgpu.exe"
 
+[feature.pytest.tasks.pytest]
+description = "Invoke pytest to sanity check output from test task"
+depends-on = ["test"]
+cwd = "build/examples/geom_1"
+cmd = "pytest"
+
 [feature.athena]
 platforms = ["linux-64"]
 [feature.linux-64]
+platforms = ["linux-64"]
+[feature.pytest]
 platforms = ["linux-64"]
 
 [feature.athena.tasks]
@@ -158,6 +166,10 @@ openmpi = "=3.1"
 # openmpi-mpicc = "=3.1"
 # openmpi-mpicxx = "=3.1"
 
+[feature.pytest.dependencies]
+pytest = ">=8.3.3,<9"
+
 [environments]
 athena = {features = ["athena"]}
 linux-64 = {features = ["linux-64"]}
+pytest = {features = ["pytest"]}
