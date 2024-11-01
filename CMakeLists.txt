@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(SlaterGPU VERSION 0.1 
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
-                  LANGUAGES C CXX)
+                  LANGUAGES C CXX CUDA)
 
 set(USE_ACC True)
 set(USE_MPI True)
@@ -33,6 +33,11 @@ endif()
 if (USE_ACC)
     find_package(OpenACC REQUIRED)
 endif()
+
+find_package(BLAS)
+enable_language(CUDA)
+find_package(CUDA REQUIRED)
+find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
