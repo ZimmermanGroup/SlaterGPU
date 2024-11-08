@@ -15,4 +15,4 @@ def test_output():
     A = np.loadtxt(script_build_dir / "A", skiprows=1)
     A_ref = np.loadtxt(script_build_dir / "A_ref", skiprows=1)
     assert A.shape == A_ref.shape
-    assert A == pytest.approx(A_ref, rel=1e-3, abs=1e-6)
+    assert A == pytest.approx(A_ref, rel=1e-6, abs=1e-6)
