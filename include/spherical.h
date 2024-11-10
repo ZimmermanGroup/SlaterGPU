@@ -25,6 +25,17 @@ void eval_shd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1
 void eval_sh_s(int tid, int gs, float* grid, float* val, int l1, int m1, float A1, float B1, float C1);
 void eval_sh_4r(int tid, int gs, float* grid, float* val, int l1, int m1, float A1, float B1, float C1);
 
+//Split Gauss-Slater basis sets
 void eval_sgsd(int tid, int gs1, int gs2, double* grid, double* val, int n1, int l1, int m1, double zeta1, double Rc);
+void eval_sgsd(int tid, int gs1, int gs2, float* gridf, double* val, int n1, int l1, int m1, double zeta1, double Rc);
+void eval_sgs(int tid, int gs1, int gs2, float* gridf, float* val, int n1, int l1, int m1, double zeta1, double Rc);
+
+void eval_sgs_ked(int tid, int gs1, int gs2, double* grid, double* val, int n1, int l1, int m1, double zeta1, double Rc);
+
+//Linear combination of Slaters
+void eval_ssd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, double zeta1);
+void eval_ssd(int tid, int gs, float* gridf, double* val, int n1, int l1, int m1, double zeta1);
+void eval_ss(int tid, int gs, float* grid, float* val, int n1, int l1, int m1, double zeta1);
+void eval_ss_ked(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, double zeta1);
 
 #endif
