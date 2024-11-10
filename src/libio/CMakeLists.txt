@@ -1,6 +1,7 @@
 set(IO_SOURCES
-    read.cpp read.h
-    write.cpp write.h
+    read.cpp
+    write.cpp
+    print.cpp
     )
 
 add_library(io SHARED "${IO_SOURCES}")

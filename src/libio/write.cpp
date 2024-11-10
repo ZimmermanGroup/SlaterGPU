@@ -261,7 +261,7 @@ void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double>
 
 
   outfile.close();
-  
+
   return;
 }
 
@@ -271,8 +271,199 @@ bool close_val(double v1, double v2)
   return false;
 }
 
+void write_molden_ss(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname)
+{
+  int N = basis.size();
+
+  string filename = fname;
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  double B2A = 1./A2B;
+
+  outfile << fixed << setprecision(8);
+
+  outfile << "[Molden Format]" << endl;
+  outfile << "[Atoms] (Angs)" << endl;
+  for (int i=0;i<natoms;i++)
+  {
+    string aname = get_aname(atno[i]);
+    double x1 = coords[3*i]*B2A; double y1 = coords[3*i+1]*B2A; double z1 = coords[3*i+2]*B2A;
+    outfile << " " << aname << "     " << i+1 << "   " << atno[i] << "   ";
+    outfile << x1 << "   " << y1 << "   " << z1 << endl;
+  }
+
+
+  outfile << "[STO]" << endl;
+
+  int nss = 4;
+  for (int i=0;i<natoms;i++)
+  {
+    double x1 = coords[3*i]; double y1 = coords[3*i+1]; double z1 = coords[3*i+2];
+
+    for (int j=0;j<N;j++)
+    {
+      if (close_val(x1,basis[j][5]) && close_val(y1,basis[j][6]) && close_val(z1,basis[j][7]))
+      {
+        int n1 = basis[j][0]; int l1 = basis[j][1]; int m1 = basis[j][2]; double zeta = basis[j][3]*B2A; double norm = basis[j][4];
+        int nx,ny,nz,nr;
+        get_nxyzr(n1,l1,m1,nx,ny,nz,nr);
+
+        if (l1<2)
+        {
+          for (int n=0;n<nss;n++)
+          {
+           //nr+n-l1?
+            double norm1 = norm*pow(zeta,n); if (n==2) norm1 *= 0.4; if (n==3) norm1 /= 15.;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr+n << " " << zeta << " " << norm1 << " " << endl;
+          }
+        }
+        else if (l1==2)
+        {
+         //for 2 of the 5 3d functions, divide into parts
+          if (nz==2)
+          {
+           //3dz2 --> 2.z2 - x2 - y2
+            for (int n=0;n<nss;n++)
+            {
+              double norm1 = norm*pow(zeta,n); if (n==2) norm1 *= 0.4; if (n==3) norm1 /= 15.;
+              nz = 2; nx = ny = 0;
+              outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+              outfile << nr+n << " " << zeta << " " << 2.*norm1 << " " << endl;
+              nz = 0; nx = 2; ny = 0;
+              outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+              outfile << nr+n << " " << zeta << " " << norm1 << " " << endl;
+              nz = 0; nx = 0; ny = 2;
+              outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+              outfile << nr+n << " " << zeta << " " << norm1 << " " << endl;
+            }
+          }
+          else if (nx==2 && ny==2)
+          {
+            //x2-y2 --> x2 - y2
+            for (int n=0;n<nss;n++)
+            {
+              double norm1 = norm*pow(zeta,n); if (n==2) norm1 *= 0.4; if (n==3) norm1 /= 15.;
+              nx = 2; ny = 0;
+              outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+              outfile << nr+n << " " << zeta << " " << norm1 << " " << endl;
+              nx = 0; ny = 2;
+              outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+              outfile << nr+n << " " << zeta << " " << norm1 << " " << endl;
+            }
+          }
+          else
+          {
+            for (int n=0;n<nss;n++)
+            {
+              double norm1 = norm*pow(zeta,n); if (n==2) norm1 *= 0.4; if (n==3) norm1 /= 15.;
+              outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+              outfile << nr+n << " " << zeta << " " << norm1 << " " << endl;
+            }
+          }
+        } //if l1==2
+
+       #if 0
+       //just drop most f or higher functions
+        else if (l1==3)
+        {
+         //m==-2
+          if (nx==1 && ny==1 && nz==1) //fxyz is the simplest 4f orbital
+          {
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << norm << " " << endl;
+          }
+         //m==0
+          if (nz==3)
+          {
+           //5z3
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << 5.*norm << " " << endl;
+           //-3zr2
+            nz = 1; nr = 2;
+            outfile << i+1 << " " << nx << " " << ny << " " << nz << " ";
+            outfile << nr << " " << zeta << " " << -3.*norm << " " << endl;
+          }
+          else
+          {
+            //incomplete
+          }
+        } //if l1==3
+       #endif
+
+      }
+    }
+  }
+
+  outfile << "[MO]" << endl;
+  for (int i=0;i<N;i++)
+  {
+    int occ = 0; if (i<No) occ = 1;
+
+    outfile << "Sym=X" << endl;
+    outfile << "Ene=0.0" << endl;
+    outfile << "Spin=Alpha" << endl;
+    outfile << "Occup=" << occ << endl;
+
+    int wj = 0;
+    for (int j=0;j<N;j++)
+    {
+      int n1 = basis[j][0]; int l1 = basis[j][1]; int m1 = basis[j][2];
+      int nx,ny,nz,nr;
+      get_nxyzr(n1,l1,m1,nx,ny,nz,nr);
+
+      if (l1<2)
+      {
+        for (int n=0;n<nss;n++)
+          outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+      }
+      else if (l1==2)
+      {
+        if (nz==2)
+        {
+          for (int n=0;n<nss;n++)
+          {
+            outfile << " " << 1+wj++ << "  " <<  jCA[j*N+i] << endl;
+            outfile << " " << 1+wj++ << "  " << -jCA[j*N+i] << endl;
+            outfile << " " << 1+wj++ << "  " << -jCA[j*N+i] << endl;
+          }
+        }
+        else if (nx==2 && ny==2)
+        {
+          for (int n=0;n<nss;n++)
+          {
+            outfile << " " << 1+wj++ << "  " <<  jCA[j*N+i] << endl;
+            outfile << " " << 1+wj++ << "  " << -jCA[j*N+i] << endl;
+          }
+        }
+        else
+        {
+          for (int n=0;n<nss;n++)
+            outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+        }
+      }
+     #if 0
+      else if (l1==3)
+      {
+       //incomplete
+        if (nx==1 && ny==1 && nz==1) //m==-2
+          outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+        else if (nz==3) //m==0
+          outfile << " " << 1+wj++ << "  " << jCA[j*N+i] << endl;
+      }
+     #endif
+    }
+  }
+
+  outfile.close();
+
+  return;
+}
+
 void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname)
 {
+  if (basis[0].size()>10) return write_molden_ss(natoms,atno,coords,basis,jCA,No,fname);
   if (gbasis) return write_molden_g(natoms,atno,coords,basis,jCA,No,fname);
 
   int N = basis.size();
@@ -302,7 +493,7 @@ void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vec
     outfile << " " << aname << "     " << i+1 << "   " << atno[i] << "   ";
     outfile << x1 << "   " << y1 << "   " << z1 << endl;
   }
-  
+
 
   outfile << "[STO]" << endl;
 
@@ -438,11 +629,11 @@ void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vec
 
 
   outfile.close();
-  
+
   return;
 }
 
-/*
+#if 0
 void write_molden_vcf(int natoms, int* atno, double* coords, vector<vector<vcf> > &vcfs, string fname)
 {
   for (int n=0;n<natoms;n++)
@@ -484,7 +675,7 @@ void write_molden_vcf(int natoms, int* atno, double* coords, vector<vector<vcf> 
       int n1 = vcf1[j].n; int l1 = vcf1[j].l; int m1 = vcf1[j].m;
       vector<double> b1;
       for (int m=0;m<10;m++) b1.push_back(0);
-      b1[5] = A1; b1[6] = B1; b1[7] = C1; 
+      b1[5] = A1; b1[6] = B1; b1[7] = C1;
       b1[8] = atno[n]; b1[9] = atno[n];
 
       b1[0] = n1; b1[1] = l1; b1[2] = m1;
@@ -524,10 +715,9 @@ void write_molden_vcf(int natoms, int* atno, double* coords, vector<vector<vcf> 
 
   return;
 }
-*/
+#endif
 
-
-/*
+#if 0
 void write_molden_vcf(int natoms, int* atno, float* coordsf, vector<vector<vcf> > &vcfs, string fname)
 {
   double coords[3*natoms];
@@ -535,7 +725,7 @@ void write_molden_vcf(int natoms, int* atno, float* coordsf, vector<vector<vcf> 
     coords[j] = coordsf[j];
   return write_molden_vcf(natoms,atno,coords,vcfs,fname);
 }
-*/
+#endif
 
 void write_graph(int size, double* h, string filename)
 {
@@ -693,6 +883,56 @@ void write_double(double val, string filename)
 
   outfile.close();
 
+  return;
+}
+
+void save_dft_exc(bool save_radial, int natoms, int nrad, int nang, double* grid, double* exc, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(12);
+
+  outfile << "DFT.  nrad: " << nrad << "  exc" << endl;
+
+ //radial component only
+  for (int j=0;j<nrad;j++)
+  {
+    int j1 = j*nang;
+    string line = SSTRF2(exc[j1]);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
+void save_dft_vals(bool save_radial, int natoms, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, double* vc, int zpos, string filename)
+{
+  if (!save_radial) { printf(" ERROR: save_dft_vals not ready for angular component \n"); return; }
+
+  //int gs = nrad*nang;
+  //int gsa = gs*natoms;
+
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(12);
+
+  outfile << "DFT.  nrad: " << nrad << "  grid/rho/|drho|/Td/vc" << endl;
+
+ //radial component only
+  for (int j=0;j<nrad;j++)
+  {
+    int j1 = j*nang;
+    //if (rho[j1]>thresh)
+    {
+      string line = SSTRF2(grid[6*j1+3]) + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1]) + "," + SSTRF2(Td[j1]) + "," + SSTRF2(vc[j1]);
+      outfile << line << endl;
+    }
+  }
+
+  outfile.close();
   return;
 }
 
@@ -995,7 +1235,7 @@ void write_S_En_T(int N, double* S, double* En, double* T)
       line += " " + SSTRF2(En[i*N+j]);
     outfile << line << endl;
   }
-  
+
   outfile << "T:" << endl;
   for (int i=0;i<N;i++)
   {
