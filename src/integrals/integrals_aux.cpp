@@ -1,6 +1,7 @@
 #include "integrals.h"
 #include "grid_util.h"
 
+
 void auto_crash()
 {
   //return;
@@ -590,6 +591,104 @@ int find_center_of_grid(float Z1, int nrad)
   return s1;
 }
 
+void get_angular_grid(int size_ang, double* ang_g, double* ang_w)
+{
+  double* xa = new double[size_ang];
+  double* ya = new double[size_ang];
+  double* za = new double[size_ang];
+  ld_by_order(size_ang,xa,ya,za,ang_w);
+  for (int i=0;i<size_ang;i++)
+  {
+    ang_g[3*i+0] = xa[i];
+    ang_g[3*i+1] = ya[i];
+    ang_g[3*i+2] = za[i];
+  }
+  delete [] xa;
+  delete [] ya;
+  delete [] za;
+
+#if 0
+  float sumawt = 0.;
+  for (int j=0;j<size_ang;j++)
+    sumawt += ang_w[j];
+  printf(" ang_w: ");
+  for (int j=0;j<size_ang;j++)
+    printf(" %8.5f",ang_w[j]);
+  printf("\n");
+  printf(" sum(ang_w): %8.5f \n",sumawt);
+#endif
+
+  return;
+}
+
+void rgrid_one_atom(int nrad, int Z1, float* r1)
+{
+  float w1[nrad];
+  #pragma acc enter data create(r1[0:nrad],w1[0:nrad])
+
+  get_murak_grid_f(nrad,r1,w1,Z1,3);
+  #pragma acc exit data copyout(r1[0:nrad])
+  #pragma acc exit data delete(w1[0:nrad])
+
+  return;
+}
+
+void generate_central_grid_3d(int m, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
+{
+  double* r = new double[nrad];
+  double* w = new double[nrad];
+
+ #if USE_ACC
+  #pragma acc enter data create(r[0:nrad],w[0:nrad])
+ #endif
+
+  //printf("  in generate_central_grid_3d. m_murak: %i \n",m);
+
+  if (m<1) { printf("\n  ERROR: m cannot be less than 1 in get_murak_grid \n"); exit(-1); }
+
+  double zeta = Z1/10.; //exponent
+  if (Z1<0.) zeta = -Z1;
+  get_murak_grid_zeta(nrad,r,w,zeta,m);
+
+  int gs = nrad*nang;
+
+  for (int i=0;i<nrad;i++)
+  {
+  #if USE_ACC
+   #pragma acc parallel loop present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
+  #endif
+    for (int j=0;j<nang;j++)
+    {
+      double r1 = r[i];
+      double wr1 = w[i];
+      double w1 = wr1*ang_w[j];
+
+     //grid positions
+      double x1 = r1 * ang_g[3*j+0];
+      double y1 = r1 * ang_g[3*j+1];
+      double z1 = r1 * ang_g[3*j+2];
+
+      int wg = i*nang+j;
+      grid1[6*wg+0] = x1;
+      grid1[6*wg+1] = y1;
+      grid1[6*wg+2] = z1;
+      grid1[6*wg+3] = r1;
+      grid1[6*wg+4] = r1;
+      grid1[6*wg+5] = r1;
+      wt1[wg] = w1;
+    }
+  }
+
+ #if USE_ACC
+  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
+ #endif
+
+  delete [] r;
+  delete [] w;
+
+  return;
+}
+
 void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
 {
   double* r = new double[nrad];
@@ -599,9 +698,10 @@ void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, dou
   #pragma acc enter data create(r[0:nrad],w[0:nrad])
  #endif
 
+  //printf("  in generate_central_grid_2d. use_murak: %i \n",(int)use_murak);
+
   //use_murak = 1;
  #if 0
-  printf("  in generate_central_grid_2d. use_murak: %i \n",(int)use_murak);
   get_eumac_grid(nrad,r,w,25,1);
  #endif
  #if 1
@@ -611,6 +711,7 @@ void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, dou
   {
     int m = 3;
     double zeta = Z1/10.; //exponent
+    if (Z1<0.) zeta = -Z1;
     get_murak_grid_zeta(nrad,r,w,zeta,m);
   }
  #endif
@@ -707,7 +808,7 @@ void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int n
     float wr1 = w[i];
 
   #if USE_ACC
-   #pragma acc loop independent 
+   #pragma acc loop independent
   #endif
     for (int j=0;j<nang;j++)
     {

@@ -330,9 +330,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
   //using namespace std::chrono;
   //high_resolution_clock::time_point t0 = high_resolution_clock::now();
  
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
@@ -362,9 +360,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
 
   //high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
-#if USE_ACC
- #pragma omp parallel for num_threads(nomp)
-#endif
+ #pragma omp parallel for schedule(dynamic) num_threads(nomp)
   for (int m=0;m<natoms;m++)
   {
     int tid = omp_get_thread_num();
@@ -387,17 +383,15 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
         val1[ii1][j] = 1.f;
     }
 
-   #pragma acc parallel loop present(val2[0:iN][0:gs])
+   #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
     for (int ii2=0;ii2<s4-s3;ii2++)
     {
-     #pragma acc loop
       for (int j=0;j<gs;j++)
         val2[ii2][j] = 1.f;
     }
-   #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs])
+   #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],wt1[0:gs])
     for (int ii3=0;ii3<s4-s3;ii3++)
     {
-     #pragma acc loop
       for (int j=0;j<gs;j++)
         val3[ii3][j] = wt1[j];
     }
@@ -804,9 +798,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
 
 
  //CPMZ check this
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
@@ -1617,15 +1609,11 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
           eval_sh(i2,gs,grid1,valt2,n3,l3,m3,zeta3);
 
           float val = 0.;
-        #if USE_ACC
          #pragma acc parallel loop independent present(valt2[0:gs],wt1[0:gs]) reduction(+:val)
-        #endif
           for (int j=0;j<gs;j++)
             val += valt2[j] * wt1[j];
  
-        #if USE_ACC
          #pragma acc serial present(C[0:N2a])
-        #endif
           C[i1*N2+i2*N+i3] = val;
 
           //printf(" m: %i  i1/2/3: %2i %2i %2i val: %8.5f \n",m,i1,i2,i3,val);
@@ -1705,20 +1693,14 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
             eval_sh(i3,gs,grid1,valt3,n3,l3,m3,zeta3);
 
             float val = 0.;
-          #if USE_ACC
            #pragma acc parallel loop independent present(valt3[0:gs],wtt1[0:gs]) reduction(+:val)
-          #endif
             for (int j=0;j<gs;j++)
               val += valt3[j] * wtt1[j];
-          #if USE_ACC
            #pragma acc parallel loop independent present(valt4[0:gs],wt2[0:gs]) reduction(+:val)
-          #endif
             for (int j=0;j<gs;j++)
               val += valt4[j] * wt2[j];
 
-          #if USE_ACC
            #pragma acc serial present(C[0:N2a])
-          #endif
             C[i1*N2+i2*N+i3] = val;
 
             //printf(" 1. i1/2/3: %i %i %i / %i %i %i val: %5.3f \n",i1,i2,i3,m,n,m,val);
@@ -1739,20 +1721,14 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
             eval_sh(i3,gs,grid1s,valt3,n3,l3,m3,zeta3);
 
             float val = 0.;
-          #if USE_ACC
            #pragma acc parallel loop independent present(valt3[0:gs],wtt1[0:gs]) reduction(+:val)
-          #endif
             for (int j=0;j<gs;j++)
               val += valt3[j] * wtt1[j];
-          #if USE_ACC
            #pragma acc parallel loop independent present(valt4[0:gs],wt2[0:gs]) reduction(+:val)
-          #endif
             for (int j=0;j<gs;j++)
               val += valt4[j] * wt2[j];
 
-          #if USE_ACC
            #pragma acc serial present(C[0:N2a])
-          #endif
             C[i1*N2+i2*N+i3] = val;
 
             //printf(" 2. i1/2/3: %i %i %i / %i %i %i val: %5.3f \n",i1,i2,i3,m,n,n,val);
@@ -1873,25 +1849,17 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
               eval_sh(i3,gs,grid1p,valt4,n3,l3,m3,zeta3);
 
               float val = 0.;
-            #if USE_ACC
              #pragma acc parallel loop independent present(valt4[0:gs],wtt1[0:gs]) reduction(+:val)
-            #endif
               for (int j=0;j<gs;j++)
                 val += valt4[j] * wtt1[j];
-            #if USE_ACC
              #pragma acc parallel loop independent present(valt5[0:gs],wtt2[0:gs]) reduction(+:val)
-            #endif
               for (int j=0;j<gs;j++)
                 val += valt5[j] * wtt2[j];
-            #if USE_ACC
              #pragma acc parallel loop independent present(valt6[0:gs],wt3[0:gs]) reduction(+:val)
-            #endif
               for (int j=0;j<gs;j++)
                 val += valt6[j] * wt3[j];
 
-            #if USE_ACC
              #pragma acc serial present(C[0:N2a])
-            #endif
               C[i1*N2+i2*N+i3] = val;
 
               //printf(" 3c i1/2/3: %i %i %i / %i %i %i val: %5.3f \n",i1,i2,i3,m,n,m,val);
@@ -2131,9 +2099,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop collapse(2) present(valS1[0:iN][0:gs],valS3[0:iN][0:gs])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
       for (int j=0;j<gs;j++)
@@ -2320,9 +2286,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
       copy_grid(gs,grid1s,grid1); 
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valS2[0:iN][0:gs])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -2330,9 +2294,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
           valS1[ii1][j] = valS2[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS3[0:iN][0:gs],valS4[0:iN][0:gs])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -2426,9 +2388,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
             valtv2[ii1][3*j+k] = valS2[ii1][j]*wtt2[j];
         }
 
-      #if USE_ACC
        #pragma acc parallel loop collapse(2) present(valS6[0:iN][0:gs])
-      #endif
         for (int ii2=0;ii2<s4-s3;ii2++)
         {
           for (int j=0;j<gs;j++)
@@ -2769,9 +2729,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
   for (int i=0;i<nang;i++)
     ang_w[i] = ang_w0[i];
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
@@ -2799,9 +2757,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
     acc_assign(N2,pVp,0.);
   }
 
-#if USE_ACC
  #pragma omp parallel for num_threads(nomp)
-#endif
   for (int m=0;m<natoms;m++)
   {
     int tid = omp_get_thread_num();
@@ -2817,9 +2773,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
 
     generate_central_grid_2(grid1,wt1,Z1g,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valV1[0:iN][0:gs3])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -2830,9 +2784,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
         valV1[ii1][j] = 1.f;
     }
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS3[0:iN][0:gs],valV3[0:iN][0:gs3])
-  #endif
     for (int ii2=0;ii2<s2-s1;ii2++)
     {
      #pragma acc loop
@@ -3069,9 +3021,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
       add_r2_to_grid(gs,grid2,A12,B12,C12);
 
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valV1[0:iN][0:gs3],valS2[0:iN][0:gs],valV2[0:iN][0:gs3])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -3082,9 +3032,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
           valV1[ii1][j] = valV2[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS3[0:iN][0:gs],valV3[0:iN][0:gs3],valS4[0:iN][0:gs],valV4[0:iN][0:gs3])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -3268,9 +3216,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
             valV5[ii1][3*j+k] = wt3[j];
         }
 
-      #if USE_ACC
        #pragma acc parallel loop present(valS6[0:iN][0:gs],valV6[0:iN][0:gs3])
-      #endif
         for (int ii2=0;ii2<s4-s3;ii2++)
         {
          #pragma acc loop
@@ -3440,9 +3386,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
   }
 
  //CPMZ check this
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
@@ -3640,9 +3584,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
 
     generate_central_grid_2(grid1,wt1,Z1g,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valV1[0:iN][0:gs3])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -3653,9 +3595,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
         valV1[ii1][j] = 1.f;
     }
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS3[0:iN][0:gs],valV3[0:iN][0:gs3])
-  #endif
     for (int ii2=0;ii2<s2-s1;ii2++)
     {
      #pragma acc loop
@@ -3892,9 +3832,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
       add_r2_to_grid(gs,grid2,A12,B12,C12);
 
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valV1[0:iN][0:gs3],valS2[0:iN][0:gs],valV2[0:iN][0:gs3])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -3905,9 +3843,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
           valV1[ii1][j] = valV2[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS3[0:iN][0:gs],valV3[0:iN][0:gs3],valS4[0:iN][0:gs],valV4[0:iN][0:gs3])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -4091,9 +4027,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
             valV5[ii1][3*j+k] = wt3[j];
         }
 
-      #if USE_ACC
        #pragma acc parallel loop present(valS6[0:iN][0:gs],valV6[0:iN][0:gs3])
-      #endif
         for (int ii2=0;ii2<s4-s3;ii2++)
         {
          #pragma acc loop
@@ -4477,7 +4411,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
           valz += val1m[j]*val2m[j]*z1 + val1n[j]*val2n[j]*z2;
         }
 
-       #pragma acc serial
+       #pragma acc serial present(E[0:N2])
         {
           E[i1*N+i2]      = E[i2*N+i1] = valx;
           E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
@@ -4914,9 +4848,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -4924,9 +4856,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
         valS1[ii1][j] = 1.f;
     }
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS3[0:iN][0:gs],wt1[0:gs])
-  #endif
     for (int ii2=0;ii2<s2-s1;ii2++)
     {
      #pragma acc loop
@@ -4956,9 +4886,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
       eval_sh(ii2,gs,grid1,valS3[ii2],n2,l2,m2,zeta2);
     } //loop i2 evaluate
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valT1[0:iN][0:gs])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -5028,9 +4956,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
      //needs to happen after Becke weighting
       add_r1_to_grid(gs,grid2,0.,0.,0.);
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valS2[0:iN][0:gs])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -5041,9 +4967,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
           valS2[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS3[0:iN][0:gs],valS4[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -5077,18 +5001,14 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
         eval_sh(ii2,gs,grid1s,valS3[ii2],n2,l2,m2,zeta2);
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valT1[0:iN][0:gs])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
         for (int j=0;j<gs;j++)
           valT1[ii1][j] = valS1[ii1][j];
       }
-    #if USE_ACC
      #pragma acc parallel loop present(valS2[0:iN][0:gs],valT2[0:iN][0:gs])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -5327,9 +5247,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
      //new grid with zeta dependence
     //generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(val1[0:iN][0:gs])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -5337,9 +5255,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
         val1[ii1][j] = 1.;
     }
 
-  #if USE_ACC
    #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs])
-  #endif
     for (int ii2=0;ii2<s2-s1;ii2++)
     {
      #pragma acc loop
@@ -5409,9 +5325,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
      //needs to happen after Becke weighting
       add_r1_to_grid(gs,grid2,0.,0.,0.);
 
-    #if USE_ACC
      #pragma acc parallel loop present(val1[0:iN][0:gs],val2[0:iN][0:gs])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -5422,9 +5336,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
           val2[ii1][j] = 1.;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(val3[0:iN][0:gs],val4[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -5682,9 +5594,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(val1[0:iN][0:gs])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -5692,9 +5602,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
         val1[ii1][j] = 1.f;
     }
 
-  #if USE_ACC
    #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs])
-  #endif
     for (int ii2=0;ii2<s2-s1;ii2++)
     {
      #pragma acc loop
@@ -5770,9 +5678,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
      //needs to happen after Becke weighting
       add_r1_to_grid(gs,grid2,0.,0.,0.);
 
-    #if USE_ACC
      #pragma acc parallel loop present(val1[0:iN][0:gs],val2[0:iN][0:gs])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -5783,9 +5689,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
           val2[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(val3[0:iN][0:gs],val4[0:iN][0:gs],wtt1[0:gs],wt2[0:gs])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -6057,15 +5961,11 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
       //printf(" val1[%i] \n",i1);
       //print_array(gs,val1);
 
-    #if USE_ACC
      #pragma acc parallel loop present(val1[0:gs],valt1[0:N][0:gs],i2m[0:N])
-    #endif
       for (int i2=0;i2<N;i2++)
       if (i2m[i2])
       {
-      #if USE_ACC
        #pragma acc loop
-      #endif
         for (int j=0;j<gs;j++)
           valt1[i2][j] = val1[j];
       }
@@ -6090,16 +5990,12 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
       #pragma acc wait
      #endif
 
-    #if USE_ACC
      #pragma acc parallel loop present(valt1[0:N][0:gs],wt1[0:gs],A[0:N2],i2m[0:N])
-    #endif
       for (int i2=0;i2<N;i2++)
       if (i2m[i2])
       {
         float val = 0.;
-      #if USE_ACC
        #pragma acc loop reduction(+:val)
-      #endif
         for (int j=0;j<gs;j++)
           val += valt1[i2][j] * wt1[j];
         A[i1*N+i2] = val;
@@ -6158,20 +6054,14 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
         eval_inr_r12(gs,grid2,val2,n1,l1,zeta1,3);
         eval_sh_3r(gs,grid2,val2,n1,l1,m1);
 
-      #if USE_ACC
        #pragma acc parallel loop present(val1[0:gs],valt1[0:N][0:gs],val2[0:gs],valt2[0:N][0:gs],i2m[0:N])
-      #endif
         for (int i2=0;i2<N;i2++)
         if (i2m[i2])
         {
-        #if USE_ACC
          #pragma acc loop
-        #endif
           for (int j=0;j<gs;j++)
             valt1[i2][j] = val1[j];
-        #if USE_ACC
          #pragma acc loop
-        #endif
           for (int j=0;j<gs;j++)
             valt2[i2][j] = val2[j];
         }
@@ -6194,21 +6084,15 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
         #pragma acc wait
        #endif
 
-      #if USE_ACC
        #pragma acc parallel loop present(valt1[0:N][0:gs],wtt1[0:gs],valt2[0:N][0:gs],wt2[0:gs],A[0:N2],i2m[0:N])
-      #endif
         for (int i2=i1+1;i2<N;i2++)
         if (i2m[i2])
         {
           float val = 0.;
-        #if USE_ACC
          #pragma acc loop reduction(+:val)
-        #endif
           for (int j=0;j<gs;j++)
             val += valt1[i2][j] * wtt1[j];
-        #if USE_ACC
          #pragma acc loop reduction(+:val)
-        #endif
           for (int j=0;j<gs;j++)
             val += valt2[i2][j] * wt2[j];
 
@@ -7058,8 +6942,11 @@ void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nra
   int N2 = N*N;
   int N3 = N2*N;
 
+  double coords[3*natoms];
+  for (int n=0;n<3*natoms;n++) coords[n] = coordsf[n];
+
   double minval = 1.e-16;
- 
+
  //list out integrals that need to be computed
   vector<vector<short> > ijkl = enumerate_ijkl(s1,s2,s3,s4,s5,s6,s7,s8);
   int ijkl_size = ijkl.size();
@@ -7067,13 +6954,11 @@ void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nra
   acc_set_device_num(0,acc_device_nvidia);
 
  //integral-specific grids
-  get_becke_grid_full(natoms,atno,coordsf,nrad,nang,ang_g,ang_w,gc,grid,wt);
+  get_becke_grid_full(natoms,atno,coords,nrad,nang,ang_g,ang_w,gc,grid,wt);
 
   #pragma acc update self(grid[0:gsa6],wt[0:gsa])
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=1;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -7082,9 +6967,7 @@ void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nra
   }
   acc_set_device_num(0,acc_device_nvidia);
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     //int tid = omp_get_thread_num();
@@ -7108,9 +6991,7 @@ void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nra
       val4[ii4][j] = 1.f;
   }
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     //int tid = omp_get_thread_num();
@@ -7171,9 +7052,7 @@ void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nra
   }
   //acc_set_device_num(0,acc_device_nvidia);
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int i0=0;i0<ijkl_size;i0++)
   {
     int tid = omp_get_thread_num();
@@ -7208,7 +7087,7 @@ void compute_4c_ol_oned(int ngpu, int natoms, int* atno, float* coordsf, int nra
   return;
 }
 
-void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl)
+void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coordsf, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl)
 {
   if (prl>-1) printf(" beginning compute_all_4c_ol_gend (ngpu: %i) \n",ngpu);
 
@@ -7257,9 +7136,7 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
 
   if (prl>0 && N>40) printf("  working on ints");
 
- #if USE_ACC
   #pragma omp parallel for schedule(static) num_threads(nomp)
- #endif
   for (int n=0;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -7277,7 +7154,7 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
   {
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
     float Z1 = (float)atno[m];
-    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+    float A1 = coordsf[3*m+0]; float B1 = coordsf[3*m+1]; float C1 = coordsf[3*m+2];
 
    //setup for grids
     int natoms1 = 1;
@@ -7294,7 +7171,7 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
     {
       int s3 = n2i[n-1]; int s4 = n2i[n];
       float Z2 = (float)atno[n];
-      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A2 = coordsf[3*n+0]; float B2 = coordsf[3*n+1]; float C2 = coordsf[3*n+2];
 
       int natoms2 = 2;
       int atno2[natoms2];
@@ -7318,7 +7195,7 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
       {
         int s5 = n2i[p-1]; int s6 = n2i[p];
         float Z3 = (float)atno[p];
-        float A3 = coords[3*p+0]; float B3 = coords[3*p+1]; float C3 = coords[3*p+2];
+        float A3 = coordsf[3*p+0]; float B3 = coordsf[3*p+1]; float C3 = coordsf[3*p+2];
 
         int natoms3 = 3;
         int atno3[natoms3];
@@ -7354,7 +7231,7 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
         {
           int s7 = n2i[q-1]; int s8 = n2i[q];
           float Z4 = (float)atno[q];
-          float A4 = coords[3*q+0]; float B4 = coords[3*q+1]; float C4 = coords[3*q+2];
+          float A4 = coordsf[3*q+0]; float B4 = coordsf[3*q+1]; float C4 = coordsf[3*q+2];
 
           int natoms4 = 4;
           int atno4[natoms4];
@@ -7425,9 +7302,7 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
   }
 
 
- #if USE_ACC
   #pragma omp parallel for schedule(static) num_threads(nomp)
- #endif
   for (int n=0;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -7473,12 +7348,15 @@ void compute_4c_ol_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad
   int gc = 6;
   int gsa6 = gsa*6;
 
+  //double coords[3*natoms];
+  //for (int n=0;n<3*natoms;n++) coords[n] = coordsf[n];
+
   int N = basis.size();
   int N2 = N*N;
   int N3 = N2*N;
 
   double minval = 1.e-16;
- 
+
  //list out integrals that need to be computed
   vector<vector<short> > ijkl = enumerate_ijkl(s1,s2,s3,s4,s5,s6,s7,s8);
   int ijkl_size = ijkl.size();
@@ -7486,13 +7364,11 @@ void compute_4c_ol_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad
   acc_set_device_num(0,acc_device_nvidia);
 
  //integral-specific grids
-  get_becke_grid_full(natoms,atno,coordsf,nrad,nang,ang_g,ang_w,gc,grid,wt);
+  get_becke_grid_full(0.,natoms,atno,coordsf,nrad,nang,ang_g,ang_w,gc,grid,wt);
 
   #pragma acc update self(grid[0:gsa6],wt[0:gsa])
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=1;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -7501,9 +7377,7 @@ void compute_4c_ol_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad
   }
   acc_set_device_num(0,acc_device_nvidia);
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     //int tid = omp_get_thread_num();
@@ -7527,9 +7401,7 @@ void compute_4c_ol_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad
       val4[ii4][j] = 1.f;
   }
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     //int tid = omp_get_thread_num();
@@ -7590,9 +7462,7 @@ void compute_4c_ol_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad
   }
   //acc_set_device_num(0,acc_device_nvidia);
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int i0=0;i0<ijkl_size;i0++)
   {
     int tid = omp_get_thread_num();
@@ -7697,9 +7567,7 @@ void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vecto
 
   if (prl>0 && N>40) printf("  working on ints");
 
- #if USE_ACC
   #pragma omp parallel for schedule(static) num_threads(nomp)
- #endif
   for (int n=0;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -7865,9 +7733,7 @@ void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vecto
   }
 
 
- #if USE_ACC
   #pragma omp parallel for schedule(static) num_threads(nomp)
- #endif
   for (int n=0;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -7920,7 +7786,7 @@ void compute_4c_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad, i
   //int M2 = M*M;
   //int M3 = M2*M;
   //int M4 = M2*M2;
- 
+
  //list out integrals that need to be computed
   vector<vector<short> > ijkl = enumerate_ijkl(s1,s2,s3,s4,s5,s6,s7,s8);
   int ijkl_size = ijkl.size();
@@ -7928,17 +7794,15 @@ void compute_4c_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad, i
   acc_set_device_num(0,acc_device_nvidia);
 
  //integral-specific grids
-  get_becke_grid_full(natoms,atno,coordsf,nrad,  nang,ang_g,ang_w,gc,grid1,wt1);
-  get_becke_grid_full(natoms,atno,coordsf,nrad+1,nang,ang_g,ang_w,gc,grid2,wt2);
+  get_becke_grid_full(0.,natoms,atno,coordsf,nrad,  nang,ang_g,ang_w,gc,grid1,wt1);
+  get_becke_grid_full(0.,natoms,atno,coordsf,nrad+1,nang,ang_g,ang_w,gc,grid2,wt2);
 
  //look for close-lying grid points
   clean_4c_grid(gsa,gspa,grid1,wt1,grid2,wt2);
 
   #pragma acc update self(grid1[0:gsa6],wt1[0:gsa],grid2[0:gspa6],wt2[0:gspa])
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=1;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -7947,9 +7811,7 @@ void compute_4c_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad, i
   }
   acc_set_device_num(0,acc_device_nvidia);
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     //int tid = omp_get_thread_num();
@@ -7973,9 +7835,7 @@ void compute_4c_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad, i
       val4[ii4][j] = 1.f;
   }
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     //int tid = omp_get_thread_num();
@@ -8036,9 +7896,7 @@ void compute_4c_one(int ngpu, int natoms, int* atno, float* coordsf, int nrad, i
   }
   //acc_set_device_num(0,acc_device_nvidia);
 
-#if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int i0=0;i0<ijkl_size;i0++)
   {
     int tid = omp_get_thread_num();
@@ -8167,9 +8025,7 @@ void compute_all_4c_gen(int ngpu, int natoms, int* atno, float* coords, vector<v
   //int M2 = M*M;
   //int M4 = M2*M2;
 
- #if USE_ACC
   #pragma omp parallel for schedule(static) num_threads(nomp)
- #endif
   for (int n=0;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);
@@ -8336,9 +8192,7 @@ void compute_all_4c_gen(int ngpu, int natoms, int* atno, float* coords, vector<v
   }
 
 
- #if USE_ACC
   #pragma omp parallel for schedule(static) num_threads(nomp)
- #endif
   for (int n=0;n<nomp;n++)
   {
     acc_set_device_num(n,acc_device_nvidia);

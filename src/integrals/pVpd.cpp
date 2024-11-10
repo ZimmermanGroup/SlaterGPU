@@ -1668,6 +1668,174 @@ void get_p_6fp3d(int gs, double* grid, double* val, double zeta)
   return;
 }
 
+void get_p_7fm3d(int gs, double* grid, double* val, double zeta)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double r2 = r*r;
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2;
+    double zr = zeta*r;
+    double ezr = exp(-zr);
+
+    val[3*i]   *= x*y*(-zeta*(3.*x2-y2)*r2+3.*r*(5.*x2+y2+2.*z2))*ezr;
+    val[3*i+1] *= (zeta*y2*(-3.*x2+y2)*r2+3*r*(x4+3.*x2*y2-2.*y4+(x-y)*(x+y)*z2))*ezr;
+    val[3*i+2] *= y*(-3*x2+y2)*z*(-3*r+zeta*r2)*ezr;
+  }
+  return;
+}
+
+void get_p_7fm2d(int gs, double* grid, double* val, double zeta)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double r2 = r*r;
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double zr = zeta*r;
+    double ezr = exp(-zr);
+
+    val[3*i]   *= y*z*(-zeta*x2*r2+r*(4*x2+y2+z2))*ezr;
+    val[3*i+1] *= x*z*(-zeta*y2*r2+r*(4*x2+y2+z2))*ezr;
+    val[3*i+2] *= x*y*(-zeta*z2*r2+r*(4*x2+y2+z2))*ezr;
+  }
+  return;
+}
+
+void get_p_7fm1d(int gs, double* grid, double* val, double zeta)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double r2 = r*r;
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezr = exp(-zr);
+
+    val[3*i]   *= x*y*(-5*(x2+y2-2*z2)*r+zeta*(x2+y2-4*z2)*r2)*ezr;
+    val[3*i+1] *= (zeta*y2*(x2+y2-4*z2)*r2-r*(x4+6*y4-13*y2*z2-4*z4+x2*(7*y2-3*z2)))*ezr;
+    val[3*i+2] *= y*z*(zeta*(x2+y2-4*z2)*r2+5*r*(x2+y2+4*z2))*ezr;
+  }
+  return;
+}
+
+void get_p_7f0d(int gs, double* grid, double* val, double zeta)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double r2 = r*r;
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezr = exp(-zr);
+    double x2y2 = x2+y2;
+
+    val[3*i]   *= x*z*(-15*x2y2*r+zeta*(3*x2y2-2*z2)*r2)*ezr;
+    val[3*i+1] *= y*z*(-15*x2y2*r+zeta*(3*x2y2-2*z2)*r2)*ezr;
+    val[3*i+2] *= (zeta*z2*(3*x2y2-2*z2)*r2-3*r*(x2y2*x2y2+2*x2y2*z2-4*z4))*ezr;
+  }
+  return;
+}
+
+void get_p_7fp1d(int gs, double* grid, double* val, double zeta)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double r2 = r*r;
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezr = exp(-zr);
+
+    val[3*i]   *= (zeta*x2*(x2+y2-4*z2)*r2-r*(6*x4+7*x2*y2+y4-(13*x2+3*y2)*z2-4*z4))*ezr;
+    val[3*i+1] *= x*y*(-5*(x2+y2-2*z2)*r+zeta*(x2+y2-4*z2)*(x2+y2+z2))*ezr;
+    val[3*i+2] *= x*z*(zeta*(x2+y2-4*z2)*r2+5*r*(x2+y2+4*z2))*ezr;
+  }
+  return;
+}
+
+void get_p_7fp2d(int gs, double* grid, double* val, double zeta)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double r2 = r*r;
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double zr = zeta*r;
+    double ezr = exp(-zr);
+
+    val[3*i]   *= x*z*((-5*x2+y2-2*z2)*r+zeta*(x-y)*(x+y)*r2)*ezr;
+    val[3*i+1] *= y*z*((x2-5*y2-2*z2)*r-zeta*(x-y)*(x+y)*r2)*ezr;
+    val[3*i+2] *= (x-y)*(x+y)*(-zeta*z2*r2+r*(x2+y2+4*z2))*ezr;
+  }
+  return;
+}
+
+void get_p_7fp3d(int gs, double* grid, double* val, double zeta)
+{
+#if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+#endif
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double r2 = r*r;
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2;
+    double zr = zeta*r;
+    double ezr = exp(-zr);
+    double x23y2 = x2-3.*y2;
+
+    val[3*i]   *= (-zeta*x2*x23y2*r2+3*r*(2*x4+x2*(-3*y2+z2)-y2*(y2+z2)))*ezr;
+    val[3*i+1] *= x*y*(zeta*x23y2*r2+3*r*(x2+5*y2+2*z2))*ezr;
+    val[3*i+2] *= x*x23y2*z*(-3*r+zeta*r2)*ezr;
+  }
+  return;
+}
+
 void get_p_5gm4d(int gs, double* grid, double* val, double zeta)
 {
 #if USE_ACC
@@ -3110,8 +3278,7 @@ void eval_dp_3rd(int gs, double* grid, double* val, int n1, int l1, int m1)
       return get_dp_gp4d(gs,grid,val);
   }
   else if (l1==5)
-  { 
-    //printf(" TESTING: h functions in eval_dp \n");
+  {
     if (m1==-5)
       return get_dp_hm5d(gs,grid,val);
     else if (m1==-4)
@@ -3147,7 +3314,7 @@ void eval_pd(int gs, double* grid, double* val, int n1, int l1, int m1, double z
   {
     if (l1==0)
       return get_p_2sd(gs,grid,val,zeta1);
-    else 
+    else
     {
       if (m1==1)
         return get_p_2pxd(gs,grid,val,zeta1);
@@ -3203,7 +3370,6 @@ void eval_pd(int gs, double* grid, double* val, int n1, int l1, int m1, double z
     }
     else if (l1==2)
     {
-      //printf(" get_p_4d. m1: %2i \n",m1);
       if (m1==-2)
         return get_p_4dxyd(gs,grid,val,zeta1);
       else if (m1==-1)
@@ -3405,7 +3571,20 @@ void eval_pd(int gs, double* grid, double* val, int n1, int l1, int m1, double z
     }
     else if (l1==3)
     {
-      printf(" WARNING: 7d derivatives not available \n");
+      if (m1==-3)
+        return get_p_7fm3d(gs,grid,val,zeta1);
+      else if (m1==-2)
+        return get_p_7fm2d(gs,grid,val,zeta1);
+      else if (m1==-1)
+        return get_p_7fm1d(gs,grid,val,zeta1);
+      else if (m1==0)
+        return get_p_7f0d(gs,grid,val,zeta1);
+      else if (m1==1)
+        return get_p_7fp1d(gs,grid,val,zeta1);
+      else if (m1==2)
+        return get_p_7fp2d(gs,grid,val,zeta1);
+      else if (m1==3)
+        return get_p_7fp3d(gs,grid,val,zeta1);
     }
   }
   else if (n1==8)
@@ -3414,8 +3593,34 @@ void eval_pd(int gs, double* grid, double* val, int n1, int l1, int m1, double z
     {
       return get_p_8sd(gs,grid,val,zeta1);
     }
+    else
+    {
+      printf(" ERROR: no n>7 l>0 derivatives available \n");
+    }
   }
 
+
+  return;
+}
+
+//should remove this ftn (diagonal only terms)
+void eval_pdke(int gs, double* grid, double* val, double* tmp, int n1, int l1, int m1, double zeta1)
+{
+  int gs3 = 3*gs;
+  #pragma acc parallel loop present(tmp[0:gs3])
+  for (int j=0;j<gs3;j++)
+    tmp[j] = 1.;
+
+  eval_pd(gs,grid,tmp,n1,l1,m1,zeta1);
+
+  #pragma acc parallel loop present(val[0:gs],tmp[0:gs3])
+  for (int j=0;j<gs;j++)
+  {
+    double vx = tmp[3*j+0];
+    double vy = tmp[3*j+1];
+    double vz = tmp[3*j+2];
+    val[j] = vx*vx + vy*vy + vz*vz;
+  }
 
   return;
 }

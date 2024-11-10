@@ -1113,35 +1113,6 @@ void do_4c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
 void evaluate_over_grid_3c(int n, int m, int p, int n1, int l1, int m1, double zt1, double norm1, int n2, int l2, int m2, double zt2, double norm2, int n3, int l3, int m3, double zt3, double norm3v,
                         double z0, double A1, double B1, double C1, double A2, double B2, double C2, int gs, double* grid, double* gridm, double* wt, double* val)
 {
-  int gs3 = 3*gs;
-  int gs6 = 6*gs;
-
-  double* val1 = new double[gs]; //AO
-  double* val2 = new double[gs]; //AO
-  double* val1p = new double[gs3]; //AO dxdydz
-  double* val2p = new double[gs3]; //AO dxdydz
-  double* valt = new double[gs3];
-  double* valtp = new double[gs3];
-
-  double* grid1 = new double[gs6];
-  double* grid2 = new double[gs6];
-
-  #pragma acc enter data create(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],valtp[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  get_two_grids(gs,grid1,grid2,grid,A1,B1,C1,A2,B2,C2);
-
-  assemble_vc_vals(n+1,m+1,p+1,n1,l1,m1,zt1,norm1,n2,l2,m2,zt2,norm2,n3,l3,m3,zt3,norm3v,gs,grid1,grid2,val1,val1p,val2,val2p,valt,valtp);
-
-  get_ab_2d(gs,z0,val1,val2,val1p,val2p,grid,gridm,wt,val);
-  //get_ab_mnp(gs,z0,0,n1,l1,m1,n2,l2,m2,norm1,norm2,zt1,zt2,grid,gridm,wt,val);
-
-  #pragma acc exit data delete(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],valtp[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  delete [] val1; delete [] val2;
-  delete [] val1p; delete [] val2p;
-  delete [] valt; delete [] valtp;
-  delete [] grid1; delete [] grid2;
-
   return;
 }
 
@@ -2117,37 +2088,6 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
 void evaluate_over_grid(bool do_coulomb, int n1, int l1, int m1, double zt1, double norm1, double norm1v, int n2, int l2, int m2, double zt2, double norm2, 
                         double z0, double A1, double B1, double C1, double A2, double B2, double C2, int gs, double* grid, double* gridm, double* wt, double* val)
 {
-  int gs3 = 3*gs;
-  int gs6 = 6*gs;
-
-  double* grid1 = new double[gs6]; //XYZ grid centered on an atom
-  double* grid2 = new double[gs6]; //XYZ grid centered on an atom
-
-  double* val1 = new double[gs]; //AO
-  double* val2 = new double[gs]; //AO
-  double* val1p = new double[gs3]; //AO dxdydz
-  double* val2p = new double[gs3]; //AO dxdydz
-  double* valt = new double[gs3];
-
-  #pragma acc enter data create(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  get_two_grids(gs,grid1,grid2,grid,A1,B1,C1,A2,B2,C2);
-
-  assemble_sh_vals(n1,l1,m1,zt1,norm1,n2,l2,m2,zt2,norm2,gs,grid1,grid2,val1,val2,val1p,val2p);
-  //extra work
-  if (do_coulomb)
-    assemble_vc_vals(n1,l1,m1,zt1,norm1v,gs,grid1,val1,val1p,valt);
-
-  get_ab_2d(gs,z0,val1,val2,val1p,val2p,grid,gridm,wt,val);
-  //get_ab_mnp(gs,z0,0,Z1,Z2,n1,l1,m1,n2,l2,m2,norm1,norm2,zt1,zt2,grid,gridm,wt,val);
-
-  #pragma acc exit data delete(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  delete [] grid1; delete [] grid2;
-  delete [] val1; delete [] val2;
-  delete [] val1p; delete [] val2p;
-  delete [] valt;
-
   return;
 }
 
@@ -2774,113 +2714,7 @@ double test_1s_integrate_v2(int ss, int maxsteps, double epsilon, int gs1, doubl
 
 double test_1s_integrate(int ss, int maxsteps, double epsilon, int gs, double*& grid, double*& gridm, double*& wt, int prl)
 {
-  double z0 = 1.; //parameter
-  const double zt1 = 2.; //parameter
-
-  double tisum = 0.; //inactive terms
-  double sum = 0.; //total sum
-  int wsgst = 0;
-  int wsc = 1;
-  int phi_check = 0;
-  bool skip_phi = 0; //for cylindrically symmetric cases
-  for (int n=0;n<maxsteps;n++)
-  {
-    int ws = (wsc%3)+1;
-    wsc++;
-//    if (skip_phi && ws==3) { ws = 1; wsc++; }
-
-    double eps1 = epsilon; if (n+1==maxsteps) eps1 = 0.;
-    printf("\n iter %2i with eps: %4.1e ws: %i \n",n+1,eps1,ws);
-
-    double* val = new double[gs];
-    for (int j=0;j<gs;j++)
-    {
-     //test function, two 1s AOs
-      double x1 = grid[6*j+0]; double y1 = grid[6*j+1]; double z1 = grid[6*j+2]-z0;
-      double r1 = sqrt(x1*x1+y1*y1+z1*z1);
-      double x2 = grid[6*j+0]; double y2 = grid[6*j+1]; double z2 = grid[6*j+2]+z0;
-      double r2 = sqrt(x2*x2+y2*y2+z2*z2);
-
-      double mu = gridm[6*j+0];  double nu = gridm[6*j+1];  double phi = gridm[6*j+2];
-      double dmu = gridm[6*j+3]; double dnu = gridm[6*j+4]; double dphi = gridm[6*j+5];
-      double dxdmu = sin(nu)*cos(phi)*cosh(mu);
-      double dydmu = sin(nu)*sin(phi)*cosh(mu);
-      double dzdmu = cos(nu)*sinh(mu);
-
-      double ezor1 = zt1*exp(-zt1*r1)/r1; //includes *zeta
-      double ezor2 = zt1*exp(-zt1*r2)/r2;
-      ezor1 *= exp(-zt1*r2);
-      ezor2 *= exp(-zt1*r1);
-      double dfdx1 = -x1*ezor1; double dfdy1 = -y1*ezor1; double dfdz1 = -z1*ezor1;
-      double dfdx2 = -x2*ezor2; double dfdy2 = -y2*ezor2; double dfdz2 = -z2*ezor2;
-      double dfdmu = (dfdx1+dfdx2)*dxdmu + (dfdy1+dfdy2)*dydmu + (dfdz1+dfdz2)*dzdmu;
-      dfdmu *= 32.; //norm
-
-      double mu1 = mu-0.5*dmu; double mu2 = mu+0.5*dmu;
-      double nu1 = nu-0.5*dnu; double nu2 = nu+0.5*dnu;
-
-      double a = 32.*exp(-zt1*r1)*exp(-zt1*r2);
-      double b = dfdmu*0.5; //1/2 factor needed
-      double v1 = first_order_fdV(mu,mu1,mu2,nu1,nu2,a,b)*dphi;
-      //double v1 = first_order_frdV(mu,mu1,mu2,nu1,nu2,a,b)*dphi;
-      //double v2 = first_order_fdV(mu,mu1,mu2,nu1,nu2,a,0)*dphi;
-      val[j] = v1;
-
-     #if 0
-      if (j<100)
-      {
-        //double wt1 = wt[j];
-        printf("  mu/nu/phi: %8.5f %8.5f %8.5f   dmu/nu/phi: %8.5f %8.5f %8.5f   xyz: %8.5f %8.5f %8.5f \n",mu,nu,phi,dmu,dnu,dphi,x1,y1,z1);
-        printf("  r: %8.5f  dfdxyz: %8.5f %8.5f %8.5f \n",r1,dfdx1,dfdy1,dfdz1);
-        printf("  r: %8.5f  dfdxyz: %8.5f %8.5f %8.5f \n",r2,dfdx2,dfdy2,dfdz2);
-        printf("  dxyzdmu: %8.5f %8.5f %8.5f  a/b: %10.6f %10.6f v12: %10.6f %10.6f \n",dxdmu,dydmu,dzdmu,a,b,v1,v2);
-        printf("\n");
-        //printf("   wt1: %10.6f val: %10.6f \n",wt1,val[j]);
-      }
-     #endif
-
-      //val[j] = x1*a*wt1;
-      //val[j] = (z1-z0)*a*wt1;
-      //val[j] = a*wt1;
-    }
-
-    double* gridn = NULL;
-    double* gridmn = NULL;
-    double* wtn = NULL;
-
-    double isum = 0.; double asum = 0.; bool gup = 0; double maxd;
-    int gs1 = adaptive_split_ps(eps1,ws,ss,gs,z0,grid,gridm,wt,val,gup,isum,asum,maxd,gridn,gridmn,wtn,prl);
-    tisum += isum;
-    sum = asum+tisum;
-
-   //phi DOF invariant
-    if (ws==1 && gup==0) phi_check++;
-    if (phi_check>3) skip_phi = 1;
-
-    printf("  gs1: %4i  phi_check: %i  skip? %i \n",gs1,phi_check,skip_phi);
-
-   //conv check
-    if (ws==1) wsgst = 0;
-    wsgst += gs1;
-
-    printf(" asum: %11.8f tisum: %11.8f sum: %11.8f \n",asum,tisum,sum);
-
-    delete [] val;
-
-    if (gs1<1 && ss==9)
-    if (n+1==maxsteps) break;
-
-    if (gs1>0)
-    {
-      if (prl>1) printf("  updating grid (size: %4i) \n",gs1);
-      gs = gs1;
-     //replace prior grid
-      delete [] grid; delete [] gridm; delete [] wt;
-      grid = gridn; gridm = gridmn; wt = wtn;
-    }
-  }
-  printf("\n final sum: %11.8f  (%4.1e) \n",sum,epsilon);
-
+  double sum = 0.;
   return sum;
 }
 
@@ -2926,7 +2760,7 @@ void test_prosph()
   double* grid = new double[6*gs];
   double* gridm = new double[6*gs];
   double* wt = new double[gs];
-  
+
   if (ss==9) //octree grid
     full_split_ps(gs0,grid0,gridm0,wt0,z0,gs,grid,gridm,wt,prl+1);
   else

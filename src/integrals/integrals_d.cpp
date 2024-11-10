@@ -429,7 +429,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
       copy_grid(gs,grid2s,grid2);
       recenter_grid(gs,grid2,A12,B12,C12);
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copyf(gs,wtt1,wt1);
@@ -509,7 +509,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
             valt1[3*j+0] = valt1[3*j+1] = valt1[3*j+2] = val4[ii1][j];
 
           eval_dp_3r(gs,grid2,valt1,n1,l1,m1);
-        
+
          #pragma acc parallel loop present(valt1[0:gs3],val4x[0:iNa][0:gs3])
           for (int j=0;j<gs3;j++)
             val4x[ii1][j] += valt1[j];
@@ -561,7 +561,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
           val2x[ii2][j] = val5x[ii2][j] = 1.f;
       }
 
-     #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],val3x[0:iN][0:gs3],val6x[0:iN][0:gs3],wt1[0:gs],wt2[0:gs])
+     #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],val3x[0:iN][0:gs3],val6x[0:iN][0:gs3],wtt1[0:gs],wt2[0:gs])
       for (int ii3=0;ii3<s6-s5;ii3++)
       {
         for (int j=0;j<gs;j++)

@@ -1,6 +1,6 @@
 set(INTEGRALS_SOURCES
     integrals.cpp
-    integrals_d.cpp 
+    integrals_d.cpp
     integrals_aux.cpp
     integrals_ps.cpp
     spherical.cpp
@@ -9,7 +9,7 @@ set(INTEGRALS_SOURCES
     pVpd.cpp
     becke.cpp
     gamma.cpp
-    lebedev2.cpp     
+    lebedev2.cpp
     murak.cpp
     reduce.cpp
     Vinr.cpp
@@ -17,10 +17,17 @@ set(INTEGRALS_SOURCES
     prosph.cpp
     ps_grid.cpp
     ps_first_second_order.cpp
+    cusp.cpp
     grid_util.cpp
+    cpu_util.cpp
     gpu_util.cpp
+    cuda_util.cpp
+    scf_util.cpp
+    symm.cpp
+    gauss.cpp
     hess.cpp
     opt.cpp
+    jellium_ints.cpp
     )
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")

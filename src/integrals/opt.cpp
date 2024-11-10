@@ -1,6 +1,6 @@
 #include "opt.h"
 
-double cg_step(float scalar, float maxstep, double& grmsp, int natoms, double* step, double* grad, float* xyz)
+double cg_step(float scalar, float maxstep, double& grmsp, int natoms, double* step, double* grad, double* xyz)
 {
   int N3 = 3*natoms;
   double grms = 0.;
@@ -45,7 +45,7 @@ double cg_step(float scalar, float maxstep, double& grmsp, int natoms, double* s
 }
 
 
-double sd_step(float scalar, float maxstep, int natoms, double* grad, float* xyz)
+double sd_step(float scalar, float maxstep, int natoms, double* grad, double* xyz)
 {
   int N3 = 3*natoms;
   double mag = 0.;
