@@ -254,7 +254,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
 
   int nomp = ngpu;
  //#pragma omp parallel
-  //nomp = omp_get_num_threads(); 
+  //nomp = omp_get_num_threads();
 
   if (prl>1) printf(" beginning compute_all_3c_para. nthreads: %2i \n",nomp);
 
@@ -963,9 +963,9 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
   #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
   #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
-  #pragma acc enter data create(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-  #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-  #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+  #pragma acc enter data create(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs])
+  #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs])
+  #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs])
 
   #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
   #pragma acc enter data create(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
@@ -1356,7 +1356,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
           int ii3 = i3-s5;
           vector<double> basis3 = basis[i3];
           int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
           eval_sh(ii3,gs,grid3p,val9[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid2p,val6[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid1p,val3[ii3],n3,l3,m3,zeta3);
@@ -1419,12 +1419,12 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
   #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
 
-  #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-  #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-  #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+  #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs])
+  #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs])
+  #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs])
 
-  #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
-  #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
+  #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
+  #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
 
   #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs],valt1[0:gs],valt2[0:gs],valt3[0:gs])
   #pragma acc exit data delete(n2i[0:natoms],na2i[0:natoms])
@@ -1547,8 +1547,8 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
   #pragma acc enter data copyin(n2i[0:natoms])
 
   #pragma acc enter data create(grid1[0:6*gs],wt1[0:gs],val1[0:gs])
-  #pragma acc enter data create(grid2[0:6*gs],wt2[0:gs],val2[0:gs]) 
-  #pragma acc enter data create(grid3[0:6*gs],wt3[0:gs],val3[0:gs]) 
+  #pragma acc enter data create(grid2[0:6*gs],wt2[0:gs],val2[0:gs])
+  #pragma acc enter data create(grid3[0:6*gs],wt3[0:gs],val3[0:gs])
 
   #pragma acc enter data create(grid1s[0:6*gs],grid2s[0:6*gs],grid3s[0:6*gs])
   #pragma acc enter data create(grid1p[0:6*gs],grid2p[0:6*gs],grid3p[0:6*gs])
@@ -1928,11 +1928,11 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
  //CPMZ check this
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:6*gs],wt1[0:gs],val1[0:gs])
-  #pragma acc exit data delete(grid2[0:6*gs],wt2[0:gs],val2[0:gs]) 
-  #pragma acc exit data delete(grid3[0:6*gs],wt3[0:gs],val3[0:gs]) 
+  #pragma acc exit data delete(grid2[0:6*gs],wt2[0:gs],val2[0:gs])
+  #pragma acc exit data delete(grid3[0:6*gs],wt3[0:gs],val3[0:gs])
 
-  #pragma acc exit data delete(grid1s[0:6*gs],grid2s[0:6*gs],grid3s[0:6*gs]) 
-  #pragma acc exit data delete(grid1p[0:6*gs],grid2p[0:6*gs],grid3p[0:6*gs]) 
+  #pragma acc exit data delete(grid1s[0:6*gs],grid2s[0:6*gs],grid3s[0:6*gs])
+  #pragma acc exit data delete(grid1p[0:6*gs],grid2p[0:6*gs],grid3p[0:6*gs])
 
   #pragma acc exit data delete(valt1[0:gs],valt2[0:gs],valt3[0:gs],valt4[0:gs],valt5[0:gs],valt6[0:gs])
   #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
@@ -2057,10 +2057,10 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
 
  #if RED_DOUBLE
   double* V1 = new double[nc];
-  double* dV1 = new double[nc3]; 
+  double* dV1 = new double[nc3];
  #else
   float* V1 = new float[nc];
-  float* dV1 = new float[nc3]; 
+  float* dV1 = new float[nc3];
  #endif
 
   float* ang_g = new float[3*nang];
@@ -2077,8 +2077,8 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
   #pragma acc enter data copyin(Pao[0:N2])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
-  #pragma acc enter data create(grid3[0:gs6],wt3[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
+  #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
   #pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
   #pragma acc enter data create(valt1[0:iN][0:gs],valt2[0:iN][0:gs],valt3[0:iN][0:gs])
   #pragma acc enter data create(valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3],valtv3[0:iN][0:gs3])
@@ -2571,8 +2571,8 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
  //CPMZ check this
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
-  #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
+  #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6],grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
   #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
   #pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
@@ -2639,7 +2639,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
 
   int nomp = ngpu;
  //#pragma omp parallel
-  //nomp = omp_get_num_threads(); 
+  //nomp = omp_get_num_threads();
 
   if (prl>1) printf(" beginning compute_Enp_para (%i) \n",nomp);
 
@@ -3559,8 +3559,8 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
   #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
-  #pragma acc enter data create(grid3[0:gs6],wt3[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
+  #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
   #pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
   #pragma acc enter data create(valV1[0:iN][0:gs3],valV2[0:iN][0:gs3],valV3[0:iN][0:gs3],valV4[0:iN][0:gs3],valV5[0:iN][0:gs3],valV6[0:iN][0:gs3])
   #pragma acc enter data create(valt1[0:iN][0:gs],valt2[0:iN][0:gs],valt3[0:iN][0:gs])
@@ -4172,8 +4172,8 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
  //CPMZ check this
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
-  #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
+  #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6],grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
   #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
   #pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
@@ -4273,7 +4273,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
   #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
 
   #pragma acc enter data create(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs])
   #pragma acc enter data create(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
  #endif
   acc_assign(3*N2,E,0.);
@@ -4450,7 +4450,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
     E[j*N+i] = S[i*N+j];
   }
  #endif
- 
+
   #pragma acc exit data delete(norm[0:N])
   delete [] norm;
 
@@ -4476,7 +4476,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
 
 #if USE_ACC
   #pragma acc exit data delete(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
   #pragma acc exit data delete(n2i[0:natoms])
   #pragma acc exit data delete(coords[0:3*natoms],atno[0:natoms])
@@ -4551,7 +4551,7 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
   #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
 
   #pragma acc enter data create(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs])
   #pragma acc enter data create(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
  #endif
   acc_assign(N2,S,0.);
@@ -4719,7 +4719,7 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
   {
     S[j*N+i] = S[i*N+j];
   }
- 
+
  //might as well eliminate errors on diagonal
  #pragma acc parallel loop present(S[0:N2])
   for (int i=0;i<N;i++)
@@ -4750,7 +4750,7 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
 
 #if USE_ACC
   #pragma acc exit data delete(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
   #pragma acc exit data delete(n2i[0:natoms])
   #pragma acc exit data delete(coords[0:3*natoms],atno[0:natoms])
@@ -4829,7 +4829,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
   #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
   #pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs])
   #pragma acc enter data create(valT1[0:iN][0:gs],valT2[0:iN][0:gs])
   #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],wtt1[0:gs])
@@ -4893,7 +4893,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
       for (int j=0;j<gs;j++)
         valT1[ii1][j] = valS1[ii1][j];
     }
- 
+
    //KE terms
     for (int i1=s1;i1<s2;i1++)
     {
@@ -5135,7 +5135,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
  //CPMZ check this
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],wtt1[0:gs])
   #pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs])
   #pragma acc exit data delete(valT1[0:iN][0:gs],valT2[0:iN][0:gs])
@@ -5226,7 +5226,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
   #pragma acc enter data copyin(n2i[0:natoms])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
   #pragma acc enter data create(val1[0:iN][0:gs],val2[0:iN][0:gs],wtt1[0:gs])
   #pragma acc enter data create(val3[0:iN][0:gs],val4[0:iN][0:gs])
   #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6])
@@ -5483,7 +5483,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
  //CPMZ check this
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6])
   #pragma acc exit data delete(val1[0:iN][0:gs],val2[0:iN][0:gs],wtt1[0:gs])
   #pragma acc exit data delete(val3[0:iN][0:gs],val4[0:iN][0:gs])
@@ -5576,7 +5576,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
   #pragma acc enter data copyin(n2i[0:natoms])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
   #pragma acc enter data create(val1[0:iN][0:gs],val2[0:iN][0:gs],wtt1[0:gs])
   #pragma acc enter data create(val3[0:iN][0:gs],val4[0:iN][0:gs])
   #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6])
@@ -5841,7 +5841,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
  //CPMZ check this
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6])
   #pragma acc exit data delete(val1[0:iN][0:gs],val2[0:iN][0:gs],wtt1[0:gs])
   #pragma acc exit data delete(val3[0:iN][0:gs],val4[0:iN][0:gs])
@@ -5921,11 +5921,11 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
  #if USE_ACC
   #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
   #pragma acc enter data create(grid1[0:6*gs],wt1[0:gs],val1[0:gs])
-  #pragma acc enter data create(grid2[0:6*gs],wt2[0:gs],val2[0:gs]) 
+  #pragma acc enter data create(grid2[0:6*gs],wt2[0:gs],val2[0:gs])
   #pragma acc enter data create(valt1[0:N][0:gs],valt2[0:N][0:gs],wtt1[0:gs])
   #pragma acc enter data create(grid1s[0:6*gs],grid2s[0:6*gs])
   //#pragma acc enter data create(valt1[0:gs],valt2[0:gs],wtt1[0:gs])
-  #pragma acc enter data create(A[0:N2]) 
+  #pragma acc enter data create(A[0:N2])
   #pragma acc enter data create(i2m[0:N])
  #endif
 
@@ -6145,7 +6145,7 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
 
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:6*gs],wt1[0:gs],val1[0:gs])
-  #pragma acc exit data delete(grid2[0:6*gs],wt2[0:gs],val2[0:gs]) 
+  #pragma acc exit data delete(grid2[0:6*gs],wt2[0:gs],val2[0:gs])
   #pragma acc exit data delete(grid1s[0:6*gs],grid2s[0:6*gs])
   #pragma acc exit data delete(valt1[0:N][0:gs],valt2[0:N][0:gs],wtt1[0:gs])
   #pragma acc exit data delete(A[0:N2])

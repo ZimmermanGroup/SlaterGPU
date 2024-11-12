@@ -233,7 +233,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   int nomp_max = 1;
  #pragma omp parallel
   nomp_max = omp_get_num_threads();
-  
+
   int ngpu = 0;
  #if USE_ACC
   ngpu = acc_get_num_devices(acc_device_nvidia);
@@ -1987,7 +1987,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   int nomp_max = 1;
  #pragma omp parallel
   nomp_max = omp_get_num_threads();
-  
+
   int ngpu = 0;
  #if USE_ACC
   ngpu = acc_get_num_devices(acc_device_nvidia);
@@ -2737,7 +2737,7 @@ void compute_4c_ol_ps_fast(int natoms, int* atno, double* coords, vector<vector<
   int nomp_max = 1;
  #pragma omp parallel
   nomp_max = omp_get_num_threads();
-  
+
   int ngpu = 0;
  #if USE_ACC
   ngpu = acc_get_num_devices(acc_device_nvidia);

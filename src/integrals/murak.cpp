@@ -59,9 +59,7 @@ void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, cons
 
   //printf("    murak_grid zeta/alpha: %8.5f %8.5f \n",zeta,alpha);
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:size],w[0:size])
-#endif
   for (int n=0;n<size;n++)
   {
     //double i0 = (n-0.5)/size; if (i0<0.) i0 = 0.;
@@ -128,9 +126,7 @@ void get_murak_grid_f(int size, float* r, float* w, int Z, const int m)
   const double w0 = 1./size;
   const double mal = m*alpha;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:size],w[0:size])
-#endif
   for (int n=0;n<size;n++)
   {
    #if 1
@@ -178,9 +174,7 @@ void get_murak_grid(int size, double* r, double* w, int Z, const int m)
   const double w0 = 1./size;
   const double mal = m*alpha;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:size],w[0:size])
-#endif
   for (int n=0;n<size;n++)
   {
     double i1 = (n+0.5)/size;
@@ -226,9 +220,7 @@ void get_murak_grid_f(int size, float* r, float* w, float* er, int Z, float zeta
     exit(1.);
   }
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:size],w[0:size],er[0:size])
-#endif
   for (int n=0;n<size;n++)
   {
     float i1 = (n+0.5f)/size;
@@ -267,9 +259,7 @@ void get_murak_grid(int size, double* r, double* w, double* er, int Z, double ze
   const double w0 = 1./size;
   const double mal = m*alpha;
 
-#if USE_ACC
  //#pragma acc kernels
-#endif
   for (int n=0;n<size;n++)
   {
     double i1 = (n+0.5)/size;

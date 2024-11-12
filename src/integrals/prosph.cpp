@@ -2129,7 +2129,7 @@ void integrate_STEnAC_2c(int natoms, int* atno, double* coords, vector<vector<do
 
   int gs_quad = nmu*nnu*nphi*quad_order*quad_order*quad_order;
   printf("  basis sizes: %2i  %2i  initial grid size: %7i \n",basis.size(),basis_aux.size(),gs_quad);
-  if (basis.size()<1 || (basis_aux.size()<1 && do_coulomb)) 
+  if (basis.size()<1 || (basis_aux.size()<1 && do_coulomb))
   {
     return;
   }
@@ -2561,7 +2561,7 @@ bool integrate_ol_4c(int natoms, int* atno, double* coords, vector<vector<double
  #endif
 
   printf("  basis size: %2i  ngpu/nomp: %2i \n",basis.size(),nomp);
-  if (basis.size()<1) 
+  if (basis.size()<1)
     return 0;
 
   size_t gpumem = acc_get_property(0,acc_device_nvidia,acc_property_free_memory);

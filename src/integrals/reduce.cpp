@@ -241,7 +241,7 @@ void reduce_2c1(int s1, int s2, int gs, double** val1, double** val3, int iN, in
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
-   
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -280,7 +280,7 @@ void reduce_2c1(int s1, int s2, int s3, int s4, int gs, double** val1, double** 
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
-   
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -326,7 +326,7 @@ void reduce_2c1(int s1, int s2, int gs, float** val1, float** val3, int iN, int 
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
-   
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -360,16 +360,16 @@ void reduce_2c2(int s1, int s2, int s3, int s4, int gs, double** val1, double** 
     {
       int ii1 = i1-s1;
       int ii2 = i2-s3;
-    
+
       double val = 0.;
 
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val2[ii1][j]*val4[ii2][j];
-        
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -408,7 +408,7 @@ void reduce_2c2(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
     {
       int ii1 = i1-s1;
       int ii2 = i2-s3;
-    
+
      #if RED_DOUBLE
       double val = 0.;
      #else
@@ -419,9 +419,9 @@ void reduce_2c2(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val2[ii1][j]*val4[ii2][j];
-        
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -461,7 +461,7 @@ void reduce_2c3(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
     {
       int ii1 = i1-s1;
       int ii2 = i2-s3;
-    
+
      #if RED_DOUBLE
       double val = 0.;
      #else
@@ -472,12 +472,12 @@ void reduce_2c3(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val2[ii1][j]*val4[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val5[ii1][j]*val6[ii2][j];
-        
+
       An[i1*N+i2] = val;
     }
   } //MM reduction

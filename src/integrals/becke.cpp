@@ -615,9 +615,7 @@ void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
   float a31 = becke_a(Z3,Z1);
   float a32 = becke_a(Z3,Z2);
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r1 = grid1[6*i+3];
@@ -628,9 +626,7 @@ void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
     wt1[i] *= s1;
   }
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid2[0:6*gs],wt2[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r1 = grid2[6*i+3];
@@ -641,9 +637,7 @@ void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
     wt2[i] *= s1;
   }
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid3[0:6*gs],wt3[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r1 = grid3[6*i+3];
@@ -669,9 +663,7 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
 
   //printf(" a1/2: %8.5f %8.5f \n",a1,a2);
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r1 = grid1[6*i+3];
@@ -691,9 +683,7 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
     wt1[i] *= s1;
   }
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid2[0:6*gs],wt2[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r1 = grid2[6*i+3];
@@ -728,9 +718,7 @@ void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* 
 
   //printf(" a1/2: %8.5f %8.5f \n",a1,a2);
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r1 = grid1[6*i+3];
@@ -750,9 +738,7 @@ void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* 
     wt1[i] *= s1;
   }
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid2[0:6*gs],wt2[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r1 = grid2[6*i+3];
@@ -1121,9 +1107,7 @@ void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int na
 
 void add_r1_to_grid4(int gs, float* grid1, float A2, float B2, float C2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:4*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x1 = grid1[4*i+0];
