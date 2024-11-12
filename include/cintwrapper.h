@@ -26,6 +26,8 @@ extern "C" {
                          int *atm, int natm, int *bas, int nbas, double *env);
   int cint1e_ovlp_sph(double *buf, int *shls,
                           int *atm, int natm, int *bas, int nbas, double *env);
+  int cint1e_ovlpip_sph(double *buf, int *shls,
+                          int *atm, int natm, int *bas, int nbas, double *env);
   int cint2e_sph(double *buf, int *shls,
                      int *atm, int natm, int *bas, int nbas, double *env, CINTOpt *no_opt);
   
@@ -95,11 +97,15 @@ void get_hcore(double *hcore, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
 
+void get_tcore(double *tcore, int N,
+               int natm, int nbas, int nenv,
+               int *atm, int *bas, double *env);
+
 void gen_eri(double **eri, int N, 
              int natm, int nbas, int nenv,
              int *atm, int *bas, double *env);
 
-void gen_jMOI_gto(double **eri, int N, 
+void gen_jMOI_gto(double **eri, int N,
                   int natm, int nbas, int nenv,
                   int *atm, int *bas, double *env);
 

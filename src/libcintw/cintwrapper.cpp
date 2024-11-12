@@ -15,8 +15,8 @@
 #include <mkl_lapacke.h>
 #include <mkl_cblas.h>
 #else
-#include <lapacke.h>
-#include <cblas.h>
+//#include <lapacke.h>
+//#include <cblas.h>
 #endif
 
 using namespace std;
@@ -277,10 +277,79 @@ void get_hcore(double *hcore, int N,
   delete [] tmp;
 }
 
+void get_tcore(double *tcore, int N,
+               int natm, int nbas, int nenv,
+               int *atm, int *bas, double *env) {
+  int idx_i = 0;
+  int di, dj;
+  int shls[2];
+
+  int N2 = N*N;
+  double *tmp = new double[N2];
+  
+  if (BT::DO_CART) {
+
+    idx_i = 0;
+    for (int i = 0; i < nbas; i++) {
+      int idx_j = 0;
+      shls[0] = i;
+      di = CINTcgto_cart(i, bas);
+      for (int j = 0; j <= i; j++) {
+        dj = CINTcgto_cart(j, bas);
+        shls[1] = j;
+        double *buf = new double[di*dj];
+        cint1e_kin_cart(buf,shls,atm,natm,bas,nbas,env);
+
+        for (int j1 = 0; j1 < dj; j1++) {
+          for (int i1 = 0; i1 < di; i1++) {
+            int oi = i1 + idx_i;
+            int oj = j1 + idx_j;
+            tmp[oi * N + oj] = tmp[oj * N + oi] = buf[j1*di + i1];
+          } // for i1
+        } // for j1
+        delete [] buf;
+        idx_j += dj;
+      } // for j
+      idx_i += di;
+    }// for i
+  } // if BT::DO_CART
+  else {
+    idx_i = 0;
+    for (int i = 0; i < nbas; i++) {
+      int idx_j = 0;
+      shls[0] = i;
+      di = CINTcgto_spheric(i, bas);
+      for (int j = 0; j <= i; j++) {
+        dj = CINTcgto_spheric(j, bas);
+        shls[1] = j;
+        double *buf = new double[di*dj];
+        cint1e_kin_sph(buf,shls,atm,natm,bas,nbas,env);
+
+        for (int j1 = 0; j1 < dj; j1++) {
+          for (int i1 = 0; i1 < di; i1++) {
+            int oi = i1 + idx_i;
+            int oj = j1 + idx_j;
+            tmp[oi * N + oj] = tmp[oj * N + oi] = buf[j1*di + i1];
+          } // for i1
+        } // for j1
+        delete [] buf;
+        idx_j += dj;
+      } // for j
+      idx_i += di;
+    }// for i
+  }  
+
+  for (int i = 0; i < N2; i++) {
+    tcore[i] = tmp[i];
+  }
+
+  delete [] tmp;
+}
+
 void gen_eri(double **eri, int N, 
              int natm, int nbas, int nenv,
              int *atm, int *bas, double *env) {
-  int N2 = N*N;
+  //int N2 = N*N;
 
   int idxi = 0;
   int idxj = 0;
@@ -564,7 +633,7 @@ void gen_eri_ri(double *jSaux, double *jSinv, double **jCaux,
                 double *jERI3c, double *jERI2c, int Naux, int N,
                 int natm, int nbas, int nenv, int nbas_ri,
                 int *atm, int *bas, double *env, double **eri) {
-  int N2 = N*N;
+  //int N2 = N*N;
   int Naux2 = Naux * Naux;
   gen_eri_3c(jERI3c, N, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
   gen_eri_2c(jERI2c, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
@@ -601,7 +670,7 @@ void gen_eri_ri(double *jSaux, double *jSinv, double **jCaux,
 void gen_eri_3c(double *eri, int N, int Naux,
                 int natm, int nbas, int nenv, int nbas_ri,
                 int *atm, int *bas, double *env) {
-  int N2 = N*N;
+  //int N2 = N*N;
   int idxi = 0;
   int idxj = 0;
   int idxmu = 0;
@@ -801,43 +870,53 @@ void translate_basis(int nbas, int N, int natm, int* atm, int* bas, double* env,
 void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
                        double *grad, double *GF, double *Pao, double *gQmunu,
                        double *gRS, int *atm, int *bas, double *env) {
+  int prl = 0;
+
   double * grad_term = new double[3*natm](); // zeroed in each contraction
   for (int i = 0; i < 3 * natm; i++) {
     grad[i] = 0.;
   }
 
-  printf("Printing g(S)\n");
+  if (prl>0)
+    printf("Printing g(S)\n");
   contract_dS(natm, N, nbas, grad_term, GF, atm, bas, env);
   for (int i = 0; i < 3 * natm; i++) {
     grad_term[i] *= -1.;
     grad[i] += grad_term[i];
   }
+  if (prl>0)
   for (int i = 0; i < natm; i++) {
     for (int j = 0; j < 3; j++) {
       printf("%12.8f ",grad_term[i*3+j]);
     }
     printf("\n");
   }
-  printf("\n");
-  printf("Printing g(T)\n");
+  if (prl>0)
+    printf("\n");
+  if (prl>0)
+    printf("Printing g(T)\n");
   contract_dK(natm, N, nbas, grad_term, Pao, atm, bas, env);
   for (int i = 0; i < 3 * natm; i++) {
     grad_term[i] *= -1;
     grad[i] += grad_term[i];
   }
+  if (prl>0)
   for (int i = 0; i < natm; i++) {
     for (int j = 0; j < 3; j++) {
       printf("%12.8f ",grad_term[i*3+j]);
     }
     printf("\n");
   }
-  printf("\n");
-  printf("Printing g(Vne)\n");
+  if (prl>0)
+    printf("\n");
+  if (prl>0)
+    printf("Printing g(Vne)\n");
   contract_dVne(natm, N, nbas, grad_term, Pao, atm, bas, env);
   for (int i = 0; i < 3 * natm; i++) {
     grad_term[i] *= 1.;
     grad[i] += grad_term[i];
   }
+  if (prl>0)
   for (int i = 0; i < natm; i++) {
     for (int j = 0; j < 3; j++) {
       printf("%12.8f ",grad_term[i*3+j]);
@@ -846,41 +925,50 @@ void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
   }
   printf("\n");
 
-  printf("Printing g(PQ)\n");
+  if (prl>0)
+    printf("Printing g(PQ)\n");
   contract_d2c2e(natm, N, nbas, Naux, nbas_ri, grad_term, gRS, atm, bas, env);
   for (int i = 0; i < 3 * natm; i++) {
     grad_term[i] *= 1.;
     grad[i] += grad_term[i];
   }
+  if (prl>0)
   for (int i = 0; i < natm; i++) {
     for (int j = 0; j < 3; j++) {
       printf("%12.8f ",grad_term[i*3+j]);
     }
     printf("\n");
   }
-  printf("\n");
-  printf("Printing g(gamma3c)\n");
+  if (prl>0)
+    printf("\n");
+  if (prl>0)
+    printf("Printing g(gamma3c)\n");
   contract_d3c2e(natm, N, nbas, Naux, nbas_ri, grad_term, gQmunu, atm, bas, env);
   for (int i = 0; i < 3 * natm; i++) {
     grad_term[i] *= -2.;
     grad[i] += grad_term[i];
   }
+  if (prl>0)
   for (int i = 0; i < natm; i++) {
     for (int j = 0; j < 3; j++) {
       printf("%12.8f ",grad_term[i*3+j]);
     }
     printf("\n");
   }
-  printf("\n");
+  if (prl>0)
+    printf("\n");
 
-  printf("Printing grad\n");
+  if (prl>0)
+    printf("Printing grad\n");
+  if (prl>0)
   for (int i = 0; i < natm; i++) {
     for (int j = 0; j < 3; j++) {
       printf("%12.8f ",grad[i*3+j]);
     }
     printf("\n");
   }
-  printf("\n");
+  if (prl>0)
+    printf("\n");
 
   delete [] grad_term;
 }

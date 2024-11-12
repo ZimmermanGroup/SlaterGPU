@@ -16,6 +16,10 @@
 
 using namespace std;
 
+#include "write.h"
+#include "cpu_util.h"
+#include "print.h"
+
 //#define A2B 1.8897261
 
 vector<string> split1(const string &s, char delim);
@@ -32,6 +36,7 @@ double read_float(string filename);
 double read_float_2(string filename);
 int read_int(string filename);
 int read_int_2(string filename);
+int read_int_3(string filename);
 bool read_array(int size, double* A, string filename);
 vector<double> read_vector(string filename);
 void read_thresh(float& no_thresh, float& occ_thresh);
