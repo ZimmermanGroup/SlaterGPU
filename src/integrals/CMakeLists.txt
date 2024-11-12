@@ -18,7 +18,6 @@ set(INTEGRALS_SOURCES
     ps_grid.cpp
     ps_first_second_order.cpp
     cusp.cpp
-    grid_util.cpp
     cpu_util.cpp
     gpu_util.cpp
     cuda_util.cpp
