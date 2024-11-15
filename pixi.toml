@@ -22,7 +22,7 @@ cmd = "/export/SLURM/default/bin/srun -p zim2080 -N1 -n1 -c2 --gpus=1 ../sgpu.ex
 [feature.pytest.tasks.pytest]
 description = "Invoke pytest to sanity check output from test task"
 depends-on = ["test"]
-cwd = "examples/geom_1"
+cwd = "examples"
 cmd = "pytest"
 
 [feature.athena]

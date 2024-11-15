@@ -10,6 +10,7 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 build*
+/examples/__pycache__
 # pixi environments
 .pixi
 *.egg-info

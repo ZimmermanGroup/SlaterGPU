@@ -3,16 +3,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-
-def test_output():
-    # convert from script location to corresponding location in build directory
+@pytest.mark.parametrize("filename", ["A", "Ciap", "pVp"])
+def test_output(filename):
+    # convert from script location to where the output files should be located
     script_dir = Path(os.path.abspath(__file__)).parent
-    script_dir_parts = list(script_dir.parts)
-    script_dir_parts.insert(-2, "build")
-    script_build_dir = Path(*script_dir_parts)
+    example_output_dir = script_dir.parent / "build" / "examples" / "geom_1"
 
-    assert script_build_dir.exists()
-    A = np.loadtxt(script_build_dir / "A", skiprows=1)
-    A_ref = np.loadtxt(script_build_dir / "A_ref", skiprows=1)
-    assert A.shape == A_ref.shape
-    assert A == pytest.approx(A_ref, rel=1e-6, abs=1e-6)
+    assert example_output_dir.exists()
+    output = np.loadtxt(example_output_dir / filename, skiprows=1)
+    reference_output = np.loadtxt(example_output_dir / f"{filename}_ref", skiprows=1)
+    assert output.shape == reference_output.shape
+    assert output == pytest.approx(reference_output, rel=1e-6, abs=1e-6)
