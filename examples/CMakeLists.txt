@@ -9,10 +9,10 @@ target_include_directories(sgpu.exe PRIVATE
 set(TEST_COMP_FLAGS ${CMAKE_CXX_FLAGS})
 if(USE_ACC)
     target_link_options(sgpu.exe PRIVATE 
-        -acc -ta=tesla
+        -acc=gpu
         )
     set(TEST_COMP_FLAGS ${TEST_COMP_FLAGS} 
-        -DUSE_ACC=1 -acc -ta=tesla
+        -DUSE_ACC=1 -acc=gpu
         )
 endif()
 
