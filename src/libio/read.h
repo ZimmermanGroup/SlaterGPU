@@ -18,6 +18,9 @@ using namespace std;
 
 //#define A2B 1.8897261
 
+#define SSTRF( x ) ( ( std::ostringstream() << std::fixed << std::setprecision(8) << std::scientific << (x) ).str() )
+#define SSTRF2( x ) ( ( std::ostringstream() << std::fixed << std::setprecision(14) << std::scientific << (x) ).str() )
+
 vector<string> split1(const string &s, char delim);
 
 int check_file(string filename);
