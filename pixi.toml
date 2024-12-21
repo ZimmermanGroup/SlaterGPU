@@ -1,8 +1,18 @@
-[project]
-name = "SlaterGPU"
-version = "0.1.0"
+[workspace]
 channels = ["nvidia", "conda-forge"]
 platforms = ["linux-64", "linux-aarch64"]
+preview = ["pixi-build"]
+
+[package]
+name = "SlaterGPU"
+version = "0.1.0"
+
+[build-system]
+build-backend = { name = "pixi-build-cmake", version = "*" }
+channels = [
+  "https://prefix.dev/pixi-build-backends",
+  "https://prefix.dev/conda-forge",
+]
 
 [tasks]
 clean = {cmd = "rm -rf build", description = "Delete build directory"}
