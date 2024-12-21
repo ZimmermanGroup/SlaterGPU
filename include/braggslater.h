@@ -5,7 +5,7 @@
 
 const float ang2bohr = 1.8897261;
 
-/* const float bsradii_angstroms[36] = { 
+/* const float bsradii_angstroms[36] = {
    0.25, 1.40,
    1.45, 1.05, 0.85, 0.70, 0.65, 0.60, 0.50, 1.50,
    1.80, 1.50, 1.25, 1.10, 1.00, 1.00, 1.00, 1.80,
@@ -36,18 +36,14 @@ float get_radii(int Z1)
   return val;
 }
 
-#if USE_ACC
 //#pragma acc routine seq
-#endif
 float bsf(int a0, int a1, int a2)
 {
   float val = 0.35*a0 + 0.85*a1 + a2;
   return val;
 }
 
-#if USE_ACC
 //#pragma acc routine seq
-#endif
 float get_radii_2(int Z)
 {
   if (Z<=0) Z = 1;

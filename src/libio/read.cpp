@@ -18,8 +18,6 @@
 #include "read.h"
 
 #include <sstream>
-#define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
-//#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
 
 double norm(int n, int l, int m, double zeta);
 
