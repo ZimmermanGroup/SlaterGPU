@@ -1,7 +1,7 @@
 #include "jellium_ints.h"
 
 //debug: use only Slaters or Gaussians
-#define USE_SLATER 0
+//#define USE_SLATER 0
 #define USE_GAUSS 0
 #define ATOMIC_VR 0
 
@@ -45,28 +45,53 @@ int get_gs1(int nrad, int nang, float* gridf, double Rc)
   return gs1;
 }
 
-void symmetrize_MOs(int N1, vector<vector<double> > basis, double* jCA, double* S)
+void symmetrize_diatomic(int N1, int N, double* jCA, int* aol, int* aom)
 {
-  printf("\n symmetrize_MOs (atom only) \n");
-  //printf(" WARNING: need to break degeneracies \n");
+  //separates xy DOF from z
 
-  int N = basis.size();
-  int N2 = N*N;
-
-  int prl = 1;
-  if (prl>1)
+ //find largest component in jCA
+  for (int j=0;j<N1;j++)
   {
-    printf("\n before symmetrize: \n");
-    print_mos_col(4,N,basis,jCA);
+    double cmax = 0.;
+    int cl = -1;
+    int cm = -111;
+
+    for (int k=0;k<N;k++)
+    {
+      double cn = fabs(jCA[k*N+j]);
+      if (cn>cmax)
+      {
+        cl = aol[k];
+        cm = aom[k];
+        cmax = cn;
+      }
+    }
+
+    //printf("  orb %2i lm: %i %2i \n",j,cl,cm);
+    if (cl<0 || cm<-110)
+      printf(" ERROR: couldn't find lm (%i %i) in symmetrize_mos (%2i) \n",cl,cm,j);
+
+   //eliminate nonmatching terms
+    if (cm==0) //z-axis basis
+    {
+      for (int k=0;k<N;k++)
+      if (aom[k]!=0)
+        jCA[k*N+j] = 0.;
+    }
+    else //everything else
+    {
+      for (int k=0;k<N;k++)
+      if (aom[k]!=cm)
+        jCA[k*N+j] = 0.;
+    }
   }
 
-  int aol[N]; //angular momentum
-  int aom[N]; //m quantum #
-  for (int j=0;j<N;j++)
-  {
-    aol[j] = basis[j][1];
-    aom[j] = basis[j][2];
-  }
+  return;
+}
+
+void symmetrize_atom(int N1, int N, double* jCA, int* aol, int* aom)
+{
+ //separates xyz DOF
 
  //find largest component in jCA
   for (int j=0;j<N1;j++)
@@ -95,6 +120,71 @@ void symmetrize_MOs(int N1, vector<vector<double> > basis, double* jCA, double* 
     if (aol[k]!=cl || aom[k]!=cm)
       jCA[k*N+j] = 0.;
   }
+
+  return;
+}
+
+void symmetrize_MOs(int natoms, int N1, vector<vector<double> > basis, double* jCA, double* S)
+{
+  if (natoms>2) return;
+
+  printf("\n symmetrize_MOs N1: %2i \n",N1);
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  int prl = 1;
+  if (prl>1)
+  {
+    int Npr = max(N1,4);
+    printf("\n before symmetrize: \n");
+    print_mos_col(Npr,N,basis,jCA);
+  }
+
+  bool equal = 0;
+  if (natoms==2)
+  {
+    equal = 1;
+    double Z1 = basis[0][8];
+    for (int j=1;j<N;j++)
+    if (basis[j][8]!=Z1)
+    {
+      equal = 0; break;
+    }
+
+   //found homodiatomic
+    if (equal)
+    {
+      printf("  equalizing homodiatomic \n");
+      int M = N/2;
+      for (int i=0;i<N1;i++)
+      for (int j=0;j<M;j++)
+      {
+        double s1 = sign(jCA[j*N+i]);
+        double v1 = fabs(jCA[j*N+i]);
+        double s2 = sign(jCA[(M+j)*N+i]);
+        double v2 = fabs(jCA[(M+j)*N+i]);
+
+        //printf("  sv1: %3.1f %8.5f   sv2: %3.1f %8.5f \n",s1,v1,s2,v2);
+        double v12 = 0.5*(v1+v2);
+        jCA[j*N+i] = v12*s1;
+        jCA[(M+j)*N+i] = v12*s2;
+      }
+    }
+  }
+
+  int aol[N]; //angular momentum
+  int aom[N]; //m quantum #
+  for (int j=0;j<N;j++)
+  {
+    aol[j] = basis[j][1];
+    aom[j] = basis[j][2];
+  }
+
+  if (natoms==1)
+    symmetrize_atom(N1,N,jCA,aol,aom);
+  else if (natoms==2) // && equal)
+    symmetrize_diatomic(N1,N,jCA,aol,aom);
 
   double* O = new double[N2];
   compute_CSC(N,jCA,S,jCA,O);
@@ -308,7 +398,7 @@ void compute_V_jellium(vector<vector<double> > basis, int nrad, double* rgrid, d
   return;
 }
 
-void compute_C_jellium(double Rc, vector<vector<double> > basis, vector<vector<double> > basis_aux, int nrad, int nang,
+void compute_C_jellium(bool use_slater, double Rc, vector<vector<double> > basis, vector<vector<double> > basis_aux, int nrad, int nang,
                        double* ang_g, double* ang_w, double* C)
 {
   bool sgs_basis = 0;
@@ -343,7 +433,7 @@ void compute_C_jellium(double Rc, vector<vector<double> > basis, vector<vector<d
   int m_murak = MMURAK;
   double Z1 = Z1J;
   //bool murak_zeta = 1;
-  //generate_central_grid_2d(!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  //generate_central_grid_2d(-1,!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
   generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
 
   #pragma acc update self(grid[0:gs6])
@@ -358,10 +448,11 @@ void compute_C_jellium(double Rc, vector<vector<double> > basis, vector<vector<d
   int gs1 = get_gs1(nrad,nang,grid,Rc);
   int gs2 = gs;
 
- #if USE_SLATER
-  printf("  WARNING: Slater only \n");
-  gs1 = 0;
- #endif
+  if (use_slater)
+  {
+    printf("  WARNING: Slater only \n");
+    gs1 = 0;
+  }
  #if USE_GAUSS
   printf("  DEBUG: Gaussian only \n");
   gs1 = nrad*nang;
@@ -389,7 +480,7 @@ void compute_C_jellium(double Rc, vector<vector<double> > basis, vector<vector<d
     for (int j=0;j<gs;j++)
       valV[i1][j] = wt[j];
 
-    eval_inr_r12(gs,grid,valV[i1],n1,l1,zt1,i1);
+    eval_inr_r12(-1,gs,grid,valV[i1],n1,l1,zt1);
     eval_sh_3rd(gs,grid,valV[i1],n1,l1,m1);
   }
 
@@ -403,10 +494,12 @@ void compute_C_jellium(double Rc, vector<vector<double> > basis, vector<vector<d
     for (int j=0;j<gs;j++)
       valS[i2][j] = 1.;
 
-    if (sgs_basis)
+    if (use_slater)
+      eval_shd(i2,gs2,grid,valS[i2],n2,l2,m2,zt2);
+    else if (sgs_basis)
       eval_sgsd(i2,gs1,gs2,grid,valS[i2],n2,l2,m2,zt2,Rc);
     else
-      eval_ssd(i2,gs,grid,valS[i2],n2,l2,m2,zt2);
+      eval_ssd(i2,gs,grid,valS[i2],n2,l2,m2,zt2,Rc);
   }
 
  //need to rearrange and eliminate redundancy
@@ -489,37 +582,90 @@ void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int
   gs1 = 0;
  #endif
 
-  if (Rc<1.e-9) { printf(" ERROR: invalid Rc in compute_Vr_jellium \n"); Rc = 1.; }
-  printf("  compute_Vr_jellium  order: %i  Ne: %2i  Zg/ztg: %8.5f %8.5f  Rc: %8.5f  gs12: %4i %4i \n",order,Ne,Zg,ztg,Rc,gs1,gs2);
-
-  //double c1 = -0.5*Ne/Rc;
-  //double c2 = Rc*Rc;
-  double c1 = -(1.*Ne)/order/Rc;
-  double c2 = 1.+order;
-  double c3 = pow(Rc,order);
-  double c4 = -Ne;
-
- #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
-  for (int j=0;j<gs1;j++)
+  if (order==2)
   {
-    double r = grid[6*j+3];
-    double rn = pow(r,order);
-    Vr[j] = c1*(c2-rn/c3);
+
+    if (Rc<1.e-9) { printf(" ERROR: invalid Rc in compute_Vr_jellium \n"); Rc = 1.; }
+    printf("  compute_Vr_jellium  order: %i  Ne: %2i  Zg/ztg: %8.5f %8.5f  Rc: %8.5f  gs12: %4i %4i \n",order,Ne,Zg,ztg,Rc,gs1,gs2);
+
+    //double c1 = -0.5*Ne/Rc;
+    //double c2 = Rc*Rc;
+    double c1 = -(1.*Ne)/order/Rc;
+    double c2 = 1.+order;
+    double c3 = pow(Rc,order);
+    double c4 = -Ne;
+
+   #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
+    for (int j=0;j<gs1;j++)
+    {
+      double r = grid[6*j+3];
+      double rn = pow(r,order);
+      Vr[j] = c1*(c2-rn/c3);
+    }
+
+   #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
+    for (int j=gs1;j<gs2;j++)
+    {
+      double r = grid[6*j+3];
+      Vr[j] = c4/r;
+    }
+
   }
-
- #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
-  for (int j=gs1;j<gs2;j++)
+  else if (order==1 || order==4) //SS_V4 and SS_V5
   {
-    double r = grid[6*j+3];
-    Vr[j] = c4/r;
+    double a = 1./Rc;
+    double a2 = a*a;
+    double a3 = a2*a;
+    double c1 = 3.*sqrt(3.)*Ne / (2.*a3*PI);
+    double c2 = c1*a2/2.;
+    //c2 = 0.;
+
+    printf("  compute_Vr_jellium. order: %i  Rc: %8.5f  a: %8.5f \n",order,Rc,a);
+
+   #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
+    for (int j=0;j<gs;j++)
+    {
+      double r = grid[6*j+3];
+      //double r2 = r*r;
+      double ar = a*r;
+
+      Vr[j] = c1*a2*(-3. + ar*(-3.+ar))/(6.+ 2.*ar*(3.+ar)) - c2;
+    }
+  }
+  else if (order==5) //not used
+  {
+    double a = 1./Rc;
+
+    printf(" INCOMPLETE:  compute_Vr_jellium. order: %i  Rc: %8.5f  a: %8.5f \n",order,Rc,a);
+
+   #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
+    for (int j=0;j<gs;j++)
+    {
+      double r = grid[6*j+3];
+      double ar = a*r;
+
+      //Vr[j] = 1.;
+    }
+  }
+  else if (order==6)
+  {
+    printf("\n ERROR: order 5 jellium to be implemented \n");
+    exit(-1);
+  }
+  else
+  {
+    printf("\n ERROR: no jellium potential available at order %i \n",order);
+    exit(-1);
   }
 
   if (Zg!=0.)
- #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
-  for (int j=0;j<gs;j++)
   {
-    double r = grid[6*j+3];
-    Vr[j] -= Zg*exp(-ztg*r*r);
+   #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
+    for (int j=0;j<gs;j++)
+    {
+      double r = grid[6*j+3];
+      Vr[j] -= Zg*exp(-ztg*r*r);
+    }
   }
 
   #pragma acc update self(Vr[0:gs])
@@ -572,7 +718,7 @@ void compute_Vr_jellium(double rs, double Rc, int nrad, int nang, double* ang_g,
   int m_murak = MMURAK;
   double Z1 = Z1J;
   //bool murak_zeta = 1;
-  //generate_central_grid_2d(1,gridr,wtr,1.,nrad+1,nang,ang_g,ang_w);
+  //generate_central_grid_2d(-1,1,gridr,wtr,1.,nrad+1,nang,ang_g,ang_w);
   generate_central_grid_3d(m_murak,gridr,wtr,Z1,nrad,nang,ang_g,ang_w);
 
 
@@ -687,7 +833,7 @@ void fill_permute_ol4(int N, double* ol)
   }
 }
 
-void compute_4c_ol_jellium(double Rc, vector<vector<double> > basis,
+void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > basis,
    	 int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl)
 {
   bool sgs_basis = 0;
@@ -714,17 +860,18 @@ void compute_4c_ol_jellium(double Rc, vector<vector<double> > basis,
   int m_murak = MMURAK;
   double Z1 = Z1J;
   //bool murak_zeta = 1;
-  //generate_central_grid_2d(!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  //generate_central_grid_2d(-1,!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
   generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
   #pragma acc update self(grid[0:gs6])
 
   int gs1 = get_gs1(nrad,nang,grid,Rc);
   int gs2 = gs;
 
- #if USE_SLATER
-  printf("  DEBUG: Slater only \n");
-  gs1 = 0;
- #endif
+  if (use_slater)
+  {
+    printf("  DEBUG: Slater only \n");
+    gs1 = 0;
+  }
  #if USE_GAUSS
   printf("  DEBUG: Gaussian only \n");
   gs1 = nrad*nang;
@@ -753,15 +900,20 @@ void compute_4c_ol_jellium(double Rc, vector<vector<double> > basis,
     double zeta2 = 2.*zeta1*Rc;
     double norm2 = exp(zeta1*Rc*Rc);
 
-    if (sgs_basis)
+    if (use_slater)
+    {
+      eval_shd(i1,gs2,grid,valS1[i1],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,valS2[i1],n1,l1,m1,zeta1);
+    }
+    else if (sgs_basis)
     {
       eval_sgsd(i1,gs1,gs2,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
       eval_sgsd(i1,gs1,gs2,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
     }
     else
     {
-      eval_ssd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1);
-      eval_ssd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1);
+      eval_ssd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
     }
   }
 
@@ -805,7 +957,7 @@ void compute_4c_ol_jellium(double Rc, vector<vector<double> > basis,
   return;
 }
 
-void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc, int No, bool update_norm, vector<vector<double> >& basis,
+void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, double rs, double Rc, int No, bool update_norm, vector<vector<double> >& basis,
          int nrad, int nang, double* ang_g, double* ang_w, double* S, double* T, double* En, int prl)
 {
  //in this ftn, rs isn't used. instead, compute_Vr is already analytically evaluated.
@@ -831,7 +983,7 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
   int m_murak = MMURAK;
   double Z1 = Z1J;
   bool murak_zeta = 1;
-  //generate_central_grid_2d(!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  //generate_central_grid_2d(-1,!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
   generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
   #pragma acc update self(grid[0:gs6])
 
@@ -845,8 +997,14 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
     printf(" (%3i)   %8.5f %8.5f %8.5f  r: %8.5f \n",j,grid[6*j+0],grid[6*j+1],grid[6*j+2],grid[6*j+3]);
  #endif
 
+  #pragma acc parallel loop present(S[0:N2],En[0:N2],T[0:N2])
+  for (int j=0;j<N2;j++)
+    S[j] = En[j] = T[j] = 0.;
 
   {
+   //multi-GPU not ready
+    int tid = -1;
+
     int gs3 = 3*gs;
 
    //compute the potential
@@ -856,10 +1014,11 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
     compute_Vr_jellium(order,Zg,ztg,Rc,Ne,gs1,gs2,grid,Vr);
     //compute_Vr_jellium(rs,Rc,nrad,nang,ang_g,ang_w,grid,Vr);
 
-   #if USE_SLATER
-    printf("  DEBUG: Slater only \n");
-    gs1 = 0;
-   #endif
+    if (use_slater)
+    {
+      printf("  DEBUG: Slater only \n");
+      gs1 = 0;
+    }
    #if USE_GAUSS
     printf("  DEBUG: Gaussian only \n");
     gs1 = nrad*nang;
@@ -906,25 +1065,26 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
       int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3]; //double norm1 = basis1[4];
       double zeta2 = 2.*zeta1*Rc;
       double norm2 = exp(zeta1*Rc*Rc);
-     #if USE_SLATER
-      zeta2 = zeta1; norm2 = 1.;
-     #endif
+      if (use_slater)
+      {
+        zeta2 = zeta1; norm2 = 1.;
+      }
 
-     #if USE_SLATER
-      eval_shd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1);
-      eval_shd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1);
-     #else
-      if (sgs_basis)
+      if (use_slater)
+      {
+        eval_shd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1);
+        eval_shd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1);
+      }
+      else if (sgs_basis)
       {
         eval_sgsd(i1,gs1,gs2,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
         eval_sgsd(i1,gs1,gs2,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
       }
       else
       {
-        eval_ssd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1);
-        eval_ssd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1);
+        eval_ssd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
+        eval_ssd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
       }
-     #endif
 
      //KE
       if (sgs_basis)
@@ -941,7 +1101,7 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
         for (int j=0;j<3*gs1;j++)
           valp1[i1][j] = tmp[j];
 
-        eval_pd(gs2,grid,tmp,n1,l1,m1,zeta2);
+        eval_pd(tid,gs2,grid,tmp,n1,l1,m1,zeta2);
 
         #pragma acc parallel loop present(valp1[0:N][0:gs3],tmp[0:N][0:gs3])
         for (int j=3*gs1;j<3*gs2;j++)
@@ -950,12 +1110,12 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
       else
       {
        //evaluates ftn and L
-        eval_ss_ked(i1,gs,grid,valL1[i1],n1,l1,m1,zeta1);
+        eval_ss_ked(i1,gs,grid,valL1[i1],n1,l1,m1,zeta1,Rc);
       }
     }
 
    //contraction
-    reduce_2c1(0,N,gs,valS1,valS2,N,N,S);
+    reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,S);
 
     if (sgs_basis)
    //PD KE contraction
@@ -982,7 +1142,7 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
     }
     else
      //Laplacian KE contraction
-      reduce_2c1(0,N,gs,valL1,valS2,N,N,T);
+      reduce_2c1(tid,0,N,gs,valL1,valS2,N,N,T);
 
    #pragma acc parallel loop collapse(2) present(valS1[0:N][0:gs],Vr[0:gs])
     for (int i1=0;i1<N;i1++)
@@ -990,7 +1150,7 @@ void compute_STEn_jellium(int order, double Zg, double ztg, double rs, double Rc
       valS1[i1][j] *= Vr[j];
 
    //contraction
-    reduce_2c1(0,N,gs,valS1,valS2,N,N,En);
+    reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,En);
 
     if (prl>0) printf("  done integrating <B|O|B> \n\n");
     #pragma acc update self(S[0:N2],En[0:N2],T[0:N2])

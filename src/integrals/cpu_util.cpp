@@ -420,7 +420,7 @@ int invert_stable_cpu_2(double* A, int size, double delta)
   if (delta>0.) printf(" using Invert with %12.10f minimum eigenvalue \n",delta);
 
   double* B = new double[size*size];
-  for (int i=0;i<size*size;i++) B[i] = A[i]; 
+  for (int i=0;i<size*size;i++) B[i] = A[i];
   double* Beigen = new double[size];
   for (int i=0;i<size;i++) Beigen[i] = 0.;
 
@@ -432,7 +432,7 @@ int invert_stable_cpu_2(double* A, int size, double delta)
 
   double* tmp = new double[size*size];
   for (int i=0;i<size*size;i++) tmp[i] = 0.;
-  for (int i=0;i<size*size;i++) A[i] = 0.; 
+  for (int i=0;i<size*size;i++) A[i] = 0.;
 
   int nf = 0;
   double mineig = 1000.;

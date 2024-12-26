@@ -350,8 +350,6 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
 //n-center grid wts (float)
 void becke_weight_nc(const int natoms, const int gc, const int gs, float* grid1, float* wt1, int* atno, float* coords)
 {
-  //printf("  testing becke_weight \n");
-
   if (natoms<2) return;
 
   int gsa = gs*natoms;
@@ -465,8 +463,6 @@ void becke_weight_nc(const int natoms, const int gc, const int gs, float* grid1,
 //n-center grid wts (double)
 void becke_weight_nc(const int natoms, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords)
 {
-  //printf("  testing becke_weight \n");
-
   if (natoms<2) return;
 
   int gsa = gs*natoms;
@@ -1621,7 +1617,7 @@ void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > 
       int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       if (ss_basis)
-        eval_ss(ii1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1);
+        eval_ss(ii1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else if (sgs_basis)
         eval_sgs(ii1,gs1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else
@@ -1769,6 +1765,8 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
   int gsa3 = 3*gsa;
   int gsa6 = 6*gsa;
 
+  int tid = 0; //no multi-gpu parallel
+
   int nang = gsa/nrad;
   #include "jsetup.cpp"
   int gs2 = gsa;
@@ -1777,7 +1775,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
   if (sgs_basis && natoms>1){ printf("\n ERROR: compute_rho doesn't support natoms>1 for SGS basis \n"); exit(-1); }
   if (sgs_basis && drho!=NULL) printf("\n WARNING: compute_rho for SGS basis does not support drho \n");
 
-  if (Td!=NULL && natoms>1) { printf("\n ERROR: cannot get Td in compute_rhod for natoms>1 \n"); exit(-1); }
+  //if (Td!=NULL && natoms>1) printf("\n WARNING: testing Td in compute_rhod for natoms>1 \n");
 
   int N = basis.size();
   int N2 = N*N;
@@ -1870,7 +1868,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
       int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       if (ss_basis)
-        eval_ssd(ii1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1);
+        eval_ssd(ii1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else if (sgs_basis)
         eval_sgsd(ii1,gs1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else
@@ -1878,9 +1876,9 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
       if (drho!=NULL)
       {
         if (ss_basis)
-          eval_ss_pd(gs2,grid1,val1p[ii1],tmp,n1,l1,m1,zeta1);
+          eval_ss_pd(gs2,grid1,val1p[ii1],tmp,n1,l1,m1,zeta1,Rc);
         else
-          eval_pd(gsa,grid1,val1p[ii1],n1,l1,m1,zeta1);
+          eval_pd(tid,gsa,grid1,val1p[ii1],n1,l1,m1,zeta1);
       }
     }
 
@@ -1917,7 +1915,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
         for (int j=0;j<gsa;j++)
         {
           double vx = valpn[3*j+0]*valpm[3*j+0]; double vy = valpn[3*j+1]*valpm[3*j+1]; double vz = valpn[3*j+2]*valpm[3*j+2];
-          Td[j] += d1*(vx*vx + vy*vy + vz*vz);
+          Td[j] += d1*(vx + vy + vz);
         }
       }
     }
@@ -1950,7 +1948,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
 
         eval_shd(ii2,gsa,grid2,val2[ii2],n2,l2,m2,zeta2);
         if (drho!=NULL)
-          eval_pd(gsa,grid2,val2p[ii2],n2,l2,m2,zeta2);
+          eval_pd(tid,gsa,grid2,val2p[ii2],n2,l2,m2,zeta2);
       }
 
      //two-atom Pao elements added to grid
@@ -1980,12 +1978,14 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
             delt[3*j+2] += d1*(valn[j]*valpm[3*j+2]+valpn[3*j+2]*valm[j]);
           }
 
+          d1 *= 0.5; //CPMZ not sure
+          if (0)
           if (Td!=NULL)
          #pragma acc parallel loop present(Td[0:gsa],valpn[0:gsa3],valpm[0:gsa3])
           for (int j=0;j<gsa;j++)
           {
             double vx = valpn[3*j+0]*valpm[3*j+0]; double vy = valpn[3*j+1]*valpm[3*j+1]; double vz = valpn[3*j+2]*valpm[3*j+2];
-            Td[j] += d1*(vx*vx + vy*vy + vz*vz);
+            Td[j] += d1*(vx + vy + vz);
           }
 
         }
@@ -2871,7 +2871,7 @@ void compute_fxc(int natoms, int* atno, double* coords, vector<vector<double> > 
       int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       if (ss_basis)
-        eval_ss(ii1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1);
+        eval_ss(ii1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else if (sgs_basis)
         eval_sgs(ii1,gs1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else
@@ -3093,6 +3093,8 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
     exit(1);
   }
 
+  int tid = 0; //no multi-gpu parallel
+
   int nang = gs/nrad;
   #include "jsetup.cpp"
   int gs2 = gs;
@@ -3208,7 +3210,7 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
       int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       eval_shd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
-      eval_pd(gs,grid1,val1p[ii1],n1,l1,m1,zeta1);
+      eval_pd(tid,gs,grid1,val1p[ii1],n1,l1,m1,zeta1);
     }
 
     for (int i1=s1;i1<s2;i1++)
@@ -3263,7 +3265,7 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
         int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_shd(ii2,gs,grid2,val2[ii2],n2,l2,m2,zeta2);
-        eval_pd(gs,grid2,val2p[ii2],n2,l2,m2,zeta2);
+        eval_pd(tid,gs,grid2,val2p[ii2],n2,l2,m2,zeta2);
       }
 
       for (int i1=s1;i1<s2;i1++)
@@ -3333,13 +3335,13 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
       int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
       if (ss_basis)
-        eval_ssd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
+        eval_ssd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else if (sgs_basis)
         eval_sgsd(ii1,gs1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else
         eval_shd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
       if (gga)
-        eval_pd(gs,grid1,val1p[ii1],n1,l1,m1,zeta1);
+        eval_pd(tid,gs,grid1,val1p[ii1],n1,l1,m1,zeta1);
     }
 
    //single-atom elements over grid
@@ -3425,7 +3427,7 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
 
         eval_shd(ii2,gs,grid2,val2[ii2],n2,l2,m2,zeta2);
         if (gga)
-          eval_pd(gs,grid2,val2p[ii2],n2,l2,m2,zeta2);
+          eval_pd(tid,gs,grid2,val2p[ii2],n2,l2,m2,zeta2);
       }
 
      //two-atom elements over grid

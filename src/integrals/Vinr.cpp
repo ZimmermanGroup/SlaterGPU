@@ -37,13 +37,13 @@ void eval_ke(int gs, float* grid, float* val, int n, int l, float zeta)
   return;
 }
 
-void eval_ke(int gs, double* grid, double* val, int n, int l, double zeta)
+void eval_ked(int tid, int gs, double* grid, double* val, int n, int l, double zeta)
 {
   double f1 = n*(n-1) - l*(l+1);
   double f2 = 2.*n*zeta;
   double f3 = zeta*zeta;
 
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -52,6 +52,11 @@ void eval_ke(int gs, double* grid, double* val, int n, int l, double zeta)
 
     double term = f1*or2 - f2*or1 + f3;
     val[i] *= term;
+  }
+
+  if (tid<0)
+  {
+    #pragma acc wait
   }
 
   return;
@@ -1187,7 +1192,7 @@ void eval_inr_4f_r1(int gs, float* grid, float* val, float zeta)
     double foz9r4 = 40320.*oz9r4;
 
     val[i] *= -ezr*(foz9r4 + 40320.*oz8r3 + 20160.*oz7r2 + 6720.*oz6r + 1680.*oz5 + 336.*roz4 + 56.*r2oz3 + 7.*r3oz2)+foz9r4;
-#else  
+#else
     float ezr = expf(-zeta*r);
     float foz9r4 = 40320.f*oz9r4;
 
@@ -1484,7 +1489,7 @@ void eval_inr_4p_r1(int gs, float* grid, float* val, float zeta)
     val[i] *= v1;
    #endif
   }
- 
+
   return;
 }
 
@@ -1747,7 +1752,7 @@ void eval_inr_1s_r1(int gs, float* grid, float* val, float zeta)
 void eval_inr_d(int gs, double* grid, double* val, int n1, int l1, double zeta1)
 {
  #if EVL64
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1758,7 +1763,7 @@ void eval_inr_d(int gs, double* grid, double* val, int n1, int l1, double zeta1)
   }
   return;
  #else
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1876,21 +1881,26 @@ void eval_inr_d(int gs, float* grid, float* val, int n1, int l1, float zeta1)
   }
 }
 
-void eval_inr_r12(int gs, double* grid, double* val, int n1, int l1, double zeta1, int index)
+void eval_inr_r12(int tid, int gs, double* grid, double* val, int n1, int l1, double zeta1)
 {
  //double precision evaluation, gamma ftn only
 
-  //printf("  eval_inr_r12 for n/l/zt: %i %i %8.5f \n",n1,l1,zeta1);
-
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
   for (int i=0;i<gs;i++)
   {
     double v1d = vinr_gam(n1,l1,grid[6*i+3],zeta1);
     val[i] *= v1d;
   }
+
+  if (tid<0)
+  {
+    #pragma acc wait
+  }
+
+  return;
 }
 
-void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, int index)
+void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1)
 {
 #if USE_GAM
  #if EVL64
@@ -1912,7 +1922,7 @@ void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, 
 #endif
 
  #if !USE_GAM
-  if (index==3)
+  //if (index==3)
   {
     if (n1==1)
       eval_inr_1s_r1(gs,grid,val,zeta1);
@@ -1989,11 +1999,6 @@ void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, 
       if (l1==0)
         eval_inr_8s_r1(gs,grid,val,zeta1);
     }
-  } 
-  if (index==4)
-  {
-    printf(" ERROR: shouldn't be here in index==4 \n");
-    exit(1);
   }
  #endif
 
@@ -2106,7 +2111,7 @@ void get_inr(int n1, int l1, double zeta1, int nrad, float* r, float* inr)
   {
     //if (l1==0)
     //  get_inr_3d_f(nrad,zeta1,r,inr);
-  }   
+  }
   else
   {
     //printf(" INR not available for n1>2 \n"); exit(1);
@@ -2792,7 +2797,7 @@ double norm_sh(int l, int m)
  #if CART_D
   if (l==2)
   {
-    if (m<3) 
+    if (m<3)
       return 1.092548430592080*0.577350269189626;
     else
       return 1.092548430592080;
@@ -2907,7 +2912,7 @@ double norm(int n, int l, int m, double zeta)
   return val;
 }
 
-size_t fact(size_t N) 
+size_t fact(size_t N)
 {
   if (N==0) return 1;
   return N*fact(N-1);

@@ -10,6 +10,8 @@
 #include "cuda_util.h"
 #include "cpu_util.h"
 
+#include "cuda_runtime.h"
+
 //these functions assume the matrices are already on the device, via ACC
 //hoping to reduce overhead by getting cusolver handle just once
 
@@ -114,7 +116,7 @@ double expmat_complex(int N, double* theta1, double* theta1i, double* jCA, doubl
 
   cuDoubleComplex alpha; alpha.x = 1.; alpha.y = 0.;
   cuDoubleComplex beta; beta.x = 0.; beta.y = 0.;
- 
+
   cublasOperation_t cu_notrans = CUBLAS_OP_N;
   cublasOperation_t cu_transC = CUBLAS_OP_C; //conjugate transpose
   cublasOperation_t cu_trans = CUBLAS_OP_T; //transpose
@@ -261,7 +263,7 @@ void expmat(int N, double* theta1, double* U, cusolverDnHandle_t cu_hdl, cublasH
 
   cuDoubleComplex alpha; alpha.x = 1.; alpha.y = 0.;
   cuDoubleComplex beta; beta.x = 0.; beta.y = 0.;
- 
+
   cublasOperation_t cu_notrans = CUBLAS_OP_N;
   cublasOperation_t cu_trans = CUBLAS_OP_C;
   //cublasOperation_t cu_transC = CUBLAS_OP_T; //conjugate trans
@@ -507,17 +509,17 @@ int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHa
     printf(" lowest vector:");
     #pragma acc update self(B[0:s2])
 
-    if (size<20)
+    if (size<40)
     {
       for (int i=0;i<size;i++)
         printf(" %6.3f",B[i]);
     }
     else
     {
-      for (int i=0;i<10;i++)
+      for (int i=0;i<20;i++)
         printf(" %6.3f",B[i]);
       printf(" ... ");
-      for (int i=size-10;i<size;i++)
+      for (int i=size-20;i<size;i++)
         printf(" %6.3f",B[i]);
     }
 

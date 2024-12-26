@@ -408,7 +408,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
         eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
       else
       {
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
         eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
       }
     } //loop i1
@@ -505,7 +505,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
           eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
         else
         {
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
           eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
         }
       }
@@ -692,7 +692,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
             eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
           else
           {
-            eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+            eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
             eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
           }
 
@@ -700,7 +700,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
             eval_sh(ii1,gs,grid3,val7[ii1],n1,l1,m1,zeta1);
           else
           {
-            eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+            eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
             eval_sh_3r(gs,grid3,val7[ii1],n1,l1,m1);
           }
         }
@@ -1024,7 +1024,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
         eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
       else
       {
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
         eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
       }
     } //loop i1
@@ -1130,7 +1130,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
           eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
         else
         {
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
           eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
         }
       }
@@ -1328,14 +1328,14 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
             eval_sh(ii1,gs,grid2,val4[ii1],n1,l1,m1,zeta1);
           else
           {
-            eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+            eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
             eval_sh_3r(gs,grid2,val4[ii1],n1,l1,m1);
           }
           if (do_overlap)
             eval_sh(ii1,gs,grid3,val7[ii1],n1,l1,m1,zeta1);
           else
           {
-            eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+            eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
             eval_sh_3r(gs,grid3,val7[ii1],n1,l1,m1);
           }
         }
@@ -1581,7 +1581,7 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
 
       acc_assign(gs,val1,1.);
 
-      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
+      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
       eval_sh_3r(gs,grid1,val1,n1,l1,m1);
 
       //#pragma acc update self(val1[0:gs])
@@ -1661,9 +1661,9 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
         acc_assign(gs,val1,1.);
         acc_assign(gs,val2,1.);
 
-        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
         eval_sh_3r(gs,grid1,val1,n1,l1,m1);
-        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1);
         eval_sh_3r(gs,grid2,val2,n1,m1,l1);
 
         for (int i2=0;i2<N;i2++)
@@ -1812,11 +1812,11 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
           acc_assign(gs,val2,1.);
           acc_assign(gs,val3,1.);
 
-          eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
           eval_sh_3r(gs,grid1,val1,n1,l1,m1);
-          eval_inr_r12(gs,grid2,val2,n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val2,n1,l1,zeta1);
           eval_sh_3r(gs,grid2,val2,n1,l1,m1);
-          eval_inr_r12(gs,grid3,val3,n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid3,val3,n1,l1,zeta1);
           eval_sh_3r(gs,grid3,val3,n1,l1,m1);
 
           for (int i2=0;i2<N;i2++)
@@ -4299,14 +4299,14 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
 
       float z12 = zeta1 + zeta2;
      //new grid with zeta dependence
-      generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w); 
+      generate_central_grid_2d(-1,0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
 
       #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
       for (int j=0;j<gs;j++)
         val1m[j] = wt1[j];
       #pragma acc parallel loop present(val2m[0:gs])
       for (int j=0;j<gs;j++)
-        val2m[j] = 1.; 
+        val2m[j] = 1.;
 
      //S
       eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
@@ -4360,8 +4360,8 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
         int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
        //new grid with zeta dependence
-        generate_central_grid_2d(0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w); 
-        generate_central_grid_2d(0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2d(-1,0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2d(-1,0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
 
        //grid1 at 0,0,0 now has r1 at 3, r2 at 4
         add_r2_to_grid(gs,grid1m,A12,B12,C12);
@@ -4577,14 +4577,14 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
 
       double z12 = zeta1 + zeta2;
      //new grid with zeta dependence
-      generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w); 
+      generate_central_grid_2d(-1,0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
 
       #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
       for (int j=0;j<gs;j++)
         val1m[j] = wt1[j];
       #pragma acc parallel loop present(val2m[0:gs])
       for (int j=0;j<gs;j++)
-        val2m[j] = 1.; 
+        val2m[j] = 1.;
 
      //S
       eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
@@ -4630,8 +4630,8 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
         int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
        //new grid with zeta dependence
-        generate_central_grid_2d(0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w); 
-        generate_central_grid_2d(0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2d(-1,0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2d(-1,0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
 
        //grid1 at 0,0,0 now has r1 at 3, r2 at 4
         add_r2_to_grid(gs,grid1m,A12,B12,C12);
@@ -5242,10 +5242,10 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
     double Z1 = (float)atno[m];
     float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
 
-    generate_central_grid_2d(1,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+    generate_central_grid_2d(-1,1,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
     //float z12 = zeta1 + zeta2;
      //new grid with zeta dependence
-    //generate_central_grid_2d(0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
+    //generate_central_grid_2d(-1,0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
 
    #pragma acc parallel loop present(val1[0:iN][0:gs])
     for (int ii1=0;ii1<s2-s1;ii1++)
@@ -5275,7 +5275,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
         eval_shd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
       else
       {
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,ii1);
+        eval_inr_r12(-1,gs,grid1,val1[ii1],n1,l1,zeta1);
         eval_sh_3rd(gs,grid1,val1[ii1],n1,l1,m1);
       }
     }
@@ -5293,7 +5293,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
     #pragma acc wait
    #endif
 
-    reduce_2c1(s1,s2,gs,val1,val3,iN,N,An);
+    reduce_2c1(-1,s1,s2,gs,val1,val3,iN,N,An);
 
    //two-atom ints
     for (int n=m+1;n<natoms;n++)
@@ -5308,11 +5308,11 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
      //grid1 at 0,0,0 now has r1 at 3, r2 at 4
       add_r2_to_grid(gs,grid1,A12,B12,C12);
 
-      generate_central_grid_2d(1,grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
+      generate_central_grid_2d(-1,1,grid2,wt2,Z2,nrad,nang,ang_g,ang_w);
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copy(gs,wtt1,wt1);
@@ -5358,7 +5358,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
           eval_shd(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
         else
         {
-          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,ii1);
+          eval_inr_r12(-1,gs,grid1,val1[ii1],n1,l1,zeta1);
           eval_sh_3rd(gs,grid1,val1[ii1],n1,l1,m1);
         }
 
@@ -5366,7 +5366,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
           eval_shd(ii1,gs,grid2,val2[ii1],n1,l1,m1,zeta1);
         else
         {
-          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,ii1);
+          eval_inr_r12(-1,gs,grid2,val2[ii1],n1,l1,zeta1);
           eval_sh_3rd(gs,grid2,val2[ii1],n1,l1,m1);
         }
       }
@@ -5624,7 +5624,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
         eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
       else
       {
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
         eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
       }
     }
@@ -5715,7 +5715,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
           eval_sh(ii1,gs,grid1,val1[ii1],n1,l1,m1,zeta1);
         else
         {
-          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
           eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
         }
 
@@ -5723,7 +5723,7 @@ void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
           eval_sh(ii1,gs,grid2,val2[ii1],n1,l1,m1,zeta1);
         else
         {
-          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
           eval_sh_3r(gs,grid2,val2[ii1],n1,l1,m1);
         }
       }
@@ -5954,7 +5954,7 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
 
       acc_assign(gs,val1,1.);
 
-      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
+      eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
       eval_sh_3r(gs,grid1,val1,n1,l1,m1);
 
       //#pragma acc update self(val1)
@@ -6049,9 +6049,9 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
         acc_assign(gs,val1,1.);
         acc_assign(gs,val2,1.);
 
-        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1,n1,l1,zeta1);
         eval_sh_3r(gs,grid1,val1,n1,l1,m1);
-        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid2,val2,n1,l1,zeta1);
         eval_sh_3r(gs,grid2,val2,n1,l1,m1);
 
        #pragma acc parallel loop present(val1[0:gs],valt1[0:N][0:gs],val2[0:gs],valt2[0:N][0:gs],i2m[0:N])

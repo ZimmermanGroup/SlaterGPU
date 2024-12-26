@@ -9,7 +9,78 @@ using namespace std;
 void print_rectangle_sm(int N1, int N2, double* S);
 
 
-void compute_jellium_cusp(int order, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* pb, int prl)
+void compute_diatomic_symm(int natoms, int* atno, vector<vector<double> > basis, vector<double*>& pB_all, int prl)
+{
+  if (natoms!=2) return;
+
+  if (atno[0]!=atno[1])
+  {
+    printf("  compute_diatomic_symm requires Z1=Z2 \n");
+    return;
+  }
+
+  printf("\n TESTING compute_diatomic_symm \n");
+
+  int nb0 = pB_all.size();
+  int N = basis.size();
+  int nN = natoms*N;
+  int M = N/2;
+  double ort2 = 1./sqrt(2.);
+
+  bool is_dfghi[N];
+  for (int j=0;j<N;j++) is_dfghi[j] = 0;
+
+ //select l>1, m!=0 basis
+  int nc = 0;
+  for (int j=0;j<N;j++)
+  if (basis[j][1]>1)
+  {
+    //printf("   basis %i is l>1 \n",j);
+    bool is_z = !basis[j][2];
+    double zt1 = basis[j][3];
+
+    if (!is_z) //&& zt1 < 2.1
+    {
+      is_dfghi[j] = 1;
+      nc++;
+    }
+  }
+  nc /= 2;
+
+  for (int j=0;j<nc;j++)
+  {
+    double* pB1 = new double[nN]();
+    pB_all.push_back(pB1);
+  }
+
+  printf("  nb0: %i  nc: %i  size pB_all: %i \n",nb0,nc,pB_all.size());
+
+  int wc = 0;
+  for (int j=0;j<M;j++)
+  if (is_dfghi[j])
+  {
+    double* pB1 = pB_all[nb0+wc];
+   #if 0
+    if (basis[j][2]==0)
+    {
+     //z symmetry
+      pB1[j] = pB1[N+j] = ort2;
+      pB1[M+j] = pB1[N+M+j] = ort2;
+    }
+    else
+   #endif
+    {
+     //xy symmetry
+      pB1[j] = pB1[N+j] = ort2;
+      pB1[M+j] = pB1[N+M+j] = -ort2;
+    }
+    wc++;
+  }
+
+  return;
+}
+
+void compute_jellium_cusp(int order, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* pB1, double* pB2, int prl)
 {
   if (natoms>1) { printf(" ERROR: cannot use jellium cusp with natoms>1 \n"); exit(-1); }
 
@@ -31,23 +102,46 @@ void compute_jellium_cusp(int order, int natoms, int* atno, double* coords, vect
 
   printf("  cusp w/Jellium (type: %i) \n",cusp_type);
 
+  double f0 = 0.;
   double f1 = -0.5 * Ne * pow(Rc,-3);
  //CPMZ testing
-  f1 -= Zg*ztg;
+  //f1 -= Zg*ztg;
+
+  double c = 1./Rc; //characteristic exponent of jellium potential
+  double c2 = c*c;
+  double c3 = c2*c;
+  double c4 = c2*c2;
+  double c5 = c4*c;
+  double c6 = c4*c2;
+  double c7 = c5*c2;
+  double c8 = c4*c4;
   if (order>2)
   {
+    double d1 = 3.*sqrt(3.)*Ne / (2.*c*c*c*PI);
+    f0 = -d1*c*c; //zero order term
+    //f0 = -1.1;
+    f1 =  d1*pow(c,4)/3.; //2nd order term
+    //f1 = d1*c*c;
+
+   #if 0
     if (cusp_type==1)
       f1 = 0.; //r2 term zero, suitable for 1s basis
     else
       f1 = -(1.*Ne)/order*pow(Rc,-(order+1)); //r^order term
+   #endif
   }
   else if (cusp_type>1)
     printf("\n WARNING: jellium order %i incompatible w/ cusp_type %i \n",order,cusp_type);
 
   int N = basis.size();
+  double* norm = new double[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
 
- //only one condition
+  double SHIFTER = read_float("SHIFTER");
+ // conditions
   double* pb1 = new double[N]();
+  double* pb2 = new double[N]();
   {
     for (int i1=0;i1<N;i1++)
     {
@@ -57,14 +151,19 @@ void compute_jellium_cusp(int order, int natoms, int* atno, double* coords, vect
      //testing
       if (l1==0)
       {
+        double a = zeta1;
+
+        pb1[i1] = (f1 - pow(a,4)/3.)*norm[i1]; //SS_V4 basis
+       #if 0
         if (n1==1)
           pb1[i1] = f1 + pow(zeta1,4)/12.; //SS_V3 basis
         else if (n1==2)
           pb1[i1] = f1 + pow(zeta1,6)/240.; //SS_V3 basis
         else
         {
-          printf("\n ERROR: cusp doesn't support jellium 3s basis in \n"); exit(-1);
+          //printf("\n ERROR: cusp doesn't support jellium 3s basis in \n"); exit(-1);
         }
+       #endif
       }
       else
         pb1[i1] = 0.;
@@ -72,18 +171,87 @@ void compute_jellium_cusp(int order, int natoms, int* atno, double* coords, vect
   }
 
   for (int i=0;i<N;i++)
-    pb[i] = pb1[i];
+    pB1[i] = pb1[i];
+  if (pB2!=NULL)
+  for (int i=0;i<N;i++)
+    pB2[i] = pb2[i];
 
   delete [] pb1;
+  delete [] pb2;
+  delete [] norm;
 
   return;
 }
 
-void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* pb, int prl)
+void compute_jellium_v1_cusp(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* pB1, double* pB2, int prl)
+{
+  double Rc = read_float("RC");
+  printf("  compute_jellium_v1_cusp for jellium order: %i  Rc: %8.5f \n",1,Rc);
+
+  double c = 1./Rc;
+  double c2 = c*c;
+
+  int N = basis.size();
+
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+
+  double* norm = new double[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+
+  for (int i=0;i<N;i++)
+    pB1[i] = 0.;
+  if (pB2!=NULL)
+  for (int i=0;i<N;i++)
+    pB2[i] = 0.;
+
+  for (int n=0;n<natoms;n++)
+  //if (not_X[n])
+  {
+    int s1 = 0; if (n>0) s1 = n2i[n-1]; int s2 = n2i[n];
+
+    double Z1 = (double)atno[n];
+    double A1 = coords[3*n+0]; double B1 = coords[3*n+1]; double C1 = coords[3*n+2];
+    for (int i1=s1;i1<s2;i1++)
+    {
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+      double t1 = 1.;
+      if (n1==2) t1 = 0.;
+
+      if (n1<3 && l1==0)
+      {
+        int ind1 = n*N+i1;
+
+        double v1 = norm[i1];
+        if (n1==1) v1 *= -zeta1;
+        pB1[ind1] = v1;
+
+        if (pB2!=NULL)
+          pB2[ind1] = zeta1*zeta1/2.*t1*norm[i1] - c2/2.*t1*norm[i1];
+      }
+
+    } //loop i1 over basis
+  } //loop n over atoms
+
+  delete [] n2i;
+  delete [] norm;
+
+  return;
+}
+
+void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* pB1, double* pB2, int prl)
 {
   int jellium = read_int("JELLIUM");
-  if (jellium>0)
-    return compute_jellium_cusp(jellium,natoms,atno,coords,basis,pb,prl);
+  if (jellium!=3 && jellium>1)
+    return compute_jellium_cusp(jellium,natoms,atno,coords,basis,pB1,pB2,prl);
+  if (jellium==3 && natoms>1) { printf("\n ERROR: cannot do jellium cusp (type 3) \n"); exit(-1); }
+
+ //Slater basis set, jellium has no 1/r term:
+  if (jellium==1)
+    return compute_jellium_v1_cusp(natoms,atno,coords,basis,pB1,pB2,prl);
 
   int N = basis.size();
   int nN = natoms*N;
@@ -154,7 +322,8 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
       pb2[ind1] = Z1*norm[i1]*tmp1[0];
 
       //printf("    Z1: %5.3f norm: %5.3f tmp1: %10.6f v1: %10.6f \n",Z1,norm[i1],tmp1[0],pb2[ind1]);
-    }
+
+    } //nuclear charge Z at atom
 
    //basis functions on atom n
     for (int i1=s1;i1<s2;i1++)
@@ -173,12 +342,14 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
       }
     }
 
-
   }
 
  //accumulate individual terms
   for (int i=0;i<nN;i++)
-    pb[i] = pb1[i] + pb2[i];
+    pB1[i] = pb1[i] + pb2[i];
+  if (pB2!=NULL)
+  for (int i=0;i<nN;i++)
+    pB2[i] = 0.;
 
   #pragma acc exit data delete(grid1[0:6],tmp1[0:1])
 
@@ -193,20 +364,28 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
   if (prl>1)
   {
     printf("  pB: \n");
-    print_rectangle_sm(natoms,N,pb);
+    print_rectangle_sm(natoms,N,pB1);
+    if (pB2!=NULL)
+    {
+      printf("  pB2: \n");
+      print_rectangle_sm(natoms,N,pB2);
+    }
   }
 
   return;
 }
 
-void compute_Pc(int natoms, int N, double* pB, double* Pc)
+void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<double*> pB, int prl)
 {
-  int prl = 1;
+  double* pB1 = pB[0];
+  double* pB2 = NULL; if (pB.size()>1) pB2 = pB[1];
+  return compute_cusp(natoms,atno,coords,basis,pB1,pB2,prl);
+}
 
-  int N2 = N*N;
+void project_Pc(int natoms, int N, double* pB, double* Pc)
+{
   int n2 = natoms*natoms;
   double W[n2];
-
   for (int i=0;i<natoms;i++)
   for (int j=0;j<natoms;j++)
   {
@@ -215,12 +394,28 @@ void compute_Pc(int natoms, int N, double* pB, double* Pc)
       w1 += pB[i*N+m]*pB[j*N+m];
     W[i*natoms+j] = w1;
   }
-  invert_stable_cpu(W,natoms,0.);
+
+  //printf(" W: \n");
+  //print_square(natoms,W);
+
+  bool is_zero = 1;
+  for (int i=0;i<natoms;i++)
+  for (int j=0;j<natoms;j++)
+  if (W[i*natoms+j]!=0.)
+  { is_zero = 0; break; }
+
+  if (is_zero)
+  {
+    printf("   WARNING: project_Pc cannot invert constraint matrix \n");
+    return;
+  }
+
+  invert_stable_cpu(W,natoms,1.e-12);
+  //invert_stable_cpu(W,natoms,0.);
   //invert_stable_cpu(W,natoms,1.e-10,1);
 
-  for (int i=0;i<N2;i++) Pc[i] = 0.;
-  for (int i=0;i<N;i++)
-    Pc[i*N+i] = 1.;
+  //printf(" Winv: \n");
+  //print_square(natoms,W);
 
   for (int m=0;m<natoms;m++)
   for (int n=0;n<natoms;n++)
@@ -230,17 +425,40 @@ void compute_Pc(int natoms, int N, double* pB, double* Pc)
       Pc[i*N+j] -= pB[m*N+i]*W[m*natoms+n]*pB[n*N+j];
   }
 
-  if (prl>1)
+  return;
+}
+
+
+void compute_Pc(int natoms, int N, vector<double*> pB_all, vector<double*> Pc_all)
+{
+  int prl = 1;
+
+  int N2 = N*N;
+
+  for (int n=0;n<Pc_all.size();n++)
   {
-    printf("  pB: ");
-    for (int j=0;j<N*natoms;j++)
-      printf(" %8.5f",pB[j]);
-    printf("\n");
-  }
-  if (prl>1)
-  {
-    printf("  Pc: \n");
-    print_square(N,Pc);
+    double* Pc = Pc_all[n];
+    double* pB = pB_all[n];
+
+    for (int i=0;i<N2;i++) Pc[i] = 0.;
+    for (int i=0;i<N;i++)
+      Pc[i*N+i] = 1.;
+
+    project_Pc(natoms,N,pB,Pc);
+
+    if (prl>1)
+    {
+      printf("  pB: ");
+      for (int j=0;j<N*natoms;j++)
+        printf(" %8.5f",pB[j]);
+      printf("\n");
+    }
+    if (prl>1)
+    {
+      printf("  Pc: \n");
+      print_square(N,Pc);
+    }
+
   }
 
  #if 0
@@ -257,6 +475,15 @@ void compute_Pc(int natoms, int N, double* pB, double* Pc)
  #endif
 
   return;
+}
+
+void compute_Pc(int natoms, int N, double* pB, double* Pc)
+{
+  vector<double*> pB_all;
+  vector<double*> Pc_all;
+  pB_all.push_back(pB);
+  Pc_all.push_back(Pc);
+  return compute_Pc(natoms,N,pB_all,Pc_all);
 }
 
 void evaluate_cusps(int nrad, int nang, int natoms, int* atno, double* coordsf, vector<vector<double> > basis, double* Pao, float* grid)
@@ -293,11 +520,11 @@ void evaluate_cusps(int nrad, int nang, int natoms, int* atno, double* coordsf, 
       {
         int i2a = i1a+k; int i2b = i1b+k;
         double d1 = rho[i2a]; double d2 = rho[i2b];
-  
- 	dt += (d1+d2);
+
+        dt += (d1+d2);
         drhodr += (d2-d1)/dr;
       }
- 
+
       double rho_avg = dt/(2*nang);
       drhodr /= nang;
       double tzr = -2.*Zn*rho_avg;
@@ -305,7 +532,7 @@ void evaluate_cusps(int nrad, int nang, int natoms, int* atno, double* coordsf, 
       printf("  -2Zrho:  %11.6f  drho/dr:  %11.6f  (fraction: %8.5f) \n",tzr,drhodr,del);
     }
   }
-  
+
   delete [] rho;
   return;
 }
@@ -331,7 +558,37 @@ void check_cusp(int No, int natoms, int* atno, vector<vector<double> >& basis, d
   return;
 }
 
-int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+void check_cusp(int No, int natoms, int* atno, vector<vector<double> >& basis, vector<double*> pB, double* jCA)
+{
+  double* pB1 = pB[0];
+  return check_cusp(No,natoms,atno,basis,pB1,jCA);
+}
+
+void project_S(int N, double* S, vector<double*> Pc_all, double* X)
+{
+  int N2 = N*N;
+  double PS[N2];
+
+  for (int i=0;i<N2;i++)
+    X[i] = S[i];
+
+  int nPc = Pc_all.size();
+  for (int n=0;n<nPc;n++)
+  {
+    double* Pc = Pc_all[n];
+
+   //build PSP
+    for (int i=0;i<N2;i++) PS[i] = 0.;
+    mat_times_mat_cpu(PS,Pc,X,N);
+
+    for (int i=0;i<N2;i++) X[i] = 0.;
+    mat_times_mat_cpu(X,PS,Pc,N);
+  }
+
+  return;
+}
+
+int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
 {
  //CPMZ need to clean this up
   int N2 = N*N;
@@ -345,19 +602,15 @@ int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDn
   #pragma acc enter data create(X[0:N2],Xs[0:N2],Xe[0:N])
   double tmp1[N2];
 
- //build PSP
-  double PS[N2];
-  for (int i=0;i<N2;i++) PS[i] = 0.;
-  mat_times_mat_cpu(PS,Pc,S,N);
+  project_S(N,S,Pc_all,X);
 
-  for (int i=0;i<N2;i++) X[i] = 0.;
-  mat_times_mat_cpu(X,PS,Pc,N);
+  int nPc = Pc_all.size();
+  int nlowexpected = nPc + natoms-1;
+  //printf(" X: \n");
+  //print_square(N,X);
+
   for (int i=0;i<N2;i++)
     X[i] *= -1;
-
-  //double PSP[N2];
-  //for (int i=0;i<N2;i++)
-  //  PSP[i] = X[i];
 
   #pragma acc update device(X[0:N2])
 
@@ -380,9 +633,10 @@ int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDn
 
   if (prl>-3)
   {
-    int nprint = natoms+3; if (prl>1) nprint = N;
+    int nprint1 = 5; if (nprint1>N) nprint1 = N;
+    int nprint = nlowexpected+2; if (prl>1) nprint = N;
     printf("  PSP eigenvalues:");
-    int N1 = N; if (N1>nprint) N1 = nprint;
+    int N1 = N; if (N1>nprint1) N1 = nprint1;
     for (int i=0;i<N1;i++)
       printf(" %4.1e",Xe[i]);
     if (N1!=N) printf(" ...");
@@ -390,12 +644,24 @@ int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDn
       printf(" %4.1e",Xe[i]);
     printf("\n");
 
-    int warning = -natoms;
+    int nlow = 0;
+    //if (Pc2!=NULL) warning *= 2;
     for (int i=0;i<N;i++)
     if (fabs(Xe[i])<threshw)
-      warning++;
-    if (warning)
-      printf("  WARNING: found too many relatively low eigenvalues (%i) \n",warning);
+      nlow++;
+    if (nlow>nlowexpected)
+    {
+      printf("  WARNING: found too many relatively low eigenvalues (%i) \n",nlow-nlowexpected);
+      for (int i=0;i<nlow;i++)
+      {
+        int i1 = N-i-1;
+        printf("    %i:",i1);
+        for (int j=0;j<N;j++)
+        if (fabs(X[i1*N+j])>0.2)
+          printf("   %i %5.2f",j,X[i1*N+j]);
+        printf("\n");
+      }
+    }
   }
 
   int nsmall1 = 0;
@@ -553,4 +819,11 @@ int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDn
   delete [] Xe;
 
   return nsmall1;
+}
+
+int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+{
+  vector<double*> Pc_all;
+  Pc_all.push_back(Pc);
+  return prepare_PSP(natoms,N,S,Pc_all,Xp,cu_hdl,prl);
 }

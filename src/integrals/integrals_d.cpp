@@ -365,7 +365,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
         val1x[ii1][3*j+2] *= v1;
       }
 
-      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
 
       if (l1>0)
       {
@@ -500,7 +500,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
           val4x[ii1][3*j+2] *= v1;
         }
 
-        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
 
         if (l1>0)
         {
@@ -731,8 +731,8 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
             val7x[ii1][3*j+0] *= v2; val7x[ii1][3*j+1] *= v2; val7x[ii1][3*j+2] *= v2;
           }
 
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
-          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
+          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
           if (l1>0)
           {
            #pragma acc parallel loop present(val4[0:iNa][0:gs],val7[0:iNa][0:gs],valt1[0:gs3],valt2[0:gs3])
@@ -1142,7 +1142,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
         val1x[ii1][3*j+2] *= v1;
       }
 
-      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
 
       if (l1>0)
       {
@@ -1151,7 +1151,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
           valt1[3*j+0] = valt1[3*j+1] = valt1[3*j+2] = val1[ii1][j];
 
         eval_dp_3r(gs,grid1,valt1,n1,l1,m1);
-        
+
        #pragma acc parallel loop present(valt1[0:gs3],val1x[0:iNa][0:gs3])
         for (int j=0;j<gs3;j++)
           val1x[ii1][j] += valt1[j];
@@ -1277,7 +1277,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
           val4x[ii1][3*j+2] *= v1;
         }
 
-        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
 
         if (l1>0)
         {
@@ -1286,7 +1286,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
             valt1[3*j+0] = valt1[3*j+1] = valt1[3*j+2] = val4[ii1][j];
 
           eval_dp_3r(gs,grid2,valt1,n1,l1,m1);
-        
+
          #pragma acc parallel loop present(valt1[0:gs3],val4x[0:iNa][0:gs3])
           for (int j=0;j<gs3;j++)
             val4x[ii1][j] += valt1[j];
@@ -1508,8 +1508,8 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
             val7x[ii1][3*j+0] *= v2; val7x[ii1][3*j+1] *= v2; val7x[ii1][3*j+2] *= v2;
           }
 
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
-          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
+          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
           if (l1>0)
           {
            #pragma acc parallel loop present(val4[0:iNa][0:gs],val7[0:iNa][0:gs],valt1[0:gs3],valt2[0:gs3])
@@ -2796,7 +2796,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
         for (int j=0;j<gs;j++)
           val4x[ii2][3*j+0] = val4x[ii2][3*j+1] = val4x[ii2][3*j+2] = wt2[j];
       }
- 
+
    #if 1
       for (int i1=s1;i1<s2;i1++)
       {
@@ -2805,8 +2805,8 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
         vector<double> basis1 = basis[i1];
         int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; float zeta1 = basis1[3];
 
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
-        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
+        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
 
         eval_inr_d(gs,grid1,val1x[ii1],n1,l1,zeta1);
         eval_inr_d(gs,grid2,val2x[ii1],n1,l1,zeta1);
@@ -2969,8 +2969,8 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
           val2x[ii1][3*j+0] *= v1; val2x[ii1][3*j+1] *= v1; val2x[ii1][3*j+2] *= v1;
         }
 
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
-        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
+        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
         eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
         eval_sh_3r(gs,grid2,val2[ii1],n1,l1,m1);
       } //loop i1
@@ -3003,8 +3003,8 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
         {
           acc_assign(gs,val1[ii1],1.);
           acc_assign(gs,val2[ii1],1.);
-          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
-          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
+          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
 
           acc_assign(gs3,val1x[ii1],1.);
           acc_assign(gs3,val2x[ii1],1.);
