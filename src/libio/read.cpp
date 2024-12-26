@@ -42,7 +42,7 @@ int check_file(string filename)
 vector<string> split1(const string &s, char delim)
 {
   stringstream ss(s);
-  string item;  
+  string item;
   vector<string> tokens;
   while ((bool)getline(ss, item, delim))
     tokens.push_back(item);
@@ -63,7 +63,7 @@ string read_basis_text(string aname)
   bool done = 0;
   string text = "";
   while (!infile.eof() && !done)
-  {  
+  {
     string line;
     (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
@@ -693,7 +693,7 @@ void read_cas_size(int& Nc, int& Na, int& Nb)
     return;
 
   string line;
-  bool success; 
+  bool success;
 
   success = (bool)getline(infile, line);
   if (success)
@@ -967,7 +967,7 @@ int read_group()
       group_size = 1;
   }
   infile.close();
- 
+
   return group_size;
 }
 
@@ -1289,6 +1289,38 @@ int read_square_check(int N, double* A, string filename)
     }
     else
       return 0;
+  }
+
+  infile.close();
+
+  return 1;
+}
+
+int read_square(int N, int M, double** A, string filename)
+{
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    //printf("  couldn't open file \n");
+    return 0;
+  }
+
+  string line;
+  bool success = (bool)getline(infile, line);
+  int wi = 0;
+  while (wi<N)
+  {
+    success = (bool)getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
+    if (tok_line.size()>0)
+    {
+      if (tok_line.size()<N) { printf(" ERROR: file (%s) size not square \n",filename.c_str()); exit(1); }
+      for (int m=0;m<M;m++)
+        A[wi][m] = atof(tok_line[m+1].c_str());
+      wi++;
+    }
   }
 
   infile.close();
@@ -2538,11 +2570,14 @@ int get_bsize(double ztmin, double ztmax)
   double dd = ztmax/ztmin;
 
  //wider zeta range, more ftns
+  if (dd>80.) return 16;
+  if (dd>30.) return 12;
+  if (dd>10.) return 10;
   if (dd>4.8) return 8;
   if (dd>3.8) return 7;
   if (dd>2.8) return 6;
   if (dd>1.8) return 4;
-  if (dd>1.) return 3;
+  if (dd>1.0) return 3;
 
  //dd==1.
   return 1;
@@ -2558,9 +2593,10 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
   int no_lz = 6;
   if (lz<10) lz = 10; else lz -= 10;
 
-  int plus_s = 2;
+  int plus_s = 0;
   int plus_p = 0;
   int plus_d = 0;
+  int plus_f = 0;
 
   double jellium_minus = 0.5;
   double jellium_plus = 1.8;
@@ -2600,12 +2636,13 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
       bsize++;
     }
 
-    if (l==0 && bsize>5)
-      plus_s = 5;
-    if (l==1 && bsize>5)
-      plus_p = 3;
-    if (l==2 && bsize>5)
-      plus_d = 2;
+   //CPMZ just turned off
+    //if (l==0 && bsize>5)
+    //  plus_s = 5;
+    //if (l==1 && bsize>5)
+    //  plus_p = 3;
+    //if (l==2 && bsize>5)
+    //  plus_d = 2;
 
     //printf("  minmaxz: %i %i - %8.5f %8.5f \n",minz,maxz,ztmin,ztmax);
     if (minz!=-1 && maxz!=-1 && l!=8)
@@ -2752,14 +2789,16 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
         if (l24==0) nmax += plus_s;
         if (l24==1) nmax += plus_p;
         if (l24==2) nmax += plus_d;
-        if (l24>=2 && nmax>4) nmax--; //trimming
-        if (l24>=3 && nmax>2) nmax--; //trimming
-        if (l24>=4 && nmax>2) nmax--; //trimming
+        if (l24==3) nmax += plus_f;
+
+        //if (l24>=2 && nmax>4) nmax--; //trimming
+        //if (l24>=3 && nmax>2) nmax--; //trimming
+        //if (l24>=4 && nmax>2) nmax--; //trimming
 
        //hard limits
-        if (l24==2 && nmax>4) nmax = 4;
-        if (l24==3 && nmax>3) nmax = 3;
-        if (l24==4 && nmax>2) nmax = 2;
+        if (l24==2 && nmax>8) nmax = 8;
+        if (l24==3 && nmax>6) nmax = 6;
+        if (l24==4 && nmax>3) nmax = 3;
       }
 
       //if (jellium && prl>1) printf("  nl: %i %i  nmax: %2i \n",n13,l13,nmax);
@@ -3038,8 +3077,36 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
   string geomfile = "GEOM";
   int natoms = read_input(geomfile,gbasis,basis,basis_aux,charge,unpaired,atno,coords);
 
+  int diatomic = read_int("DIATOM");
+  if (diatomic)
+  {
+    double x1 = coords[0]; double y1 = coords[1]; double z1 = coords[2];
+    double x2 = coords[3]; double y2 = coords[4]; double z2 = coords[5];
+    if (x1!=0. || y1!=0.) { printf("\n ERROR: diatomic must be aligned along z axis \n"); exit(-1); }
+    if (x2!=0. || y2!=0.) { printf("\n ERROR: diatomic must be aligned along z axis \n"); exit(-1); }
+
+    double a = 0.5*fabs(z2-z1);
+    //if (a<1.) a = 1.;
+    if (a<1.) a = sqrt(a);
+
+    printf("  setting up diatomic basis.  l: %i  scalar: %8.5f \n",diatomic,a);
+   //rescaling ftns along z axis
+    if (a!=1.)
+    for (int i=0;i<basis.size();i++)
+    if (basis[i][1]>=diatomic && basis[i][2]==0)
+    {
+      double zeta1 = basis[i][3];
+      double zeta2 = zeta1 / a;
+
+      double norm2 = norm(basis[i][0],basis[i][1],basis[i][2],zeta2);
+
+      basis[i][3] = zeta2;
+      basis[i][4] = norm2;
+    }
+  }
+
   int jellium = read_int("JELLIUM");
-  if (jellium==2)
+  if (jellium>=2)
   {
     double Rc = read_float("RC");
     double Rc1 = 0.5; if (Rc>0.5) Rc1 = Rc;

@@ -886,48 +886,198 @@ void write_double(double val, string filename)
   return;
 }
 
-void save_dft_exc(bool save_radial, int natoms, int nrad, int nang, double* grid, double* exc, string filename)
+void save_dft_exc(int save_type, double thresh, int natoms, int nrad, int nang, double* grid, double* rho, double* exc, string filename)
 {
+ //cannot yet use thresh/rho to select pts to print
+ // instead, just print everything
   ofstream outfile;
   outfile.open(filename.c_str());
 
   outfile << fixed << setprecision(12);
 
-  outfile << "DFT.  nrad: " << nrad << "  exc" << endl;
-
- //radial component only
-  for (int j=0;j<nrad;j++)
+  if (save_type==1)
   {
-    int j1 = j*nang;
-    string line = SSTRF2(exc[j1]);
-    outfile << line << endl;
+    outfile << "DFT.  nrad: " << nrad << "  exc" << endl;
+
+   //radial component only
+    for (int j=0;j<nrad;j++)
+    {
+      int j1 = j*nang;
+      //if (rho[j1]>thresh)
+      {
+        double v1 = exc[j1];
+        string line = SSTRF2(v1);
+        outfile << line << endl;
+      }
+    }
+  }
+  else if (save_type==2)
+  {
+    outfile << "DFT.  yz: " << 2*nrad << "   exc" << endl;
+
+   //yz plane only
+    int gs = nrad*nang;
+    int gsa = natoms*gs;
+
+    for (int j=0;j<gsa;j++)
+    {
+      if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
+      //if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0. && rho[j]>thresh)
+      {
+        //double z1 = grid[6*j+2];
+        double v1 = exc[j];
+        //string line = SSTRF(z1) + "," + SSTRF2(v1);
+        string line = SSTRF2(v1);
+        outfile << line << endl;
+      }
+    }
+  }
+  else if (save_type==3)
+  {
+    outfile << "DFT.  z: " << 2*nrad << "   exc" << endl;
+
+   //z axis only
+    int gs = nrad*nang;
+    int gsa = natoms*gs;
+
+    for (int j=0;j<gsa;j++)
+    {
+      if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12)
+      //if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12 && rho[j]>thresh)
+      {
+        //double z1 = grid[6*j+2];
+        double v1 = exc[j];
+        //string line = SSTRF(z1) + "," + SSTRF2(v1);
+        string line = SSTRF2(v1);
+        outfile << line << endl;
+      }
+    }
   }
 
   outfile.close();
   return;
 }
 
-void save_dft_vals(bool save_radial, int natoms, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, double* vc, int zpos, string filename)
+void save_dft_exc(bool save_type, int natoms, int nrad, int nang, double* grid, double* exc, string filename)
 {
-  if (!save_radial) { printf(" ERROR: save_dft_vals not ready for angular component \n"); return; }
+  return save_dft_exc(save_type,natoms,nrad,nang,grid,exc,filename);
+}
 
-  //int gs = nrad*nang;
-  //int gsa = gs*natoms;
+void save_dft_vals(int save_type, double thresh, int natoms, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, double* epsi, double* vc, int zpos, string filename)
+{
+  //if (!save_radial) { printf(" ERROR: save_dft_vals not ready for angular component \n"); return; }
+
+  int gs = nrad*nang;
+  int gsa = gs*natoms;
 
   ofstream outfile;
   outfile.open(filename.c_str());
 
   outfile << fixed << setprecision(12);
 
-  outfile << "DFT.  nrad: " << nrad << "  grid/rho/|drho|/Td/vc" << endl;
-
- //radial component only
-  for (int j=0;j<nrad;j++)
+  if (save_type==1)
   {
-    int j1 = j*nang;
-    //if (rho[j1]>thresh)
+    outfile << "DFT.  nrad: " << nrad << "  grid/rho/|drho|/Td/vc" << endl;
+
+   //radial component only (single atom)
+    if (epsi!=NULL)
+    for (int j=0;j<nrad;j++)
     {
-      string line = SSTRF2(grid[6*j1+3]) + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1]) + "," + SSTRF2(Td[j1]) + "," + SSTRF2(vc[j1]);
+      int j1 = j*nang;
+      //if (rho[j1]>thresh)
+      {
+        string line = SSTRF2(grid[6*j1+3]) + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1]) + "," + SSTRF2(Td[j1]) + "," + SSTRF2(epsi[j1]) + "," + SSTRF2(vc[j1]);
+        outfile << line << endl;
+      }
+    }
+    else
+    for (int j=0;j<nrad;j++)
+    {
+      int j1 = j*nang;
+      //if (rho[j1]>thresh)
+      {
+        string line = SSTRF2(grid[6*j1+3]) + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1]) + "," + SSTRF2(Td[j1]) + "," + SSTRF2(vc[j1]);
+        outfile << line << endl;
+      }
+    }
+  }
+  else if (save_type==2)
+  {
+    outfile << "DFT.  yz: " << 2*nrad << " grid/rho/|drho|/Td/vc" << endl;
+   //within yz plane
+    if (epsi!=NULL)
+    for (int j=0;j<gsa;j++)
+    {
+      if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
+      //if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0. && rho[j]>thresh)
+      {
+        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]);
+        outfile << line << endl;
+      }
+    }
+    else
+    for (int j=0;j<gsa;j++)
+    {
+      if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
+      //if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0. && rho[j]>thresh)
+      {
+        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(vc[j]);
+        outfile << line << endl;
+      }
+    }
+  }
+  else if (save_type==3)
+  {
+    outfile << "DFT.  z: " << 2*nrad*natoms << " grid/rho/|drho|/Td/vc" << endl;
+   //along z axis
+    if (epsi!=NULL)
+    for (int j=0;j<gsa;j++)
+    {
+      if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12)
+      //if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12 && rho[j]>thresh)
+      {
+        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]);
+        outfile << line << endl;
+      }
+    }
+    else
+    for (int j=0;j<gsa;j++)
+    {
+      if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12)
+      //if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12 && rho[j]>thresh)
+      {
+        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(vc[j]);
+        outfile << line << endl;
+      }
+    }
+  }
+
+  outfile.close();
+  return;
+}
+
+void save_dft_vals(bool save_type, double thresh, int natoms, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, double* epsi, double* vc, int zpos, string filename)
+{
+  return save_dft_vals(save_type,thresh,natoms,nrad,nang,grid,rho,drho,Td,epsi,vc,zpos,filename);
+}
+
+void write_grid(int wc, int nrad, int nang, double* grid, double* wt)
+{
+  string filename = "GRID_WTS";
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(10);
+
+  outfile << filename << ":" << endl;
+  for (int i=0;i<nrad;i++)
+  {
+    for (int j=0;j<nang;j++)
+    {
+      int i1 = i*nang+j;
+      string line = "r: " + SSTRF(grid[wc*i1+3]) + " xyz: ";
+      line += " " + SSTRF(grid[wc*i1+0]) + " " + SSTRF(grid[wc*i1+1]) + " " + SSTRF(grid[wc*i1+2]);
+      line += " wt: " + SSTRF(wt[i1]);
       outfile << line << endl;
     }
   }
@@ -995,6 +1145,29 @@ void write_square_clean(int N, double* A, string fname, double thresh, int prl)
       line += " " + SSTRF2(A[i*N+j]);
     else
       line += " 0.";
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
+void write_square(int N, int M, double** A, string fname, int prl)
+{
+  if (prl>1) printf("  writing %s to file \n",fname.c_str());
+
+  string filename = fname;
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(14);
+
+  outfile << fname << ":" << endl;
+  for (int i=0;i<N;i++)
+  {
+    string line = "";
+    for (int j=0;j<M;j++)
+      line += " " + SSTRF2(A[i][j]);
     outfile << line << endl;
   }
 
@@ -1193,7 +1366,7 @@ void write_S_En_T(int N, float* S, float* En, float* T)
       line += " " + SSTRF(En[i*N+j]);
     outfile << line << endl;
   }
-  
+
   outfile << "T:" << endl;
   for (int i=0;i<N;i++)
   {
@@ -1211,13 +1384,13 @@ void write_S_En_T(int N, float* S, float* En, float* T)
 void write_S_En_T(int N, double* S, double* En, double* T)
 {
   printf("  writing S/En/T to file \n");
-   
+
   string filename = "SENT";
   ofstream outfile;
   outfile.open(filename.c_str());
-    
+
   outfile << fixed << setprecision(14);
- 
+
   outfile << "S:" << endl;
   for (int i=0;i<N;i++)
   {

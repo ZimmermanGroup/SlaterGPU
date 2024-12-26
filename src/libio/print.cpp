@@ -289,6 +289,36 @@ void print_vec(int gsa, float* grid, double* vxc)
   return;
 }
 
+void print_vec(int gsa, double* grid, double* vxc)
+{
+  printf("	 z        vector \n");
+  for (int m=0;m<gsa;m++)
+  {
+    double x1 = grid[6*m+0];
+    double y1 = grid[6*m+1];
+    double z1 = grid[6*m+2];
+    //double r1 = grid[6*m+3];
+    if (x1==0. && y1==0.)
+      printf("  %9.5f  %8.5f \n",z1,vxc[m]);
+  }
+  return;
+}
+
+void print_vec_fine(int gsa, double* grid, double* vxc)
+{
+  printf("	 z           vector \n");
+  for (int m=0;m<gsa;m++)
+  {
+    double x1 = grid[6*m+0];
+    double y1 = grid[6*m+1];
+    double z1 = grid[6*m+2];
+    //double r1 = grid[6*m+3];
+    if (x1==0. && y1==0.)
+      printf("  %12.8f  %11.8f \n",z1,vxc[m]);
+  }
+  return;
+}
+
 void print_vec(int gsa, float* grid, float* A, float* B)
 {
   printf("       z        vector     vector \n");
@@ -320,34 +350,62 @@ void print_vec(int gsa, float* grid, double* A, double* B)
 }
 
 
-void print_dft_vals(int natoms, int gs, double* grid, double* rho, double* drho, double* Td, double* vc, int zpos, bool scirep)
+void print_dft_vals(int natoms, int gs, double* grid, double* rho, double* drho, double* Td, double* ei, double* vc, int zpos, bool scirep)
 {
   double minz = 1.e-6;
   if (scirep) minz = 1.e-12;
 
-  printf("       z           rho         drho        tau       vc \n");
-
-  if (scirep)
-  for (int n=0;n<natoms;n++)
-  for (int m=0;m<gs;m++)
+  if (ei!=NULL)
   {
-    int mn = n*gs+m;
-    float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
-    if (!zpos || z1>0.)
-    if (fabs(z1)>minz)
-    if (fabs(x1)<1.e-8 && fabs(y1)<1.e-8)
-      printf("  %13.8e  %13.8e  %13.8e  %13.8e  %13.8e \n",z1,rho[mn],drho[mn],Td[mn],vc[mn]);
+    printf("       z           rho        drho        tau          ei        vc \n");
+    if (scirep)
+    for (int n=0;n<natoms;n++)
+    for (int m=0;m<gs;m++)
+    {
+      int mn = n*gs+m;
+      float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
+      if (!zpos || z1>0.)
+      if (fabs(z1)>minz)
+      if (fabs(x1)<1.e-8 && fabs(y1)<1.e-8)
+        printf("  %13.8e  %13.8e  %13.8e  %13.8e  %13.8e  %13.8e \n",z1,rho[mn],drho[mn],Td[mn],ei[mn],vc[mn]);
+    }
+    else
+    for (int n=0;n<natoms;n++)
+    for (int m=0;m<gs;m++)
+    {
+      int mn = n*gs+m;
+      float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
+      if (!zpos || z1>0.)
+      if (fabs(z1)>minz)
+      if (fabs(x1)<1.e-8 && fabs(y1)<1.e-8)
+        printf("  %10.6f  %10.6f  %10.6f  %10.6f  %10.6f  %10.6f \n",z1,rho[mn],drho[mn],Td[mn],ei[mn],vc[mn]);
+    }
   }
   else
-  for (int n=0;n<natoms;n++)
-  for (int m=0;m<gs;m++)
   {
-    int mn = n*gs+m;
-    float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
-    if (!zpos || z1>0.)
-    if (fabs(z1)>minz)
-    if (fabs(x1)<1.e-8 && fabs(y1)<1.e-8)
-      printf("  %10.6f  %10.6f  %10.6f  %10.6f  %10.6f \n",z1,rho[mn],drho[mn],Td[mn],vc[mn]);
+    printf("       z           rho         drho        tau       vc \n");
+    if (scirep)
+    for (int n=0;n<natoms;n++)
+    for (int m=0;m<gs;m++)
+    {
+      int mn = n*gs+m;
+      float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
+      if (!zpos || z1>0.)
+      if (fabs(z1)>minz)
+      if (fabs(x1)<1.e-8 && fabs(y1)<1.e-8)
+        printf("  %13.8e  %13.8e  %13.8e  %13.8e  %13.8e \n",z1,rho[mn],drho[mn],Td[mn],vc[mn]);
+    }
+    else
+    for (int n=0;n<natoms;n++)
+    for (int m=0;m<gs;m++)
+    {
+      int mn = n*gs+m;
+      float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
+      if (!zpos || z1>0.)
+      if (fabs(z1)>minz)
+      if (fabs(x1)<1.e-8 && fabs(y1)<1.e-8)
+        printf("  %10.6f  %10.6f  %10.6f  %10.6f  %10.6f \n",z1,rho[mn],drho[mn],Td[mn],vc[mn]);
+    }
   }
 
   return;
@@ -625,14 +683,16 @@ void print_vc_shift(int natoms, int gs, float* grid, double* rho, float* vc, int
 }
 
 
-void print_vxc(int nrad, int nang, int natoms, float* grid, double* vxc)
+void print_vxc(int nrad, int nang, int natoms, float* grid, double* vxc, string name)
 {
+  //printf("  in print_vxc for nrad/nang: %3i %3i natoms: %i \n",nrad,nang,natoms);
+  const double minz = 1.e-6;
   int gs = nrad*nang;
 
   int wg = 0;
-  if (natoms<=2)
+  if (natoms<=1)
   {
-    printf("       z        vxc \n");
+    printf("       z        %s \n",name.c_str());
     for (int n=0;n<natoms;n++)
     for (int m=0;m<gs;m++)
     {
@@ -640,7 +700,7 @@ void print_vxc(int nrad, int nang, int natoms, float* grid, double* vxc)
       {
         int mn = n*gs+m;
         float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
-        if (x1==0. && y1==0.)
+        if (x1==0.f && y1==0.f && fabs(z1)>minz)
         {
           printf("  %9.5f   %8.5f \n",z1,vxc[mn]);
         }
@@ -650,14 +710,12 @@ void print_vxc(int nrad, int nang, int natoms, float* grid, double* vxc)
   }
   else
   {
-    printf("       z        vxch \n");
+    printf("       z        %s \n",name.c_str());
     for (int n=0;n<natoms;n++)
     for (int m=0;m<gs;m++)
     {
       int mn = n*gs+m;
-      float x1 = grid[6*mn+0];
-      float y1 = grid[6*mn+1];
-      float z1 = grid[6*mn+2];
+      float x1 = grid[6*mn+0]; float y1 = grid[6*mn+1]; float z1 = grid[6*mn+2];
       //float r1 = grid[6*mn+3];
       if (x1==0.f && y1==0.f)
         printf("  %9.5f  %8.5f \n",z1,vxc[mn]);
@@ -666,7 +724,7 @@ void print_vxc(int nrad, int nang, int natoms, float* grid, double* vxc)
   return;
 }
 
-void print_vxc(int nrad, int nang, int natoms, double* grid, double* vxc)
+void print_vxc(int nrad, int nang, int natoms, double* grid, double* vxc, string name)
 {
   int gs = nrad*nang;
   int gsa = natoms*gs;
@@ -675,12 +733,17 @@ void print_vxc(int nrad, int nang, int natoms, double* grid, double* vxc)
   float gridf[gs6];
   for (int m=0;m<gs6;m++)
     gridf[m] = grid[m];
-  print_vxc(nrad,nang,natoms,gridf,vxc);
+  print_vxc(nrad,nang,natoms,gridf,vxc,name);
 
   return;
 }
 
-void print_vxc(int nrad, int nang, int natoms, float* grid, float* vxcf)
+void print_vxc(int nrad, int nang, int natoms, double* grid, double* vxc)
+{
+  return print_vxc(nrad,nang,natoms,grid,vxc,"vxc");
+}
+
+void print_vxc(int nrad, int nang, int natoms, float* grid, float* vxcf, string name)
 {
   int gs = nrad*nang;
   int gsa = natoms*gs;
@@ -688,9 +751,14 @@ void print_vxc(int nrad, int nang, int natoms, float* grid, float* vxcf)
   double vxc[gsa];
   for (int m=0;m<gsa;m++)
     vxc[m] = vxcf[m];
-  print_vxc(nrad,nang,natoms,grid,vxc);
+  print_vxc(nrad,nang,natoms,grid,vxc,name);
 
   return;
+}
+
+void print_vxc(int nrad, int nang, int natoms, float* grid, float* vxcf)
+{
+  return print_vxc(nrad,nang,natoms,grid,vxcf,"vxc");
 }
 
 void print_sphere(int nrad, int nang, int natoms, float* grid, double* vxc)
