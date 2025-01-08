@@ -25,7 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Test GitHub Actions on GPU runner
+    - name: Test GitHub Actions on GPU runner attempt 2
       run: echo 'Succeeded at running GitHub action on a GPU!'
 
 
