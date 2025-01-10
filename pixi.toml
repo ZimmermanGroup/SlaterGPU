@@ -8,7 +8,8 @@ name = "SlaterGPU"
 version = "0.1.0"
 
 [build-system]
-build-backend = { name = "pixi-build-cmake", version = "*" }
+# build-backend = { name = "pixi-build-cmake", version = "*" }
+build-backend = { name = "pixi-build-rattler-build", version = "*" }
 channels = [
   "https://prefix.dev/pixi-build-backends",
   "https://prefix.dev/conda-forge",
@@ -162,6 +163,7 @@ libc = { family="glibc", version="2.17" }
 
 [dependencies]
 cmake = ">=3.21.0,<4"
+SlaterGPU = {path = "."}
 
 [feature.linux-64.dependencies]
 # # gcc = ">=13.2.0,<13.3"

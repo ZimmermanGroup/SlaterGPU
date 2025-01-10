@@ -5,14 +5,14 @@ package:
   name: SlaterGPU
   version: ${{ version }}
 
-source:
-  path: ..
+# source:
+#   path: src
 
 build:
   number: 0
-  script: |
-    PIXI_PROJECT_MANIFEST=$SRC_DIR/pixi.toml pixi run configure-athena
-    PIXI_PROJECT_MANIFEST=$SRC_DIR/pixi.toml pixi run build
+  # script: |
+  #   PIXI_PROJECT_MANIFEST=$SRC_DIR/pixi.toml pixi run configure-athena
+  #   PIXI_PROJECT_MANIFEST=$SRC_DIR/pixi.toml pixi run build
 #    cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$PREFIX $SRC_DIR -DCMAKE_INSTALL_LIBDIR=lib
 #    cmake --build build -j 16
 
