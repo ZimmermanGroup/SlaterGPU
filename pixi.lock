@@ -137,7 +137,7 @@ packages:
   build: hb0f4dca_0
   subdir: linux-64
   input:
-    hash: 3e5ee6fa640cff063ee6bc56804d901c12e9855b47e53710e09b090a7da854fc
+    hash: 84547d24853bc470a26ce607c2163572710ed4412237f46e479c8f2c05e13f0f
     globs:
     - pixi.toml
 - conda: .
@@ -146,7 +146,7 @@ packages:
   build: he8cfe8b_0
   subdir: linux-aarch64
   input:
-    hash: 3e5ee6fa640cff063ee6bc56804d901c12e9855b47e53710e09b090a7da854fc
+    hash: 84547d24853bc470a26ce607c2163572710ed4412237f46e479c8f2c05e13f0f
     globs:
     - pixi.toml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
