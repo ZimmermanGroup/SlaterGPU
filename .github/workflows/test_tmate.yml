@@ -1,5 +1,5 @@
 name: Tmate debugging
-on: [push]
+on: [workflow_dispatch]
 jobs:
   explore:
     runs-on: ubuntu-latest
