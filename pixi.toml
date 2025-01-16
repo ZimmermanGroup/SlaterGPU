@@ -18,144 +18,28 @@ channels = [
 [tasks]
 clean = {cmd = "rm -rf build", description = "Delete build directory"}
 build = {cmd = "cmake --build build -j 16", description = "Invoke cmake to compile and link the executable"}
-start-linux-64 = {depends-on = ["configure-linux-64", "build", "test"]}
+slurm-job = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n16 --gpus=1 --pty /bin/bash"
 
-[tasks.start-athena]
-description = "Configure, build, and test on the Zimmerman group cluster"
-cmd = "echo 'Finished pixi start-athena!'"
-depends-on = ["configure-athena", "build", "test"]
+[tasks.start]
+description = "Configure, build, and test"
+cmd = "echo 'Finished pixi start!'"
+depends-on = ["configure", "test"]
 
 [tasks.test]
 description = "Test SlaterGPU executable on a small molecular system"
 cwd = "build/examples/geom_1"
-cmd = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n1 -c2 --gpus=1 ../sgpu.exe"
+cmd = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n1 -c2 --gpus=1 sgpu.exe"
 
-[tasks.rattler-build]
-description = "Invoke rattler-build to create a conda package"
-cwd = "rattler-build"
-cmd = "rm -rf output && rattler-build build --keep-build --no-test"
-
-[feature.athena]
-platforms = ["linux-64"]
-[feature.linux-64]
-platforms = ["linux-64"]
-
-[feature.athena.tasks]
-slurm-job = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n16 --gpus=1 --pty /bin/bash"
-
-[feature.athena.tasks.configure-athena]
+[tasks.configure]
 description = "Invoke cmake to create build directory with build configuration"
-cmd = "printenv >env-athena.txt && cmake -Bbuild"
+cmd = "cmake -Bbuild"
 depends-on = ["clean"]
-[feature.athena.tasks.configure-athena.env]
+[tasks.configure.env]
 LIBCINT_PATH="/home/ndmeier/libraries/libcint"
-BLAS_INCLUDE_DIR="/usr/include/openblas"
-OMP_NUM_THREADS="2"
-NVHPC = "/export/apps/RockyOS8/nvidia_hpc/2024_249"
-NVHPC_ROOT = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9"
-CC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc"
-CXX = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc++"
-FC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
-F90 = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
-F77 = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvfortran"
-CPP = "cpp"
-PATH = """\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/bin:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/mpi/bin:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/bin:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/2024/comm_libs/mpi/bin:\
-$PATH\
-"""
 LD_LIBRARY_PATH = """\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/lib64:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/lib:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/lib:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/lib64:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/lib:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/lib:\
 $LD_LIBRARY_PATH:\
 /home/ndmeier/libraries/libcint/lib64\
 """
-CPATH = """\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
-$CPATH\
-"""
-C_INCLUDE_PATH = """\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
-$C_INCLUDE_PATH\
-"""
-CPLUS_INCLUDE_PATH = """\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
-$CPLUS_INCLUDE_PATH\
-"""
-MANPATH = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/man:$MANPATH"
-
-[feature.linux-64.tasks.configure-linux-64]
-cmd = "printenv >env-linux-64.txt && cmake --trace-expand -Bbuild 2>cmake-linux-64-output.txt"
-depends-on = ["clean"]
-[feature.linux-64.tasks.configure-linux-64.env]
-# LIBCINT_PATH="/home/ndmeier/libraries/libcint"
-# BLAS_INCLUDE_DIR="/usr/include/openblas"
-# OMP_NUM_THREADS="2"
-# NVHPC = "/export/apps/RockyOS8/nvidia_hpc/2024_249"
-# NVHPC_ROOT = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9"
-# CC = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc"
-# CXX = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin/nvc++"
-# CPP = "cpp"
-# PATH = """\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/bin:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/bin:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/mpi/bin:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/bin:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/2024/comm_libs/mpi/bin:\
-# $PATH\
-# """
-# LD_LIBRARY_PATH = """\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/cuda/lib64:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/lib:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/lib:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/lib64:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/lib:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/lib:\
-# $LD_LIBRARY_PATH:\
-# /home/ndmeier/libraries/libcint/lib64\
-# """
-# CPATH = """\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
-# $CPATH\
-# """
-# C_INCLUDE_PATH = """\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
-# $C_INCLUDE_PATH\
-# """
-# CPLUS_INCLUDE_PATH = """\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/math_libs/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nccl/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/comm_libs/nvshmem/include:\
-# /export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/extras/qd/include/qd:\
-# $CPLUS_INCLUDE_PATH\
-# """
-# MANPATH = "/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/compilers/man:$MANPATH"
-# testing setting additional environment variables to undo some of what conda is doing
-CFLAGS = " "
-CPPFLAGS = " "
-CXXFLAGS = " "
 
 [system-requirements]
 linux = "3.10"
@@ -164,17 +48,3 @@ libc = { family="glibc", version="2.17" }
 [dependencies]
 cmake = ">=3.21.0,<4"
 SlaterGPU = {path = "."}
-
-[feature.linux-64.dependencies]
-# # gcc = ">=13.2.0,<13.3"
-# cuda = ">=12,<13"
-# # cuda-nvcc = ">=12,<13"
-# cuda-toolkit = ">=12,<13"
-# # openmpi = ">=5.0.3,<5.1"
-# openmpi = "=3.1"
-# openmpi-mpicc = "=3.1"
-# openmpi-mpicxx = "=3.1"
-
-[environments]
-athena = {features = ["athena"]}
-linux-64 = {features = ["linux-64"]}
