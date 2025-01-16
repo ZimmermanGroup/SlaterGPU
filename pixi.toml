@@ -6,22 +6,30 @@ platforms = ["linux-64", "linux-aarch64"]
 
 [tasks]
 clean = {cmd = "rm -rf build", description = "Delete build directory"}
-build = {cmd = "cmake --build build -j 16", description = "Invoke cmake to compile and link the executable"}
+build = {cmd = "cmake --build build -j 32", description = "Invoke cmake to compile and link the executable"}
 start-linux-64 = {depends-on = ["configure-linux-64", "build", "test"]}
 
 [tasks.start-athena]
 description = "Configure, build, and test on the Zimmerman group cluster"
 cmd = "echo 'Finished pixi start-athena!'"
-depends-on = ["configure-athena", "build", "test"]
+depends-on = ["configure-athena", "build", "pytest"]
 
 [tasks.test]
 description = "Test SlaterGPU executable on a small molecular system"
 cwd = "build/examples/geom_1"
-cmd = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n1 -c2 --gpus=1 ../sgpu.exe"
+cmd = "/export/SLURM/default/bin/srun -p zim2080 -N1 -n1 -c2 --gpus=1 ../sgpu.exe"
+
+[feature.pytest.tasks.pytest]
+description = "Invoke pytest to sanity check output from test task"
+depends-on = ["test"]
+cwd = "examples"
+cmd = "pytest"
 
 [feature.athena]
 platforms = ["linux-64"]
 [feature.linux-64]
+platforms = ["linux-64"]
+[feature.pytest]
 platforms = ["linux-64"]
 
 [feature.athena.tasks]
@@ -158,6 +166,11 @@ openmpi = "=3.1"
 # openmpi-mpicc = "=3.1"
 # openmpi-mpicxx = "=3.1"
 
+[feature.pytest.dependencies]
+pytest = ">=8.3.3,<9"
+numpy = ">=2.1.3,<3"
+
 [environments]
 athena = {features = ["athena"]}
 linux-64 = {features = ["linux-64"]}
+pytest = {features = ["pytest", "athena"]}
