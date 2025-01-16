@@ -17,3 +17,4 @@ build*
 # .git folder for rattler-build's sake
 .git
 rattler-build/output
+*.conda
