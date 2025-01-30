@@ -1,7 +1,7 @@
 set +x
 
-module unload nvidia-sdk
-module load nvidia-sdk
+# module unload nvidia-sdk
+# module load nvidia-sdk
 
 cmake --version
 
