@@ -13,6 +13,7 @@ void eval_ne_3(int gs, float* grid, float** val, int s1, int s2, int natoms, int
 
 void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, int index);
 void eval_inr_r12(int gs, double* grid, double* val, int n1, int l1, double zeta1, int index);
+void eval_inr_r12(int gs, double* grid, double* val, int n1, int l1, double zeta1, int index, int tid);
 
 void eval_inr_d(int gs, float* grid, float* val, int n1, int l1, float zeta1);
 void eval_inr_d(int gs, double* grid, double* val, int n1, int l1, double zeta1);

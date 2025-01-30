@@ -18,8 +18,6 @@
 #include "read.h"
 
 #include <sstream>
-#define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
-//#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
 
 double norm(int n, int l, int m, double zeta);
 
@@ -2369,8 +2367,15 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
   while (!infile.eof())
   {  
     (bool)getline(infile, line);
-    vector<string> tok_line = split1(line,' ');
-
+    vector<string> tok_line;
+    vector<string> tok_line1 = split1(line,' ');
+    for(int i=0; i<tok_line1.size(); i++)
+    {
+      if(tok_line1[i] != "")
+      {
+        tok_line.push_back(tok_line1[i].c_str());
+      }
+    }
     //cout << " 1READ: " << line << endl;
     if (tok_line.size()>0 && tok_line[0]=="Angstrom")
       geom_in_ang = 1;
@@ -2406,8 +2411,15 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
   while (!infile.eof())
   {  
     (bool)getline(infile, line);
-    vector<string> tok_line = split1(line,' ');
-
+    vector<string> tok_line;
+    vector<string> tok_line1 = split1(line,' ');
+    for(int i=0; i<tok_line1.size(); i++)
+    {    
+      if(tok_line1[i] != "")
+      {    
+        tok_line.push_back(tok_line1[i].c_str());
+      }    
+    }    
     //cout << " 2READ: " << line << endl;
     if (tok_line.size()>3)
     {

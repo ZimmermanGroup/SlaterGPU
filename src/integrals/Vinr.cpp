@@ -1993,14 +1993,32 @@ void eval_inr_r12(int gs, double* grid, double* val, int n1, int l1, double zeta
  //double precision evaluation, gamma ftn only
 
   //printf("  eval_inr_r12 for n/l/zt: %i %i %8.5f \n",n1,l1,zeta1);
-
+  #if USE_ACC
   #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
+  #endif
   for (int i=0;i<gs;i++)
   {
     double v1d = vinr_gam(n1,l1,grid[6*i+3],zeta1);
     val[i] *= v1d;
   }
 }
+
+void eval_inr_r12(int gs, double* grid, double* val, int n1, int l1, double zeta1, int index, int tid)
+{
+ //double precision evaluation, gamma ftn only
+
+  //printf("  eval_inr_r12 for n/l/zt: %i %i %8.5f \n",n1,l1,zeta1);
+  #if USE_ACC
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid+1)
+  #endif
+  for (int i=0;i<gs;i++)
+  {
+    double v1d = vinr_gam(n1,l1,grid[6*i+3],zeta1);
+    val[i] *= v1d; 
+  }
+  #pragma acc wait(tid+1)
+}
+
 
 void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, int index)
 {

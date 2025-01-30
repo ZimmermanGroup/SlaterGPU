@@ -39,20 +39,25 @@ void get_ztm_lm(int s1, int s2, vector<vector<double> >& basis, double& ztm, int
   return;
 }
 
-void reduce_3cenp(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* pVp1)
+void reduce_3cenp(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* pVp1, int tid)
 {
   int gs3 = 3*gs;
   int gs6 = 6*gs;
   int N2 = N*N;
-
- #pragma acc parallel loop present(grid[0:gs6],wt[0:gs],valt[0:gs])
+  #if USE_ACC
+ #pragma acc parallel loop independent present(grid[0:gs6],wt[0:gs],valt[0:gs]) async(tid+1)
+  #endif
   for (int j=0;j<gs;j++)
   {
     double R = grid[6*j+3];
     valt[j] = -Z3/R*wt[j];
   }
-
- #pragma acc parallel loop collapse(2) present(valS1[0:iN][0:gs3],valS2[0:iN][0:gs3],valt[0:gs],pVp1[0:N2])
+  
+  #pragma acc wait(tid+1) 
+  
+  #if USE_ACC
+ #pragma acc parallel loop collapse(2) independent present(valS1[0:iN][0:gs3],valS2[0:iN][0:gs3],valt[0:gs],pVp1[0:N2]) async(tid+1)
+  #endif
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   {
@@ -61,7 +66,9 @@ void reduce_3cenp(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int 
     double* valn = valS2[ii2];
 
     double val = 0.;
+  #if USE_ACC
    #pragma acc loop reduction(+:val)
+  #endif  
     for (int j=0;j<gs;j++)
     {
       double dp = valm[3*j+0]*valn[3*j+0] + valm[3*j+1]*valn[3*j+1] + valm[3*j+2]*valn[3*j+2];
@@ -71,12 +78,14 @@ void reduce_3cenp(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int 
     pVp1[i1*N+i2] += val;
   }
 
+  #pragma acc wait(tid+1)
+
   return;
 }
 
-void reduce_3cenp_v2(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs0, int qos, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* pVp1)
+void reduce_3cenp_v2(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs0, int qos, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* pVp1, int tid)
 {
-  return reduce_3cenp(Z3,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp1);
+  return reduce_3cenp(Z3,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp1,tid);
 
  //slower version of integration
  // integrates within cells first, then adds it up
@@ -168,21 +177,29 @@ void reduce_3cen(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int g
   return;
 }
 
-void init_s12nw(int s1, int s2, int s3, int s4, int iN, int gs, double** valS1, double** valS2)
+void init_s12nw(int s1, int s2, int s3, int s4, int iN, int gs, double** valS1, double** valS2, int tid)
 {
- #pragma acc parallel loop collapse(2) present(valS1[0:iN][0:gs])
+  #if USE_ACC
+ #pragma acc parallel loop collapse(2) independent present(valS1[0:iN][0:gs]) async(tid+1)
+  #endif
   for (int ii1=0;ii1<s2-s1;ii1++)
   {
     for (int j=0;j<gs;j++)
       valS1[ii1][j] = 1.;
   }
 
- #pragma acc parallel loop collapse(2) present(valS2[0:iN][0:gs])
+  #pragma acc wait(tid+1)
+
+  #if USE_ACC
+ #pragma acc parallel loop collapse(2) independent present(valS2[0:iN][0:gs]) async(tid+1)
+  #endif
   for (int ii1=0;ii1<s4-s3;ii1++)
   {
     for (int j=0;j<gs;j++)
       valS2[ii1][j] = 1.;
   }
+  
+  #pragma acc wait(tid+1)
 }
 
 void eval_s12(int s1, int s2, int s3, int s4, vector<vector<double> >& basis, int iN, int gs, double* grid, double** valS1, double** valS2)
@@ -532,7 +549,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
         //printf("  En 2c(1). s12: %2i %2i s34: %2i %2i \n",s1,s2,s3,s4);
 
-        init_s12nw(s1,s2,s3,s4,iN,gs,valS1,valS2);
+        init_s12nw(s1,s2,s3,s4,iN,gs,valS1,valS2,tid);
         eval_s12(s1,s2,s3,s4,basis,iN,gs,grid,valS1,valS2);
 
        //second center
@@ -556,7 +573,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
         //printf("  En 2c(2). s12: %2i %2i s34: %2i %2i \n",s1,s2,s3,s4);
 
-        init_s12nw(s1,s2,s3,s4,iN,gs,valS1,valS2);
+        init_s12nw(s1,s2,s3,s4,iN,gs,valS1,valS2,tid);
 
        //second center
         recenter_grid_zero(gs,grid,-A12,-B12,-C12);
@@ -829,7 +846,9 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
       //printf(" pVp_2c s12: %2i %2i s34: %2i %2i \n",s1,s2,s3,s4);
 
-     #pragma acc parallel loop present(valS1[0:iN][0:gs3])
+    #if USE_ACC
+     #pragma acc parallel loop independent present(valS1[0:iN][0:gs3]) async(tid+1)
+    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -837,13 +856,19 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
           valS1[ii1][j] = 1.;
       }
 
-     #pragma acc parallel loop present(valS2[0:iN][0:gs3])
+      #pragma acc wait(tid+1)
+    
+    #if USE_ACC 
+     #pragma acc parallel loop independent present(valS2[0:iN][0:gs3]) async(tid+1)
+    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
         for (int j=0;j<gs3;j++)
           valS2[ii1][j] = 1.;
       }
+      
+      #pragma acc wait(tid+1) 
 
      //first compute single atom ints
       for (int i1=s1;i1<s2;i1++)
@@ -852,10 +877,9 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
         vector<double> basis1 = basis[i1];
         int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
-
-        eval_pd(gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+        eval_pd(gs,grid,valS1[ii1],tid,n1,l1,m1,zeta1);
       }
-
+      
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
@@ -863,16 +887,16 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
         vector<double> basis1 = basis[i2];
         int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-        eval_pd(gs,grid,valS2[ii2],n1,l1,m1,zeta1);
+        eval_pd(gs,grid,valS2[ii2],tid,n1,l1,m1,zeta1);
       }
-
+      
       #pragma acc wait
-
+     
      /////////////////////////////////////////////////////////////////////
      //electron-nuclear attraction
-      reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+      reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp,tid);
      /////////////////////////////////////////////////////////////////////
-
+    
     } //loop sp over s12
 
    //two-atom ints
@@ -894,7 +918,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
         int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
         int s3 = n2ip[n][sp2]; int s4 = n2ip[n][sp2+1];
 
-        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2);
+        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2,tid);
 
         for (int i1=s1;i1<s2;i1++)
         {
@@ -904,7 +928,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
           int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
   
          //p
-          eval_pd(gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+          eval_pd(gs,grid,valS1[ii1],tid,n1,l1,m1,zeta1);
         }
 
        //second center
@@ -917,15 +941,15 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
           int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
          //p
-          eval_pd(gs,grid,valS2[ii2],n2,l2,m2,zeta2);
+          eval_pd(gs,grid,valS2[ii2],tid,n2,l2,m2,zeta2);
         }
 
        ///////////////////////////////////////////////////////////////////
        //electron-nuclear attraction centers 1+2
 
-        reduce_3cenp(Z2,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        reduce_3cenp(Z2,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp,tid);
         recenter_grid_zero(gs,grid,A12,B12,C12);
-        reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp,tid);
         ////////////////////////////////////////////////////////////////////
 
       } //loop sp over s14
@@ -937,7 +961,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
         int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
         int s3 = n2ip[m][sp2]; int s4 = n2ip[m][sp2+1];
 
-        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2);
+        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2,tid);
 
         for (int i1=s1;i1<s2;i1++)
         {
@@ -947,7 +971,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
           int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
   
          //p
-          eval_pd(gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+          eval_pd(gs,grid,valS1[ii1],tid,n1,l1,m1,zeta1);
         }
 
         for (int i2=s3;i2<s4;i2++)
@@ -957,7 +981,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
           int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
          //p
-          eval_pd(gs,grid,valS2[ii2],n2,l2,m2,zeta2);
+          eval_pd(gs,grid,valS2[ii2],tid,n2,l2,m2,zeta2);
         }
 
        //second center
@@ -965,7 +989,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
        ///////////////////////////////////////////////////////////////////
        //electron-nuclear attraction center 2
-        reduce_3cenp(Z2,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        reduce_3cenp(Z2,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp,tid);
         ////////////////////////////////////////////////////////////////////
 
         recenter_grid_zero(gs,grid,A12,B12,C12);
@@ -979,7 +1003,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
         int s1 = n2ip[n][sp1]; int s2 = n2ip[n][sp1+1];
         int s3 = n2ip[n][sp2]; int s4 = n2ip[n][sp2+1];
 
-        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2);
+        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2,tid);
 
        //second center
         recenter_grid_zero(gs,grid,-A12,-B12,-C12);
@@ -992,7 +1016,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
           int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
   
          //p
-          eval_pd(gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+          eval_pd(gs,grid,valS1[ii1],tid,n1,l1,m1,zeta1);
         }
 
         for (int i2=s3;i2<s4;i2++)
@@ -1002,14 +1026,14 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
           int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
          //p
-          eval_pd(gs,grid,valS2[ii2],n2,l2,m2,zeta2);
+          eval_pd(gs,grid,valS2[ii2],tid,n2,l2,m2,zeta2);
         }
 
         recenter_grid_zero(gs,grid,A12,B12,C12);
 
        ///////////////////////////////////////////////////////////////////
        //electron-nuclear attraction center 1
-        reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp,tid);
         ////////////////////////////////////////////////////////////////////
 
       } //loop sp over s14
@@ -1249,27 +1273,44 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
       if (dy)
       {
-       #pragma acc parallel loop collapse(2) present(valS1[0:iN][0:gs],wt[0:gs])
+        #if USE_ACC
+       #pragma acc parallel loop collapse(2) independent present(valS1[0:iN][0:gs],wt[0:gs]) async(tid+1)
+        #endif
         for (int ii1=0;ii1<s2-s1;ii1++)
         for (int j=0;j<gs;j++)
           valS1[ii1][j] = wt[j];
-
-       #pragma acc parallel loop collapse(2) present(valV2[0:iN][0:gs])
+       
+       #pragma acc wait(tid+1)
+ 
+        #if USE_ACC
+       #pragma acc parallel loop collapse(2) independent present(valV2[0:iN][0:gs]) async(tid+1)
+        #endif
         for (int ii2=0;ii2<s4-s3;ii2++)
         for (int j=0;j<gs;j++)
           valV2[ii2][j] = 0.;
+      
+       #pragma acc wait(tid+1)
       }
       else
       {
-       #pragma acc parallel loop collapse(2) present(valS1[0:iN][0:gs])
+        #if USE_ACC
+       #pragma acc parallel loop collapse(2) independent present(valS1[0:iN][0:gs]) async(tid+1)
+        #endif
         for (int ii1=0;ii1<s2-s1;ii1++)
         for (int j=0;j<gs;j++)
           valS1[ii1][j] = 1.;
 
-       #pragma acc parallel loop collapse(2) present(valV2[0:iN][0:gs],wt[0:gs])
+       #pragma acc wait(tid+1)
+
+        #if USE_ACC
+       #pragma acc parallel loop collapse(2) independent present(valV2[0:iN][0:gs],wt[0:gs]) async(tid+1)
+        #endif
         for (int ii2=0;ii2<s4-s3;ii2++)
         for (int j=0;j<gs;j++)
           valV2[ii2][j] = wt[j];
+      
+       #pragma acc wait(tid+1)
+  
       }
 
      //first compute single atom ints
@@ -1299,14 +1340,14 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
           if (dy)
             eval_inr_yukawa(gs,grid,valV2[ii2],n2,l2,zeta2,gamma);
           else
-            eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2);
+            eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2,tid);
           eval_sh_3rd(gs,grid,valV2[ii2],n2,l2,m2);
         }
       } //loop i2 evaluate
 
       #pragma acc wait
 
-      reduce_2c1(s1,s2,s3,s4,gs,valS1,valV2,iN,N,A);
+      reduce_2c1(s1,s2,s3,s4,gs,valS1,valV2,iN,N,A,tid);
     } //sp partition over m
 
 
@@ -1331,25 +1372,45 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
         if (dy)
         {
-         #pragma acc parallel loop collapse(2) present(valS1[0:iN][0:gs],wt[0:gs])
+          #if USE_ACC
+         #pragma acc parallel loop collapse(2) independent present(valS1[0:iN][0:gs],wt[0:gs]) async(tid+1)
+          #endif
           for (int ii1=0;ii1<s2-s1;ii1++)
           for (int j=0;j<gs;j++)
             valS1[ii1][j] = wt[j];
-         #pragma acc parallel loop collapse(2) present(valV2[0:iN][0:gs])
+
+         #pragma acc wait(tid+1)
+
+          #if USE_ACC
+         #pragma acc parallel loop collapse(2) independent present(valV2[0:iN][0:gs]) async(tid+1)
+          #endif
           for (int ii1=0;ii1<s4-s3;ii1++)
           for (int j=0;j<gs;j++)
             valV2[ii1][j] = 0.;
+
+         #pragma acc wait(tid+1)
+
         }
         else
         {
-         #pragma acc parallel loop collapse(2) present(valS1[0:iN][0:gs])
+          #if USE_ACC
+         #pragma acc parallel loop collapse(2) independent present(valS1[0:iN][0:gs]) async(tid+1)
+          #endif
           for (int ii1=0;ii1<s2-s1;ii1++)
           for (int j=0;j<gs;j++)
             valS1[ii1][j] = 1.;
-         #pragma acc parallel loop collapse(2) present(valV2[0:iN][0:gs],wt[0:gs])
+    
+         #pragma acc wait(tid+1)
+
+          #if USE_ACC
+         #pragma acc parallel loop collapse(2) independent present(valV2[0:iN][0:gs],wt[0:gs]) async(tid+1)
+          #endif
           for (int ii1=0;ii1<s4-s3;ii1++)
           for (int j=0;j<gs;j++)
             valV2[ii1][j] = wt[j];
+
+         #pragma acc wait(tid+1)
+
         }
 
         for (int i1=s1;i1<s2;i1++)
@@ -1382,12 +1443,12 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
             if (dy)
               eval_inr_yukawa(gs,grid,valV2[ii2],n2,l2,zeta2,gamma);
             else
-              eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2);
+              eval_inr_r12(gs,grid,valV2[ii2],n2,l2,zeta2,ii2,tid);
             eval_sh_3rd(gs,grid,valV2[ii2],n2,l2,m2);
           }
         }
 
-        reduce_2c1(s1,s2,s3,s4,gs,valS1,valV2,iN,N,A);
+        reduce_2c1(s1,s2,s3,s4,gs,valS1,valV2,iN,N,A,tid);
 
        //put grid back in place?
         recenter_grid_zero(gs,grid,A12,B12,C12);
@@ -1511,46 +1572,68 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   return;
 }
 
-void init_s12v3(bool dy, int s1, int s2, int s3, int s4, int s5, int s6, int iN, int iNa, int gs, double** val1, double** val2, double** val3, double* wt)
+void init_s12v3(bool dy, int s1, int s2, int s3, int s4, int s5, int s6, int iN, int iNa, int gs, double** val1, double** val2, double** val3, double* wt, int tid)
 {
-  #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
+  #if USE_ACC
+  #pragma acc parallel loop collapse(2) independent present(val2[0:iN][0:gs]) async(tid+1)
+  #endif
   for (int ii2=0;ii2<s4-s3;ii2++)
   {
     for (int j=0;j<gs;j++)
       val2[ii2][j] = 1.;
   }
 
+  #pragma acc wait(tid+1)
+
   if (dy)
   {
-    #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gs],wt[0:gs])
+    #if USE_ACC
+    #pragma acc parallel loop collapse(2) independent present(val1[0:iN][0:gs],wt[0:gs]) async(tid+1)
+    #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     for (int j=0;j<gs;j++)
       val1[ii1][j] = wt[j];
 
+    #pragma acc wait(tid+1)
+
     if (val3!=NULL)
-    #pragma acc parallel loop collapse(2) present(val3[0:iNa][0:gs])
+    #if USE_ACC
+    #pragma acc parallel loop collapse(2) independent present(val3[0:iNa][0:gs]) async(tid+1)
+    #endif
     for (int ii3=0;ii3<s6-s5;ii3++)
     for (int j=0;j<gs;j++)
       val3[ii3][j] = 0.;
+
+    #pragma acc wait(tid+1)
+
   }
   else
   {
-    #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gs])
+    #if USE_ACC
+    #pragma acc parallel loop collapse(2) independent present(val1[0:iN][0:gs]) async(tid+1)
+    #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     for (int j=0;j<gs;j++)
       val1[ii1][j] = 1.;
 
+    #pragma acc wait(tid+1)
+
     if (val3!=NULL)
-    #pragma acc parallel loop collapse(2) present(val3[0:iNa][0:gs],wt[0:gs])
+    #if USE_ACC
+    #pragma acc parallel loop collapse(2) independent present(val3[0:iNa][0:gs],wt[0:gs]) async(tid+1)
+    #endif
     for (int ii3=0;ii3<s6-s5;ii3++)
     for (int j=0;j<gs;j++)
       val3[ii3][j] = wt[j];
+
+    #pragma acc wait(tid+1)
+
   }
 
   return;
 }
 
-void eval_s12v3(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3)
+void eval_s12v3(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3, int tid)
 {
  //single-center evaluations
 
@@ -1588,7 +1671,7 @@ void eval_s12v3(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4,
       if (dy)
         eval_inr_yukawa(gs,grid,val3[ii3],n3,l3,zeta3,gamma);
       else
-        eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3);
+        eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3,tid);
       eval_sh_3rd (gs,grid,val3[ii3],n3,l3,m3);
     }
   }
@@ -1598,7 +1681,7 @@ void eval_s12v3(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4,
   return;
 }
 
-void eval_s12v3_2(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3, int type, double A12, double B12, double C12, double A13, double B13, double C13)
+void eval_s12v3_2(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3, int type, double A12, double B12, double C12, double A13, double B13, double C13, int tid)
 {
  //multi-center evaluations
 
@@ -1648,7 +1731,7 @@ void eval_s12v3_2(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s
       if (dy)
         eval_inr_yukawa(gs,grid,val3[ii3],n3,l3,zeta3,gamma);
       else
-        eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3);
+        eval_inr_r12(gs,grid,val3[ii3],n3,l3,zeta3,ii3,tid);
       eval_sh_3rd (gs,grid,val3[ii3],n3,l3,m3);
     }
   }
@@ -1860,11 +1943,11 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
           generate_ps_quad_grid_3c_refine(ztm1,ztm2,nsplit,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
           add_r1_to_grid(gsh,grid,0.,0.,0.);
 
-          init_s12v3(0,s1,s2,s3,s4,0,0,iN,0,gs3,  valS1,valS2,NULL,NULL);
+          init_s12v3(0,s1,s2,s3,s4,0,0,iN,0,gs3,  valS1,valS2,NULL,NULL,tid);
           eval_p12  (s1,s2,s3,s4,gsh,grid,basis,valS1,valS2,A12,B12,C12,A13,B13,C13);
 
           recenter_grid_zero(gsh,grid,-A13,-B13,-C13);
-          reduce_3cenp(Z3,s1,s2,s3,s4,N,iN,gsh,grid,valS1,valS2,valt,wt,pVpp);
+          reduce_3cenp(Z3,s1,s2,s3,s4,N,iN,gsh,grid,valS1,valS2,valt,wt,pVpp,tid);
          //////////////////////////////////////////////////////////////////////////////////////////////////////
 
         } //loop p over third atom
@@ -2138,11 +2221,11 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
         int s5 = n2aip[m][sp]; int s6 = n2aip[m][sp+1];
 
        //all basis on one atom
-        init_s12v3(dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,valS1,valS2,valV3,wt);
-        eval_s12v3(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3);
+        init_s12v3(dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,valS1,valS2,valV3,wt,tid);
+        eval_s12v3(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,tid);
 
         //printf("    m: %i   s12: %2i %2i s56: %2i %2i \n",m,s1,s2,s5,s6);
-        reduce_3c1b(s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+        reduce_3c1b(s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp,tid);
 
       } //loop sp
 
@@ -2171,19 +2254,19 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
           //printf(" n: %i  s5/6: %3i %3i \n",n,s5,s6);
 
          //s1 on atom 1, s2v3 on atom 2
-          init_s12v3  (dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
-          eval_s12v3_2(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,1,A12,B12,C12,0.,0.,0.);
+          init_s12v3(dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,valS1,valS2,valV3,wt,tid);
+          eval_s12v3_2(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,1,A12,B12,C12,0.,0.,0.,tid);
 
-          reduce_3c1b(s5,s6,s1,s2,s3,s4,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+          reduce_3c1b(s5,s6,s1,s2,s3,s4,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp,tid);
 
          //s12 on atom 1, v3 on atom 2
           int s3b = s1; int s4b = s2;
           //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i s56: %2i %2i \n",m,n,s1,s2,s3,s4,s5,s6);
 
-          init_s12v3  (dy,s1,s2,s3b,s4b,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
-          eval_s12v3_2(dol,dy,gamma,s1,s2,s3b,s4b,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,2,A12,B12,C12,0.,0.,0.);
+          init_s12v3(dy,s1,s2,s3b,s4b,s5,s6,iN,iNa,gs,valS1,valS2,valV3,wt,tid);
+          eval_s12v3_2(dol,dy,gamma,s1,s2,s3b,s4b,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,2,A12,B12,C12,0.,0.,0.,tid);
 
-          reduce_3c1b(s5,s6,s1,s2,s3b,s4b,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+          reduce_3c1b(s5,s6,s1,s2,s3b,s4b,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Cp,tid);
         }
       } //loop wb over nbatch
 
@@ -2226,10 +2309,10 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
             add_r1_to_grid(gsh,grid,0.,0.,0.);
 
            //s1 on atom 1, s2 on atom 2, v3 on atom 3
-            init_s12v3  (dy,s1,s2,s3,s4,s5,s6,iN,iNa,gsh,              valS1,valS2,valV3,wt);
-            eval_s12v3_2(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gsh,grid,basis,basis_aux,valS1,valS2,valV3,3,A12,B12,C12,A13,B13,C13);
+            init_s12v3(dy,s1,s2,s3,s4,s5,s6,iN,iNa,gsh,valS1,valS2,valV3,wt,tid);
+            eval_s12v3_2(dol,dy,gamma,s1,s2,s3,s4,s5,s6,gsh,grid,basis,basis_aux,valS1,valS2,valV3,3,A12,B12,C12,A13,B13,C13,tid);
 
-            reduce_3c1b(s5,s6,s1,s2,s3,s4,gsh,valV3,valS1,valS2,N,Naux,iN,iNa,Cp);
+            reduce_3c1b(s5,s6,s1,s2,s3,s4,gsh,valV3,valS1,valS2,N,Naux,iN,iNa,Cp,tid);
           }
         }
 
@@ -2258,8 +2341,8 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
             generate_ps_quad_grid_3c_refine(cfn_en,wb,nbatch,ztm1,ztm2,nsplit,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
             add_r1_to_grid(gsh,grid,0.,0.,0.);
 
-            init_s12v3  (0,s1,s2,s3,s4,0,0,iN,iNa,gsh,              valS1,valS2,NULL,wt);
-            eval_s12v3_2(0,0,0.,s1,s2,s3,s4,0,0,gsh,grid,basis,basis_aux,valS1,valS2,NULL,3,A12,B12,C12,A13,B13,C13);
+            init_s12v3(0,s1,s2,s3,s4,0,0,iN,iNa,gsh,valS1,valS2,NULL,wt,tid);
+            eval_s12v3_2(0,0,0.,s1,s2,s3,s4,0,0,gsh,grid,basis,basis_aux,valS1,valS2,NULL,3,A12,B12,C12,A13,B13,C13,tid);
 
             recenter_grid_zero(gsh,grid,-A13,-B13,-C13);
             reduce_3cen(Z3,s1,s2,s3,s4,N,iN,gsh,grid,valS1,valS2,valt,wt,Enp);

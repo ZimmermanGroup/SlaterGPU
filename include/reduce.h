@@ -7,7 +7,9 @@ void reduce_2c1(int s1, int s2, int gs, float** val1, float** val3, int iN, int 
 void reduce_2c2(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float** val4, int iN, int N, float* An);
 void reduce_2c3(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, int iN, int N, float* An);
 void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float* valt1, int N, int Naux, int imaxN, int imaxNa, float* C);
+void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float* valt1, int N, int Naux, int imaxN, int imaxNa, float* C, int tid);
 void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, int N, int Naux, int imaxN, int imaxNa, float* C);
+void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, int N, int Naux, int imaxN, int imaxNa, float* C, int tid);
 void reduce_3c2(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, float* valt1, float* valt2, int N, int Naux, int imaxN, int imaxNa, float* C);
 void reduce_3c2b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, int N, int Naux, int imaxN, int imaxNa, float* C);
 void reduce_3c3(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, float** val7, float** val8, float** val9, float* valt1, float* valt2, float* valt3, int N, int Naux, int imaxN, int imaxNa, float* C);
@@ -54,7 +56,9 @@ void reduce_2c1(int s1, int s2, int gs, float** val1, float** val3, int iN, int 
 void reduce_2c2(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float** val4, int iN, int N, double* An);
 void reduce_2c3(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, int iN, int N, double* An);
 void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float* valt1, int N, int Naux, int imaxN, int imaxNa, double* C);
+void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, float* valt1, int N, int Naux, int imaxN, int imaxNa, double* C, int tid);
 void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, int N, int Naux, int imaxN, int imaxNa, double* C);
+void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, float** val1, float** val2, float** val3, int N, int Naux, int imaxN, int imaxNa, double* C, int tid);
 void reduce_3c2(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, float* valt1, float* valt2, int N, int Naux, int imaxN, int imaxNa, double* C);
 void reduce_3c2b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, int N, int Naux, int imaxN, int imaxNa, double* C);
 void reduce_3c3(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** val1, float** val2, float** val3, float** val4, float** val5, float** val6, float** val7, float** val8, float** val9, float* valt1, float* valt2, float* valt3, int N, int Naux, int imaxN, int imaxNa, double* C);
@@ -76,9 +80,11 @@ void reduce_2c3vd(int p1, int s1, int s2, int s3, int s4, int gs, double* norms,
 //reduce fully double precision
 void reduce_2c1(int s1, int s2, int gs, double** val1, double** val3, int iN, int N, double* An);
 void reduce_2c1(int s1, int s2, int s3, int s4, int gs, double** val1, double** val3, int iN, int N, double* An);
+void reduce_2c1(int s1, int s2, int s3, int s4, int gs, double** val1, double** val3, int iN, int N, double* An, int tid);
 void reduce_2c2(int s1, int s2, int s3, int s4, int gs, double** val1, double** val2, double** val3, double** val4, int iN, int N, double* An);
 void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C);
 void reduce_3c1b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C);
-
+void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C, int tid); 
+void reduce_3c1b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C, int tid);
 
 #endif
