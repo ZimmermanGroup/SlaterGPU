@@ -13,6 +13,17 @@ FP2 norm(int n, int l, int m, FP2 zeta);
 
 #define A2B 1.8897261
 
+int check_files(string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+     
+  infile.close();
+   
+  return 1;   
+}  
 
 void print_coords(int natoms, FP1* coordsf)
 {
@@ -979,32 +990,26 @@ void read_SENT(string dirname, int N, FP2* S, FP2* T, FP2* En, int prl)
 
 }
 
-void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP2* A, FP2* Ciap, int prl)
+void read_Ciap(int N, int Naux, double* Ciap, string filename)
 {
-  int N2 = N*N;
-  //int N3 = N2*N;
-  //int na = Naux;
-  //int Naux2 = Naux*Naux;
-
- //first file
-  string filename = "Ciap"; if (dirname!="0") filename = dirname+"/"+"Ciap";
   printf("  attempting file read: %s \n",filename.c_str());
+  int prl = 0;
 
   ifstream infile;
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open file \n");
+    printf("  couldn't open file \n");
     return;
   }
   
   string line;
 
-  getline(infile, line);
+  (bool)getline(infile, line);
   int wi = 0;
   while (!infile.eof())
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1014,27 +1019,43 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
       wi++;
     }
   }
+  int N2 = N*N;
   if (wi==N2) { if (prl>1) printf("   found all lines of Ciap \n"); }
   else printf(" Ciap missing lines \n");
   infile.close();
 
+  return;
+}
+
+bool read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP2* A, FP2* Ciap, int prl)
+{
+  int N2 = N*N;
+  //int N3 = N2*N;
+  //int na = Naux;
+  //int Naux2 = Naux*Naux;
+
+ //first file
+  string filename = "Ciap"; if (dirname!="0") filename = dirname+"/"+"Ciap";
+  read_Ciap(N,Naux,Ciap,filename);
 
  //second file
   filename = "A"; if (dirname!="0") filename = dirname+"/"+"A";
   printf("  attempting file read: %s \n",filename.c_str());
 
+  ifstream infile;
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open file \n");
-    return;
+    printf("  couldn't open file \n");
+    return 0;
   }
   
-  getline(infile, line);
-  wi = 0;
+  string line;
+  (bool)getline(infile, line);
+  int wi = 0;
   while (!infile.eof())
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1056,15 +1077,15 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
   infile.open(filename.c_str());    
   if (!infile)
   {
-    printf("   couldn't open file \n");
-    return;
+    printf("  couldn't open file \n");
+    return 0;
   }
   
-  getline(infile, line);
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1075,11 +1096,11 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
     }
   }
 
-  getline(infile, line);
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1090,11 +1111,11 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
     }
   }
 
-  getline(infile, line);
+  (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
   {
-    getline(infile, line);
+    (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
@@ -1133,42 +1154,9 @@ void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP
     printf("\n");
   }
 
-#if 0
- //now compute g matrix
-  FP2* Ai = new FP2[Naux2];
-  for (int m=0;m<Naux2;m++) Ai[m] = A[m];
-  printf(" cannot compute g, need invert function \n");
-  //Invert_stable(Ai,Naux,inv_cutoff);
-
-  FP2* AC = new FP2[Naux*N2]();
-  int nanan2 = Naux2+N2;
-
-#if 0
-  FP2* tmp = new FP2[nomp*nanan2]();
-
-  compute_AC(N,na,Ai,Ciap,AC,tmp);
-  compute_g(N,Naux,Ciap,AC,tmp,g);
-  delete [] tmp;
-#endif
-
-  delete [] Ai;
-  delete [] AC;
-
-  if (prl>2)
-  {
-    printf("\n printing gmnls \n");
-    for (int m=0;m<N;m++)
-    for (int n=0;n<N;n++)
-    {
-      printf("  g%i%i:\n",m,n);
-      print_square_ss(N,&g[m*N3+n*N2]);
-    }
-  }
-  printf("\n");
-#endif
-
-  return;
+  return 1;
 }
+
 
 FP2 nuclear_repulsion(int natoms, int* atno, FP2* coords)
 {
@@ -1774,6 +1762,137 @@ void screen_basis_aux(vector<vector<double> >& basis_aux)
   return;
 }
 
+
+int get_bsize(double ztmin, double ztmax)
+{
+  //double dz = ztmax-ztmin;
+  double dd = ztmax/ztmin;
+
+ //wider zeta range, more ftns
+  if (dd>4.8) return 6;
+  if (dd>3.8) return 5;
+  if (dd>2.8) return 4;
+  if (dd>1.8) return 3;
+  if (dd>1.) return 2;
+
+ //dd==1.
+  return 1;
+}
+
+void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+{
+  if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
+
+  vector<vector<double> > basis_max;
+  vector<vector<double> > basis_min;
+  vector<int> basis_size;
+
+ //gather basis set, skipping m sequence
+ //taking only the min and max values of zeta
+  for (int a=0;a<natoms;a++)
+  for (int n=1;n<10;n++)
+  for (int l=0;l<6;l++)
+  {
+    double ztmin = 1000.; int minz = -1;
+    double ztmax = 0.;    int maxz = -1;
+    int bsize = 0;
+
+   //find basis ftns with specific nl(m=0)
+    for (int i1=0;i1<basis_std.size();i1++)
+    if (basis_std[i1][9]==a && basis_std[i1][0]==n && basis_std[i1][1]==l && basis_std[i1][2]==0)
+    {
+      double zt1 = basis_std[i1][3];
+      if (zt1<ztmin) { ztmin = zt1; minz = i1; }
+      if (zt1>ztmax) { ztmax = zt1; maxz = i1; }
+      bsize++;
+    }
+    if (minz!=-1 && maxz!=-1 && l!=5)
+    {
+      basis_min.push_back(basis_std[minz]);
+      basis_max.push_back(basis_std[maxz]);
+      basis_size.push_back(bsize);
+    }
+    else if (minz!=-1 && l==5)
+    {
+      printf("\n WARNING: H functions in standard basis not supported by RI==3 \n");
+      exit(-1);
+    }
+  }
+
+ //using the truncated, no m basis
+  int N = basis_max.size();
+
+  int lmax = 0;
+  for (int n=0;n<natoms;n++)
+  for (int i1=0;i1<N;i1++)
+  if (basis_max[i1][9]==n)
+  {
+    vector<double> basis1 = basis_min[i1];
+    vector<double> basis2 = basis_max[i1];
+    int bs1 = basis_size[i1];
+
+    int n1 = basis1[0]; int l1 = basis1[1]; double zt1 = basis1[3];
+    int n2 = basis2[0]; int l2 = basis2[1]; double zt2 = basis2[3];
+
+    for (int i2=0;i2<=i1;i2++)
+    if (basis_max[i2][9]==n)
+    {
+      vector<double> basis3 = basis_min[i2];
+      vector<double> basis4 = basis_max[i2];
+      int bs2 = basis_size[i2];
+
+      int n3 = basis3[0]; int l3 = basis3[1]; double zt3 = basis3[3];
+      int n4 = basis4[0]; int l4 = basis4[1]; double zt4 = basis4[3];
+
+      int n13 = get_n12(n1,n3,l1,l3);
+      int l13 = l1+l3;
+      double zt13 = zt1+zt3;
+      double zt24 = zt2+zt4;
+
+      int n24 = get_n12(n2,n4,l2,l4); 
+      int l24 = l2+l4;
+
+      int nmax = get_bsize(zt13,zt24);
+      if (l24>=4 && nmax>2) nmax--; //trimming
+
+      double zf = zt24/zt13;
+      double B = 1;
+      if (nmax>1) B = exp(log(zf)/(nmax-1));
+      for (int ns=0;ns<nmax;ns++)
+      {
+        double ztn = zt13*pow(B,ns);
+        vector<double> b1 = basis1;
+        b1[0] = n13; b1[1] = l13; b1[3] = ztn;
+
+        bool valid_basis = check_valid_basis(n13,l13);
+        if (valid_basis)
+        {
+          //if (n==0)
+          //  printf("  nl: %i %i / %i %i  zt: %8.5f \n",n13,l13,n24,l24,ztn);
+          for (int m=-l13;m<=l13;m++)
+          {
+            b1[2] = m;
+            b1[4] = norm(n13,l13,m,ztn);
+            basis_aux.push_back(b1);
+          }
+        }
+
+        if (valid_basis && l13>lmax) lmax = l13;
+
+      } //adding ftns
+
+    } //pairs of ftns on same atom
+  } //loop n
+
+  //screen_basis_aux(basis_aux,1);
+  printf("  lmax in auxiliary basis: %i \n",lmax);
+
+  if (basis_aux.size()<1) printf(" WARNING: didn't find any auxiliary basis ftns \n");
+
+  return;
+}
+
+
 void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   vector<vector<double> > basis;
@@ -1871,7 +1990,10 @@ int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& b
   if (auto_ri>=2)
   {
     basis_aux.clear();
-    create_basis_aux(natoms,basis,basis_aux);
+    if (auto_ri==3)
+      create_basis_aux_v3(natoms,basis,basis_aux);
+    else
+      create_basis_aux(natoms,basis,basis_aux);
     prl++;
   }
 
@@ -1879,4 +2001,5 @@ int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& b
 
   return natoms;
 }
+
 

@@ -41,7 +41,8 @@ void read_eps(FP2& eps1, FP2& eps2);
 void read_eps(FP2& eps1, FP2& eps2, FP2& eps1s);
 int read_tuples(vector<vector<int> >& tuples);
 void read_SENT(string dirname, int N, FP2* S, FP2* T, FP2* En, int prl);
-void read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP2* A, FP2* Ciap, int prl);
+void read_Ciap(int N, int Naux, double* Ciap, string filename);
+bool read_integrals(string dirname, int N, int Naux, FP2* S, FP2* T, FP2* En, FP2* A, FP2* Ciap, int prl);
 int read_iarray(short type1, short type2, short i1, int s1, int s2, FP2* A);
 int read_gridpts(int s1, int s2, FP1* A, string filename);
 int read_square(int N, FP2* Pao, string filename);
@@ -53,6 +54,7 @@ void print_square(int N, FP2* S);
 void print_square(int N, FP1* S);
 void print_square_fine(int N, FP2* S);
 void print_square_fine(int N, FP1* S);
+int check_files(string filename);
 
 string get_aname(int Z);
 int initialize(bool gbasis, vector<vector<FP2> >& basis, vector<vector<FP2> >& basis_aux, int* atno, FP2* &coords, int& charge, int& unpaired, FP2& Enn, int prl);
