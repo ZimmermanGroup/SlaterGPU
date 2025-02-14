@@ -2,7 +2,7 @@ pixi global install cmake
 pixi global install environment-modules
 source ~/.pixi/envs/environment-modules/init/bash
 
-wget -q --show-progress https://developer.download.nvidia.com/hpc-sdk/25.1/nvhpc_2025_251_Linux_x86_64_cuda_12.6.tar.gz
+wget --progress=bar:force:noscroll https://developer.download.nvidia.com/hpc-sdk/25.1/nvhpc_2025_251_Linux_x86_64_cuda_12.6.tar.gz
 tar xpzf nvhpc_2025_251_Linux_x86_64_cuda_12.6.tar.gz
 export NVHPC_SILENT="true"
 export NVHPC_INSTALL_DIR="/home/runner/work"
