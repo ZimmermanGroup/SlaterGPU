@@ -5,8 +5,8 @@ package:
   name: SlaterGPU
   version: ${{ version }}
 
-# source:
-#   path: src
+source:
+  path: src
 
 build:
   number: 0

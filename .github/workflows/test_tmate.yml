@@ -15,5 +15,11 @@ jobs:
     - name: Install nvhpc
       run: source .github/workflows/install_nvhpc.sh
       continue-on-error: true
+    - name: Install SlaterGPU
+      run: pixi install
+      continue-on-error: true
+    - name: Attempt to run test
+      run: pixi run test-in-gh-action
+      continue-on-error: true
     - name: Setup tmate session 
       uses: mxschmitt/action-tmate@v3
