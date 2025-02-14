@@ -1,5 +1,6 @@
 pixi global install cmake
 pixi global install environment-modules
+pixi global install helix
 source ~/.pixi/envs/environment-modules/init/bash
 
 wget --progress=bar:force:noscroll https://developer.download.nvidia.com/hpc-sdk/25.1/nvhpc_2025_251_Linux_x86_64_cuda_12.6.tar.gz
