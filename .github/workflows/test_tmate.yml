@@ -16,10 +16,11 @@ jobs:
       continue-on-error: true
     - uses: actions/checkout@v4
     - name: Install nvhpc
-      run: source .github/workflows/install_nvhpc.sh
-      run: source ~/.pixi/envs/environment-modules/init/bash
-      run: module load ~/work/modulefiles/nvhpc/25.1
-      run: module list
+      run: |
+        source .github/workflows/install_nvhpc.sh
+        source ~/.pixi/envs/environment-modules/init/bash
+        module load ~/work/modulefiles/nvhpc/25.1
+        module list
       continue-on-error: true
     - name: Install SlaterGPU
       run: pixi install
