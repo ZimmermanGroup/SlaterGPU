@@ -17,14 +17,19 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install nvhpc
       run: source .github/workflows/install_nvhpc.sh
+      run: source ~/.pixi/envs/environment-modules/init/bash
+      run: module load ~/work/modulefiles/nvhpc/25.1
+      run: module list
       continue-on-error: true
-    - name: Check whether environment persists from sourcing
-      run: echo $NVHPC_SILENT
     - name: Install SlaterGPU
       run: pixi install
       continue-on-error: true
     - name: Attempt to run test
       run: pixi run test-in-gh-action
       continue-on-error: true
-    - name: Setup tmate session 
-      uses: mxschmitt/action-tmate@v3
+    - name: Setup upterm session 
+      uses: owenthereal/action-upterm@v1
+      with:
+        limit-access-to-actor: true
+    # - name: Setup tmate session 
+    #   uses: mxschmitt/action-tmate@v3
