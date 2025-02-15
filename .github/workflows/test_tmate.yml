@@ -4,17 +4,22 @@ jobs:
   explore:
     # runs-on: ubuntu-latest
     runs-on: gpu
+    defaults:
+      run:
+        shell: bash
     steps:
-    - uses: actions/checkout@v4
     - uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.41.3
         log-level: v
         # cache: true
       continue-on-error: true
+    - uses: actions/checkout@v4
     - name: Install nvhpc
       run: source .github/workflows/install_nvhpc.sh
       continue-on-error: true
+    - name: Check whether environment persists from sourcing
+      run: echo $NVHPC_SILENT
     - name: Install SlaterGPU
       run: pixi install
       continue-on-error: true
