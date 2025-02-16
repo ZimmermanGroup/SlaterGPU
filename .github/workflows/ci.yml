@@ -22,16 +22,28 @@ jobs:
     runs-on: gpu
     # runs-on: self-hosted
     
+    defaults:
+      run:
+        shell: bash
     steps:
-    - uses: actions/checkout@v4
     - uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.41.3
         log-level: v
         # cache: true
       continue-on-error: true
-    - name: Test GitHub Actions on GPU runner attempt 2
-      run: echo 'Succeeded at running GitHub action on a GPU!'
+    - uses: actions/checkout@v4
+    - name: Install nvhpc
+      run: |
+        source .github/workflows/install_nvhpc.sh
+      continue-on-error: true
+    - name: Install and test SlaterGPU
+      run: |
+        source ~/.pixi/envs/environment-modules/init/bash
+        module load ~/work/modulefiles/nvhpc/25.1
+        module list
+        pixi install
+        pixi run test-in-gh-action
 
 
 

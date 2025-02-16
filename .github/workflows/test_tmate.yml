@@ -19,15 +19,13 @@ jobs:
       run: |
         source .github/workflows/install_nvhpc.sh
       continue-on-error: true
-    - name: Install SlaterGPU
+    - name: Install and test SlaterGPU
       run: |
         source ~/.pixi/envs/environment-modules/init/bash
         module load ~/work/modulefiles/nvhpc/25.1
         module list
         pixi install
-      continue-on-error: true
-    - name: Attempt to run test
-      run: pixi run test-in-gh-action
+        pixi run test-in-gh-action
       continue-on-error: true
     - name: Setup upterm session 
       uses: owenthereal/action-upterm@v1
