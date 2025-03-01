@@ -1,8 +1,7 @@
-name: Tmate debugging
+name: Debug CI with upterm
 on: [workflow_dispatch]
 jobs:
   explore:
-    # runs-on: ubuntu-latest
     runs-on: gpu
     defaults:
       run:
@@ -31,5 +30,3 @@ jobs:
       uses: owenthereal/action-upterm@v1
       with:
         limit-access-to-actor: true
-    # - name: Setup tmate session 
-    #   uses: mxschmitt/action-tmate@v3
