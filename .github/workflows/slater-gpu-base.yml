@@ -18,10 +18,24 @@ jobs:
         # cache: true
       continue-on-error: true
     - uses: actions/checkout@v4
+    
+    # Cache NVHPC installation
+    - name: Cache NVHPC
+      id: cache-nvhpc
+      uses: actions/cache@v3
+      with:
+        path: |
+          /home/runner/work/Linux_x86_64
+          /home/runner/work/modulefiles
+        key: nvhpc-25.1-cuda-12.6-v1-${{ runner.os }}
+        
     - name: Install nvhpc
       run: |
         source .github/workflows/install_nvhpc.sh
+      env:
+        CACHE_HIT: ${{ steps.cache-nvhpc.outputs.cache-hit }}
       continue-on-error: true
+      
     - name: Install and test SlaterGPU
       run: |
         source ~/.pixi/envs/environment-modules/init/bash
