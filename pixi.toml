@@ -16,8 +16,6 @@ channels = [
 ]
 
 [tasks]
-# clean = {cmd = "rm -rf build", description = "Delete build directory"}
-# build = {cmd = "cmake --build build -j 32", description = "Invoke cmake to compile and link the executable"}
 slurm-job = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n16 --gpus=1 --pty /bin/bash"
 
 [tasks.clean]
@@ -25,43 +23,15 @@ description = "Remove example output files"
 cwd = "examples/geom_1"
 cmd = "rm -f A Ciap g pVp SENT"
 
-# [tasks.start]
-# description = "Configure, build, and test"
-# cmd = "echo 'Finished pixi start!'"
-# depends-on = ["configure", "pytest"]
-
 [feature.pytest.tasks.test]
 description = "Test SlaterGPU executable on a small molecular system"
 cwd = "examples/geom_1"
 cmd = "/export/SLURM/default/bin/srun -p zim2080 -N1 -n1 -c2 --gpus=1 sgpu.exe && cd .. && pytest"
 
-# [feature.pytest.tasks.pytest]
-# description = "Invoke pytest to sanity check output from test task"
-# depends-on = ["test"]
-# cwd = "examples"
-# cmd = "pytest"
-
 [feature.pytest.tasks.test-in-gh-action]
 description = "Test SlaterGPU executable on a small molecular system in a github actions environment"
 cwd = "examples/geom_1"
 cmd = "sgpu.exe && cd .. && pytest"
-
-# [feature.pytest.tasks.pytest-in-gh-action]
-# description = "Invoke pytest to sanity check output from test task"
-# depends-on = ["test-in-gh-action"]
-# cwd = "examples"
-# cmd = "pytest"
-
-# [tasks.configure]
-# description = "Invoke cmake to create build directory with build configuration"
-# cmd = "cmake -Bbuild"
-# depends-on = ["clean"]
-# [tasks.configure.env]
-# LIBCINT_PATH="/home/ndmeier/libraries/libcint"
-# LD_LIBRARY_PATH = """\
-# $LD_LIBRARY_PATH:\
-# /home/ndmeier/libraries/libcint/lib64\
-# """
 
 [system-requirements]
 linux = "3.10"
