@@ -6,9 +6,7 @@ import pytest
 
 @pytest.mark.parametrize("filename", ["A", "Ciap", "pVp", "SENT"])
 def test_output(filename):
-    # Convert from the script location to where the output files should be located.
-    script_dir = Path(os.path.abspath(__file__)).parent
-    example_output_dir = script_dir.parent / "build" / "examples" / "geom_1"
+    example_output_dir = Path("geom_1")
 
     with open(example_output_dir / f"{filename}_ref") as reference_output:
         reference_output_lines = reference_output.readlines()
