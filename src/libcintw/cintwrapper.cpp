@@ -14,9 +14,9 @@
 #if USEMKL
 #include <mkl_lapacke.h>
 #include <mkl_cblas.h>
-#else
-#include <lapacke.h>
-#include <cblas.h>
+// #else
+// #include <lapacke.h>
+// #include <cblas.h>
 #endif
 
 using namespace std;

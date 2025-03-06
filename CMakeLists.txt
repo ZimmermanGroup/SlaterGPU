@@ -9,7 +9,7 @@ set(USE_OMP True)
 set(RED_DOUBLE True)
 
 if(NOT DO_GTO)
-    set(DO_GTO False)
+    set(DO_GTO True)
 endif()
 
 set(DO_GTO ${DO_GTO})
