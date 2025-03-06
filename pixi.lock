@@ -14,6 +14,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cmake-3.31.5-h74e3db0_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/keyutils-1.6.1-h166bdaf_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/krb5-1.21.3-h659f571_0.conda
+      - conda: git+https://github.com/ZimmermanGroup/libcint?branch=josh-build#f34605ea03697ed25f02e4c567568b2b6d41457e
+        subdir: linux-64
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.12.1-h332b0f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libedit-3.1.20250104-pl5321h7949ede_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libev-4.33-hd590300_2.conda
@@ -42,6 +44,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cmake-3.31.5-h0efca9c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/keyutils-1.6.1-h4e544f5_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/krb5-1.21.3-h50a48e9_0.conda
+      - conda: git+https://github.com/ZimmermanGroup/libcint?branch=josh-build#f34605ea03697ed25f02e4c567568b2b6d41457e
+        subdir: linux-aarch64
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcurl-8.12.1-h6702fde_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libedit-3.1.20250104-pl5321h976ea20_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libev-4.33-h31becfc_2.conda
@@ -82,6 +86,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.43-h712a8e2_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libblas-3.9.0-31_h59b9bed_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcblas-3.9.0-31_he106b2a_openblas.conda
+      - conda: git+https://github.com/ZimmermanGroup/libcint?branch=josh-build#f34605ea03697ed25f02e4c567568b2b6d41457e
+        subdir: linux-64
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.12.1-h332b0f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libedit-3.1.20250104-pl5321h7949ede_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libev-4.33-hd590300_2.conda
@@ -135,6 +141,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ld_impl_linux-aarch64-2.43-h80caac9_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libblas-3.9.0-31_h1a9f1db_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcblas-3.9.0-31_hab92f65_openblas.conda
+      - conda: git+https://github.com/ZimmermanGroup/libcint?branch=josh-build#f34605ea03697ed25f02e4c567568b2b6d41457e
+        subdir: linux-aarch64
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcurl-8.12.1-h6702fde_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libedit-3.1.20250104-pl5321h976ea20_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libev-4.33-h31becfc_2.conda
@@ -180,7 +188,7 @@ packages:
   build: hb0f4dca_0
   subdir: linux-64
   input:
-    hash: ce79e9bbfd1398d9f9545a81fdd334fc56c10394feabc5400e79cb25f5bde10c
+    hash: d1b2d74b382ac68dea4f726ea801a38462c99b2f60327fe1ec5be0f328481eb6
     globs:
     - pixi.toml
 - conda: .
@@ -189,7 +197,7 @@ packages:
   build: he8cfe8b_0
   subdir: linux-aarch64
   input:
-    hash: ce79e9bbfd1398d9f9545a81fdd334fc56c10394feabc5400e79cb25f5bde10c
+    hash: d1b2d74b382ac68dea4f726ea801a38462c99b2f60327fe1ec5be0f328481eb6
     globs:
     - pixi.toml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -464,6 +472,24 @@ packages:
   license_family: BSD
   size: 16824
   timestamp: 1740087917500
+- conda: git+https://github.com/ZimmermanGroup/libcint?branch=josh-build#f34605ea03697ed25f02e4c567568b2b6d41457e
+  name: libcint
+  version: 5.3.0
+  build: hbf21a9e_0
+  subdir: linux-64
+  depends:
+  - libstdcxx >=14
+  - libgcc >=14
+  channel: null
+- conda: git+https://github.com/ZimmermanGroup/libcint?branch=josh-build#f34605ea03697ed25f02e4c567568b2b6d41457e
+  name: libcint
+  version: 5.3.0
+  build: hbf21a9e_0
+  subdir: linux-aarch64
+  depends:
+  - libstdcxx >=14
+  - libgcc >=14
+  channel: null
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.12.1-h332b0f4_0.conda
   sha256: 2ebc3039af29269e4cdb858fca36265e5e400c1125a4bcd84ae73a596e0e76ca
   md5: 45e9dc4e7b25e2841deb392be085500e

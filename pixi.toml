@@ -41,6 +41,7 @@ libc = { family="glibc", version="2.17" }
 cmake = ">=3.21.0,<4"
 # libgcc = ">=12,<13"
 SlaterGPU = {path = "."}
+libcint = { git = "https://github.com/ZimmermanGroup/libcint", branch = "josh-build" }
 
 [feature.pytest.dependencies]
 pytest = ">=8.3.3,<9"
