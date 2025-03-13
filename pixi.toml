@@ -43,7 +43,6 @@ cmake = ">=3.21.0,<4"
 SlaterGPU = {path = "."}
 
 [package.host-dependencies]
-# libcint = { git = "https://github.com/ZimmermanGroup/libcint", branch = "josh-build" }
 libcint = "5.3.0.*"
 
 [feature.pytest.dependencies]

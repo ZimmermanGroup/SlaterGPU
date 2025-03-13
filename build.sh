@@ -1,8 +1,5 @@
 set +x
 
-# module unload nvidia-sdk
-# module load nvidia-sdk
-
 cmake --version
 
 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -B $SRC_DIR/../build -S $RECIPE_DIR
