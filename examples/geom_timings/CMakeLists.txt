@@ -8,10 +8,10 @@ target_include_directories(test_geom_timings PRIVATE
 set(TEST_COMP_FLAGS ${CMAKE_CXX_FLAGS})
 if(USE_ACC)
     target_link_options(test_geom_timings PRIVATE 
-        -acc -ta=tesla
+        -acc=gpu
         )
     set(TEST_COMP_FLAGS ${TEST_COMP_FLAGS} 
-        -DUSE_ACC=1 -acc -ta=tesla
+        -DUSE_ACC=1 -acc=gpu
         )
 endif()
 
