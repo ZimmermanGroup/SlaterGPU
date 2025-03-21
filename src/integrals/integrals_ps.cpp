@@ -269,7 +269,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   printf("   after alloc, gpu memory available: %6.3f GB \n",gpumem_2*togb);
 
  #if OMP_PARA
- #pragma omp parallel for schedule(static,1) num_threads(ngpu)
+ #pragma omp parallel for schedule(dynamic,1) num_threads(ngpu)
  #endif
   for (int m=0;m<natoms;m++)
   {
@@ -280,7 +280,6 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
    #endif
     acc_set_device_num(tid,acc_device_nvidia);
 
-    //double Z1 = (double)atno[m];
     double Z1 = atnod[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
     double coordn[6];
@@ -367,7 +366,6 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
    //two-atom ints
     for (int n=m+1;n<natoms;n++)
     {
-      //double Z2 = (double)atno[n];
       double Z2 = atnod[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
@@ -517,7 +515,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
   } //loop m over natoms
 
- #if 0
+ #if 1
   #pragma omp barrier
  //#pragma omp parallel for schedule(static,1) num_threads(ngpu)
   for (int n=0;n<ngpu;n++)
@@ -592,7 +590,16 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
   if (prl>0)
   {
-    printf("  S diagonals accuracy: \n");
+    printf("  S diagonals accuracy: ");
+    double vmin = 1000.;
+    double vmax = -1000.;
+    for (int j=0;j<N;j++)
+    {
+      double v1 = log10(fabs(1.-S[j*N+j])+1.e-16);
+      if (v1<vmin) vmin = v1;
+      if (v1>vmax) vmax = v1;
+    }
+   #if 0
     int nlow = 0;
     for (int j=0;j<N;j++)
     {
@@ -605,6 +612,8 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
     printf("\n");
     if (nlow)
       printf("   WARNING: found %2i low-accuracy diagonal elements \n",nlow);
+   #endif
+    printf("  %5.2f to %5.2f \n",vmin,vmax);
   }
 
  //might as well eliminate errors on diagonal
@@ -747,7 +756,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
   printf("   after alloc, gpu memory available: %6.3f GB \n",gpumem_2*togb);
 
  #if OMP_PARA
- #pragma omp parallel for schedule(static,1) num_threads(ngpu)
+ #pragma omp parallel for schedule(dynamic,1) num_threads(ngpu)
  #endif
   for (int m=0;m<natoms;m++)
   {
@@ -963,7 +972,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
   } //loop m over natoms
 
- #if 0
+ #if 1
   #pragma omp barrier
  //#pragma omp parallel for schedule(static,1) num_threads(ngpu)
   for (int n=0;n<ngpu;n++)
@@ -1122,7 +1131,8 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
     gs6 = 6*gs;
 
     int Nmax = imaxN;
-    double mem0 = gs*7.+1.*nmu*nnu*nphi/nb;
+   //unclear how this total is arrived at (i.e., the extra 2.*gs6 term)
+    double mem0 = gs*7. + 2.*gs6 + 1.*nmu*nnu*nphi/nb;
     double mem1 = 8.*(gs*2.*Nmax + 1.*mem0 + 1.*N2 + 2.*gs6 + 2.*gs);
 
     if (mem1<gpumem)
@@ -1168,7 +1178,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   printf("   after alloc, gpu memory available: %6.3f GB \n",gpumem_2*togb);
 
  #if OMP_PARA
- #pragma omp parallel for schedule(static,1) num_threads(ngpu)
+ #pragma omp parallel for schedule(dynamic,1) num_threads(ngpu)
  #endif
   for (int m=0;m<natoms;m++)
   {
@@ -1342,7 +1352,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
   } //loop m over natoms
 
- #if 0
+ #if 1
   #pragma omp barrier
  //#pragma omp parallel for schedule(static,1) num_threads(ngpu)
   for (int n=0;n<ngpu;n++)
@@ -1745,7 +1755,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
 
  //3c part of pVp integrals
  #if OMP_PARA
- #pragma omp parallel for schedule(static,1) num_threads(ngpu)
+ #pragma omp parallel for schedule(dynamic,1) num_threads(ngpu)
  #endif
   for (int m=0;m<natoms;m++)
   {
@@ -1756,7 +1766,6 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
    #endif
     acc_set_device_num(tid,acc_device_nvidia);
 
-    //double Z1 = atnod[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
     double coordn[9];
     coordn[0] = coordn[1] = coordn[2] = 0.;
@@ -1764,7 +1773,6 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
    //three-atom case
     for (int n=m+1;n<natoms;n++)
     {
-      //double Z2 = atnod[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
 
@@ -1782,7 +1790,6 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
         for (int p=0;p<natoms;p++)
         if (p!=m && p!=n)
         {
-          //double Z3 = (double)atno[p];
           double Z3 = atnod[p];
           double A3 = coords[3*p+0]; double B3 = coords[3*p+1]; double C3 = coords[3*p+2];
           double A13 = A3-A1; double B13 = B3-B1; double C13 = C3-C1;
@@ -1995,12 +2002,13 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   for (int nb=1;nb<nbatch_max;nb++)
   if (nmu%nb==0)
   {
+    //printf("   nb loop: %2i \n",nb);
     gs =(nmu*nnu*nphi)*qos/nb; //2-atom grid size
     gsh =((nmu*nnu*nphi-8)*qos+8*nsg*qosh)/nb; //3-atom grid size
     gs6 = 6*gsh;
 
     int Nmax = iNa;
-    double mem0 = gsh*iN*2. + gsh*7. + 1.*nmu*nnu*nphi/nb + 1.*gs6 + 1.*N2 + 2.*N2a;
+    double mem0 = gsh*iN*2. + gsh*7. + 1.*nmu*nnu*nphi + 1.*gs6 + 1.*N2 + 2.*N2a;
     double mem1 = 8.*(2.*gsh*iN + mem0 + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
 
     if (mem1<gpumem)
@@ -2059,7 +2067,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
  //Coulomb 3c integrals and 3c part of En integrals
  #if OMP_PARA
- #pragma omp parallel for schedule(static,1) num_threads(ngpu)
+ #pragma omp parallel for schedule(dynamic,1) num_threads(ngpu)
  #endif
   for (int m=0;m<natoms;m++)
   {
@@ -2141,8 +2149,11 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
   } //loop m over first atom
 
+  #pragma omp barrier
+  #pragma acc wait
+
  #if OMP_PARA
- #pragma omp parallel for schedule(static,1) num_threads(ngpu)
+ #pragma omp parallel for schedule(dynamic,1) num_threads(ngpu)
  #endif
   for (int m=0;m<natoms;m++)
   {
@@ -2247,7 +2258,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
   } //loop m over natoms
 
- #if 0
+ #if 1
   #pragma omp barrier
  //#pragma omp parallel for schedule(static,1) num_threads(ngpu)
   for (int n=0;n<ngpu;n++)
@@ -2617,22 +2628,47 @@ void reduce_4c_ol1(int tid, int ii1, int ii2, int s5, int s6, int s7, int s8, in
 {
  //integrate second pair of ftns
 
- #pragma acc parallel loop collapse(2) present(valm[0:gs],valn[0:gs],val3[0:iN][0:gs],val4[0:iN][0:gs],tmp[0:M4]) async(tid)
-  for (int i3=s5;i3<s6;i3++)
-  for (int i4=s7;i4<s8;i4++)
+  if (s5!=s7)
   {
-    int ii3 = i3-s5;
-    int ii4 = i4-s7;
+   #pragma acc parallel loop collapse(2) present(valm[0:gs],valn[0:gs],val3[0:iN][0:gs],val4[0:iN][0:gs],tmp[0:M4]) async(tid)
+    for (int i3=s5;i3<s6;i3++)
+    for (int i4=s7;i4<s8;i4++)
+    {
+      int ii3 = i3-s5;
+      int ii4 = i4-s7;
 
-    double* valp = val3[ii3];
-    double* valq = val4[ii4];
+      double* valp = val3[ii3];
+      double* valq = val4[ii4];
 
-    double v1 = 0.;
-   #pragma acc loop reduction(+:v1)
-    for (int j=0;j<gs;j++)
-      v1 += valm[j]*valn[j]*valp[j]*valq[j];
+      double v1 = 0.;
+     #pragma acc loop reduction(+:v1)
+      for (int j=0;j<gs;j++)
+        v1 += valm[j]*valn[j]*valp[j]*valq[j];
 
-    tmp[ii1*M3+ii2*M2+ii3*M+ii4] = v1;
+      tmp[ii1*M3+ii2*M2+ii3*M+ii4] = v1;
+    }
+  }
+  else
+  {
+   #pragma acc parallel loop present(valm[0:gs],valn[0:gs],val3[0:iN][0:gs],val4[0:iN][0:gs],tmp[0:M4]) async(tid)
+    for (int i3=s5;i3<s6;i3++)
+   #pragma acc loop
+    for (int i4=s5;i4<=i3;i4++)
+    {
+      int ii3 = i3-s5;
+      int ii4 = i4-s5;
+
+      double* valp = val3[ii3];
+      double* valq = val4[ii4];
+
+      double v1 = 0.;
+     #pragma acc loop reduction(+:v1)
+      for (int j=0;j<gs;j++)
+        v1 += valm[j]*valn[j]*valp[j]*valq[j];
+
+      tmp[ii1*M3+ii2*M2+ii3*M+ii4] = v1;
+      tmp[ii1*M3+ii2*M2+ii4*M+ii3] = v1;
+    }
   }
 
   return;
@@ -2709,11 +2745,43 @@ void reduce_4c_ol1(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int 
   //#pragma acc wait(tid)
   acc_wait_all();
 
+ //this last assignment may be problematic in parallel.
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s5;i3<s6;i3++)
   for (int i4=s7;i4<s8;i4++)
-    olp[i1*N3+i2*N2+i3*N+i4] = tmp[(i1-s1)*M3+(i2-s3)*M2+(i3-s5)*M+(i4-s7)];
+  {
+    olp[i1*N3+i2*N2+i3*N+i4] += tmp[(i1-s1)*M3+(i2-s3)*M2+(i3-s5)*M+(i4-s7)];
+  }
+
+  return;
+}
+
+void reweight_core(const double beta, int natoms, int* atno, double* coords, int gs, double* grid, double* wt)
+{
+  int gs6 = 6*gs;
+
+  printf("   reweight_core for %i atoms. Z: ",natoms);
+  for (int n=0;n<natoms;n++)
+    printf(" %i",atno[n]);
+  printf("\n");
+
+  for (int n=0;n<natoms;n++)
+  {
+    double alpha = 2.*atno[n];
+    double A1 = coords[3*n+0]; double B1 = coords[3*n+1]; double C1 = coords[3*n+2];
+
+   #pragma acc parallel loop present(grid[0:gs6],wt[0:gs])
+    for (int j=0;j<gs;j++)
+    {
+      double x12 = grid[6*j+0]-A1;
+      double y12 = grid[6*j+1]-B1;
+      double z12 = grid[6*j+2]-C1;
+      double r12 = x12*x12+y12*y12+z12*z12;
+
+      wt[j] *= 1.+beta*exp(-alpha*r12);
+    }
+  }
 
   return;
 }
@@ -2724,6 +2792,9 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
  #if USE_ACC
   ngpu = acc_get_num_devices(acc_device_nvidia);
  #endif
+
+  double rw_core = read_float("CORE4C");
+  if (rw_core<0.) rw_core = 0.;
 
   int N = basis.size();
   int N2 = N*N;
@@ -2753,9 +2824,13 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   int M4 = iN*iN*iN*iN;
 
   int nbatch = 1;
+  //sets a minimum amount of batching
+  int nbatch_read = read_int("NBATCH");
+  if (nbatch_read>1) nbatch = nbatch_read;
+
   int nbatch_max = 24;
   bool passed_mem_check = 0;
-  for (int nb=1;nb<nbatch_max;nb++)
+  for (int nb=nbatch;nb<nbatch_max;nb++)
   if (nmu%nb==0)
   {
     gs = nmu*nnu*nphi*qos/nb;
@@ -2776,6 +2851,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   if (!passed_mem_check) { printf("\n ERROR: could not find a batch size where nb divides nmu \n"); exit(-1); }
 
   if (prl>-1) printf("  beginning compute_4c_ol_ps.  ngpu: %i  nbatch: %2i \n",ngpu,nbatch);
+  //if (ngpu>1) printf("   TESTING parallel 4c_ol_ps \n");
 
 
  //handle dummy atoms with no basis ftns
@@ -2792,7 +2868,9 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   double** valS3 = new double*[iN]; for (int i=0;i<iN;i++) valS3[i] = new double[gshh];
   double** valS4 = new double*[iN]; for (int i=0;i<iN;i++) valS4[i] = new double[gshh];
   double* valt = new double[gshh];
-  double* tmp = new double[M4]; //on gpu
+  double** tmpp = new double*[ngpu];
+  for (int n=0;n<ngpu;n++)
+    tmpp[n] = new double[M4]; //on gpu
   double* olp = new double[N4](); //not on gpu
 
  #if USE_ACC
@@ -2801,6 +2879,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   {
     acc_set_device_num(n,acc_device_nvidia);
 
+    double* tmp = tmpp[n];
     //#pragma acc enter data create(olp[0:N4])
     #pragma acc enter data create(tmp[0:M4])
 
@@ -2817,7 +2896,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   printf("   after alloc, gpu memory available: %6.3f GB \n",gpumem_2*togb);
 
  #if OMP_PARA
- #pragma omp parallel for schedule(static,1) num_threads(ngpu)
+ #pragma omp parallel for schedule(dynamic,1) num_threads(ngpu)
  #endif
   for (int m=0;m<natoms;m++)
   {
@@ -2827,17 +2906,20 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
     int tid = m%ngpu;
    #endif
     acc_set_device_num(tid,acc_device_nvidia);
+    double* tmp = tmpp[tid];
 
     double Z1 = (double)atno[m];
     //double Z1 = atnod[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
     double coordn[12];
     coordn[0] = coordn[1] = coordn[2] = 0.;
+    int atnon[4]; atnon[0] = atno[m];
 
     for (int wb=0;wb<nbatch;wb++)
     {
       generate_ps_quad_grid(tid,1.,wb,nbatch,Z1,1,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
       add_r1_to_grid(tid,gs,grid,0.,0.,0.);
+      if (rw_core>0.) reweight_core(rw_core,1,atnon,coordn,gs,grid,wt);
 
       int sp1 = 0; int sp2 = 0; int sp3 = 0; int sp4 = 0;
       int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
@@ -2860,11 +2942,13 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
+      atnon[1] = atno[n];
 
       for (int wb=0;wb<nbatch;wb++)
       {
         generate_ps_quad_grid(tid,1.,wb,nbatch,0.,2,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
         add_r1_to_grid(tid,gs,grid,0.,0.,0.);
+        if (rw_core>0.) reweight_core(rw_core,2,atnon,coordn,gs,grid,wt);
 
         int sp1 = 0; int sp2 = 0; int sp3 = 0; int sp4 = 0;
         int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
@@ -2917,6 +3001,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
+      atnon[1] = atno[n];
 
       for (int p=n+1;p<natoms;p++)
       if (p!=m)
@@ -2925,6 +3010,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
         double A3 = coords[3*p+0]; double B3 = coords[3*p+1]; double C3 = coords[3*p+2];
         double A13 = A3-A1; double B13 = B3-B1; double C13 = C3-C1;
         coordn[6] = A13; coordn[7] = B13; coordn[8] = C13;
+        atnon[2] = atno[p];
 
         //printf("  mnp: %i %i %i   s12: %2i %2i  s34: %2i %2i  s56: %2i %2i \n",m,n,p,s1,s2,s3,s4,s5,s6);
 
@@ -2939,6 +3025,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
         {
           generate_ps_quad_grid(tid,1.,wb,nbatch,0.,3,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
           add_r1_to_grid(tid,gsh,grid,0.,0.,0.);
+          if (rw_core>0.) reweight_core(rw_core,3,atnon,coordn,gs,grid,wt);
 
           int sp1 = 0; int sp2 = 0; int sp3 = 0; int sp4 = 0;
 
@@ -2989,6 +3076,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
+      atnon[1] = atno[n];
 
       for (int p=n+1;p<natoms;p++)
       if (p!=m)
@@ -2999,17 +3087,20 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
         double A3 = coords[3*p+0]; double B3 = coords[3*p+1]; double C3 = coords[3*p+2];
         double A13 = A3-A1; double B13 = B3-B1; double C13 = C3-C1;
         coordn[6] = A13; coordn[7] = B13; coordn[8] = C13;
+        atnon[2] = atno[p];
 
         double Z4 = (double)atno[q];
         double A4 = coords[3*q+0]; double B4 = coords[3*q+1]; double C4 = coords[3*q+2];
         double A14 = A4-A1; double B14 = B4-B1; double C14 = C4-C1;
         coordn[9] = A14; coordn[10] = B14; coordn[11] = C14;
+        atnon[3] = atno[q];
 
        //CPMZ need to fix this up
         for (int wb=0;wb<nbatch;wb++)
         {
           generate_ps_quad_grid(tid,1.,wb,nbatch,0.,4,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
           add_r1_to_grid(tid,gshh,grid,0.,0.,0.);
+          if (rw_core>0.) reweight_core(rw_core,4,atnon,coordn,gs,grid,wt);
 
         //printf("  mnpq: %i %i %i %i   s12: %2i %2i  s34: %2i %2i  s56: %2i %2i  s78: %2i %2i \n",m,n,p,q,s1,s2,s3,s4,s5,s6,s7,s8);
 
@@ -3037,8 +3128,9 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
 
   } //loop m over natoms
 
- #if 0
   #pragma omp barrier
+
+ #if 1
  //#pragma omp parallel for schedule(static,1) num_threads(ngpu)
   for (int n=0;n<ngpu;n++)
   {
@@ -3090,6 +3182,7 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   {
     acc_set_device_num(n,acc_device_nvidia);
 
+    double* tmp = tmpp[n];
     #pragma acc exit data delete(olp[0:N4])
     #pragma acc exit data delete(tmp[0:M4])
     #pragma acc exit data delete(grid[0:gs6],wt[0:gshh])
@@ -3107,7 +3200,9 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
   for (int i=0;i<iN;i++) delete [] valS4[i];
   delete [] valS1; delete [] valS2; delete [] valS3; delete [] valS4;
   delete [] valt;
-  delete [] tmp;
+  for (int n=0;n<ngpu;n++)
+    delete [] tmpp[n];
+  delete [] tmpp;
   delete [] olp;
 
   delete [] grid;

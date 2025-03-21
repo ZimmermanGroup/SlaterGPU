@@ -14,8 +14,8 @@ void get_h_1s(int gs, float* grid, float* val, float zeta)
     float xy = x*y; float xz = x*z; float yz = y*z;
     float zr = zeta*r; float ozr = 1.f+zr;
 
-   //xx, xy, xz, yy, yz, zz 
-    val[6*i]   *= (-y2-z2+x2*zr)*ezor; 
+   //xx, xy, xz, yy, yz, zz
+    val[6*i]   *= (-y2-z2+x2*zr)*ezor;
     val[6*i+1] *= xy*ozr*ezor;
     val[6*i+2] *= xz*ozr*ezor;
     val[6*i+3] *= (-x2-z2+y2*zr)*ezor;

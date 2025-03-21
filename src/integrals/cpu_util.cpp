@@ -417,7 +417,7 @@ int invert_stable_cpu_3(double* A, int size, double delta, bool root)
 int invert_stable_cpu_2(double* A, int size, double delta)
 {
   if (A==NULL) return -1;
-  if (delta>0.) printf(" using Invert with %12.10f minimum eigenvalue \n",delta);
+  //if (delta>0.) printf(" using Invert with %12.10f minimum eigenvalue \n",delta);
 
   double* B = new double[size*size];
   for (int i=0;i<size*size;i++) B[i] = A[i];
@@ -427,6 +427,7 @@ int invert_stable_cpu_2(double* A, int size, double delta)
   la_diag(size,size,B,Beigen);
 
   double* Bi = new double[size*size];
+  bool* zeroes = new bool[size]();
 
   trans_cpu(Bi,B,size,size);
 
@@ -438,8 +439,9 @@ int invert_stable_cpu_2(double* A, int size, double delta)
   double mineig = 1000.;
   for (int i=0;i<size;i++)
   {
-    if (Beigen[i]<0.)
+    if (Beigen[i]<=0.)
     {
+      zeroes[i] = 1;
       Beigen[i] = 1.e10;
       nf++;
     }
@@ -452,7 +454,7 @@ int invert_stable_cpu_2(double* A, int size, double delta)
     }
     if (Beigen[i]<mineig) mineig = Beigen[i];
   }
-  printf(" found %2i small eigenvalues. lowest: %4.2g \n",nf,mineig);
+  //printf(" found %2i small eigenvalues. lowest: %4.2g \n",nf,mineig);
 
 #if 0
   printf(" B(eigen):");
@@ -461,8 +463,9 @@ int invert_stable_cpu_2(double* A, int size, double delta)
   printf("\n");
 #endif
 
-  for (int i=0;i<size;i++)
   for (int j=0;j<size;j++)
+  if (!zeroes[j])
+  for (int i=0;i<size;i++)
     tmp[i*size+j] += Bi[i*size+j] / Beigen[j];
  //need MM
   for (int i=0;i<size;i++)
@@ -475,6 +478,7 @@ int invert_stable_cpu_2(double* A, int size, double delta)
   delete [] Beigen;
   delete [] Bi;
   delete [] tmp;
+  delete [] zeroes;
 
   return nf;
 }

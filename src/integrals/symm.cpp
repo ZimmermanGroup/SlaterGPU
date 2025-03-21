@@ -416,17 +416,41 @@ bool determine_mo_symmetry(const int point_group, int natoms, int* atno, double*
   {
     if (natoms==2)
       two_atom_d2h = 1;
-    else if (natoms!=4) 
+    else if (natoms==4)
     {
-      printf("  D2h only for 2 or 4 atoms \n");
-      for (int j=0;j<N;j++) symm[j] = 0;
-      return 0;
+    }
+    else if (natoms>4)
+    {
+      //printf("  checking D2h point group. Coords: %9.6f %9.6f %9.6f  %9.6f %9.6f %9.6f \n",coords[0],coords[1],coords[2],coords[3],coords[4],coords[5]);
+      double dthresh = 1.e-6;
+
+      bool two_symm = 0;
+      if (coords[0]+coords[3]<dthresh && fabs(coords[0])>dthresh)
+      {
+        if (coords[1]==0. && coords[4]==0. && coords[2]==0. && coords[5]==0.)
+          two_symm = 1;
+      }
+     //not clear this is usable
+      //else if (coords[1]+coords[4]<dthresh && coords[1]!=0.)
+      //{
+      //  if (coords[0]==0. && coords[3]==0. && coords[2]==0. && coords[5]==0.)
+      //    two_symm = 1;
+      //}
+
+      if (!two_symm)
+      {
+        printf("  D2h only for 2 or 4 atoms \n");
+        for (int j=0;j<N;j++) symm[j] = 0;
+        return 0;
+      }
+
+      two_atom_d2h = 1;
     }
     printf("   using D2h symmetry \n");
     pgs = 10;
 
    //assuming atoms in this order, all in xy plane
-   //  *1        *2  
+   //  *1        *2
    //
    //  *4        *3
    //

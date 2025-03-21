@@ -514,6 +514,7 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
   //printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f  c2: %8.5f \n",cf,c1,rmax,c2);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) //async(tid)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -526,6 +527,7 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
     double coshm = cosh(mu);
     double dmu = mu1-mu0;
 
+   #pragma acc loop independent
     for (int j=0;j<nnu;j++)
     {
       double x20 = j*dnx;
@@ -538,13 +540,11 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
       double nu = 0.5*(nu0+nu1);
       double dnu = nu1 - nu0;
 
-      if (nnu<12) printf("  x2: %8.5f %8.5f  nu: %8.5f %8.5f  nu(m): %8.5f  dnu: %8.5f \n",x20,x21,nu0,nu1,nu,dnu);
-
       double sinn = sin(nu);
       double cosn = cos(nu);
 
       int i1 = i*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) //async(tid)
+     #pragma acc loop independent
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -552,8 +552,6 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
 
         gridm[6*i2+0] = mu; gridm[6*i2+1] = nu; gridm[6*i2+2] = phi;
         gridm[6*i2+3] = dmu; gridm[6*i2+4] = dnu; gridm[6*i2+5] = dphi;
-
-        //if (prl>2) printf("    mu/nu/phi: %8.5f %8.5f %8.5f  wt: %8.5f \n",mu,nu,phi,wt1);
 
       } //loop phi
     } //loop nu
@@ -601,7 +599,7 @@ void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int
   double rmax = a*cosh(c1*atanh(nmu*dx1));
   //printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
-  //double xmax = 0.; double ymax = 0.; double zmax = 0.;
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) async(tid)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -610,22 +608,20 @@ void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int
     double mu1 = c1*atanh(x1);
     double mu = 0.5*(mu1+mu0); //"average" mu value
 
-    double sinhm = sinh(mu);
-    double coshm = cosh(mu);
+    //double sinhm = sinh(mu);
+    //double coshm = cosh(mu);
     double dmu = mu1-mu0;
 
-    //if (i+1==nmu) printf("  x1/0: %8.5f %8.5f  mu/0: %8.5f %8.5f  dmu: %8.5f \n",x1,x0,mu,mu0,dmu);
-    //if (i+1==nmu) printf("    c1: %8.5f  mu/0: %8.5f %8.5f %8.5f \n",c1,mu,mu0,mu1);
-
+   #pragma acc loop independent
     for (int j=0;j<nnu;j++)
     {
       double nu = (j+0.5)*dnu;
 
-      double sinn = sin(nu);
-      double cosn = cos(nu);
+      //double sinn = sin(nu);
+      //double cosn = cos(nu);
 
       int i1 = i*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) async(tid)
+     #pragma acc loop independent
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -633,8 +629,6 @@ void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int
 
         gridm[6*i2+0] = mu; gridm[6*i2+1] = nu; gridm[6*i2+2] = phi;
         gridm[6*i2+3] = dmu; gridm[6*i2+4] = dnu; gridm[6*i2+5] = dphi;
-
-        //if (prl>2) printf("    mu/nu/phi: %8.5f %8.5f %8.5f  wt: %8.5f \n",mu,nu,phi,wt1);
 
       } //loop phi
     } //loop nu
@@ -652,40 +646,6 @@ void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int
   }
  #endif
 
- #if 0
-  if (grid!=NULL && wt!=NULL)
-  for (int j=0;j<gs;j++)
-  {
-    double mu  = gridm[6*j+0];
-    double nu  = gridm[6*j+1];
-    double phi = gridm[6*j+2];
-    double dmu = gridm[6*j+3];
-    double dnu = gridm[6*j+4];
-
-    double sinhm = sinh(mu);
-    double coshm = cosh(mu);
-    double sinn = sin(nu);
-    double cosn = cos(nu);
-
-    double x = a*sinhm*sinn*cos(phi);
-    double y = a*sinhm*sinn*sin(phi);
-    double z = a*coshm*cosn;
-
-    double wt1 = a3*ps_dV(mu-0.5*dmu,mu+0.5*dmu,nu-0.5*dnu,nu+0.5*dnu) * dphi;
-
-    //if (x>xmax) xmax = x;
-    //if (y>ymax) ymax = y;
-    //if (z>zmax) zmax = z;
-
-    grid[6*j+0] = x;
-    grid[6*j+1] = y;
-    grid[6*j+2] = z-a;
-    wt[j] = wt1;
-  }
-
-  //if (prl>1) printf("  xyz max: %9.5f %9.5f %9.5f \n",xmax,ymax,zmax);
- #endif
-
   return;
 }
 
@@ -694,7 +654,7 @@ void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu,
   if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
   if (nphi<3) { printf(" ERROR: initialize_ps_coords_phi with nphi<3 \n"); exit(-1); }
 
-  printf("  testing initialize_ps_coords_2c_phi \n");
+  //printf("  testing initialize_ps_coords_2c_phi \n");
 
   double c0 = get_c0(a,nmu,cf,RMAX);
   const double c1 = c0;
@@ -763,6 +723,7 @@ void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu,
   printf("\n init_ps_coords. a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",a,nmu,nnu,nphi,dnu,dphi,dx1);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs],phia[0:nphi],phiad[0:nphi]) async(tid)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -775,9 +736,7 @@ void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu,
     double coshm = cosh(mu);
     double dmu = mu1-mu0;
 
-    //printf("  x1/0: %8.5f %8.5f  mu/0: %8.5f %8.5f  dmu: %8.5f \n",x1,x0,mu,mu0,dmu);
-    //if (i+1==nmu) printf("  mu/0: %8.5f %8.5f \n",mu,mu0);
-
+   #pragma acc loop independent
     for (int j=0;j<nnu;j++)
     {
       double nu = (j+0.5)*dnu;
@@ -786,7 +745,7 @@ void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu,
       double cosn = cos(nu);
 
       int i1 = i*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs],phia[0:nphi],phiad[0:nphi]) async(tid)
+     #pragma acc loop independent
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -1249,8 +1208,8 @@ void initialize_ps_coords_3c(int tid, double cf, int nmu, int nnu, int nphi, dou
 
   } //acc serial section
 
-  #pragma acc update device(gridm[0:gs6])
-  //#pragma acc exit data delete(tmp[0:6]) async(tid)
+ //CPMZ check this
+  //#pragma acc update device(gridm[0:gs6])
 
  //order munuphi so third atom is "first"
   {
@@ -2013,6 +1972,8 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
   cfn = get_cfn_3c(ztm1,ztm2,nmu,coordn);
  #endif
 
+  //printf("  in generate_ps_quad_grid_3c_refine \n");
+
   int qo = quad_order;
   int qoh = quad_r_order;
 
@@ -2046,7 +2007,9 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
   double* gridq = new double[gsq6];
   double* gridm = new double[gs6];
 
+  //printf("   about to allocate gridq \n");
   #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6]) async(tid)
+  //printf("   after allocate gridq \n");
 
   double rot[9];
   #pragma acc enter data create(rot[0:9]) async(tid)
@@ -2063,6 +2026,7 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
   {
     get_3c_position(coordn,rot);
     #pragma acc update device(rot[0:9]) async(tid)
+    #pragma acc wait
 
     double A3 = coordn[6]; double B3 = coordn[7]; double C3 = coordn[8];
 
@@ -2150,6 +2114,8 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   if (nb>1 && natoms>2) printf(" TESTING: batching for 3c systems \n");
   if (wb>=nb) { printf("\n ERROR: wb cannot be larger than nb \n"); exit(-1); }
 
+  //printf("  in generate_ps_quad_grid \n"); fflush(stdout);
+
   int qo = quad_order;
   int qoh = quad_r_order;
   //qoh = quad_order;
@@ -2168,6 +2134,7 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   get_quad(qo,Qz);
 
   #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid)
+  #pragma acc wait
 
   int gs = nmu*nnu*nphi;
   int gsq = qos*gs;
@@ -2176,11 +2143,12 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
     gsq = (gs-nqa*8)*qos+nqa*8*qosh;
 
   if (natoms<=2 && nmu%nb>0) { printf("\n ERROR: batch must divide nmu \n"); exit(-1); }
-  if (natoms>2 && nb>1) { printf("\n ERROR: cannot use batching here when natoms>2 \n"); exit(-1); }
+  //if (natoms>2 && nb>1) { printf("\n ERROR: cannot use batching here when natoms>2 \n"); exit(-1); }
   if (gs%nb>0) { printf("\n ERROR: batch must divide gs \n"); exit(-1); }
   if (gsq%nb>0) { printf("\n ERROR: batch must divide gsq \n"); exit(-1); }
 
-  gs /= nb;
+  if (natoms<3)
+    gs /= nb;
   gsq /= nb;
   int gs6 = 6*gs;
   int gsq6 = 6*gsq;
@@ -2191,7 +2159,9 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   double* gridq = new double[gsq6];
   double* gridm = new double[gs6];
 
+  //printf("    about to allocate gridq \n");
   #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6]) async(tid)
+  //printf("    after allocate gridq \n");
 
   double rot[9];
   #pragma acc enter data create(rot[0:9]) async(tid)
@@ -2234,6 +2204,7 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   {
     get_2c_position(coordn,rot);
     #pragma acc update device(rot[0:9]) async(tid)
+    #pragma acc wait
 
     initialize_ps_coords_batch(tid,wb,nb,z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
     //initialize_ps_coords_2c(z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
@@ -2246,6 +2217,7 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   {
     get_3c_position(coordn,rot);
     #pragma acc update device(rot[0:9]) async(tid)
+    #pragma acc wait
 
     initialize_ps_coords_3c(tid,cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
 
@@ -2264,11 +2236,12 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   }
   else if (natoms==4)
   {
-    if (nb>1) { printf("\n ERROR: shouldn't be here (4-atom grid) with nbatch>1 \n"); exit(-1); }
+    if (nb>1) { printf("\n WARNING: testing 4-atom grid with nbatch>1 \n"); }
 
    //first rotation matrix that takes three atoms into xz plane
     get_4c_position(coordn,rot);
     #pragma acc update device(rot[0:9]) async(tid)
+    #pragma acc wait
 
     //initialize_ps_coords_3c(cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
     initialize_ps_coords_4c(tid,cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);

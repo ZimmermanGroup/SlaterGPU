@@ -1765,7 +1765,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
   int gsa3 = 3*gsa;
   int gsa6 = 6*gsa;
 
-  int tid = 0; //no multi-gpu parallel
+  int tid = -1; //no multi-gpu parallel
 
   int nang = gsa/nrad;
   #include "jsetup.cpp"
@@ -3093,7 +3093,7 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
     exit(1);
   }
 
-  int tid = 0; //no multi-gpu parallel
+  int tid = -1; //no multi-gpu parallel
 
   int nang = gs/nrad;
   #include "jsetup.cpp"

@@ -1355,7 +1355,6 @@ void get_3c_position(double* coordn, double* rot)
     rot[k*3+j] = r1;
   }
 
- //CPMZ check?
   //#pragma acc update self(rot[0:9])
 
   if (prl>0)

@@ -584,10 +584,46 @@ void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int
 
   if (order==2)
   {
-
     if (Rc<1.e-9) { printf(" ERROR: invalid Rc in compute_Vr_jellium \n"); Rc = 1.; }
     printf("  compute_Vr_jellium  order: %i  Ne: %2i  Zg/ztg: %8.5f %8.5f  Rc: %8.5f  gs12: %4i %4i \n",order,Ne,Zg,ztg,Rc,gs1,gs2);
 
+  //using standard Jellium, though these two possibilities have merit
+   #if 0
+   //which potential type to use
+    #define VR2 1
+
+    double a = 10./Rc;
+    double c1 = -Ne;
+
+   //strength of attraction potential
+   #if VR2
+    double c2 = c1*a/6.;
+   #else
+    double c2 = c1*a/8.;
+   #endif
+
+    printf("  WARNING: testing new jellium potential a/c1/c2: %8.5f %8.5f %8.5f \n",a,c1,c2);
+
+   #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
+    for (int j=0;j<gs;j++)
+    {
+      double r = grid[6*j+3];
+      double ar = a*r;
+     #if VR2
+     //(1+ar+a2r2/3)
+      double num = a*(3.+ar*(3.-ar));
+      double den = 18. + 6.*ar*(3.+ar);
+     #else
+     //(1+ar+2a2r2/5+a3r3/15)
+      double num = a*(9.+ar*(9.+ar*(2.-ar)));
+      double den = 4.*(30.+2.*ar*(15.+ar*(6.+ar)));
+     #endif
+      Vr[j] = c1*num/den + c2;
+    }
+   #endif
+
+   #if 1
+   //standard Jellium (quadratic then 1/r)
     //double c1 = -0.5*Ne/Rc;
     //double c2 = Rc*Rc;
     double c1 = -(1.*Ne)/order/Rc;
@@ -609,6 +645,7 @@ void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int
       double r = grid[6*j+3];
       Vr[j] = c4/r;
     }
+   #endif
 
   }
   else if (order==1 || order==4) //SS_V4 and SS_V5

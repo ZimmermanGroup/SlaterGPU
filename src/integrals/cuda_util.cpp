@@ -627,7 +627,7 @@ void diagonalize_cusolver(int N, float* A, float* Ae, cusolverDnHandle_t& cu_hdl
 
  #pragma acc host_data use_device(A,Ae,work,info)
   cusolverDnSsyevd(cu_hdl,jobz,uplo,N,A,N,Ae,work,Lwork,info);
- 
+
   cudaDeviceSynchronize();
 
  #pragma acc exit data delete(work[0:Lwork],info[0:1])
@@ -668,6 +668,8 @@ void diagonalize_cusolver(int Ne, int N, double* A, double* Ae, cusolverDnHandle
  #pragma acc host_data use_device(A,Ae)
   cusolverDnDsyevdx_bufferSize(cu_hdl,jobz,rtype,uplo,N,A,N,vl,vu,il,iu,&nf,Ae,&Lwork);
 
+  //printf(" Lwork: %2i \n",Lwork);
+
   int* info = new int[1];
   double* work = new double[Lwork];
   #pragma acc enter data create(work[0:Lwork],info[0:1])
@@ -676,12 +678,16 @@ void diagonalize_cusolver(int Ne, int N, double* A, double* Ae, cusolverDnHandle
   cusolverDnDsyevdx(cu_hdl,jobz,rtype,uplo,N,A,N,vl,vu,il,iu,&nf,Ae,work,Lwork,info);
   //cusolverDnDsyevd(cu_hdl,jobz,uplo,N,A,N,Ae,work,Lwork,info);
 
+  //printf("  after syevdx \n");
+
   cudaDeviceSynchronize();
 
  #pragma acc exit data delete(work[0:Lwork],info[0:1])
 
 #if 0
-  #pragma acc update self(A[0:N*N],Ae[0:N])
+  #pragma acc update self(A[0:N*N])
+  printf("  here update \n");
+  #pragma acc update self(Ae[0:N])
   printf("  eigenvalues: ");
   for (int i=0;i<N;i++)
     printf(" %6.3f",Ae[i]);

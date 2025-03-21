@@ -1608,7 +1608,7 @@ void get_7im6d(int tid, int gs, double* grid, double* val, double zeta)
 {
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
   for (int i=0;i<gs;i++)
-  { 
+  {
     double x = grid[6*i];
     double y = grid[6*i+1];
     double r = grid[6*i+3];
@@ -1616,7 +1616,7 @@ void get_7im6d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x;
     double y2 = y*y;
     double xy = x*y;
- 
+
     val[i] *= xy*(3.*x2*x2 - 10.*x2*y2 + 3.*y2*y2) * ezr;
   }
 }
@@ -1854,11 +1854,11 @@ void get_8jm6d(int tid, int gs, double* grid, double* val, double zeta)
     double z = grid[6*i+2];
     double r = grid[6*i+3];
     double ezr = exp(-zeta*r);
-    double x2 = x*x; 
-    double y2 = y*y; 
+    double x2 = x*x;
+    double y2 = y*y;
     double xyz = x*y*z;
 
-    val[i] *= xyz * (3.*x2*x2 - 10.*x2*y2 + 3.*y2*y2) * ezr; 
+    val[i] *= xyz * (3.*x2*x2 - 10.*x2*y2 + 3.*y2*y2) * ezr;
   }
 }
 
@@ -2027,12 +2027,12 @@ void get_8jp4d(int tid, int gs, double* grid, double* val, double zeta)
     double z = grid[6*i+2];
     double r = grid[6*i+3];
     double ezr = exp(-zeta*r);
-    double x2 = x*x; 
-    double y2 = y*y; 
-    double z2 = z*z; 
-    double r2 = r*r; 
+    double x2 = x*x;
+    double y2 = y*y;
+    double z2 = z*z;
+    double r2 = r*r;
 
-    val[i] *= (x2*x2 - 6.*x2*y2 + y2*y2) * z * (-3.*r2 + 13.*z2) * ezr; 
+    val[i] *= (x2*x2 - 6.*x2*y2 + y2*y2) * z * (-3.*r2 + 13.*z2) * ezr;
   }
 }
 
@@ -2051,7 +2051,7 @@ void get_8jp5d(int tid, int gs, double* grid, double* val, double zeta)
     double z2 = z*z;
     double r2 = r*r;
 
-    val[i] *= y*(5.*x2*x2 - 10.*x2*y2 + y2*y2) * (r2 - 13.*z2) * ezr;     
+    val[i] *= y*(5.*x2*x2 - 10.*x2*y2 + y2*y2) * (r2 - 13.*z2) * ezr;
   }
 }
 
