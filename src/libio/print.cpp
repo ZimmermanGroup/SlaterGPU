@@ -354,6 +354,11 @@ void print_dft_vals(int natoms, int gs, double* grid, double* rho, double* drho,
 {
   double minz = 1.e-6;
   if (scirep) minz = 1.e-12;
+  printf("  print_dft_vals. zpos: %i \n",zpos);
+
+  //int nprg = 2;
+  //if (nrad>100) nprg = 3;
+  //if (nrad>500) nprg = 5;
 
   if (ei!=NULL)
   {

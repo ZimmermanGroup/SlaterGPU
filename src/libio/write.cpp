@@ -461,7 +461,7 @@ void write_molden_ss(int natoms, int* atno, double* coords, vector<vector<double
   return;
 }
 
-void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname)
+void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname)
 {
   if (basis[0].size()>10) return write_molden_ss(natoms,atno,coords,basis,jCA,No,fname);
   if (gbasis) return write_molden_g(natoms,atno,coords,basis,jCA,No,fname);
@@ -585,7 +585,7 @@ void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vec
     int occ = 0; if (i<No) occ = 1;
 
     outfile << "Sym=X" << endl;
-    outfile << "Ene=0.0" << endl;
+    outfile << "Ene=" << eig[i] << endl;
     outfile << "Spin=Alpha" << endl;
     outfile << "Occup=" << occ << endl;
 
@@ -631,6 +631,15 @@ void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vec
   outfile.close();
 
   return;
+}
+
+void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname)
+{
+  int N = basis.size();
+  double eig[N];
+  for (int i=0;i<N;i++)
+    eig[i] = 0.;
+  return write_molden(gbasis,natoms,atno,coords,basis,jCA,No,eig,fname);
 }
 
 #if 0
@@ -886,6 +895,48 @@ void write_double(double val, string filename)
   return;
 }
 
+void save_xyzv(int size1, int size2, double* vals, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(12);
+
+  for (int j=0;j<size1;j++)
+  {
+    double* val1 = &vals[size2*j];
+    for (int k=0;k<size2-1;k++)
+      outfile << val1[k] << ",";
+    outfile << val1[size2-1] << endl;
+  }
+
+  outfile.close();
+
+  return;
+}
+
+void save_xyzv(vector<vector<double> >& vals, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(12);
+
+  for (int j=0;j<vals.size();j++)
+  {
+    vector<double> val1 = vals[j];
+    int nv = val1.size();
+
+    for (int k=0;k<nv-1;k++)
+      outfile << val1[k] << ",";
+    outfile << val1[nv-1] << endl;
+  }
+
+  outfile.close();
+
+  return;
+}
+
 void save_dft_exc(int save_type, double thresh, int natoms, int nrad, int nang, double* grid, double* rho, double* exc, string filename)
 {
  //cannot yet use thresh/rho to select pts to print
@@ -1061,8 +1112,9 @@ void save_dft_vals(bool save_type, double thresh, int natoms, int nrad, int nang
   return save_dft_vals(save_type,thresh,natoms,nrad,nang,grid,rho,drho,Td,epsi,vc,zpos,filename);
 }
 
-void write_grid(int wc, int nrad, int nang, double* grid, double* wt)
+void write_grid(int natoms, int nrad, int nang, double* grid, double* wt)
 {
+  int gs = nrad*nang;
   string filename = "GRID_WTS";
   ofstream outfile;
   outfile.open(filename.c_str());
@@ -1070,15 +1122,19 @@ void write_grid(int wc, int nrad, int nang, double* grid, double* wt)
   outfile << fixed << setprecision(10);
 
   outfile << filename << ":" << endl;
-  for (int i=0;i<nrad;i++)
+  for (int n=0;n<natoms;n++)
   {
-    for (int j=0;j<nang;j++)
+    int i0 = n*gs;
+    for (int i=0;i<nrad;i++)
     {
-      int i1 = i*nang+j;
-      string line = "r: " + SSTRF(grid[wc*i1+3]) + " xyz: ";
-      line += " " + SSTRF(grid[wc*i1+0]) + " " + SSTRF(grid[wc*i1+1]) + " " + SSTRF(grid[wc*i1+2]);
-      line += " wt: " + SSTRF(wt[i1]);
-      outfile << line << endl;
+      for (int j=0;j<nang;j++)
+      {
+        int i1 = i0 + i*nang+j;
+        string line = "r: " + SSTRF(grid[6*i1+3]) + " xyz: ";
+        line += " " + SSTRF(grid[6*i1+0]) + " " + SSTRF(grid[6*i1+1]) + " " + SSTRF(grid[6*i1+2]);
+        line += " wt: " + SSTRF(wt[i1]);
+        outfile << line << endl;
+      }
     }
   }
 
@@ -1221,6 +1277,32 @@ void write_square(int N, float* A, string fname, int prl)
   return;
 }
 
+void write_rect(int N2, int Naux, double* C, string filename)
+{
+  printf("  writing %s to file \n",filename.c_str());
+
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  double thresh = 1.e-15;
+  outfile << fixed << setprecision(16);
+
+  outfile << filename << endl;
+  for (int i=0;i<N2;i++)
+  {
+    string line = "";
+    for (int j=0;j<Naux;j++)
+    if (fabs(C[i*Naux+j])>thresh)
+      line += " " + SSTRF2(C[i*Naux+j]);
+    else
+      line += " 0.0";
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+
 void write_C(int Naux, int N2, float* C)
 {
   printf("  writing C to file \n");
@@ -1342,13 +1424,13 @@ void write_Col(int Naux, int N2, double* C)
 void write_S_En_T(int N, float* S, float* En, float* T)
 {
   printf("  writing S/En/T to file \n");
-   
+
   string filename = "SENT";
   ofstream outfile;
   outfile.open(filename.c_str());
-    
+
   outfile << fixed << setprecision(10);
- 
+
   outfile << "S:" << endl;
   for (int i=0;i<N;i++)
   {
