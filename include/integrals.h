@@ -124,7 +124,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* pVp, int prl);
 void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* pVp, int prl);
 void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl);
-void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> >& basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl);
+void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> >& basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl);
 void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl);
 /////////////////////////////////////////
 
@@ -159,11 +159,13 @@ void eliminate_small_wt(int s1, int size, float* wt1);
 void eliminate_small_wt_3(int s1, int size, float* wt1, float* wt2, float* wt3);
 void recenter_grid_zero(int gs, float* grid, float x2, float y2, float z2);
 void recenter_grid_zero(int gs, double* grid, double x2, double y2, double z2);
+void recenter_grid_zero(int tid, int gs, double* grid, double x2, double y2, double z2);
 void recenter_grid(int gs, float* grid, float x2, float y2, float z2);
 void recenter_grid(int gs, double* grid, double x2, double y2, double z2);
 
 void add_r1_to_grid(int gs, float* grid1, float A2, float B2, float C2);
 void add_r1_to_grid(int gs, double* grid1, double A2, double B2, double C2);
+void add_r1_to_grid(int tid, int gs, double* grid1, double A2, double B2, double C2);
 void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2);
 void add_r2_to_grid(int gs, double* grid1, double A2, double B2, double C2);
 void add_r3_to_grid(int gs, float* grid1, float A3, float B3, float C3);
@@ -201,10 +203,10 @@ void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2);
 void add_r3_to_grid(int gs, float* grid1, float A3, float B3, float C3);
 void rgrid_one_atom(int nrad, int Z1, float* r1);
 void generate_central_grid_3d(int m, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
-void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
-void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
-void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
-void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
+void generate_central_grid_2d(int tid, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
+void generate_central_grid_2d(int tid, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
+void generate_central_grid_2d(int tid, int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
+void generate_central_grid_2d(int tid, int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
 void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w);
 void generate_central_grid(float* grid1, float* wt1, float* val1, int need_inr, float Z1, int n1, int l1, float zeta1, int nrad, int nang, float* ang_g, float* ang_w);
 void transpose_C(int Naux, int N, float* C);

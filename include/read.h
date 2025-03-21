@@ -78,8 +78,10 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, double* A);
 int read_gridpts(int s1, int s2, float* A, string filename);
 int read_gridpts(int s1, int s2, double* A, string filename);
 int read_square_check(int N, double* Pao, string filename);
-int read_square(int N, double* Pao, string filename);
+int read_square(int N, int M, double** A, string filename);
+int read_square(int N, double* A, string filename);
 int read_square(vector<vector<double> > basis, double* Pao, string filename);
+int read_rect(int N, int M, double* C, string filename);
 
 bool check_PS();
 

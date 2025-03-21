@@ -36,10 +36,10 @@ void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int
 void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, double* grid, double* Vr);
 void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, float* grid, double* Vr);
 
-void compute_C_jellium(double Rc, vector<vector<double> > basis, vector<vector<double> > basis_aux, int nrad, int nang,
+void compute_C_jellium(bool slater, double Rc, vector<vector<double> > basis, vector<vector<double> > basis_aux, int nrad, int nang,
                        double* ang_g, double* ang_w, double* C);
 
-void compute_4c_ol_jellium(double Rc, vector<vector<double> > basis,
+void compute_4c_ol_jellium(bool slater, double Rc, vector<vector<double> > basis,
          int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl);
 
 //overlap.cpp:
@@ -47,6 +47,6 @@ void orthonormalize_mos(int Nn, int N, double* S, double* jCA);
 //soicas.cpp:
 void fix_ortho_cpu(int N, double* jCA, double* S);
 
-void symmetrize_MOs(int N1, vector<vector<double> > basis, double* jCA, double* S);
+void symmetrize_MOs(int natoms, int N1, vector<vector<double> > basis, double* jCA, double* S);
 
 #endif

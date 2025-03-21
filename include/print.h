@@ -6,10 +6,12 @@
 #include <stdlib.h>
 #include <math.h>
 #include <vector>
+#include <string>
 
 #include <omp.h>
 
 using std::vector;
+using std::string;
 
 #define A2B 1.8897261
 
@@ -40,10 +42,12 @@ void print_rdm(int M, double* rdm);
 void print_rdm(int M, float* rdm);
 void print_vec(int gsa, float* grid, float* vxc);
 void print_vec(int gsa, float* grid, double* vxc);
+void print_vec(int gsa, double* grid, double* vxc);
+void print_vec_fine(int gsa, double* grid, double* vxc);
 void print_vec(int gsa, float* grid, float* A, float* B);
 void print_vec(int gsa, float* grid, double* A, double* B);
 
-void print_dft_vals(int natoms, int gs, double* grid, double* rho, double* drho, double* Td, double* vc, int zpos, bool scirep);
+void print_dft_vals(int natoms, int gs, double* grid, double* rho, double* drho, double* Td, double* ei, double* vc, int zpos, bool scirep);
 void print_vc(int natoms, int gs, float* grid, float* rho, float* vc, int mode);
 void print_vc(int natoms, int gs, float* grid, double* rho, double* vc, int mode);
 void print_vc_shift(int natoms, int gs, double* grid, float* rho, double* vc, int mode);
@@ -54,6 +58,9 @@ void print_vc(int natoms, int gs, float* grid, float* rho, double* vc, int mode)
 void print_vc_shift(int natoms, int gs, float* grid, float* rho, float* vc, int mode);
 void print_vc_shift(int natoms, int gs, float* grid, float* rho, double* vc, int mode);
 void print_vc_shift(int natoms, int gs, float* grid, double* rho, float* vc, int mode);
+void print_vxc(int nrad, int nang, int natoms, float* grid, double* vxc, string name);
+void print_vxc(int nrad, int nang, int natoms, double* grid, double* vxc, string name);
+void print_vxc(int nrad, int nang, int natoms, float* grid, float* vxcf, string name);
 void print_vxc(int nrad, int nang, int natoms, float* grid, double* vxc);
 void print_vxc(int nrad, int nang, int natoms, double* grid, double* vxc);
 void print_vxc(int nrad, int nang, int natoms, float* grid, float* vxcf);

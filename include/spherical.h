@@ -33,9 +33,9 @@ void eval_sgs(int tid, int gs1, int gs2, float* gridf, float* val, int n1, int l
 void eval_sgs_ked(int tid, int gs1, int gs2, double* grid, double* val, int n1, int l1, int m1, double zeta1, double Rc);
 
 //Linear combination of Slaters
-void eval_ssd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, double zeta1);
-void eval_ssd(int tid, int gs, float* gridf, double* val, int n1, int l1, int m1, double zeta1);
-void eval_ss(int tid, int gs, float* grid, float* val, int n1, int l1, int m1, double zeta1);
-void eval_ss_ked(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, double zeta1);
+void eval_ssd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, double zeta1, double Rc);
+void eval_ssd(int tid, int gs, float* gridf, double* val, int n1, int l1, int m1, double zeta1, double Rc);
+void eval_ss(int tid, int gs, float* grid, float* val, int n1, int l1, int m1, double zeta1, double Rc);
+void eval_ss_ked(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, double zeta1, double Rc);
 
 #endif
