@@ -28,6 +28,11 @@ description = "Test SlaterGPU executable on a small molecular system"
 cwd = "examples/geom_1"
 cmd = "/export/SLURM/default/bin/srun -p zim2080 -N1 -n1 -c2 --gpus=1 sgpu.exe && cd .. && pytest"
 
+[feature.pytest.tasks.test-gauss-basis]
+description = "Test SlaterGPU executable including libcint on H2 with Gaussian basis"
+cwd = "examples/h2_gaussian_basis"
+cmd = "/export/SLURM/default/bin/srun -p zim2080 -N1 -n1 -c2 --gpus=1 sgpu.exe"
+
 [feature.pytest.tasks.test-in-gh-action]
 description = "Test SlaterGPU executable on a small molecular system in a github actions environment"
 cwd = "examples/geom_1"
