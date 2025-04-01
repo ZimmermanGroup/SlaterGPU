@@ -61,14 +61,12 @@ There are example calculations in `SlaterGPU/examples/` with integral files deno
 
 Please see LICENSE file for licensing information.
 
-## Experimental pixi build for athena:
-Run tasks with `pixi run <TASK>` where \<TASK\> is one of the following:
+## Experimental pixi build:
+Pixi should automatically install whatever dependencies are necessary to run a pixi task (except NVHPC, which cannot yet be installed automatically). Run tasks with `pixi run <TASK>` where \<TASK\> is one of the following:
 ```
- - build           Invoke cmake to compile and link the executable
- - clean           Delete build directory
- - configure-athena Invoke cmake to create build directory with build configuration
- - start-athena    Configure, build, and test on the Zimmerman group cluster
+ - clean           Remove example output files
  - test            Test SlaterGPU executable on a small molecular system
+ - test-in-gh-action Test SlaterGPU executable on a small molecular system in a github actions environment
 ```
 Above list generated with `pixi task list`
 
