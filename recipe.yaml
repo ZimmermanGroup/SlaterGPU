@@ -1,0 +1,19 @@
+context:
+  version: "0.1.0"
+
+package:
+  name: SlaterGPU
+  version: ${{ version }}
+
+source:
+  path: src
+
+build:
+  number: 0
+
+requirements:
+  # build:
+  host:
+    - libcint =5.3.0
+  run:
+    - libcint =5.3.0

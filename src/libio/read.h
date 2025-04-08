@@ -18,9 +18,8 @@ using namespace std;
 
 //#define A2B 1.8897261
 
-#define SSTRF( x ) ( ( static_cast<std::ostringstream&>(std::ostringstream() << std::fixed << std::setprecision(8) << std::scientific << (x)) ).str() )
-#define SSTRF2( x ) ( ( static_cast<std::ostringstream&>(std::ostringstream() << std::fixed << std::setprecision(14) << std::scientific << (x)) ).str() )
-
+string SSTRF(float x);
+string SSTRF2(double x);
 
 vector<string> split1(const string &s, char delim);
 

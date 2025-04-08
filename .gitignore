@@ -10,6 +10,17 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 build*
+!build.sh
+examples/geom_*/A
+examples/geom_*/Ciap
+examples/geom_*/g
+examples/geom_*/pVp
+examples/geom_*/SENT
+/examples/__pycache__
 # pixi environments
 .pixi
 *.egg-info
+# .git folder for rattler-build's sake
+.git
+rattler-build/output
+*.conda

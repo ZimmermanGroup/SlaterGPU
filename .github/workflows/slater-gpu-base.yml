@@ -1,0 +1,45 @@
+name: SlaterGPU Base
+
+on: [workflow_call]
+
+jobs:
+  build:
+    runs-on: gpu
+    
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: prefix-dev/setup-pixi@v0.8.3
+      with:
+        pixi-version: v0.41.4
+        log-level: v
+        run-install: false
+        # cache: true
+      continue-on-error: true
+    - uses: actions/checkout@v4
+    
+    # Cache NVHPC installation
+    - name: Cache NVHPC
+      id: cache-nvhpc
+      uses: actions/cache@v3
+      with:
+        path: |
+          /home/runner/work/Linux_x86_64
+          /home/runner/work/modulefiles
+        key: nvhpc-25.1-cuda-12.6-v1-${{ runner.os }}
+        
+    - name: Install nvhpc
+      run: |
+        source .github/workflows/install_nvhpc.sh
+      env:
+        CACHE_HIT: ${{ steps.cache-nvhpc.outputs.cache-hit }}
+      continue-on-error: true
+      
+    - name: Install and test SlaterGPU
+      run: |
+        source ~/.pixi/envs/environment-modules/init/bash
+        module load ~/work/modulefiles/nvhpc/25.1
+        module list
+        pixi install
+        pixi run test-in-gh-action

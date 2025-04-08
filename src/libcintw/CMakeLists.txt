@@ -23,7 +23,11 @@ target_compile_options(cintw PRIVATE ${CINTW_COMP_FLAGS})
 target_include_directories(cintw PRIVATE
     "${LIBCINT_PATH}/include"
     "$ENV{BLAS_INCLUDE_DIR}"
+    "$ENV{PREFIX}/include" # include pixi dependencies
     )
-target_link_libraries(cintw PRIVATE
-    "${LIBCINT_PATH}/lib64/libcint.so.5.3.0" 
-    )
+
+# Uncomment this block if you want to link against a manually built libcint
+# outside of pixi
+# target_link_libraries(cintw PRIVATE
+#     "${LIBCINT_PATH}/lib64/libcint.so.5.3.0" 
+#     )
