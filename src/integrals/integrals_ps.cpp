@@ -8,7 +8,7 @@
 //original 4c_ol function now partitioned at significant increased cost
 
 //add collapse to initializations (done)
-
+//Vk edit 1
 void auto_crash();
 
 
@@ -74,6 +74,47 @@ void reduce_3cenp(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int 
   return;
 }
 
+//flattened reduce_3cenp overloaded to accept double *
+
+void reduce_3cenp(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs,
+                  double* grid, double* valS1, double* valS2, double* valt, double* wt, double* pVp1)
+{
+  int gs3 = 3 * gs;
+  int gs6 = 6 * gs;
+  int N2 = N * N;
+
+  // Compute valt
+  #pragma acc parallel loop present(grid[0:gs6], wt[0:gs], valt[0:gs])
+  for (int j = 0; j < gs; j++) {
+    double R = grid[6 * j + 3];
+    valt[j] = -Z3 / R * wt[j];
+  }
+
+  // Contract with flattened valS1/valS2
+  #pragma acc parallel loop collapse(2) present(valS1[0:iN*gs3], valS2[0:iN*gs3], valt[0:gs], pVp1[0:N2])
+  for (int i1 = s1; i1 < s2; i1++)
+  for (int i2 = s3; i2 < s4; i2++) {
+    int ii1 = i1 - s1;
+    int ii2 = i2 - s3;
+
+    double* valm = &valS1[ii1 * gs3];
+    double* valn = &valS2[ii2 * gs3];
+
+    double val = 0.0;
+    #pragma acc loop reduction(+:val)
+    for (int j = 0; j < gs; j++) {
+      double dp = valm[3 * j + 0] * valn[3 * j + 0] +
+                  valm[3 * j + 1] * valn[3 * j + 1] +
+                  valm[3 * j + 2] * valn[3 * j + 2];
+      val += dp * valt[j];
+    }
+
+    pVp1[i1 * N + i2] += val;
+  }
+}
+
+
+
 void reduce_3cenp_v2(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs0, int qos, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* pVp1)
 {
   return reduce_3cenp(Z3,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp1);
@@ -125,6 +166,50 @@ void reduce_3cenp_v2(double Z3, int s1, int s2, int s3, int s4, int N, int iN, i
 
   return;
 }
+
+//overloaded and flattened
+void reduce_3cen(double Z3, int s1, int s2, int s3, int s4,
+                 int N, int iN, int gs, double* grid,
+                 double* valS1, double* valS2, double* valt,
+                 double* wt, double* En1)
+{
+  int gs6 = 6 * gs;
+  int N2 = N * N;
+
+  if (wt == nullptr) {
+    #pragma acc parallel loop present(grid[0:gs6], valt[0:gs])
+    for (int j = 0; j < gs; j++) {
+      double R = grid[6 * j + 3];
+      valt[j] = -Z3 / R;
+    }
+  } else {
+    #pragma acc parallel loop present(grid[0:gs6], wt[0:gs], valt[0:gs])
+    for (int j = 0; j < gs; j++) {
+      double R = grid[6 * j + 3];
+      valt[j] = -Z3 / R * wt[j];
+    }
+  }
+
+  #pragma acc parallel loop collapse(2) present(valS1[0:iN * gs], valS2[0:iN * gs], valt[0:gs], En1[0:N2])
+  for (int i1 = s1; i1 < s2; i1++) {
+    for (int i2 = s3; i2 < s4; i2++) {
+      int ii1 = i1 - s1;
+      int ii2 = i2 - s3;
+
+      double val = 0.0;
+
+      #pragma acc loop reduction(+:val)
+      for (int j = 0; j < gs; j++) {
+        val += valS1[ii1 * gs + j] * valS2[ii2 * gs + j] * valt[j];
+      }
+
+      En1[i1 * N + i2] += val;
+    }
+  }
+
+  return;
+}
+
 
 void reduce_3cen(double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs, double* grid, double** valS1, double** valS2, double* valt, double* wt, double* En1)
 {
@@ -184,6 +269,31 @@ void init_s12nw(int s1, int s2, int s3, int s4, int iN, int gs, double** valS1, 
       valS2[ii1][j] = 1.;
   }
 }
+
+// Overloaded init_s12nw for flat double* arrays
+void init_s12nw(int s1, int s2, int s3, int s4, int iN, int gs, double* valS1, double* valS2)
+{
+  // Initialize valS1 block (flattened)
+  #pragma acc parallel loop collapse(2) present(valS1[0:iN * gs])
+  for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+  {
+    for (int j = 0; j < gs; j++)
+    {
+      valS1[ii1 * gs + j] = 1.0;
+    }
+  }
+
+  // Initialize valS2 block (flattened)
+  #pragma acc parallel loop collapse(2) present(valS2[0:iN * gs])
+  for (int ii2 = 0; ii2 < s4 - s3; ii2++)
+  {
+    for (int j = 0; j < gs; j++)
+    {
+      valS2[ii2 * gs + j] = 1.0;
+    }
+  }
+} // END init_s12nw (flat)
+
 
 void eval_s12(int s1, int s2, int s3, int s4, vector<vector<double> >& basis, int iN, int gs, double* grid, double** valS1, double** valS2)
 {
@@ -716,6 +826,8 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   return;
 }
 
+/////TESTING NEEDED
+
 void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* pVp, int prl)
 {
  //barely tested
@@ -772,6 +884,906 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
   if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
 
+/*
+The following tries flattening 2D arrays.
+*/
+
+//Double * starts here VK final check
+
+
+  vector<vector<int> > n2ip;
+  int imaxN = get_imax_n2ip(Nmax, natoms, N, basis, n2ip);
+  if (prl > 1) printf("   imaxN: %2i \n", imaxN);
+
+  double gpumem_gb = gpumem / 1024. / 1024. / 1024.;
+  printf("   gpu memory available: %6.3f GB \n", gpumem_gb);
+
+  // intermediate storage
+  int iN = imaxN;
+  double* valS1 = new double[iN * gs3];
+  double* valS2 = new double[iN * gs3];
+  double* valt  = new double[gs];
+
+  #if USE_ACC
+  for (int n = 0; n < nomp; n++)
+  {
+    int tid = n;
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    #pragma acc enter data create(pVp[0:N2])
+    #pragma acc enter data create(grid[0:gs6], wt[0:gs])
+    #pragma acc enter data create(valS1[0:iN * gs3], valS2[0:iN * gs3])
+    #pragma acc enter data create(valt[0:gs])
+
+    acc_assign(N2, pVp, 0.);
+  }
+  acc_set_device_num(0, acc_device_nvidia);
+  #endif
+
+  double gpumem_2 = 1. * acc_get_property(0, acc_device_nvidia, acc_property_free_memory);
+  printf("   after alloc, gpu memory available: %6.3f GB \n", gpumem_2 * togb);
+  printf("\n Double * Problematic zone starts\n");
+
+  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
+  for (int m = 0; m < natoms; m++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    double Z1 = atnod[m];
+    double A1 = coords[3 * m + 0]; double B1 = coords[3 * m + 1]; double C1 = coords[3 * m + 2];
+    double coordn[6] = {0.};
+
+    generate_ps_quad_grid(Z1, 1, coordn, quad_order, quad_order, nmu, nnu, nphi, grid, wt);
+    add_r1_to_grid(gs, grid, 0., 0., 0.);
+
+    for (int sp1 = 0; sp1 < n2ip[m].size() - 1; sp1++)
+    for (int sp2 = sp1; sp2 < n2ip[m].size() - 1; sp2++)
+    {
+      int s1 = n2ip[m][sp1];     int s2 = n2ip[m][sp1 + 1];
+      int s3 = n2ip[m][sp2];     int s4 = n2ip[m][sp2 + 1];
+
+      #pragma acc parallel loop present(valS1[0:iN * gs3])
+      for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS1[ii1 * gs3 + j] = 1.;
+      }
+
+      #pragma acc parallel loop present(valS2[0:iN * gs3])
+      for (int ii1 = 0; ii1 < s4 - s3; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS2[ii1 * gs3 + j] = 1.;
+      }
+
+      // evaluate valS1
+      for (int i1 = s1; i1 < s2; i1++)
+      {
+        int ii1 = i1 - s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, &valS1[ii1 * gs3], n1, l1, m1, zeta1);
+      }
+
+      // evaluate valS2
+      for (int i2 = s3; i2 < s4; i2++)
+      {
+        int ii2 = i2 - s3;
+        vector<double> basis1 = basis[i2];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, &valS2[ii2 * gs3], n1, l1, m1, zeta1);
+      }
+
+      #pragma acc wait
+
+      reduce_3cenp(Z1, s1, s2, s3, s4, N, iN, gs, grid, valS1, valS2, valt, wt, pVp);
+    }
+
+//NEWER needs fixing to support double *
+
+//two-atom ints
+    for (int n=m+1;n<natoms;n++)
+    {
+      double Z2 = atnod[n];
+      double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
+      double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
+      coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
+
+     //pull this out of loop later on
+      generate_ps_quad_grid(0.,2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
+      add_r1_to_grid(gs,grid,0.,0.,0.);
+
+     //basis functions on each center
+      for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
+      for (int sp2=0;sp2<n2ip[n].size()-1;sp2++)
+      {
+        int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
+        int s3 = n2ip[n][sp2]; int s4 = n2ip[n][sp2+1];
+
+        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2);
+
+        for (int i1=s1;i1<s2;i1++)
+        {
+          int ii1 = i1-s1;
+
+          vector<double> basis1 = basis[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+  
+         //p
+          //eval_pd(gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+	        eval_pd(gs, grid, &valS1[ii1 * gs3], n1, l1, m1, zeta1);
+        }
+
+       //second center
+        recenter_grid_zero(gs,grid,-A12,-B12,-C12);
+
+        for (int i2=s3;i2<s4;i2++)
+        {
+          int ii2 = i2-s3;
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+         //p
+          //eval_pd(gs,grid,valS2[ii2],n2,l2,m2,zeta2);
+          eval_pd(gs, grid, &valS2[ii2 * gs3], n2, l2, m2, zeta2);
+        }
+
+       ///////////////////////////////////////////////////////////////////
+       //electron-nuclear attraction centers 1+2
+
+        reduce_3cenp(Z2,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        recenter_grid_zero(gs,grid,A12,B12,C12);
+        reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        ////////////////////////////////////////////////////////////////////
+
+      } //loop sp over s14
+
+     //basis functions on center 1
+      for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
+      for (int sp2=sp1;sp2<n2ip[m].size()-1;sp2++)
+      {
+        int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
+        int s3 = n2ip[m][sp2]; int s4 = n2ip[m][sp2+1];
+
+        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2);
+
+        for (int i1=s1;i1<s2;i1++)
+        {
+          int ii1 = i1-s1;
+
+          vector<double> basis1 = basis[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+  
+         //p
+          //eval_pd(gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+          eval_pd(gs, grid, &valS1[ii1 * gs3], n1, l1, m1, zeta1);
+        }
+
+        for (int i2=s3;i2<s4;i2++)
+        {
+          int ii2 = i2-s3;
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+         //p
+          //eval_pd(gs,grid,valS2[ii2],n2,l2,m2,zeta2);
+          eval_pd(gs, grid, &valS2[ii2 * gs3], n2, l2, m2, zeta2);
+        }
+
+       //second center
+        recenter_grid_zero(gs,grid,-A12,-B12,-C12);
+
+       ///////////////////////////////////////////////////////////////////
+       //electron-nuclear attraction center 2
+        reduce_3cenp(Z2,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        ////////////////////////////////////////////////////////////////////
+
+        recenter_grid_zero(gs,grid,A12,B12,C12);
+
+      } //loop sp over s14
+
+     //basis functions on center 2
+      for (int sp1=0;sp1<n2ip[n].size()-1;sp1++)
+      for (int sp2=0;sp2<n2ip[n].size()-1;sp2++)
+      {
+        int s1 = n2ip[n][sp1]; int s2 = n2ip[n][sp1+1];
+        int s3 = n2ip[n][sp2]; int s4 = n2ip[n][sp2+1];
+
+        init_s12nw(s1,s2,s3,s4,iN,gs3,valS1,valS2);
+
+       //second center
+        recenter_grid_zero(gs,grid,-A12,-B12,-C12);
+
+        for (int i1=s1;i1<s2;i1++)
+        {
+          int ii1 = i1-s1;
+
+          vector<double> basis1 = basis[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+  
+         //p
+          //eval_pd(gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+          eval_pd(gs, grid, &valS1[ii1 * gs3], n1, l1, m1, zeta1);
+        }
+
+        for (int i2=s3;i2<s4;i2++)
+        {
+          int ii2 = i2-s3;
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+         //p
+          //eval_pd(gs,grid,valS2[ii2],n2,l2,m2,zeta2);
+          eval_pd(gs, grid, &valS2[ii2 * gs3], n2, l2, m2, zeta2);
+        }
+
+        recenter_grid_zero(gs,grid,A12,B12,C12);
+
+       ///////////////////////////////////////////////////////////////////
+       //electron-nuclear attraction center 1
+        reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+        ////////////////////////////////////////////////////////////////////
+
+      } //loop sp over s14
+
+    } //loop n over second atom
+
+  } //loop m over natoms
+  acc_set_device_num(0,acc_device_nvidia);
+
+  if (nomp>1)
+  {
+   //gather parallel fragments
+    double pVpt[N2];
+    for (int j=0;j<N2;j++)
+      pVpt[j] = 0.;
+
+    for (int n=0;n<nomp;n++)
+    {
+      int tid = n;
+      acc_set_device_num(tid,acc_device_nvidia);
+
+      #pragma acc update self(pVp[0:N2])
+
+      for (int j=0;j<N2;j++)
+        pVpt[j] += pVp[j];
+    }
+
+    for (int j=0;j<N2;j++)
+      pVp[j] = pVpt[j];
+
+    acc_set_device_num(0,acc_device_nvidia);
+    #pragma acc update device(pVp[0:N2])
+  }
+
+  double norm[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+  #pragma acc enter data copyin(norm[0:N])
+
+  #pragma acc parallel loop collapse(2) independent present(pVp[0:N2],norm[0:N])
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norm[i]*norm[j];
+    pVp[i*N+j] *= n12;
+  }
+  #pragma acc exit data delete(norm[0:N])
+
+ //symmetrize wrt ij
+ #pragma acc parallel loop independent present(pVp[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=i+1;j<N;j++)
+  {
+    pVp[j*N+i] = pVp[i*N+j];
+  }
+
+  #pragma acc update self(pVp[0:N2])
+
+  if (prl>1)
+  {
+    printf("\n pVp (2c): \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %12.6f",pVp[i*N+j]);
+      printf("\n");
+    }
+  }
+
+ #if USE_ACC
+ //#pragma omp parallel for schedule(static) num_threads(nomp)
+  for (int n=0;n<nomp;n++)
+  {
+    int tid = n;
+    acc_set_device_num(tid,acc_device_nvidia);
+
+    #pragma acc exit data delete(pVp[0:N2])
+    #pragma acc exit data delete(grid[0:gs6], wt[0:gs])
+    #pragma acc exit data delete(valS1[0:iN * gs3], valS2[0:iN * gs3])
+    #pragma acc exit data delete(valt[0:gs])
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+ #endif
+
+
+  delete [] valS1; delete [] valS2;
+  delete [] valt;
+
+  delete [] grid;
+  delete [] wt;
+
+  printf("\nYippiii!\n");
+
+  return;
+
+}
+
+////END
+
+/*
+void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* pVp, int prl)
+{
+ //barely tested
+  if (prl>-1) printf("  beginning compute_pVp_ps \n");
+
+  int nomp_max = 1;
+ #pragma omp parallel
+  nomp_max = omp_get_num_threads();
+  
+  int ngpu = 0;
+ #if USE_ACC
+  ngpu = acc_get_num_devices(acc_device_nvidia);
+  int nomp = ngpu;
+ #else
+  int nomp = nomp_max;
+ #endif
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double atnod[natoms];
+  get_atnod(natoms,basis,atnod);
+
+  int qos = quad_order*quad_order*quad_order;
+  int gs0 = nmu*nnu*nphi;
+  int gs = gs0*qos;
+  int gs3 = 3*gs;
+  int gs6 = 6*gs;
+
+ //handle dummy atoms with no basis ftns
+  natoms = get_natoms_with_basis(natoms,atno,basis);
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+
+  double gpumem = (double)acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
+  double togb = 1./1024./1024./1024.;
+
+ //this calculation not accurate yet
+  int Nmax = 150;
+  double mem0 = gs*7.+1.*nmu*nnu*nphi;
+  while (Nmax>0)
+  {
+    //double mem1 = 8.*(gs*6.*Nmax + 1.*mem0);
+    double mem1 = 8.*(mem0 + 1.*N2 + 3.*gs6 + 2.*gs + 2.*Nmax*gs3);
+    if (mem1<gpumem)
+    {
+      if (prl>1) printf("    mem0: %5.3f mem1: %5.3f \n",mem0*togb,mem1*togb);
+      break;
+    }
+    Nmax--;
+  }
+
+
+  if (Nmax<=0) { printf("\n ERROR: couldn't calculate gpu memory requirements \n"); exit(-1); }
+
+
+
+//Double * starts here VK final check
+
+
+
+#if 1
+
+  vector<vector<int> > n2ip;
+  int imaxN = get_imax_n2ip(Nmax, natoms, N, basis, n2ip);
+  if (prl > 1) printf("   imaxN: %2i \n", imaxN);
+
+  double gpumem_gb = gpumem / 1024. / 1024. / 1024.;
+  printf("   gpu memory available: %6.3f GB \n", gpumem_gb);
+
+  // intermediate storage
+  int iN = imaxN;
+  double* valS1 = new double[iN * gs3];
+  double* valS2 = new double[iN * gs3];
+  double* valt  = new double[gs];
+
+  #if USE_ACC
+  for (int n = 0; n < nomp; n++)
+  {
+    int tid = n;
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    #pragma acc enter data create(pVp[0:N2])
+    #pragma acc enter data create(grid[0:gs6], wt[0:gs])
+    #pragma acc enter data create(valS1[0:iN * gs3], valS2[0:iN * gs3])
+    #pragma acc enter data create(valt[0:gs])
+
+    acc_assign(N2, pVp, 0.);
+  }
+  acc_set_device_num(0, acc_device_nvidia);
+  #endif
+
+  double gpumem_2 = 1. * acc_get_property(0, acc_device_nvidia, acc_property_free_memory);
+  printf("   after alloc, gpu memory available: %6.3f GB \n", gpumem_2 * togb);
+  printf("\n Double * Problematic zone starts\n");
+
+  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
+  for (int m = 0; m < natoms; m++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    double Z1 = atnod[m];
+    double A1 = coords[3 * m + 0]; double B1 = coords[3 * m + 1]; double C1 = coords[3 * m + 2];
+    double coordn[6] = {0.};
+
+    generate_ps_quad_grid(Z1, 1, coordn, quad_order, quad_order, nmu, nnu, nphi, grid, wt);
+    add_r1_to_grid(gs, grid, 0., 0., 0.);
+
+    for (int sp1 = 0; sp1 < n2ip[m].size() - 1; sp1++)
+    for (int sp2 = sp1; sp2 < n2ip[m].size() - 1; sp2++)
+    {
+      int s1 = n2ip[m][sp1];     int s2 = n2ip[m][sp1 + 1];
+      int s3 = n2ip[m][sp2];     int s4 = n2ip[m][sp2 + 1];
+
+      #pragma acc parallel loop present(valS1[0:iN * gs3])
+      for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS1[ii1 * gs3 + j] = 1.;
+      }
+
+      #pragma acc parallel loop present(valS2[0:iN * gs3])
+      for (int ii1 = 0; ii1 < s4 - s3; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS2[ii1 * gs3 + j] = 1.;
+      }
+
+      // evaluate valS1
+      for (int i1 = s1; i1 < s2; i1++)
+      {
+        int ii1 = i1 - s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, &valS1[ii1 * gs3], n1, l1, m1, zeta1);
+      }
+
+      // evaluate valS2
+      for (int i2 = s3; i2 < s4; i2++)
+      {
+        int ii2 = i2 - s3;
+        vector<double> basis1 = basis[i2];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, &valS2[ii2 * gs3], n1, l1, m1, zeta1);
+      }
+
+      #pragma acc wait
+
+      reduce_3cenp(Z1, s1, s2, s3, s4, N, iN, gs, grid, valS1, valS2, valt, wt, pVp);
+    }
+  }
+
+  printf("\n Double * Problematic zone ends\n");
+
+  // GPU cleanup
+  #if USE_ACC
+  #pragma acc exit data delete(pVp[0:N2])
+  #pragma acc exit data delete(grid[0:gs6], wt[0:gs])
+  #pragma acc exit data delete(valS1[0:iN * gs3], valS2[0:iN * gs3])
+  #pragma acc exit data delete(valt[0:gs])
+  #endif
+
+  // CPU cleanup
+  delete[] valS1;
+  delete[] valS2;
+  delete[] valt;
+
+  exit(0);
+
+#endif
+
+}
+
+*/
+
+//Double * ends here VK final check
+
+//Double ** starts here VK final check
+
+/*
+
+#if 1
+
+  vector<vector<int> > n2ip;
+  int imaxN = get_imax_n2ip(Nmax, natoms, N, basis, n2ip);
+  if (prl > 1) printf("   imaxN: %2i \n", imaxN);
+
+  double gpumem_gb = gpumem / 1024. / 1024. / 1024.;
+  printf("   gpu memory available: %6.3f GB \n", gpumem_gb);
+
+  // intermediate storage
+  int iN = imaxN;
+  double** valS1 = new double*[iN]; for (int i = 0; i < iN; i++) valS1[i] = new double[gs3];
+  double** valS2 = new double*[iN]; for (int i = 0; i < iN; i++) valS2[i] = new double[gs3];
+  double* valt  = new double[gs];
+
+  #if USE_ACC
+  for (int n = 0; n < nomp; n++)
+  {
+    int tid = n;
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    #pragma acc enter data create(pVp[0:N2])
+    #pragma acc enter data create(grid[0:gs6], wt[0:gs])
+    #pragma acc enter data create(valS1[0:iN][0:gs3], valS2[0:iN][0:gs3])
+    #pragma acc enter data create(valt[0:gs])
+
+    acc_assign(N2, pVp, 0.);
+  }
+  acc_set_device_num(0, acc_device_nvidia);
+  #endif
+
+  double gpumem_2 = 1. * acc_get_property(0, acc_device_nvidia, acc_property_free_memory);
+  printf("   after alloc, gpu memory available: %6.3f GB \n", gpumem_2 * togb);
+  printf("\n Double ** Problematic zone starts\n");
+
+  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
+  for (int m = 0; m < natoms; m++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    double Z1 = atnod[m];
+    double A1 = coords[3 * m + 0]; double B1 = coords[3 * m + 1]; double C1 = coords[3 * m + 2];
+    double coordn[6] = {0.};
+
+    generate_ps_quad_grid(Z1, 1, coordn, quad_order, quad_order, nmu, nnu, nphi, grid, wt);
+    add_r1_to_grid(gs, grid, 0., 0., 0.);
+
+    for (int sp1 = 0; sp1 < n2ip[m].size() - 1; sp1++)
+    for (int sp2 = sp1; sp2 < n2ip[m].size() - 1; sp2++)
+    {
+      int s1 = n2ip[m][sp1];     int s2 = n2ip[m][sp1 + 1];
+      int s3 = n2ip[m][sp2];     int s4 = n2ip[m][sp2 + 1];
+
+      #pragma acc parallel loop present(valS1[0:iN][0:gs3])
+      for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS1[ii1][j] = 1.;
+      }
+
+      #pragma acc parallel loop present(valS2[0:iN][0:gs3])
+      for (int ii1 = 0; ii1 < s4 - s3; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS2[ii1][j] = 1.;
+      }
+
+      // evaluate valS1
+      for (int i1 = s1; i1 < s2; i1++)
+      {
+        int ii1 = i1 - s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, valS1[ii1], n1, l1, m1, zeta1);
+      }
+
+      // evaluate valS2
+      for (int i2 = s3; i2 < s4; i2++)
+      {
+        int ii2 = i2 - s3;
+        vector<double> basis1 = basis[i2];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, valS2[ii2], n1, l1, m1, zeta1);
+      }
+
+      #pragma acc wait
+
+      // reduce_3cenp(Z1, s1, s2, s3, s4, N, iN, gs, grid, valS1, valS2, valt, wt, pVp);
+    }
+  }
+
+  printf("\n Double ** Problematic zone ends\n");
+
+  // GPU cleanup
+  #if USE_ACC
+  #pragma acc exit data delete(pVp[0:N2])
+  #pragma acc exit data delete(grid[0:gs6], wt[0:gs])
+  #pragma acc exit data delete(valS1[0:iN][0:gs3], valS2[0:iN][0:gs3])
+  #pragma acc exit data delete(valt[0:gs])
+  #endif
+
+  // CPU cleanup
+  for (int i = 0; i < iN; i++) {
+    delete[] valS1[i];
+    delete[] valS2[i];
+  }
+  delete[] valS1;
+  delete[] valS2;
+  delete[] valt;
+
+  exit(0);  // clean exit
+
+#endif
+
+}
+
+*/
+
+//Double ** ends here VK final check
+
+
+
+
+//OLD CHECKS
+
+
+//Double * starts VK edit
+
+/*
+
+#if 1
+
+  vector<vector<int> > n2ip;
+  int imaxN = get_imax_n2ip(Nmax, natoms, N, basis, n2ip);
+  if (prl > 1) printf("   imaxN: %2i \n", imaxN);
+
+  double gpumem_gb = gpumem / 1024. / 1024. / 1024.;
+  printf("   gpu memory available: %6.3f GB \n", gpumem_gb);
+
+  // intermediate storage
+  int iN = imaxN;
+  double* valS1 = new double[iN * gs3];
+  double* valS2 = new double[iN * gs3];
+  double* valt  = new double[gs];
+
+  #if USE_ACC
+  for (int n = 0; n < nomp; n++)
+  {
+    int tid = n;
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    #pragma acc enter data create(pVp[0:N2])
+    #pragma acc enter data create(grid[0:gs6], wt[0:gs])
+    #pragma acc enter data create(valS1[0:iN * gs3], valS2[0:iN * gs3])
+    #pragma acc enter data create(valt[0:gs])
+
+    acc_assign(N2, pVp, 0.);
+  }
+  acc_set_device_num(0, acc_device_nvidia);
+  #endif
+
+  double gpumem_2 = 1. * acc_get_property(0, acc_device_nvidia, acc_property_free_memory);
+  printf("   after alloc, gpu memory available: %6.3f GB \n", gpumem_2 * togb);
+
+  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
+  for (int m = 0; m < natoms; m++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    double Z1 = atnod[m];
+    double A1 = coords[3 * m + 0]; double B1 = coords[3 * m + 1]; double C1 = coords[3 * m + 2];
+    double coordn[6] = {0.};
+
+    generate_ps_quad_grid(Z1, 1, coordn, quad_order, quad_order, nmu, nnu, nphi, grid, wt);
+    add_r1_to_grid(gs, grid, 0., 0., 0.);
+
+    printf("\n Double * Problematic zone starts");
+
+    for (int sp1 = 0; sp1 < n2ip[m].size() - 1; sp1++)
+    for (int sp2 = sp1; sp2 < n2ip[m].size() - 1; sp2++)
+    {
+      int s1 = n2ip[m][sp1];     int s2 = n2ip[m][sp1 + 1];
+      int s3 = n2ip[m][sp2];     int s4 = n2ip[m][sp2 + 1];
+
+      #pragma acc parallel loop present(valS1[0:iN * gs3])
+      for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS1[ii1 * gs3 + j] = 1.;
+      }
+
+      #pragma acc parallel loop present(valS2[0:iN * gs3])
+      for (int ii1 = 0; ii1 < s4 - s3; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS2[ii1 * gs3 + j] = 1.;
+      }
+
+      // evaluate valS1
+      for (int i1 = s1; i1 < s2; i1++)
+      {
+        int ii1 = i1 - s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, &valS1[ii1 * gs3], n1, l1, m1, zeta1);
+      }
+
+      // evaluate valS2
+      for (int i2 = s3; i2 < s4; i2++)
+      {
+        int ii2 = i2 - s3;
+        vector<double> basis1 = basis[i2];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, &valS2[ii2 * gs3], n1, l1, m1, zeta1);
+      }
+
+      #pragma acc wait
+
+      //electron-nuclear attraction 
+      // reduce_3cenp(Z1, s1, s2, s3, s4, N, iN, gs, grid, valS1, valS2, valt, wt, pVp);
+    }
+
+    printf("\n Double * Problematic zone ends");
+    exit(-1);
+  }
+}
+#endif
+
+*/
+
+//Double * ends VK edit
+
+//Double ** starts VK edit
+
+/*
+
+#if 1
+
+  vector<vector<int> > n2ip;
+  int imaxN = get_imax_n2ip(Nmax, natoms, N, basis, n2ip);
+  if (prl > 1) printf("   imaxN: %2i \n", imaxN);
+
+  double gpumem_gb = gpumem / 1024. / 1024. / 1024.;
+  printf("   gpu memory available: %6.3f GB \n", gpumem_gb);
+
+  // intermediate storage
+  int iN = imaxN;
+  double** valS1 = new double*[iN]; for (int i = 0; i < iN; i++) valS1[i] = new double[gs3];
+  double** valS2 = new double*[iN]; for (int i = 0; i < iN; i++) valS2[i] = new double[gs3];
+  double* valt  = new double[gs];
+
+  #if USE_ACC
+  for (int n = 0; n < nomp; n++)
+  {
+    int tid = n;
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    #pragma acc enter data create(pVp[0:N2])
+    #pragma acc enter data create(grid[0:gs6], wt[0:gs])
+    #pragma acc enter data create(valS1[0:iN][0:gs3], valS2[0:iN][0:gs3])
+    #pragma acc enter data create(valt[0:gs])
+
+    acc_assign(N2, pVp, 0.);
+  }
+  acc_set_device_num(0, acc_device_nvidia);
+  #endif
+
+  double gpumem_2 = 1. * acc_get_property(0, acc_device_nvidia, acc_property_free_memory);
+  printf("   after alloc, gpu memory available: %6.3f GB \n", gpumem_2 * togb);
+
+  #pragma omp parallel for schedule(dynamic) num_threads(nomp)
+  for (int m = 0; m < natoms; m++)
+  {
+    int tid = omp_get_thread_num();
+    acc_set_device_num(tid, acc_device_nvidia);
+
+    double Z1 = atnod[m];
+    double A1 = coords[3 * m + 0]; double B1 = coords[3 * m + 1]; double C1 = coords[3 * m + 2];
+    double coordn[6] = {0.};
+
+    generate_ps_quad_grid(Z1, 1, coordn, quad_order, quad_order, nmu, nnu, nphi, grid, wt);
+    add_r1_to_grid(gs, grid, 0., 0., 0.);
+
+    printf("\n Double ** Problematic zone starts");
+
+    for (int sp1 = 0; sp1 < n2ip[m].size() - 1; sp1++)
+    for (int sp2 = sp1; sp2 < n2ip[m].size() - 1; sp2++)
+    {
+      int s1 = n2ip[m][sp1];     int s2 = n2ip[m][sp1 + 1];
+      int s3 = n2ip[m][sp2];     int s4 = n2ip[m][sp2 + 1];
+
+      #pragma acc parallel loop present(valS1[0:iN][0:gs3])
+      for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS1[ii1][j] = 1.;
+      }
+
+      #pragma acc parallel loop present(valS2[0:iN][0:gs3])
+      for (int ii1 = 0; ii1 < s4 - s3; ii1++)
+      {
+        #pragma acc loop
+        for (int j = 0; j < gs3; j++)
+          valS2[ii1][j] = 1.;
+      }
+
+      // evaluate valS1
+      for (int i1 = s1; i1 < s2; i1++)
+      {
+        int ii1 = i1 - s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, valS1[ii1], n1, l1, m1, zeta1);
+      }
+
+      // evaluate valS2
+      for (int i2 = s3; i2 < s4; i2++)
+      {
+        int ii2 = i2 - s3;
+        vector<double> basis1 = basis[i2];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2];
+        double zeta1 = basis1[3];
+
+        eval_pd(gs, grid, valS2[ii2], n1, l1, m1, zeta1);
+      }
+
+      #pragma acc wait
+
+      //electron-nuclear attraction 
+      // reduce_3cenp(Z1, s1, s2, s3, s4, N, iN, gs, grid, valS1, valS2, valt, wt, pVp);
+    }
+
+    printf("\n Double ** Problematic zone ends");
+    exit(-1);
+  }
+}
+
+#endif
+
+*/
+
+//Double ** ends VK edit
+
+
+/////////END/////////
+
+
+/*
   vector<vector<int> > n2ip;
   int imaxN = get_imax_n2ip(Nmax,natoms,N,basis,n2ip);
   if (prl>1)printf("   imaxN: %2i \n",imaxN);
@@ -819,7 +1831,7 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
     generate_ps_quad_grid(Z1,1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
     add_r1_to_grid(gs,grid,0.,0.,0.);
-
+    printf("\n Problematic zone starts");
     //j>i
     for (int sp1=0;sp1<n2ip[m].size()-1;sp1++)
     for (int sp2=sp1;sp2<n2ip[m].size()-1;sp2++)
@@ -870,10 +1882,12 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
      /////////////////////////////////////////////////////////////////////
      //electron-nuclear attraction
-      reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);
+      //reduce_3cenp(Z1,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,pVp);   VK tests
      /////////////////////////////////////////////////////////////////////
 
     } //loop sp over s12
+    printf("\n Problematic zone ends");
+    exit(-1);
 
    //two-atom ints
     for (int n=m+1;n<natoms;n++)
@@ -1106,6 +2120,8 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
   return;
 }
 
+*/
+
 void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl)
 {
   if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_2c_ps \n"); }
@@ -1199,6 +2215,269 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   double gpumem_gb = gpumem/1024./1024./1024.;
   printf("   gpu memory available: %6.3f GB \n",gpumem_gb);
 
+//New code
+ //intermediate storage
+  int iN = imaxN;
+  double* valS1 = new double[iN * gs];
+  double* valV2 = new double[iN * gs];
+
+
+ #if USE_ACC
+ #pragma omp parallel for schedule(static) num_threads(nomp)
+  for (int n=0;n<nomp;n++)
+  {
+    int tid = n;
+    acc_set_device_num(tid,acc_device_nvidia);
+
+    #pragma acc enter data create(A[0:N2])
+    #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
+
+    #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+    #pragma acc enter data create(valS1[0:iN * gs], valV2[0:iN * gs])
+
+
+    acc_assign(N2,A,0.);
+  }
+  acc_set_device_num(0,acc_device_nvidia);
+ #endif
+
+  double gpumem_2 = 1.*acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
+  printf("   after alloc, gpu memory available: %6.3f GB \n",gpumem_2*togb); 
+
+ #pragma omp parallel for schedule(dynamic) num_threads(nomp)
+for (int m = 0; m < natoms; m++) {
+  int tid = omp_get_thread_num();
+  acc_set_device_num(tid, acc_device_nvidia);
+
+  double Z1 = (double)atno[m];
+  double A1 = coords[3 * m + 0];
+  double B1 = coords[3 * m + 1];
+  double C1 = coords[3 * m + 2];
+  double coordn[6] = {0.};
+
+  generate_ps_quad_grid(cfn, Z1, 1, coordn, quad_order, quad_order, nmu, nnu, nphi, grid, wt);
+  add_r1_to_grid(gs, grid, 0., 0., 0.);
+
+  for (int sp1 = 0; sp1 < n2ip[m].size() - 1; sp1++)
+  for (int sp2 = sp1; sp2 < n2ip[m].size() - 1; sp2++) {
+    int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1 + 1];
+    int s3 = n2ip[m][sp2]; int s4 = n2ip[m][sp2 + 1];
+
+    if (dy) {
+      #pragma acc parallel loop collapse(2) present(valS1[0:iN * gs], wt[0:gs])
+      for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+      for (int j = 0; j < gs; j++)
+        valS1[ii1 * gs + j] = wt[j];
+
+      #pragma acc parallel loop collapse(2) present(valV2[0:iN * gs])
+      for (int ii2 = 0; ii2 < s4 - s3; ii2++)
+      for (int j = 0; j < gs; j++)
+        valV2[ii2 * gs + j] = 0.;
+    } else {
+      #pragma acc parallel loop collapse(2) present(valS1[0:iN * gs])
+      for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+      for (int j = 0; j < gs; j++)
+        valS1[ii1 * gs + j] = 1.;
+
+      #pragma acc parallel loop collapse(2) present(valV2[0:iN * gs], wt[0:gs])
+      for (int ii2 = 0; ii2 < s4 - s3; ii2++)
+      for (int j = 0; j < gs; j++)
+        valV2[ii2 * gs + j] = wt[j];
+    }
+
+    for (int i1 = s1; i1 < s2; i1++) {
+      int ii1 = i1 - s1;
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2]; double zeta1 = basis1[3];
+      eval_shd(ii1, gs, grid, &valS1[ii1 * gs], n1, l1, m1, zeta1);
+    }
+
+    for (int i2 = s3; i2 < s4; i2++) {
+      int ii2 = i2 - s3;
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0], l2 = basis2[1], m2 = basis2[2]; double zeta2 = basis2[3];
+
+      if (do_overlap)
+        eval_shd(ii2, gs, grid, &valV2[ii2 * gs], n2, l2, m2, zeta2);
+      else {
+        if (dy)
+          eval_inr_yukawa(gs, grid, &valV2[ii2 * gs], n2, l2, zeta2, gamma);
+        else
+          eval_inr_r12(gs, grid, &valV2[ii2 * gs], n2, l2, zeta2, ii2);
+        eval_sh_3rd(gs, grid, &valV2[ii2 * gs], n2, l2, m2);
+      }
+    }
+
+    #pragma acc wait
+    reduce_2c1(s1, s2, s3, s4, gs, valS1, valV2, iN, N, A);
+  }
+
+  for (int n = m + 1; n < natoms; n++) {
+    double Z2 = (double)atno[n];
+    double A2 = coords[3 * n + 0]; double B2 = coords[3 * n + 1]; double C2 = coords[3 * n + 2];
+    double A12 = A2 - A1; double B12 = B2 - B1; double C12 = C2 - C1;
+    coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
+
+    generate_ps_quad_grid(cfn, 0., 2, coordn, quad_order, quad_order, nmu, nnu, nphi, grid, wt);
+    add_r1_to_grid(gs, grid, 0., 0., 0.);
+
+    for (int sp1 = 0; sp1 < n2ip[m].size() - 1; sp1++)
+    for (int sp2 = 0; sp2 < n2ip[n].size() - 1; sp2++) {
+      int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1 + 1];
+      int s3 = n2ip[n][sp2]; int s4 = n2ip[n][sp2 + 1];
+
+      if (dy) {
+        #pragma acc parallel loop collapse(2) present(valS1[0:iN * gs], wt[0:gs])
+        for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+        for (int j = 0; j < gs; j++)
+          valS1[ii1 * gs + j] = wt[j];
+
+        #pragma acc parallel loop collapse(2) present(valV2[0:iN * gs])
+        for (int ii2 = 0; ii2 < s4 - s3; ii2++)
+        for (int j = 0; j < gs; j++)
+          valV2[ii2 * gs + j] = 0.;
+      } else {
+        #pragma acc parallel loop collapse(2) present(valS1[0:iN * gs])
+        for (int ii1 = 0; ii1 < s2 - s1; ii1++)
+        for (int j = 0; j < gs; j++)
+          valS1[ii1 * gs + j] = 1.;
+
+        #pragma acc parallel loop collapse(2) present(valV2[0:iN * gs], wt[0:gs])
+        for (int ii2 = 0; ii2 < s4 - s3; ii2++)
+        for (int j = 0; j < gs; j++)
+          valV2[ii2 * gs + j] = wt[j];
+      }
+
+      for (int i1 = s1; i1 < s2; i1++) {
+        int ii1 = i1 - s1;
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0], l1 = basis1[1], m1 = basis1[2]; double zeta1 = basis1[3];
+        eval_shd(ii1, gs, grid, &valS1[ii1 * gs], n1, l1, m1, zeta1);
+      }
+
+      recenter_grid_zero(gs, grid, -A12, -B12, -C12);
+
+      for (int i2 = s3; i2 < s4; i2++) {
+        int ii2 = i2 - s3;
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0], l2 = basis2[1], m2 = basis2[2]; double zeta2 = basis2[3];
+
+        if (do_overlap)
+          eval_shd(ii2, gs, grid, &valV2[ii2 * gs], n2, l2, m2, zeta2);
+        else {
+          if (dy)
+            eval_inr_yukawa(gs, grid, &valV2[ii2 * gs], n2, l2, zeta2, gamma);
+          else
+            eval_inr_r12(gs, grid, &valV2[ii2 * gs], n2, l2, zeta2, ii2);
+          eval_sh_3rd(gs, grid, &valV2[ii2 * gs], n2, l2, m2);
+        }
+      }
+
+      reduce_2c1(s1, s2, s3, s4, gs, valS1, valV2, iN, N, A);
+      recenter_grid_zero(gs, grid, A12, B12, C12);
+    }
+  }
+}
+  acc_set_device_num(0, acc_device_nvidia);
+
+if (nomp > 1) {
+  double* At = new double[N2]();
+
+  for (int n = 0; n < nomp; n++) {
+    acc_set_device_num(n, acc_device_nvidia);
+    #pragma acc update self(A[0:N2])
+    for (int j = 0; j < N2; j++) At[j] += A[j];
+  }
+
+  for (int j = 0; j < N2; j++) A[j] = At[j];
+
+  delete[] At;
+  acc_set_device_num(0, acc_device_nvidia);
+  #pragma acc update device(A[0:N2])
+}
+
+double* norm1 = new double[N];
+double* norm2 = new double[N];
+if (do_overlap) {
+  for (int i = 0; i < N; i++)
+    norm1[i] = norm(basis[i][0], basis[i][1], basis[i][2], basis[i][3]);
+} else {
+  for (int i = 0; i < N; i++)
+    norm1[i] = norm_sv(basis[i][0], basis[i][1], basis[i][2], basis[i][3]);
+}
+for (int i = 0; i < N; i++)
+  norm2[i] = basis[i][4];
+#pragma acc enter data copyin(norm1[0:N], norm2[0:N])
+
+#pragma acc parallel loop independent present(A[0:N2], norm1[0:N], norm2[0:N])
+for (int i = 0; i < N; i++)
+#pragma acc loop independent
+for (int j = 0; j < N; j++) {
+  double n12 = norm2[i] * norm1[j];
+  A[i * N + j] *= n12;
+}
+
+#if 0
+printf(" checking asymm \n");
+double ct = 1.e-3;
+#pragma acc update self(A[0:N2])
+for (int i = 0; i < N; i++)
+for (int j = 0; j < i; j++)
+if (fabs(A[i * N + j] - A[j * N + i]) > ct)
+  printf("  %8.3e %8.3e  diff: %8.3e \n", A[i * N + j], A[j * N + i], A[i * N + j] - A[j * N + i]);
+#endif
+
+// symmetrize wrt ij
+#pragma acc parallel loop independent present(A[0:N2])
+for (int i = 0; i < N; i++)
+#pragma acc loop independent
+for (int j = i + 1; j < N; j++)
+  A[j * N + i] = A[i * N + j];
+
+double lt = 1.e-15;
+#pragma acc parallel loop present(A[0:N2])
+for (int j = 0; j < N2; j++)
+  if (fabs(A[j]) < lt)
+    A[j] = 0.;
+
+#pragma acc exit data delete(norm1[0:N], norm2[0:N])
+#pragma acc update self(A[0:N2])
+
+if (prl > 1 || prl == -1) {
+  printf("\n A: \n");
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++)
+      printf(" %12.6f", A[i * N + j]);
+    printf("\n");
+  }
+}
+
+#if USE_ACC
+#pragma omp parallel for schedule(static) num_threads(nomp)
+for (int n = 0; n < nomp; n++) {
+  int tid = n;
+  acc_set_device_num(tid, acc_device_nvidia);
+
+  #pragma acc exit data delete(A[0:N2])
+  #pragma acc exit data delete(grid[0:gs6], wt[0:gs])
+  #pragma acc exit data delete(valS1[0:iN * gs], valV2[0:iN * gs])
+  #pragma acc exit data delete(coords[0:3 * natoms], atno[0:natoms])
+}
+acc_set_device_num(0, acc_device_nvidia);
+#endif
+
+delete[] valS1;
+delete[] valV2;
+delete[] grid;
+delete[] wt;
+delete[] norm1;
+delete[] norm2;
+
+return;
+}
+//ends
+
+/*
  //intermediate storage
   int iN = imaxN;
   double** valS1 = new double*[iN]; for (int i=0;i<iN;i++) valS1[i] = new double[gs];
@@ -1510,6 +2789,61 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
   return;
 }
+*/
+
+//overloaded with double *
+void init_s12v3(bool dy, int s1, int s2, int s3, int s4, int s5, int s6, int iN, int iNa, int gs,
+                double* val1, double* val2, double* val3, double* wt)
+{
+  // Initialize val2 to 1.0
+  #pragma acc parallel loop collapse(2) present(val2[0:iN * gs])
+  for (int ii2 = 0; ii2 < s4 - s3; ii2++) {
+    for (int j = 0; j < gs; j++) {
+      val2[ii2 * gs + j] = 1.0;
+    }
+  }
+
+  if (dy) {
+    // Set val1 = wt
+    #pragma acc parallel loop collapse(2) present(val1[0:iN * gs], wt[0:gs])
+    for (int ii1 = 0; ii1 < s2 - s1; ii1++) {
+      for (int j = 0; j < gs; j++) {
+        val1[ii1 * gs + j] = wt[j];
+      }
+    }
+
+    // Set val3 = 0
+    if (val3 != nullptr) {
+      #pragma acc parallel loop collapse(2) present(val3[0:iNa * gs])
+      for (int ii3 = 0; ii3 < s6 - s5; ii3++) {
+        for (int j = 0; j < gs; j++) {
+          val3[ii3 * gs + j] = 0.0;
+        }
+      }
+    }
+  } else {
+    // Set val1 = 1.0
+    #pragma acc parallel loop collapse(2) present(val1[0:iN * gs])
+    for (int ii1 = 0; ii1 < s2 - s1; ii1++) {
+      for (int j = 0; j < gs; j++) {
+        val1[ii1 * gs + j] = 1.0;
+      }
+    }
+
+    // Set val3 = wt
+    if (val3 != nullptr) {
+      #pragma acc parallel loop collapse(2) present(val3[0:iNa * gs], wt[0:gs])
+      for (int ii3 = 0; ii3 < s6 - s5; ii3++) {
+        for (int j = 0; j < gs; j++) {
+          val3[ii3 * gs + j] = wt[j];
+        }
+      }
+    }
+  }
+
+  return;
+}
+
 
 void init_s12v3(bool dy, int s1, int s2, int s3, int s4, int s5, int s6, int iN, int iNa, int gs, double** val1, double** val2, double** val3, double* wt)
 {
@@ -1549,6 +2883,52 @@ void init_s12v3(bool dy, int s1, int s2, int s3, int s4, int s5, int s6, int iN,
 
   return;
 }
+
+//overloaded and flattened
+void eval_s12v3(bool dol, bool dy, double gamma,
+                int s1, int s2, int s3, int s4, int s5, int s6,
+                int gs, double* grid,
+                const std::vector<std::vector<double>>& basis,
+                const std::vector<std::vector<double>>& basis_aux,
+                double* val1, double* val2, double* val3)
+{
+  // val1: (s2 - s1) * gs
+  for (int i1 = s1; i1 < s2; i1++) {
+    int ii1 = i1 - s1;
+    const std::vector<double>& b1 = basis[i1];
+    int n1 = b1[0], l1 = b1[1], m1 = b1[2]; double zeta1 = b1[3];
+    eval_shd(ii1, gs, grid, &val1[ii1 * gs], n1, l1, m1, zeta1);
+  }
+
+  // val2: (s4 - s3) * gs
+  for (int i2 = s3; i2 < s4; i2++) {
+    int ii2 = i2 - s3;
+    const std::vector<double>& b2 = basis[i2];
+    int n2 = b2[0], l2 = b2[1], m2 = b2[2]; double zeta2 = b2[3];
+    eval_shd(ii2, gs, grid, &val2[ii2 * gs], n2, l2, m2, zeta2);
+  }
+
+  // val3: (s6 - s5) * gs
+  for (int i3 = s5; i3 < s6; i3++) {
+    int ii3 = i3 - s5;
+    const std::vector<double>& b3 = basis_aux[i3];
+    int n3 = b3[0], l3 = b3[1], m3 = b3[2]; double zeta3 = b3[3];
+
+    if (dol) {
+      eval_shd(ii3, gs, grid, &val3[ii3 * gs], n3, l3, m3, zeta3);
+    } else {
+      if (dy)
+        eval_inr_yukawa(gs, grid, &val3[ii3 * gs], n3, l3, zeta3, gamma);
+      else
+        eval_inr_r12(gs, grid, &val3[ii3 * gs], n3, l3, zeta3, ii3);
+      eval_sh_3rd(gs, grid, &val3[ii3 * gs], n3, l3, m3);
+    }
+  }
+
+  #pragma acc wait
+  return;
+}
+
 
 void eval_s12v3(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3)
 {
@@ -1597,6 +2977,72 @@ void eval_s12v3(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4,
 
   return;
 }
+
+//overloaded and flattened
+void eval_s12v3_2(bool dol, bool dy, double gamma,
+                  int s1, int s2, int s3, int s4, int s5, int s6,
+                  int gs, double* grid,
+                  const std::vector<std::vector<double>>& basis,
+                  const std::vector<std::vector<double>>& basis_aux,
+                  double* val1, double* val2, double* val3,
+                  int type, double A12, double B12, double C12,
+                  double A13, double B13, double C13)
+{
+  // val1: (s2 - s1) * gs
+  for (int i1 = s1; i1 < s2; i1++) {
+    int ii1 = i1 - s1;
+    const std::vector<double>& b1 = basis[i1];
+    int n1 = b1[0], l1 = b1[1], m1 = b1[2]; double zeta1 = b1[3];
+    eval_shd(ii1, gs, grid, &val1[ii1 * gs], n1, l1, m1, zeta1);
+  }
+
+  if (type == 1 || type == 3)
+    recenter_grid_zero(gs, grid, -A12, -B12, -C12);
+  if (type == 4)
+    recenter_grid_zero(gs, grid, -A13, -B13, -C13);
+
+  // val2: (s4 - s3) * gs
+  for (int i2 = s3; i2 < s4; i2++) {
+    int ii2 = i2 - s3;
+    const std::vector<double>& b2 = basis[i2];
+    int n2 = b2[0], l2 = b2[1], m2 = b2[2]; double zeta2 = b2[3];
+    eval_shd(ii2, gs, grid, &val2[ii2 * gs], n2, l2, m2, zeta2);
+  }
+
+  if (type == 2)
+    recenter_grid_zero(gs, grid, -A12, -B12, -C12);
+  if (type == 3)
+    recenter_grid_zero(gs, grid, A12 - A13, B12 - B13, C12 - C13);
+
+  // val3: (s6 - s5) * gs
+  if (val3 != nullptr) {
+    for (int i3 = s5; i3 < s6; i3++) {
+      int ii3 = i3 - s5;
+      const std::vector<double>& b3 = basis_aux[i3];
+      int n3 = b3[0], l3 = b3[1], m3 = b3[2]; double zeta3 = b3[3];
+
+      if (dol) {
+        eval_shd(ii3, gs, grid, &val3[ii3 * gs], n3, l3, m3, zeta3);
+      } else {
+        if (dy)
+          eval_inr_yukawa(gs, grid, &val3[ii3 * gs], n3, l3, zeta3, gamma);
+        else
+          eval_inr_r12(gs, grid, &val3[ii3 * gs], n3, l3, zeta3, ii3);
+        eval_sh_3rd(gs, grid, &val3[ii3 * gs], n3, l3, m3);
+      }
+    }
+  }
+
+  // reset grid
+  if (type == 1 || type == 2)
+    recenter_grid_zero(gs, grid, A12, B12, C12);
+  if (type == 3)
+    recenter_grid_zero(gs, grid, A13, B13, C13);
+
+  #pragma acc wait
+  return;
+}
+
 
 void eval_s12v3_2(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* grid, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, double** val1, double** val2, double** val3, int type, double A12, double B12, double C12, double A13, double B13, double C13)
 {
@@ -2081,9 +3527,10 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   if (gsxvalsv>gpumem) { printf("\n WARNING: probably not enough memory to do 3c integrals \n"); }
 
  //intermediate storage
-  double** valS1 = new double*[iN];  for (int i=0;i<iN;i++)  valS1[i] = new double[gsh];
-  double** valS2 = new double*[iN];  for (int i=0;i<iN;i++)  valS2[i] = new double[gsh];
-  double** valV3 = new double*[iNa]; for (int i=0;i<iNa;i++) valV3[i] = new double[gsh];
+  double* valS1 = new double[iN * gsh];
+  double* valS2 = new double[iN * gsh];
+  double* valV3 = new double[iNa * gsh];
+
   double* valt = new double[gsh];
   double* Enp = new double[N2];
   double* Cp = new double[N2a];
@@ -2098,7 +3545,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
     #pragma acc enter data create(Enp[0:N2],C[0:N2a],Cp[0:N2a])
 
     #pragma acc enter data create(grid[0:gs6],wt[0:gsh])
-    #pragma acc enter data create(valS1[0:iN][0:gsh],valS2[0:iN][0:gsh],valV3[0:iNa][0:gsh])
+    #pragma acc enter data create(valS1[0:iN * gsh], valS2[0:iN * gsh], valV3[0:iNa * gsh])
     #pragma acc enter data create(valt[0:gsh])
 
     acc_assign(gs6,grid,0.);
@@ -2390,7 +3837,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
     #pragma acc exit data delete(Enp[0:N2],C[0:N2a],Cp[0:N2a])
     #pragma acc exit data delete(norm1[0:Naux],norm2[0:N])
     #pragma acc exit data delete(grid[0:gs6],wt[0:gsh])
-    #pragma acc exit data delete(valS1[0:iN][0:gsh],valS2[0:iN][0:gsh],valV3[0:iNa][0:gsh])
+    #pragma acc exit data delete(valS1[0:iN * gsh], valS2[0:iN * gsh], valV3[0:iNa * gsh])
     #pragma acc exit data delete(valt[0:gsh])
   }
   acc_set_device_num(0,acc_device_nvidia);
@@ -2402,9 +3849,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   delete [] n2i;
   delete [] na2i;
 
-  for (int i=0;i<iN;i++) delete [] valS1[i];
-  for (int i=0;i<iN;i++) delete [] valS2[i];
-  for (int i=0;i<iNa;i++) delete [] valV3[i];
+
   delete [] valS1; delete [] valS2; delete [] valV3;
   delete [] valt;
   delete [] Enp;
