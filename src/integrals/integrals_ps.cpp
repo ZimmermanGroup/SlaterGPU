@@ -3110,6 +3110,50 @@ void eval_s12v3_2(bool dol, bool dy, double gamma, int s1, int s2, int s3, int s
   return;
 }
 
+//overloaded and flattened
+
+void eval_p12(int s1, int s2, int s3, int s4, int gs, double* grid,
+              std::vector<std::vector<double>>& basis,
+              double* val1, double* val2,
+              double A12, double B12, double C12,
+              double A13, double B13, double C13)
+{
+  for (int i1 = s1; i1 < s2; i1++)
+  {
+    int ii1 = i1 - s1;
+
+    std::vector<double> basis1 = basis[i1];
+    int n1 = basis1[0];
+    int l1 = basis1[1];
+    int m1 = basis1[2];
+    double zeta1 = basis1[3];
+
+    eval_pd(gs, grid, &val1[ii1 * gs], n1, l1, m1, zeta1);
+  }
+
+  recenter_grid_zero(gs, grid, -A12, -B12, -C12);
+
+  for (int i2 = s3; i2 < s4; i2++)
+  {
+    int ii2 = i2 - s3;
+
+    std::vector<double> basis2 = basis[i2];
+    int n2 = basis2[0];
+    int l2 = basis2[1];
+    int m2 = basis2[2];
+    double zeta2 = basis2[3];
+
+    eval_pd(gs, grid, &val2[ii2 * gs], n2, l2, m2, zeta2);
+  }
+
+  recenter_grid_zero(gs, grid, A12, B12, C12);
+
+  #pragma acc wait
+
+  return;
+}
+
+
 void eval_p12(int s1, int s2, int s3, int s4, int gs, double* grid, vector<vector<double> >& basis, double** val1, double** val2, double A12, double B12, double C12, double A13, double B13, double C13)
 {
   for (int i1=s1;i1<s2;i1++)
@@ -3226,8 +3270,9 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
 
  //intermediate storage
   iN = imaxN;
-  double** valS1 = new double*[iN];  for (int i=0;i<iN;i++)  valS1[i] = new double[gs3];
-  double** valS2 = new double*[iN];  for (int i=0;i<iN;i++)  valS2[i] = new double[gs3];
+  double* valS1 = new double[iN * gs3];
+  double* valS2 = new double[iN * gs3];
+
   double* valt = new double[gsh];
   double* pVpp = new double[N2];
 
@@ -3241,7 +3286,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
     #pragma acc enter data create(pVpp[0:N2])
 
     #pragma acc enter data create(grid[0:gs6],wt[0:gsh])
-    #pragma acc enter data create(valS1[0:iN][0:gs3],valS2[0:iN][0:gs3])
+    #pragma acc enter data create(valS1[0:iN*gs3], valS2[0:iN*gs3])
     #pragma acc enter data create(valt[0:gsh])
 
     acc_assign(N2,pVpp,0.);
@@ -3402,7 +3447,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
     #pragma acc exit data delete(pVpp[0:N2])
     #pragma acc exit data delete(norm1[0:N])
     #pragma acc exit data delete(grid[0:gs6],wt[0:gsh])
-    #pragma acc exit data delete(valS1[0:iN][0:gs3],valS2[0:iN][0:gs3])
+    #pragma acc exit data delete(valS1[0:iN*gs3], valS2[0:iN*gs3])
     #pragma acc exit data delete(valt[0:gsh])
   }
   acc_set_device_num(0,acc_device_nvidia);
@@ -3413,8 +3458,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
 
   delete [] n2i;
 
-  for (int i=0;i<iN;i++) delete [] valS1[i];
-  for (int i=0;i<iN;i++) delete [] valS2[i];
+
   delete [] valS1; delete [] valS2;
   delete [] valt;
   delete [] pVpp;
