@@ -322,6 +322,33 @@ void eval_s12(int s1, int s2, int s3, int s4, vector<vector<double> >& basis, in
   return;
 }
 
+//flattened and overloaded
+void eval_s12(int s1, int s2, int s3, int s4, vector<vector<double> >& basis, int iN, int gs, double* grid, double* valS1, double* valS2)
+{
+  for (int i1 = s1; i1 < s2; i1++)
+  {
+    int ii1 = i1 - s1;
+
+    const vector<double>& basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    eval_shd(ii1, gs, grid, valS1 + ii1 * gs, n1, l1, m1, zeta1);
+  }
+
+  for (int i1 = s3; i1 < s4; i1++)
+  {
+    int ii1 = i1 - s3;
+
+    const vector<double>& basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    eval_shd(ii1, gs, grid, valS2 + ii1 * gs, n1, l1, m1, zeta1);
+  }
+
+  return;
+}
+
+
 void get_atnod(int natoms, vector<vector<double> > basis, double* atnod)
 {
   for (int n=0;n<basis.size();n++)
@@ -409,9 +436,9 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
  //intermediate storage
   int iN = imaxN;
-  double** valS1 = new double*[iN]; for (int i=0;i<iN;i++) valS1[i] = new double[gs];
-  double** valS2 = new double*[iN]; for (int i=0;i<iN;i++) valS2[i] = new double[gs];
-  double** valT1 = new double*[iN]; for (int i=0;i<iN;i++) valT1[i] = new double[gs];
+  double* valS1 = new double[iN * gs]; 
+  double* valS2 = new double[iN * gs]; 
+  double* valT1 = new double[iN * gs]; 
   double* valt = new double[gs];
 
  #if USE_ACC
@@ -424,8 +451,8 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
     #pragma acc enter data create(S[0:N2],T[0:N2],En[0:N2])
 
     #pragma acc enter data create(grid[0:gs6],wt[0:gs])
-    #pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs])
-    #pragma acc enter data create(valT1[0:iN][0:gs])
+    #pragma acc enter data create(valS1[0:iN*gs],valS2[0:iN*gs])
+    #pragma acc enter data create(valT1[0:iN*gs])
     #pragma acc enter data create(valt[0:gs])
 
     acc_assign(N2,S,0.);
@@ -464,20 +491,20 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
       int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
       int s3 = n2ip[m][sp2]; int s4 = n2ip[m][sp2+1];
 
-     #pragma acc parallel loop present(valS1[0:iN][0:gs])
+     #pragma acc parallel loop present(valS1[0:iN*gs])
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
         for (int j=0;j<gs;j++)
-          valS1[ii1][j] = 1.;
+          valS1[ii1 * gs + j] = 1.;
       }
 
-     #pragma acc parallel loop present(valS2[0:iN][0:gs],wt[0:gs])
+     #pragma acc parallel loop present(valS2[0:iN*gs],wt[0:gs])
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
         for (int j=0;j<gs;j++)
-          valS2[ii1][j] = wt[j];
+          valS2[ii1 * gs + j] = wt[j];
       }
 
      //first compute single atom ints
@@ -489,7 +516,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
         int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
        //S
-        eval_shd(ii1,gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+        eval_shd(ii1,gs,grid,valS1 + ii1 * gs,n1,l1,m1,zeta1);
       }
 
       for (int i1=s3;i1<s4;i1++)
@@ -500,15 +527,15 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
         int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
        //S
-        eval_shd(ii1,gs,grid,valS2[ii1],n1,l1,m1,zeta1);
+        eval_shd(ii1,gs,grid,valS2 + ii1 * gs,n1,l1,m1,zeta1);
       }
 
-     #pragma acc parallel loop present(valS1[0:iN][0:gs],valT1[0:iN][0:gs])
+     #pragma acc parallel loop present(valS1[0:iN*gs],valT1[0:iN*gs])
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
         for (int j=0;j<gs;j++)
-          valT1[ii1][j] = valS1[ii1][j];
+          valT1[ii1 * gs + j] = valS1[ii1 * gs + j];
       }
  
      //KE terms
@@ -519,7 +546,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
         vector<double> basis1 = basis[i1];
         int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-        eval_ke(gs,grid,valT1[ii1],n1,l1,zeta1);
+        eval_ke(gs,grid,valT1 + ii1 * gs,n1,l1,zeta1);
       }
 
       #pragma acc wait
@@ -554,20 +581,20 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
         int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
         int s3 = n2ip[n][sp2]; int s4 = n2ip[n][sp2+1];
 
-       #pragma acc parallel loop present(valS1[0:iN][0:gs])
+       #pragma acc parallel loop present(valS1[0:iN*gs])
         for (int ii1=0;ii1<s2-s1;ii1++)
         {
          #pragma acc loop
           for (int j=0;j<gs;j++)
-            valS1[ii1][j] = 1.;
+            valS1[ii1 * gs + j] = 1.;
         }
 
-       #pragma acc parallel loop present(valS2[0:iN][0:gs],wt[0:gs])
+       #pragma acc parallel loop present(valS2[0:iN*gs],wt[0:gs])
         for (int ii1=0;ii1<s4-s3;ii1++)
         {
          #pragma acc loop
           for (int j=0;j<gs;j++)
-            valS2[ii1][j] = wt[j];
+            valS2[ii1 * gs + j] = wt[j];
         }
 
         for (int i1=s1;i1<s2;i1++)
@@ -578,15 +605,15 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
           int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
          //S
-          eval_shd(ii1,gs,grid,valS1[ii1],n1,l1,m1,zeta1);
+          eval_shd(ii1,gs,grid,valS1 + ii1 * gs,n1,l1,m1,zeta1);
         }
 
-       #pragma acc parallel loop present(valS1[0:iN][0:gs],valT1[0:iN][0:gs])
+       #pragma acc parallel loop present(valS1[0:iN*gs],valT1[0:iN*gs])
         for (int ii1=0;ii1<s2-s1;ii1++)
         {
          #pragma acc loop
           for (int j=0;j<gs;j++)
-            valT1[ii1][j] = valS1[ii1][j];
+            valT1[ii1 * gs + j] = valS1[ii1 * gs + j];
         }
 
        //KE terms
@@ -597,7 +624,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
           vector<double> basis1 = basis[i1];
           int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
-          eval_ke(gs,grid,valT1[ii1],n1,l1,zeta1);
+          eval_ke(gs,grid,valT1 + ii1 * gs,n1,l1,zeta1);
         }
 
        //second center
@@ -610,7 +637,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
           int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
          //S
-          eval_shd(ii2,gs,grid,valS2[ii2],n2,l2,m2,zeta2);
+          eval_shd(ii2,gs,grid,valS2 + ii2 * gs,n2,l2,m2,zeta2);
         }
 
         reduce_2c1(s1,s2,s3,s4,gs,valS1,valS2,iN,N,S);
@@ -623,7 +650,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
         {
          #pragma acc loop
           for (int j=0;j<gs;j++)
-            valS2[ii1][j] /= wt[j];
+            valS2[ii1 * gs + j] /= wt[j];
         }
 
         reduce_3cen(Z2,s1,s2,s3,s4,N,iN,gs,grid,valS1,valS2,valt,wt,En);
@@ -801,8 +828,8 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
     #pragma acc exit data delete(S[0:N2],T[0:N2],En[0:N2])
     #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
-    #pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs])
-    #pragma acc exit data delete(valT1[0:iN][0:gs])
+    #pragma acc exit data delete(valS1[0:iN*gs],valS2[0:iN*gs])
+    #pragma acc exit data delete(valT1[0:iN*gs])
     #pragma acc exit data delete(valt[0:gs])
   }
   acc_set_device_num(0,acc_device_nvidia);
@@ -813,9 +840,9 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
   //delete [] n2i;
 
-  for (int i=0;i<iN;i++) delete [] valS1[i];
-  for (int i=0;i<iN;i++) delete [] valS2[i];
-  for (int i=0;i<iN;i++) delete [] valT1[i];
+  //for (int i=0;i<iN;i++) delete [] valS1[i];
+  //for (int i=0;i<iN;i++) delete [] valS2[i];
+  //for (int i=0;i<iN;i++) delete [] valT1[i];
   delete [] valS1; delete [] valS2;
   delete [] valT1;
   delete [] valt;
