@@ -118,6 +118,8 @@ double compute_2c(int Z1, int Z2, float zeta10, float zeta20, float A20, float B
 double compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
 //float compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
 
+//debug function
+void give_me_an_error(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl);
 
 ///// Prolate spheroidal coordinates /////
 void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* S, double* T, double* En, int prl);
@@ -145,6 +147,7 @@ int find_center_of_grid(float Z1, int nrad);
 void get_angular_grid(int size_ang, double* ang_g, double* ang_w);
 void acc_assign(int size, float* vec, float v1);
 void acc_assign(int size, double* vec, double v1);
+void acc_assign(int tid, int size, double* vec, double v1);
 void acc_copy(int size, double* v1, double* v2);
 void acc_copyf(int size, float* v1, float* v2);
 void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4);

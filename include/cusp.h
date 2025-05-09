@@ -30,6 +30,8 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
 void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<double*> pB, int prl);
 void compute_Pc(int natoms, int N, double* pB, double* Pc);
 void compute_Pc(int natoms, int N, vector<double*> pB, vector<double*> Pc);
+int prepare_PSP(double thresh, int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl);
+int prepare_PSP(double thresh, int natoms, int N, double* S, vector<double*> Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl);
 int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl);
 int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl);
 
