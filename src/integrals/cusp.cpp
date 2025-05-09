@@ -588,11 +588,11 @@ void project_S(int N, double* S, vector<double*> Pc_all, double* X)
   return;
 }
 
-int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+int prepare_PSP(double thresh, int natoms, int N, double* S, vector<double*> Pc_all, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
 {
  //CPMZ need to clean this up
   int N2 = N*N;
-  double thresh = PSP_THRESH;
+  //double thresh = PSP_THRESH;
   double threshw = PSP_THRESH_WARNING;
   double INF = 1.e300; //numeric_limits<double>::infinity();
 
@@ -821,9 +821,21 @@ int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp
   return nsmall1;
 }
 
-int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+int prepare_PSP(double thresh, int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
 {
   vector<double*> Pc_all;
   Pc_all.push_back(Pc);
-  return prepare_PSP(natoms,N,S,Pc_all,Xp,cu_hdl,prl);
+  return prepare_PSP(thresh,natoms,N,S,Pc_all,Xp,cu_hdl,prl);
+}
+
+int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+{
+  double thresh = PSP_THRESH;
+  return prepare_PSP(thresh,natoms,N,S,Pc,Xp,cu_hdl,prl);
+}
+
+int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+{
+  double thresh = PSP_THRESH;
+  return prepare_PSP(thresh,natoms,N,S,Pc_all,Xp,cu_hdl,prl);
 }

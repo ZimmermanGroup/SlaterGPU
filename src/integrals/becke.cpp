@@ -3077,6 +3077,7 @@ void compute_fxc(int natoms, int* atno, double* coords, vector<vector<double> > 
   return;
 }
 
+//gs is full grid size (?)
 void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao, double* vxc, double* vxcs, int nrad, int gs, double* grid, double* wt, double* fxc, int prl)
 {
  //need_wt==0 --> wt vxc
@@ -3095,6 +3096,7 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
 
   int tid = -1; //no multi-gpu parallel
 
+ //this is weird (divide by natoms?)
   int nang = gs/nrad;
   #include "jsetup.cpp"
   int gs2 = gs;

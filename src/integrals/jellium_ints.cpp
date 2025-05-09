@@ -1152,7 +1152,8 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
     }
 
    //contraction
-    reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,S);
+    printf("\n ERROR: need to fix ** in jellium_ints! \n"); exit(-1);
+    //reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,S);
 
     if (sgs_basis)
    //PD KE contraction
@@ -1178,8 +1179,11 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
       T[i1*N+i2] = -vt;
     }
     else
+    {
+      printf("\n ERROR: need to fix ** in jellium_ints! \n"); exit(-1);
      //Laplacian KE contraction
-      reduce_2c1(tid,0,N,gs,valL1,valS2,N,N,T);
+      //reduce_2c1(tid,0,N,gs,valL1,valS2,N,N,T);
+    }
 
    #pragma acc parallel loop collapse(2) present(valS1[0:N][0:gs],Vr[0:gs])
     for (int i1=0;i1<N;i1++)
@@ -1187,7 +1191,8 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
       valS1[i1][j] *= Vr[j];
 
    //contraction
-    reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,En);
+    printf("\n ERROR: need to fix ** in jellium_ints! \n"); exit(-1);
+    //reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,En);
 
     if (prl>0) printf("  done integrating <B|O|B> \n\n");
     #pragma acc update self(S[0:N2],En[0:N2],T[0:N2])

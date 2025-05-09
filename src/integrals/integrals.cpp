@@ -269,7 +269,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
   natoms = get_natoms_with_basis(natoms,atno,basis);
 
   int estart = find_center_of_grid(1,nrad)*nang;
- 
+
   int* na2i = new int[natoms];
   int iNa = get_imax_n2i(natoms,Naux,basis_aux,na2i);
 
@@ -329,7 +329,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
 
   //using namespace std::chrono;
   //high_resolution_clock::time_point t0 = high_resolution_clock::now();
- 
+
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
   for (int n=0;n<nomp;n++)
   {
@@ -342,9 +342,9 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
     #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
     #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
     #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
-    #pragma acc enter data create(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-    #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-    #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+    #pragma acc enter data create(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs])
+    #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs])
+    #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs])
 
     #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
     #pragma acc enter data create(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
@@ -456,7 +456,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
       copy_grid(gs,grid2s,grid2);
       recenter_grid(gs,grid2,A12,B12,C12);
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copyf(gs,wtt1,wt1);
@@ -529,7 +529,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
 
         vector<double> basis3 = basis[i3];
         int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
       }
@@ -556,7 +556,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
         }
       }
 
-     //now do i2+i3 on atom n 
+     //now do i2+i3 on atom n
      //i2 on atom n
       for (int i2=s5;i2<s6;i2++)
       {
@@ -576,13 +576,13 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
 
         vector<double> basis3 = basis[i3];
         int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
       }
 
       reduce_3c2b(s1,s2,s5,s6,s5,s6,gs,val1,val2,val3,val4,val5,val6,N,Naux,iN,iNa,C);
- 
+
     } //loop n over second atom
 
 
@@ -680,7 +680,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
           }
         }
 
- 
+
         for (int i1=s1;i1<s2;i1++)
         {
           int ii1 = i1-s1;
@@ -721,7 +721,7 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
           int ii3 = i3-s5;
           vector<double> basis3 = basis[i3];
           int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
           eval_sh(ii3,gs,grid3p,val9[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid2p,val6[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid1p,val3[ii3],n3,l3,m3,zeta3);
@@ -808,12 +808,12 @@ void compute_all_3c_para(int ngpu, bool do_overlap, int natoms, int* atno, float
     #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
     #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
 
-    #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-    #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-    #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+    #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs])
+    #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs])
+    #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs])
 
-    #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
-    #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
+    #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
+    #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
 
     #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs],valt1[0:gs],valt2[0:gs],valt3[0:gs])
     #pragma acc exit data delete(n2i[0:natoms],na2i[0:natoms])
@@ -897,7 +897,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
   natoms = get_natoms_with_basis(natoms,atno,basis);
 
   int estart = find_center_of_grid(1,nrad)*nang;
- 
+
   int* na2i = new int[natoms];
   int iNa = get_imax_n2i(natoms,Naux,basis_aux,na2i);
 
@@ -1077,7 +1077,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
       copy_grid(gs,grid2s,grid2);
       recenter_grid(gs,grid2,A12,B12,C12);
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copyf(gs,wtt1,wt1);
@@ -1155,7 +1155,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
 
         vector<double> basis3 = basis[i3];
         int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
       }
@@ -1186,7 +1186,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
         }
       }
 
-     //now do i2+i3 on atom n 
+     //now do i2+i3 on atom n
      //i2 on atom n
       for (int i2=s5;i2<s6;i2++)
       {
@@ -1207,7 +1207,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
 
         vector<double> basis3 = basis[i3];
         int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
         eval_sh(ii3,gs,grid1s,val3[ii3],n3,l3,m3,zeta3);
         eval_sh(ii3,gs,grid2s,val6[ii3],n3,l3,m3,zeta3);
       }
@@ -1217,7 +1217,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
      #else
       reduce_3c2b(s1,s2,s5,s6,s5,s6,gs,val1,val2,val3,val4,val5,val6,N,Naux,iN,iNa,C);
      #endif
- 
+
     } //loop n over second atom
 
 
@@ -1316,7 +1316,7 @@ void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, ve
           }
         }
 
- 
+
         for (int i1=s1;i1<s2;i1++)
         {
           int ii1 = i1-s1;
@@ -1534,7 +1534,7 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
     int wa2 = basis[i][9];
     if (wa2!=wa)
     {
-      int cmaxN = wa2-wa; 
+      int cmaxN = wa2-wa;
       if (cmaxN>imaxN) imaxN = cmaxN;
       n2i[wa] = i;
       wa = wa2;
@@ -1612,7 +1612,7 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
          #pragma acc parallel loop independent present(valt2[0:gs],wt1[0:gs]) reduction(+:val)
           for (int j=0;j<gs;j++)
             val += valt2[j] * wt1[j];
- 
+
          #pragma acc serial present(C[0:N2a])
           C[i1*N2+i2*N+i3] = val;
 
@@ -1638,7 +1638,7 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
       copy_grid(gs,grid2s,grid2);
       recenter_grid(gs,grid2,A12,B12,C12);
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copyf(gs,wtt1,wt1);
@@ -1681,11 +1681,11 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
 
          //third AO function on same center as aux function
           for (int i3=0;i3<N;i3++)
-          if (basis[i3][9]==m) 
+          if (basis[i3][9]==m)
           {
             vector<double> basis3 = basis[i3];
             int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
             acc_copyf(gs,valt3,valt1);
             acc_copyf(gs,valt4,valt2);
 
@@ -1708,11 +1708,11 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
 
          //third AO function on same center as second AO function
           for (int i3=0;i3<N;i3++)
-          if (basis[i3][9]==n) 
+          if (basis[i3][9]==n)
           {
             vector<double> basis3 = basis[i3];
             int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
             acc_copyf(gs,valt3,valt1);
             acc_copyf(gs,valt4,valt2);
 
@@ -1739,7 +1739,7 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
       } //loop i1 over first basis function
 
     } //loop n over second atom
- 
+
    //three-atom ints
     for (int n=0;n<natoms;n++)
     if (m!=n)
@@ -1800,7 +1800,7 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
         //#pragma acc update self(grid1[0:6*gs],wtt1[0:gs],grid2[0:6*gs],wtt2[0:gs],grid3[0:6*gs],wt3[0:gs])
         //print_grid(gs,grid1,grid2,wtt1,wtt2,prl);
         //print_grid(gs,grid3,NULL,wt3,NULL,prl);
- 
+
         for (int i1=0;i1<Naux;i1++)
         if (basis_aux[i1][9]==m)
         {
@@ -1835,11 +1835,11 @@ void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> 
             eval_sh(i2,gs,grid1s,valt1,n2,l2,m2,zeta2);
 
             for (int i3=0;i3<N;i3++)
-            if (basis[i3][9]==p) 
+            if (basis[i3][9]==p)
             {
               vector<double> basis3 = basis[i3];
               int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; double zeta3 = basis3[3];
-    
+
               acc_copyf(gs,valt4,valt1);
               acc_copyf(gs,valt5,valt2);
               acc_copyf(gs,valt6,valt3);
@@ -2232,14 +2232,14 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
         for (int ii1=0;ii1<s2-s1;ii1++)
           valS2[ii1][j] *= ne3;
 
-       #pragma acc loop 
+       #pragma acc loop
         for (int ii1=0;ii1<s2-s1;ii1++)
         {
           valtv1[ii1][3*j+0] *= dx1;
           valtv1[ii1][3*j+1] *= dy1;
           valtv1[ii1][3*j+2] *= dz1;
         }
-       #pragma acc loop 
+       #pragma acc loop
         for (int ii1=0;ii1<s2-s1;ii1++)
         {
           valtv2[ii1][3*j+0] *= dx3;
@@ -2283,7 +2283,7 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valS2[0:iN][0:gs])
@@ -2345,13 +2345,13 @@ void compute_VdV(int natoms, int* atno, float* coords, vector<vector<double> > &
 
         //add_r1_to_grid_6z(gs,grid1s,grid2s,grid3s,grid1p,grid2p,grid3p);
         add_r1_to_grid(gs,grid3s,0.,0.,0.);
-      
+
       //need to keep all of these distances in order
         //add_r3_to_grid(gs,grid1,A1n,B1n,C1n);
         add_r123_to_grid(gs,grid1,0.,0.,0.,A12,B12,C12,A1n,B1n,C1n);
         add_r123_to_grid(gs,grid2,A12,B12,C12,0.,0.,0.,A1n,B1n,C1n);
       	add_r123_to_grid(gs,grid3,A1n,B1n,C1n,A12,B12,C12,0.,0.,0.);
-     
+
         acc_copyf(gs,wtt1,wt1,wtt2,wt2);
 
         becke_weight_3c(gs,grid1,wtt1,grid2,wtt2,grid3,wt3,Z1,Z2,Zb,A12,B12,C12,A1n,B1n,C1n);
@@ -2716,10 +2716,10 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
 
  #if RED_DOUBLE
   double* En1 = new double[N2];
-  double* pVp1 = new double[N2]; 
+  double* pVp1 = new double[N2];
  #else
   float* En1 = new float[N2];
-  float* pVp1 = new float[N2]; 
+  float* pVp1 = new float[N2];
  #endif
 
   float* ang_g = new float[3*nang];
@@ -2740,8 +2740,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
     #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
 
     #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-    #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
-    #pragma acc enter data create(grid3[0:gs6],wt3[0:gs]) 
+    #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
+    #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
     #pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
     #pragma acc enter data create(valV1[0:iN][0:gs3],valV2[0:iN][0:gs3],valV3[0:iN][0:gs3],valV4[0:iN][0:gs3],valV5[0:iN][0:gs3],valV6[0:iN][0:gs3])
     #pragma acc enter data create(valt1[0:iN][0:gs],valt2[0:iN][0:gs],valt3[0:iN][0:gs])
@@ -3006,7 +3006,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copyf(gs,wtt1,wt1);
@@ -3162,19 +3162,19 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
 
         //copy_grid(gs,grid2p,grid2); //grid 2 centered on atom 3
         //recenter_grid(gs,grid2p,-A1n,-B1n,-C1n);
-     
+
         //copy_grid(gs,grid1p,grid1);
         //recenter_grid(gs,grid1p,-A1n,-B1n,-C1n); //grid 1 centered on atom 3
 
         //add_r1_to_grid_6z(gs,grid1s,grid2s,grid3s,grid1p,grid2p,grid3p);
         add_r1_to_grid(gs,grid3s,0.,0.,0.);
-      
+
       //need to keep all of these distances in order
         //add_r3_to_grid(gs,grid1,A1n,B1n,C1n);
         add_r123_to_grid(gs,grid1,0.,0.,0.,A12,B12,C12,A1n,B1n,C1n);
         add_r123_to_grid(gs,grid2,A12,B12,C12,0.,0.,0.,A1n,B1n,C1n);
       	add_r123_to_grid(gs,grid3,A1n,B1n,C1n,A12,B12,C12,0.,0.,0.);
-     
+
         acc_copyf(gs,wtt1,wt1,wtt2,wt2);
 
         becke_weight_3c(gs,grid1,wtt1,grid2,wtt2,grid3,wt3,Z1,Z2,Zn,A12,B12,C12,A1n,B1n,C1n);
@@ -3283,7 +3283,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
           reduce_2c3(s1,s2,s3,s4,gs3,valtv1,valtv2,valV3,valV4,valV5,valV6,iN,N,pVp1);
 
          #pragma acc parallel loop present(En[0:N2],En1[0:N2],pVp[0:N2],pVp1[0:N2])
-          for (int j=0;j<N2;j++) 
+          for (int j=0;j<N2;j++)
           {
             En[j] += En1[j];
             pVp[j] += pVp1[j];
@@ -3393,8 +3393,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
     acc_set_device_num(tid,acc_device_nvidia);
 
     #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-    #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
-    #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs]) 
+    #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
+    #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
     #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6],grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
     #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
     #pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
@@ -4950,7 +4950,7 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2s,-A12,-B12,-C12);
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
      //needs to happen after Becke weighting
