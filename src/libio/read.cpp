@@ -15,6 +15,9 @@
 #define IDEBUG 0
 #define JDEBUG 0
 
+//minimum ratio of aux basis exponents (RI v5 only)
+#define BLIMIT 1.35
+
 #include "read.h"
 
 #include <sstream>
@@ -1071,10 +1074,11 @@ void read_nrad_nang(int& nrad, int& nang, int type)
 {
   string filename = "GRID";
   if (type==2) filename = "GRID2";
+  if (type==3) filename = "GRIDR";
 
   ifstream infile;
   infile.open(filename.c_str());
-  if (!infile)
+  if (!infile && type<3)
   {
     printf("  couldn't open GRID file. please provide GRID \n");
     exit(1);
@@ -1319,7 +1323,7 @@ int read_square(int N, int M, double** A, string filename)
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
-      if (tok_line.size()<N) { printf(" ERROR: file (%s) size not square \n",filename.c_str()); exit(1); }
+      if (tok_line.size()<M) { printf(" ERROR: file (%s) size not square \n",filename.c_str()); exit(1); }
       for (int m=0;m<M;m++)
         A[wi][m] = atof(tok_line[m+1].c_str());
       wi++;
@@ -1392,7 +1396,7 @@ int read_rect(int N2, int Naux, double* C, string filename)
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
-      if (tok_line.size()<Naux+1) { printf(" ERROR: file size wrong in Ciap (%2i vs %2i) \n",tok_line.size(),Naux); exit(1); }
+      if (tok_line.size()<Naux+1) { printf(" ERROR: file size wrong (%2i vs %2i) \n",tok_line.size(),Naux); exit(1); }
       for (int m=0;m<Naux;m++)
         C[wi*Naux+m] = atof(tok_line[m+1].c_str());
       wi++;
@@ -2673,7 +2677,7 @@ void get_nspdf(int& ns, int& np, int& nd, int& nf, int& ng, vector<vector<double
   return;
 }
 
-void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+void create_basis_aux_v4(int jellium, int auto_ri, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
 
@@ -2681,7 +2685,9 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
  // invoked only if lz>10
  // untested
   int no_lz = 6;
-  if (lz<10) lz = 10; else lz -= 10;
+
+ //CPMZ commented out lines with lz
+  //if (lz<10) lz = 10; else lz -= 10;
 
   int plus_s, plus_p, plus_d, plus_f, plus_g;
   get_nspdf(plus_s,plus_p,plus_d,plus_f,plus_g,basis_aux);
@@ -2704,7 +2710,7 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
   vector<int> basis_size;
 
  //CPMZ parameter
-  const double zsc = 1.2;
+  const double zsc = 1.2; //approximately convert n-1>l to n-1=l
 
   bool z_basis_only = 1;
   for (int j=0;j<basis_std.size();j++)
@@ -2908,12 +2914,12 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
 
      //restriction to z-axis (m=0)
       int lm13 = l13;
-      if (lm13>=lz) lm13 = 0;
+      //if (lm13>=lz) lm13 = 0;
      //CPMZ try this
       //if (z_basis_only) lm13--;
 
      //max zt only for higher angular momentum
-      if (l13>5 || l13>=lz) { nmax = 1; zt13 = zt24; }
+      //if (l13>5 || l13>=lz) { nmax = 1; zt13 = zt24; }
 
      //skip r^n higher angular momentum entirely
       //if (l13>0 && n13-l13-1>0) { nmax = 1; zt13 = zt24; }
@@ -2921,7 +2927,20 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
 
       double zf = zt24/zt13;
       double B = 1.;
-      if (nmax>1) B = exp(log(zf)/(nmax-1));
+      if (nmax>1)
+        B = exp(log(zf)/(nmax-1));
+
+     //make sure aux basis is not overcomplete
+      if (auto_ri==5)
+      {
+        while (nmax>2)
+        {
+          B = exp(log(zf)/(nmax-1));
+          if (B>BLIMIT) break;
+          nmax--;
+        }
+        printf("  atom: %i  l: %i  B: %8.5f  nmax: %2i \n",n,l13,B,nmax);
+      }
 
       bool valid_basis = check_valid_basis(n13,l13);
 

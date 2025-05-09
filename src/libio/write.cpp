@@ -1284,7 +1284,7 @@ void write_rect(int N2, int Naux, double* C, string filename)
   ofstream outfile;
   outfile.open(filename.c_str());
 
-  double thresh = 1.e-15;
+  //const double thresh = 1.e-15;
   outfile << fixed << setprecision(16);
 
   outfile << filename << endl;
@@ -1292,10 +1292,10 @@ void write_rect(int N2, int Naux, double* C, string filename)
   {
     string line = "";
     for (int j=0;j<Naux;j++)
-    if (fabs(C[i*Naux+j])>thresh)
+    //if (fabs(C[i*Naux+j])>thresh)
       line += " " + SSTRF2(C[i*Naux+j]);
-    else
-      line += " 0.0";
+    //else
+    //  line += " 0.0";
     outfile << line << endl;
   }
 
