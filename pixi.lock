@@ -187,7 +187,7 @@ packages:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: df844fd47722f1012458d6d102ff3cbf64f17cb3c1822f399fa67a91900c892a
+    hash: 82e009c42bf2ffc70d856358d324a1482bdaaad8c4f5aafd38ccf4e4f3d6ecd0
     globs:
     - pixi.toml
 - conda: .
@@ -199,7 +199,7 @@ packages:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: df844fd47722f1012458d6d102ff3cbf64f17cb3c1822f399fa67a91900c892a
+    hash: 82e009c42bf2ffc70d856358d324a1482bdaaad8c4f5aafd38ccf4e4f3d6ecd0
     globs:
     - pixi.toml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
