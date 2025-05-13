@@ -565,7 +565,7 @@ void get_quad(int npts, double* Qi)
   return get_quad(npts-1,Qi);
 }
 
-void quad_grid_munuphi(int wb, int nb, const int nptsx, const int nptsy, const int nptsz, int qosp, double a, double* Qx, double* Qy, double* Qz, int gs, int offset, double* gridm, double* grid, double* wt)
+void quad_grid_munuphi(int tid, int wb, int nb, const int nptsx, const int nptsy, const int nptsz, int qosp, double a, double* Qx, double* Qy, double* Qz, int gs, int offset, double* gridm, double* grid, double* wt)
 {
   if (offset>=gs) return;
 
@@ -583,10 +583,10 @@ void quad_grid_munuphi(int wb, int nb, const int nptsx, const int nptsy, const i
   gsq /= nb;
 
   int nptsyz = nptsy*nptsz;
- 
+
   //printf("  qos/p: %2i %2i  offset: %6i  gsq(quad_grid): %6i  wb: %i  nb: %i \n",qos,qosp,offset,gsq,wb,nb);
 
- #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq])
+ #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq]) async(tid+1)
   for (int n=offset;n<gs;n++)
   if (n%nb==wb)
   {
@@ -649,10 +649,15 @@ void quad_grid_munuphi(int wb, int nb, const int nptsx, const int nptsy, const i
 
   } //loop over outer grid
 
+  if (tid<0)
+  {
+    #pragma acc wait
+  }
+
   return;
 }
 
-void quad_grid_munuphi(const int nptsx, const int nptsy, const int nptsz, int qosp, double a, double* Qx, double* Qy, double* Qz, int gs, int offset, double* gridm, double* grid, double* wt)
+void quad_grid_munuphi(int tid, const int nptsx, const int nptsy, const int nptsz, int qosp, double a, double* Qx, double* Qy, double* Qz, int gs, int offset, double* gridm, double* grid, double* wt)
 {
   if (offset>=gs) return;
 
@@ -669,7 +674,7 @@ void quad_grid_munuphi(const int nptsx, const int nptsy, const int nptsz, int qo
 
   //printf("  gsq(quad_grid): %6i \n",gsq);
 
- #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq])
+ #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq]) async(tid+1)
   for (int n=offset;n<gs;n++)
   {
     double mu   = gridm[6*n+0]; double nu  = gridm[6*n+1]; double phi  = gridm[6*n+2];
@@ -728,6 +733,11 @@ void quad_grid_munuphi(const int nptsx, const int nptsy, const int nptsz, int qo
 
   } //loop over outer grid
 
+  if (tid<0)
+  {
+    #pragma acc wait
+  }
+
   return;
 }
 
@@ -744,7 +754,7 @@ void quad_grid_munu(const int nptsx, const int nptsy, double a, double* Qx, doub
   for (int n=0;n<gs;n++)
   {
     double mu = gridm[6*n+0]; double nu = gridm[6*n+1]; double phi = gridm[6*n+2];
-    double dmu = gridm[6*n+3]; double dnu = gridm[6*n+4]; 
+    double dmu = gridm[6*n+3]; double dnu = gridm[6*n+4];
     double mu1 = mu-0.5*dmu;
     double nu1 = nu-0.5*dnu;
 

@@ -48,7 +48,7 @@ void get_eumac_grid(int size, double* r, double* w, const double rmax, const int
   }
 }
 
-void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, const int m)
+void get_murak_grid_zeta(int tid, int size, double* r, double* w, const double zeta, const int m)
 {
  //assuming alpha scalar == 1
   double alpha = 1./zeta;
@@ -57,11 +57,9 @@ void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, cons
   const double w0 = 1./size;
   const double mal = m*alpha;
 
-  //printf("  murak_grid zeta/alpha: %8.5f %8.5f \n",zeta,alpha);
+  //printf("    murak_grid zeta/alpha: %8.5f %8.5f \n",zeta,alpha);
 
-#if USE_ACC
- #pragma acc parallel loop independent present(r[0:size],w[0:size])
-#endif
+ #pragma acc parallel loop independent present(r[0:size],w[0:size]) async(tid+1)
   for (int n=0;n<size;n++)
   {
     //double i0 = (n-0.5)/size; if (i0<0.) i0 = 0.;
@@ -95,12 +93,38 @@ void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, cons
     printf("\n");
   }
 
+  #pragma acc wait
+  //acc_wait_all();
+
   return;
+}
+
+void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, const int m)
+{
+  return get_murak_grid_zeta(-1,size,r,w,zeta,m);
 }
 
  //working this in double precision, otherwise limit on grid size
 void get_murak_grid_f(int size, float* r, float* w, int Z, const int m)
 {
+ #if 0
+  if (size>165)
+  {
+    printf(" WARNING: single precision murak called for large radial grid \n");
+    double rd[size];
+    double wd[size];
+
+    get_murak_grid(size,rd,wd,Z,m);
+   #pragma acc parallel loop present(r[0:size],rd[0:size])
+    for (int j=0;j<size;j++)
+      r[j] = rd[j];
+   #pragma acc parallel loop present(w[0:size],wd[0:size])
+    for (int j=0;j<size;j++)
+      w[j] = wd[j];
+
+    return;
+  }
+ #endif
 
   if (Z==0) Z = 1;
 
@@ -110,9 +134,7 @@ void get_murak_grid_f(int size, float* r, float* w, int Z, const int m)
   const double w0 = 1./size;
   const double mal = m*alpha;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:size],w[0:size])
-#endif
   for (int n=0;n<size;n++)
   {
    #if 1
@@ -150,7 +172,7 @@ void get_murak_grid_f(int size, float* r, float* w, int Z, const int m)
   return;
 }
 
-void get_murak_grid(int size, double* r, double* w, int Z, const int m)
+void get_murak_grid(int tid, int size, double* r, double* w, int Z, const int m)
 {
   if (Z==0) Z = 1;
 
@@ -160,9 +182,7 @@ void get_murak_grid(int size, double* r, double* w, int Z, const int m)
   const double w0 = 1./size;
   const double mal = m*alpha;
 
-#if USE_ACC
- #pragma acc parallel loop independent present(r[0:size],w[0:size])
-#endif
+ #pragma acc parallel loop independent present(r[0:size],w[0:size]) async(tid+1)
   for (int n=0;n<size;n++)
   {
     double i1 = (n+0.5)/size;
@@ -189,7 +209,15 @@ void get_murak_grid(int size, double* r, double* w, int Z, const int m)
       printf(" %14.12f",r[m]);
   }
 
+  #pragma acc wait
+  //acc_wait_all();
+
   return;
+}
+
+void get_murak_grid(int size, double* r, double* w, int Z, const int m)
+{
+  return get_murak_grid(-1,size,r,w,Z,m);
 }
 
 void get_murak_grid_f(int size, float* r, float* w, float* er, int Z, float zeta, const int m)
@@ -208,9 +236,7 @@ void get_murak_grid_f(int size, float* r, float* w, float* er, int Z, float zeta
     exit(1.);
   }
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:size],w[0:size],er[0:size])
-#endif
   for (int n=0;n<size;n++)
   {
     float i1 = (n+0.5f)/size;
@@ -249,9 +275,7 @@ void get_murak_grid(int size, double* r, double* w, double* er, int Z, double ze
   const double w0 = 1./size;
   const double mal = m*alpha;
 
-#if USE_ACC
  //#pragma acc kernels
-#endif
   for (int n=0;n<size;n++)
   {
     double i1 = (n+0.5)/size;

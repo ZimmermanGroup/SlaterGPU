@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
 
   int charge = 0;
   int nup = 0;
-  int * atno = new int[100](); // 
+  int * atno = new int[100]();
   double * coords;
   vector< vector< double > > basis;
   vector< vector< double > > basis_aux;
@@ -153,17 +153,17 @@ int main(int argc, char* argv[]) {
     double * T = new double[N2];
     double * pVp = new double[N2];
 
-    //Setup for VdV and 4c integral tests 
-    
+    //Setup for VdV and 4c integral tests
+
     double* Pao = new double[N2]();
     //need Pao file!!
     Pao[0] = 1.;
     read_square(N,Pao,"Pao");
-    
+
     int nc = 1;
     float* coordsc = new float[3*nc];
     coordsc[0] = 0.; coordsc[1] = 0.; coordsc[2] = coordsf[2]+20.;
-    
+
     double* V = new double[nc];
     double* dV = new double[3*nc];
 
@@ -179,7 +179,7 @@ int main(int argc, char* argv[]) {
 
     if (check_PS() > 0)
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl);
-    else 
+    else
     {
       printf("Computing Standard Integrals:\n");
 
@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
       compute_ST(natoms, atno, coordsf, basis, nrad, size_ang, ang_g, ang_w, S, T, prl);
 
       auto t2 = chrono::high_resolution_clock::now();
-      
+
       bool do_2c_v1 = read_int("DO_2c_V1");
       if (do_2c_v1)
       {
@@ -216,12 +216,12 @@ int main(int argc, char* argv[]) {
         else
           if (prl > 0) printf("  using compute_all_3c_v2 \n");
           compute_all_3c_v2(0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
-      } 
+      }
       else
       {
         compute_Enp_para(ngpu,natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,En,pVp,prl);
         auto t4 = chrono::high_resolution_clock::now();
-        
+
         compute_all_3c_para(ngpu,0,natoms,atno,coordsf,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C,prl);
       }
 
@@ -231,7 +231,7 @@ int main(int argc, char* argv[]) {
       auto t6 = chrono::high_resolution_clock::now();
       if (c4 > 0)
         compute_all_4c_v2(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,g,prl);
-      
+
       auto t7 = chrono::high_resolution_clock::now();
 
       auto elapsed12 = chrono::duration_cast<chrono::nanoseconds>(t2-t1).count();
@@ -239,18 +239,18 @@ int main(int argc, char* argv[]) {
       auto elapsed34 = chrono::duration_cast<chrono::nanoseconds>(t4-t3).count();
       auto elapsed45 = chrono::duration_cast<chrono::nanoseconds>(t5-t4).count();
       auto elapsed56 = chrono::duration_cast<chrono::nanoseconds>(t6-t5).count();
-      auto elapsed67 = chrono::duration_cast<chrono::nanoseconds>(t7-t6).count();    
-      auto elapsed17 = chrono::duration_cast<chrono::nanoseconds>(t7-t1).count();    
+      auto elapsed67 = chrono::duration_cast<chrono::nanoseconds>(t7-t6).count();
+      auto elapsed17 = chrono::duration_cast<chrono::nanoseconds>(t7-t1).count();
 
       printf("-------------------------------\n");
       printf("Integral ST   time: %5.3e s\n",(double)elapsed12/1.e9);
       printf("Integral 2c2e time: %5.3e s\n",(double)elapsed23/1.e9);
-      
+
       if (nomp == 1)
       {
         printf("Integral Vne  time: %5.3e s\n",(double)elapsed34/1.e9);
         printf("Integral 3c2e time: %5.3e s\n",(double)elapsed45/1.e9);
-      } 
+      }
       else
       {
         printf("Integral Vne  (para)  time: %5.3e s\n",(double)elapsed34/1.e9);
@@ -268,7 +268,7 @@ int main(int argc, char* argv[]) {
       #pragma acc exit data copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
       #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc],g[0:N2*N2])
 
-      if (prl > 0) printf("Printing Standard Integral Files:\n");  
+      if (prl > 0) printf("Printing Standard Integral Files:\n");
       write_S_En_T(N,S,En,T);
       write_square(Naux,A,"A",2);
       write_square(N,pVp,"pVp",2);

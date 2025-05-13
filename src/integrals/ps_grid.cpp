@@ -1,7 +1,4 @@
 #include "prosph.h"
-#include "lebedev2.h"
-
-//just edited  get_munuphi and munuphi_to_xyz
 
 
 //enable zeta-dependent maximum volume (over mu)
@@ -11,7 +8,14 @@
 //was 2.3 until recently
 #define CF0 2.1
 
+//atomic grid effective zeta
+#define Z1J 0.2
 
+
+//NOTE: various pieces of this code are async enabled.
+// async doesn't do much acceleration without OMP
+// latest nvidia compilers fail under OMP+ACC parallelization
+// version 20.7 works fine
 
 
 void shift_grid(const double shift_z, int gs, double* grid)
@@ -27,7 +31,7 @@ void shift_grid(const double shift_z, int gs, double* grid)
 }
 
 //everything already on gpu
-void reorient_grid(const double z0, int gs, double* grid, double* grid2, double* rot)
+void reorient_grid(int tid, const double z0, int gs, double* grid, double* grid2, double* rot)
 {
   int gs6 = 6*gs;
   //printf("  z0 in reorient grid: %8.5f \n",z0);
@@ -42,7 +46,7 @@ void reorient_grid(const double z0, int gs, double* grid, double* grid2, double*
     grid[6*j+2] += shift_z;
 #endif
 
- #pragma acc parallel loop collapse(2) present(grid[0:gs6], rot[0:9], grid2[0:gs6])
+ #pragma acc parallel loop collapse(2) present(grid[0:gs6], rot[0:9], grid2[0:gs6]) async(tid+1)
   for (int i=0;i<gs;i++)
   {
     for(int j=0;j<3;j++)
@@ -56,18 +60,23 @@ void reorient_grid(const double z0, int gs, double* grid, double* grid2, double*
     }
   }
 
+  if (tid<0)
+  {
+    #pragma acc wait
+  }
+
   return;
 }
 
 void rotate_3x3(double* rot_mat, double* A, double* B)
 {
-  #pragma acc parallel loop collapse(2) present(rot_mat[0:9],A[0:9],B[0:9])
+  //#pragma acc parallel loop collapse(2) present(rot_mat[0:9],A[0:9],B[0:9])
   for (int i=0;i<3;i++)
   {
     for(int j=0;j<3;j++)
     {
       double tsum = 0.;
-      #pragma acc loop reduction(+:tsum)
+      //#pragma acc loop reduction(+:tsum)
       for(int k=0;k<3;k++)
         tsum += A[3*i+k] * rot_mat[3*k+j];
 
@@ -123,7 +132,7 @@ void set_up_axes(int natoms, double* coords, double* coord1, double* first_rot)
 {
   if (coords[4]==0. && coords[5]==0.)
   {
-   #pragma acc serial present(first_rot[0:9])
+   //#pragma acc serial present(first_rot[0:9],coords[6])
     {
       bool fs = 1; if (coords[3]<0.) fs = 0;
       first_rot[4] = 1.;
@@ -133,17 +142,17 @@ void set_up_axes(int natoms, double* coords, double* coord1, double* first_rot)
   }
   else if (coords[5]==0.)
   {
-   #pragma acc serial present(first_rot[0:9])
+   //#pragma acc serial present(first_rot[0:9],coords[6])
     {
       bool fs = 1; if (coords[4]<0.) fs = 0;
       first_rot[0] = 1.;
       if (!fs) { first_rot[7] = -1.; first_rot[5] = 1.; }
-      else { first_rot[7] = 1.; first_rot[5] = -1.; }   
+      else { first_rot[7] = 1.; first_rot[5] = -1.; }
     }
   }
   else
   {
-   #pragma acc serial present(first_rot[0:9])
+   //#pragma acc serial present(first_rot[0:9],coords[6])
     {
       first_rot[0] = first_rot[4] = first_rot[8] = 1.;
       if (coords[5]>0.) first_rot[8] = -1.;
@@ -152,7 +161,7 @@ void set_up_axes(int natoms, double* coords, double* coord1, double* first_rot)
   rotate_3x3(first_rot,coords,coord1);
 
  #if 0
-  #pragma acc update self(coord1[0:9])
+  //#pragma acc update self(coord1[0:9])
   printf(" after setup. xyz: \n");
   for (int j=0;j<natoms;j++)
     printf(" %8.5f %8.5f %8.5f \n",coord1[3*j+0],coord1[3*j+1],coord1[3*j+2]);
@@ -166,7 +175,7 @@ void gen_total_rot_n2(int natoms, double* coords, double* trot)
 {
   if (natoms==1)
   {
-    #pragma acc serial
+    //#pragma acc serial present(trot[9])
       trot[0] = trot[4] = trot[8] = 1.;
     return;
   }
@@ -184,14 +193,14 @@ void gen_total_rot_n2(int natoms, double* coords, double* trot)
   double rot_mat_2[9];
   double tmp[9];
 
-  #pragma acc enter data create(first_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],tmp[0:9])
-  #pragma acc enter data create(coord1[0:9])
+  //#pragma acc enter data create(first_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],tmp[0:9])
+  //#pragma acc enter data create(coord1[0:9])
 
- #pragma acc parallel loop present(tmp[0:9])
+ //#pragma acc parallel loop present(tmp[0:9])
   for(int i=0;i<9;i++)
     tmp[i] = 0.;
 
-  #pragma acc parallel loop present(rot_mat_1[0:9],rot_mat_2[0:9],trot[0:9])
+  //#pragma acc parallel loop present(first_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],trot[0:9])
   for(int i=0;i<9;i++)
   {
     first_rot[i] = 0.;
@@ -202,7 +211,7 @@ void gen_total_rot_n2(int natoms, double* coords, double* trot)
 
   set_up_axes(natoms,coords,coord1,first_rot);
 
-  #pragma acc serial present(rot_mat_1[0:9],coord1[0:9])
+  //#pragma acc serial present(rot_mat_1[0:9],coord1[0:9])
   {
     double angle_1 = 0.;
     if (coord1[5]!=0.)
@@ -219,13 +228,13 @@ void gen_total_rot_n2(int natoms, double* coords, double* trot)
   rotate_3x3(rot_mat_1,coord1,tmp);
 
  #if 0
-  #pragma acc update self(tmp[0:9])
+  //#pragma acc update self(tmp[0:9])
   printf("   after rot1 \n");
   for (int j=0;j<natoms;j++)
     printf(" %8.5f %8.5f %8.5f \n",tmp[3*j+0],tmp[3*j+1],tmp[3*j+2]);
  #endif
 
-  #pragma acc serial present(rot_mat_2[0:9],tmp[0:9])
+  //#pragma acc serial present(rot_mat_2[0:9],tmp[0:9])
   {
     double angle_2 = 0.;
     if (tmp[5]!=0.)
@@ -242,14 +251,14 @@ void gen_total_rot_n2(int natoms, double* coords, double* trot)
  //construct full rotation matrix
   rotate_3x3(rot_mat_1,first_rot,tmp);
 
-  #pragma acc parallel loop present(rot_mat_1[0:9],tmp[0:9])
+  //#pragma acc parallel loop present(rot_mat_1[0:9],tmp[0:9])
   for (int j=0;j<9;j++)
     rot_mat_1[j] = tmp[j];
 
   rotate_3x3(rot_mat_2,rot_mat_1,trot);
 
  #if 0
-  #pragma acc update self(trot[0:9])
+  //#pragma acc update self(trot[0:9])
   printf("\n trot: \n");
   for (int j=0;j<3;j++)
     printf("   %8.5f %8.5f %8.5f \n",trot[3*j+0],trot[3*j+1],trot[3*j+2]);
@@ -262,19 +271,19 @@ void gen_total_rot_n2(int natoms, double* coords, double* trot)
   printf("\n final orientation: \n");
   for (int j=0;j<natoms;j++)
     printf(" %8.5f %8.5f %8.5f \n",tmp[3*j+0],tmp[3*j+1],tmp[3*j+2]);
-  if (fabs(tmp[4])>1.e-10) printf(" WARNING: y axis off \n"); 
+  if (fabs(tmp[4])>1.e-10) printf(" WARNING: y axis off \n");
  #endif
 
-  #pragma acc update self(trot[0:9])
-  #pragma acc exit data delete(coord1[0:9])
-  #pragma acc exit data delete(first_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],tmp[0:9])
+  //#pragma acc update self(trot[0:9])
+  //#pragma acc exit data delete(coord1[0:9])
+  //#pragma acc exit data delete(first_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],tmp[0:9])
 
-  return;    
+  return;
 }
 
 void gen_rot_n3z1(double* coords, double* rot_mat_1, double* rot_mat_2, double* rot_mat_3, double* tmp1, double* tmp2)
 {
-  #pragma acc serial present(rot_mat_1[0:9],coords[0:9])
+  //#pragma acc serial present(rot_mat_1[0:9],coords[0:9])
   {
     double angle_1 = atan(-coords[3*1+0]/coords[3*1+2]);
    //rotate around y axis
@@ -287,7 +296,7 @@ void gen_rot_n3z1(double* coords, double* rot_mat_1, double* rot_mat_2, double* 
 
   rotate_3x3(rot_mat_1,coords,tmp1);
 
-  #pragma acc serial present(rot_mat_2[0:9],tmp1[0:9])
+  //#pragma acc serial present(rot_mat_2[0:9],tmp1[0:9])
   {
     double angle_2 = 0.;
     if (tmp1[5]!=0.)
@@ -302,7 +311,7 @@ void gen_rot_n3z1(double* coords, double* rot_mat_1, double* rot_mat_2, double* 
 
   rotate_3x3(rot_mat_2,tmp1,tmp2);
 
-  #pragma acc serial present(tmp2[0:9],rot_mat_3[0:9])
+  //#pragma acc serial present(tmp2[0:9],rot_mat_3[0:9])
   {
     double angle_3 = 0.;
     if (tmp2[6]!=0.)
@@ -320,7 +329,7 @@ void gen_rot_n3z1(double* coords, double* rot_mat_1, double* rot_mat_2, double* 
 
   rotate_3x3(rot_mat_3,tmp2,tmp1);
 
-  #pragma acc serial present(tmp1[0:9],rot_mat_3[0:9])
+  //#pragma acc serial present(tmp1[0:9],rot_mat_3[0:9])
   {
    //x positive
     if (tmp1[6]<0.)
@@ -342,7 +351,7 @@ void gen_total_rot_n3(int natoms, double* coords, double* trot)
   if (natoms==2)
     return gen_total_rot_n2(natoms,coords,trot);
 
-  if (natoms!=3) 
+  if (natoms!=3)
   {
     printf("\n ERROR: gen_total_rot_n3. natoms must be equal to 3 \n");
     exit(-1);
@@ -362,10 +371,10 @@ void gen_total_rot_n3(int natoms, double* coords, double* trot)
   double rot_mat_3[9];
   double tmp1[9];
   double tmp2[9];
-  #pragma acc enter data create(first_rot[0:9],part_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],rot_mat_3[0:9],tmp1[0:9],tmp2[0:9])
-  #pragma acc enter data create(coord1[0:9])
+  //#pragma acc enter data create(first_rot[0:9],part_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],rot_mat_3[0:9],tmp1[0:9],tmp2[0:9])
+  //#pragma acc enter data create(coord1[0:9])
 
-  #pragma acc parallel loop present(tmp1[0:9],tmp2[0:9],first_rot[0:9],part_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],rot_mat_3[0:9],trot[0:9])
+  //#pragma acc parallel loop present(tmp1[0:9],tmp2[0:9],first_rot[0:9],part_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],rot_mat_3[0:9],trot[0:9])
   for(int i=0;i<9;i++)
   {
     tmp1[i] = 0.;
@@ -397,25 +406,18 @@ void gen_total_rot_n3(int natoms, double* coords, double* trot)
   printf("\n final orientation: \n");
   for (int j=0;j<3;j++)
     printf(" %8.5f %8.5f %8.5f \n",tmp1[3*j+0],tmp1[3*j+1],tmp1[3*j+2]);
-  if (fabs(tmp1[4])>1.e-10) printf(" WARNING: y2 axis off \n"); 
-  if (fabs(tmp1[7])>1.e-10) printf(" WARNING: y3 axis off \n"); 
+  if (fabs(tmp1[4])>1.e-10) printf(" WARNING: y2 axis off \n");
+  if (fabs(tmp1[7])>1.e-10) printf(" WARNING: y3 axis off \n");
   if (tmp1[6]<0.) printf(" WARNING: x3 axis negative \n");
  #endif
 
-  #pragma acc exit data delete(first_rot[0:9],part_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],rot_mat_3[0:9],tmp1[0:9],tmp2[0:9])
-  #pragma acc exit data delete(coord1[0:9])
+  //#pragma acc exit data delete(first_rot[0:9],part_rot[0:9],rot_mat_1[0:9],rot_mat_2[0:9],rot_mat_3[0:9],tmp1[0:9],tmp2[0:9])
+  //#pragma acc exit data delete(coord1[0:9])
 
-  #pragma acc update self(trot[0:9])
+  //#pragma acc update self(trot[0:9])
 
-  return;    
+  return;
 }
-
-int sign(double x)
-  {
-    if (x>0) return 1;
-    else if (x<=0) return -1;
-    return 0;
-  }
 
 void munuphi_to_xyz(double a, double mu, double nu, double phi, double& x, double& y, double& z)
 {
@@ -509,9 +511,10 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
   double a3 = a*a*a;
 
   double rmax = a*cosh(c1*atanh(nmu*dx1));
-  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f  c2: %8.5f \n",cf,c1,rmax,c2);
+  //printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f  c2: %8.5f \n",cf,c1,rmax,c2);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) //async(tid+1)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -524,6 +527,7 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
     double coshm = cosh(mu);
     double dmu = mu1-mu0;
 
+   #pragma acc loop independent
     for (int j=0;j<nnu;j++)
     {
       double x20 = j*dnx;
@@ -536,13 +540,11 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
       double nu = 0.5*(nu0+nu1);
       double dnu = nu1 - nu0;
 
-      if (nnu<12) printf("  x2: %8.5f %8.5f  nu: %8.5f %8.5f  nu(m): %8.5f  dnu: %8.5f \n",x20,x21,nu0,nu1,nu,dnu);
-
       double sinn = sin(nu);
       double cosn = cos(nu);
 
       int i1 = i*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs])
+     #pragma acc loop independent
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -550,8 +552,6 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
 
         gridm[6*i2+0] = mu; gridm[6*i2+1] = nu; gridm[6*i2+2] = phi;
         gridm[6*i2+3] = dmu; gridm[6*i2+4] = dnu; gridm[6*i2+5] = dphi;
-
-        //if (prl>2) printf("    mu/nu/phi: %8.5f %8.5f %8.5f  wt: %8.5f \n",mu,nu,phi,wt1);
 
       } //loop phi
     } //loop nu
@@ -572,10 +572,9 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
   return;
 }
 
-void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
+void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
 {
   if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
-  //if (nnu<2 || nphi<2) { printf(" ERROR: cannot initialize PS coordinates with nnu<2 or nphi<2 \n"); exit(-1); }
 
   double c0 = get_c0(a,nmu,cf,RMAX);
   if (cf<0.) c0 = -cf; //c1 passed to ftn
@@ -598,9 +597,9 @@ void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, do
   if (prl>0)
     printf("\n   init_ps_coords. a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",a,nmu,nnu,nphi,dnu,dphi,dx1);
   double rmax = a*cosh(c1*atanh(nmu*dx1));
-  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
+  //printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
-  //double xmax = 0.; double ymax = 0.; double zmax = 0.;
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) async(tid+1)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -609,22 +608,20 @@ void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, do
     double mu1 = c1*atanh(x1);
     double mu = 0.5*(mu1+mu0); //"average" mu value
 
-    double sinhm = sinh(mu);
-    double coshm = cosh(mu);
+    //double sinhm = sinh(mu);
+    //double coshm = cosh(mu);
     double dmu = mu1-mu0;
 
-    //if (i+1==nmu) printf("  x1/0: %8.5f %8.5f  mu/0: %8.5f %8.5f  dmu: %8.5f \n",x1,x0,mu,mu0,dmu);
-    //if (i+1==nmu) printf("    c1: %8.5f  mu/0: %8.5f %8.5f %8.5f \n",c1,mu,mu0,mu1);
-
+   #pragma acc loop independent
     for (int j=0;j<nnu;j++)
     {
       double nu = (j+0.5)*dnu;
 
-      double sinn = sin(nu);
-      double cosn = cos(nu);
+      //double sinn = sin(nu);
+      //double cosn = cos(nu);
 
       int i1 = i*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs])
+     #pragma acc loop independent
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -632,8 +629,6 @@ void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, do
 
         gridm[6*i2+0] = mu; gridm[6*i2+1] = nu; gridm[6*i2+2] = phi;
         gridm[6*i2+3] = dmu; gridm[6*i2+4] = dnu; gridm[6*i2+5] = dphi;
-
-        //if (prl>2) printf("    mu/nu/phi: %8.5f %8.5f %8.5f  wt: %8.5f \n",mu,nu,phi,wt1);
 
       } //loop phi
     } //loop nu
@@ -651,49 +646,15 @@ void initialize_ps_coords_2c(double a, double cf, int nmu, int nnu, int nphi, do
   }
  #endif
 
- #if 0
-  if (grid!=NULL && wt!=NULL)
-  for (int j=0;j<gs;j++)
-  {
-    double mu  = gridm[6*j+0];
-    double nu  = gridm[6*j+1];
-    double phi = gridm[6*j+2];
-    double dmu = gridm[6*j+3];
-    double dnu = gridm[6*j+4];
-
-    double sinhm = sinh(mu);
-    double coshm = cosh(mu);
-    double sinn = sin(nu);
-    double cosn = cos(nu);
-
-    double x = a*sinhm*sinn*cos(phi);
-    double y = a*sinhm*sinn*sin(phi);
-    double z = a*coshm*cosn;
-
-    double wt1 = a3*ps_dV(mu-0.5*dmu,mu+0.5*dmu,nu-0.5*dnu,nu+0.5*dnu) * dphi;
-
-    //if (x>xmax) xmax = x;
-    //if (y>ymax) ymax = y;
-    //if (z>zmax) zmax = z;
-
-    grid[6*j+0] = x;
-    grid[6*j+1] = y;
-    grid[6*j+2] = z-a;
-    wt[j] = wt1;
-  }
-
-  //if (prl>1) printf("  xyz max: %9.5f %9.5f %9.5f \n",xmax,ymax,zmax);
- #endif
-
   return;
 }
 
-void initialize_ps_coords_2c_phi(double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double phi_add, double* grid, double* gridm, double* wt, int prl)
+void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double phi_add, double* grid, double* gridm, double* wt, int prl)
 {
   if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
   if (nphi<3) { printf(" ERROR: initialize_ps_coords_phi with nphi<3 \n"); exit(-1); }
 
-  printf("  testing initialize_ps_coords_2c_phi \n");
+  //printf("  testing initialize_ps_coords_2c_phi \n");
 
   double c0 = get_c0(a,nmu,cf,RMAX);
   const double c1 = c0;
@@ -756,12 +717,13 @@ void initialize_ps_coords_2c_phi(double a, double cf, int nmu, int nnu, int nphi
     printf("\n");
   }
 
-  #pragma acc enter data copyin(phia[0:nphi],phiad[0:nphi])
+  #pragma acc enter data copyin(phia[0:nphi],phiad[0:nphi]) async(tid+1)
 
   if (prl>0)
   printf("\n init_ps_coords. a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",a,nmu,nnu,nphi,dnu,dphi,dx1);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs],phia[0:nphi],phiad[0:nphi]) async(tid+1)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -774,9 +736,7 @@ void initialize_ps_coords_2c_phi(double a, double cf, int nmu, int nnu, int nphi
     double coshm = cosh(mu);
     double dmu = mu1-mu0;
 
-    //printf("  x1/0: %8.5f %8.5f  mu/0: %8.5f %8.5f  dmu: %8.5f \n",x1,x0,mu,mu0,dmu);
-    //if (i+1==nmu) printf("  mu/0: %8.5f %8.5f \n",mu,mu0);
-
+   #pragma acc loop independent
     for (int j=0;j<nnu;j++)
     {
       double nu = (j+0.5)*dnu;
@@ -785,7 +745,7 @@ void initialize_ps_coords_2c_phi(double a, double cf, int nmu, int nnu, int nphi
       double cosn = cos(nu);
 
       int i1 = i*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs],phia[0:nphi],phiad[0:nphi])
+     #pragma acc loop independent
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -801,7 +761,7 @@ void initialize_ps_coords_2c_phi(double a, double cf, int nmu, int nnu, int nphi
     } //loop nu
   } //loop mu
 
-  #pragma acc exit data delete(phia[0:nphi],phiad[0:nphi])
+  #pragma acc exit data delete(phia[0:nphi],phiad[0:nphi]) async(tid+1)
 
   munuphi_to_xyz(a,gs,gridm,grid,wt);
 
@@ -836,10 +796,11 @@ void get_munuphi(double a, double A3, double B3, double C3, double& mu, double& 
   return;
 }
 
-void shift_boundary_munu(double mu, double nu, int ix, int jx, int ib, int ia, int jb, int ja, int kb, int ka, int gs, double* gridm)
+//#pragma acc routine seq
+void shift_boundary_munu(int tid, double mu, double nu, int ix, int jx, int ib, int ia, int jb, int ja, int kb, int ka, int gs, double* gridm)
 {
-  if (ix<0 || jx<0 || ib<0 || ia<0 || jb<0 || ja<0 || kb<0 || ka<0)
-  { printf(" ERROR: shift_boundary_munu \n"); exit(-1); }
+  //if (ix<0 || jx<0 || ib<0 || ia<0 || jb<0 || ja<0 || kb<0 || ka<0)
+  //{ printf(" ERROR: shift_boundary_munu \n"); exit(-1); }
 
   int gs6 = 6*gs;
 
@@ -868,7 +829,7 @@ void shift_boundary_munu(double mu, double nu, int ix, int jx, int ib, int ia, i
   double nu2 = nu_ja+dnu_ja*0.5;
 
  //recenters mu/nu so 3rd atom is at boundary of cells, leave phi alone
-  #pragma acc serial present(gridm[0:gs6])
+  #pragma acc serial present(gridm[0:gs6]) async(tid+1)
   for (int k=0;k<2;k++)
   {
     int kn = kb; if (k==1) kn = ka;
@@ -921,10 +882,11 @@ void shift_boundary_munu(double mu, double nu, int ix, int jx, int ib, int ia, i
   return;
 }
 
-void shift_boundary_nu(double nu, int ix, int jx, int jb, int ja, int kb, int ka, int gs, double* gridm)
+//#pragma acc routine seq
+void shift_boundary_nu(int tid, double nu, int ix, int jx, int jb, int ja, int kb, int ka, int gs, double* gridm)
 {
-  if (ix<0 || jx<0 || jb<0 || ja<0 || kb<0 || ka<0)
-  { printf(" ERROR: shift_boundary_nu \n"); exit(-1); }
+  //if (ix<0 || jx<0 || jb<0 || ja<0 || kb<0 || ka<0)
+  //{ printf(" ERROR: shift_boundary_nu \n"); exit(-1); }
 
  //mu is close to zero
   int ib = 0;
@@ -942,7 +904,7 @@ void shift_boundary_nu(double nu, int ix, int jx, int jb, int ja, int kb, int ka
   double nu2 = nu_ja+dnu_ja*0.5;
 
  //recenters nu so 3rd atom is at boundary of cells, leave mu/phi alone
-  #pragma acc serial present(gridm[0:gs6])
+  #pragma acc serial present(gridm[0:gs6]) async(tid+1)
   for (int k=0;k<2;k++)
   {
     int kn = kb; if (k==1) kn = ka;
@@ -967,10 +929,11 @@ void shift_boundary_nu(double nu, int ix, int jx, int jb, int ja, int kb, int ka
   return;
 }
 
-void shift_boundary_mu(double mu, int ix, int jx, int ib, int ia, int jb, int kb, int ka, int gs, double* gridm)
+//#pragma acc routine seq
+void shift_boundary_mu(int tid, double mu, int ix, int jx, int ib, int ia, int jb, int kb, int ka, int gs, double* gridm)
 {
-  if (ix<0 || jx<0 || ib<0 || ia<0 || jb<0 || kb<0 || ka<0)
-  { printf(" ERROR: shift_boundary_mu \n"); exit(-1); }
+  //if (ix<0 || jx<0 || ib<0 || ia<0 || jb<0 || kb<0 || ka<0)
+  //{ printf(" ERROR: shift_boundary_mu \n"); exit(-1); }
 
   int gs6 = 6*gs;
 
@@ -985,7 +948,7 @@ void shift_boundary_mu(double mu, int ix, int jx, int ib, int ia, int jb, int kb
   double mu2 = mu_ia+dmu_ia*0.5;
 
  //recenters mu so 3rd atom is at boundary of cells, leave nu/phi alone
-  #pragma acc serial present(gridm[0:gs6])
+  #pragma acc serial present(gridm[0:gs6]) async(tid+1)
   for (int k=0;k<2;k++)
   {
     int kn = kb; if (k==1) kn = ka;
@@ -1010,7 +973,7 @@ void shift_boundary_mu(double mu, int ix, int jx, int ib, int ia, int jb, int kb
   return;
 }
 
-
+//#pragma acc routine seq
 bool handle_linear_nu(int& jb, int& ja, int nnu, double nu, double munu_thresh)
 {
   bool skip_nu = 0;
@@ -1018,7 +981,7 @@ bool handle_linear_nu(int& jb, int& ja, int nnu, double nu, double munu_thresh)
   {
     if (jb==0 && nu>munu_thresh)
     {
-      printf("   near-linear angle found in 3-atom setup (nu: %8.5f) \n",nu);
+      //printf("   near-linear angle found in 3-atom setup (nu: %8.5f) \n",nu);
       ja = 1;
     }
     else
@@ -1028,7 +991,7 @@ bool handle_linear_nu(int& jb, int& ja, int nnu, double nu, double munu_thresh)
   {
     if (nu<PI-munu_thresh)
     {
-      printf("   near-linear angle found in 3-atom setup (nu3: %8.5f) \n",nu);
+      //printf("   near-linear angle found in 3-atom setup (nu3: %8.5f) \n",nu);
       jb = nnu-2;
       ja = nnu-1;
     }
@@ -1042,7 +1005,7 @@ bool handle_linear_nu(int& jb, int& ja, int nnu, double nu, double munu_thresh)
   return skip_nu;
 }
 
-void initialize_ps_coords_3c(double cf, int nmu, int nnu, int nphi, double phi_zero, double* coordn, double* grid, double* gridm, double* wt, double* rot, int prl)
+void initialize_ps_coords_3c(int tid, double cf, int nmu, int nnu, int nphi, double phi_zero, double* coordn, double* grid, double* gridm, double* wt, double* rot, int prl)
 {
  //this code assumes first two atoms aligned along z axis, after the rotation
   double coordm[9];
@@ -1052,7 +1015,7 @@ void initialize_ps_coords_3c(double cf, int nmu, int nnu, int nphi, double phi_z
   double A3 = coordm[6]; double B3 = coordm[7]; double C3 = coordm[8];
   double a = sqrt(A2*A2+B2*B2+C2*C2)*0.5;
 
-  initialize_ps_coords_2c(a,cf,nmu,nnu,nphi,phi_zero,grid,gridm,wt,prl);
+  initialize_ps_coords_2c(tid,a,cf,nmu,nnu,nphi,phi_zero,grid,gridm,wt,prl);
 
   if (prl>1) printf("\n initialize_ps_coords with third center \n");
 
@@ -1076,169 +1039,184 @@ void initialize_ps_coords_3c(double cf, int nmu, int nnu, int nphi, double phi_z
     if (fabs(C3-z)>1.e-6) { printf("\n ERROR: z doesn't match \n"); exit(-1); }
   }
 
-  #pragma acc update self(gridm[0:gs6])
+  //replace by acc serial to avoid these two steps
+  //was okay for latest nvidia compilers
+  #pragma acc update self(gridm[0:gs6]) async(tid+1)
+  #pragma acc wait
 
-  int ix = 6*nnu*nphi;
-  int jx = 6*nphi;
+  //double tmp[6];
+  //#pragma acc enter data create(tmp[0:6]) async(tid+1)
 
- //get the points that surround the third center
-  int ib = 0; int ia = 0;
-  for (int i=0;i<nmu;i++) if (gridm[ix*i+0]<mu) ib = i; else break;
-  for (int i=nmu-1;i>=0;i--) if (gridm[ix*i+0]>mu) ia = i;  else break;
-
-  int jb = 0; int ja = 0;
-  for (int j=0;j<nnu;j++) if (gridm[jx*j+1]<=nu) jb = j; else break;
-  for (int j=nnu-1;j>=0;j--) if (gridm[jx*j+1]>=nu) ja = j;  else break;
-
- //xyz is (x>0,0,z), so second line not needed
-  int kb = 0; int ka = nphi-1;
-  //if (fabs(phi-phi_zero-PI)<1.e-6) kb = ka = nphi / 2;
-
- //check if munu are near the boundaries already
-  double munu_thresh = 1.e-3;
-
-  bool skip_mu = 0;
-  if (mu<munu_thresh)
-    skip_mu = 1;
-  else if (ib==ia)
-    ia = 1;
-
-  bool skip_nu = handle_linear_nu(jb,ja,nnu,nu,munu_thresh);
-
-  if (skip_mu && prl>0)
+ //#pragma acc serial present(tmp[0:6],gridm[0:gs6]) async(tid+1)
   {
-    printf("   nu:");
-    for (int j=0;j<nnu;j++)
-      printf(" %8.5f",gridm[j*jx+1]);
-    printf("\n");
-  }
+    int ix = 6*nnu*nphi;
+    int jx = 6*nphi;
 
-  if (skip_nu && prl>0)
-  {
-    printf("   mu:");
-    for (int i=0;i<nmu;i++)
-      printf(" %8.5f",gridm[i*ix]);
-    printf("\n");
-  }
+   //get the points that surround the third center
+   //these four loops are not parallel, but this is a serial gpu section
+    int ib = 0; int ia = 0;
+    for (int i=0;i<nmu;i++) if (gridm[ix*i+0]<mu) ib = i; else break;
+    for (int i=nmu-1;i>=0;i--) if (gridm[ix*i+0]>mu) ia = i;  else break;
 
+    int jb = 0; int ja = 0;
+    for (int j=0;j<nnu;j++) if (gridm[jx*j+1]<=nu) jb = j; else break;
+    for (int j=nnu-1;j>=0;j--) if (gridm[jx*j+1]>=nu) ja = j;  else break;
 
-  if (prl>1) printf("   iba: %i %i  jba: %i %i  kba: %i %i \n",ib,ia,jb,ja,kb,ka);
+   //xyz is (x>0,0,z), so second line not needed
+    int kb = 0; int ka = nphi-1;
+    //if (fabs(phi-phi_zero-PI)<1.e-6) kb = ka = nphi / 2;
 
-  if ((ib==ia && !skip_mu) || (jb==ja && !skip_nu))
-  {
-    printf("\n ERROR: couldn't determine interval in 3-center PS \n");
-    printf("   mu/nu/phi: %8.5f %8.5f %8.5f \n",mu,nu,phi);
-    double x; double y; double z;
-    munuphi_to_xyz(a,mu,nu,phi,x,y,z);
-    printf("   ABC: %8.5f %8.5f %8.5f  xyz: %8.5f %8.5f %8.5f \n",A3,B3,C3,x,y,z);
-    printf("   iba: %i %i jba: %i %i \n",ib,ia,jb,ja);
+   //check if munu are near the boundaries already
+    double munu_thresh = 1.e-3;
 
-    printf("   AC1: %8.5f %8.5f %8.5f \n",coordm[0],coordm[1],coordm[2]);
-    printf("   AC2: %8.5f %8.5f %8.5f \n",coordm[3],coordm[4],coordm[5]);
-    printf("   AC3: %8.5f %8.5f %8.5f \n",coordm[6],coordm[7],coordm[8]);
+    bool skip_mu = 0;
+    if (mu<munu_thresh)
+      skip_mu = 1;
+    else if (ib==ia)
+      ia = 1;
 
-    printf("   mu:");
-    for (int i=0;i<nmu;i++)
-      printf(" %8.5f",gridm[i*ix]);
-    printf("\n");
+    bool skip_nu = handle_linear_nu(jb,ja,nnu,nu,munu_thresh);
 
-    printf("   nu:");
-    for (int j=0;j<nnu;j++)
-      printf(" %8.5f",gridm[j*jx+1]);
-    printf("\n");
-
-    printf("   phi:");
-    for (int k=0;k<nphi;k++)
-      printf(" %8.5f",gridm[6*k+2]);
-    printf("\n");
-
-    exit(-1);
-  }
-
- #if 0
-  if (skip_mu || skip_nu)
-  {
-    printf("   skipmu/nu: %i %i \n",skip_mu,skip_nu);
-    printf("   mu: %8.5f is between %8.5f and %8.5f \n",mu,gridm[ix*ib+0],gridm[ix*ia+0]);
-    printf("   nu: %8.5f is between %8.5f and %8.5f \n",nu,gridm[jx*jb+1],gridm[jx*ja+1]);
-    printf("  phi: %8.5f is between %8.5f and %8.5f \n",phi,gridm[6*kb+2],gridm[6*ka+2]);
-  }
- #endif
-  
-
-  if (skip_mu && skip_nu)
-  {
-    if (prl>0)
-      printf("   mu/nu are small \n");
-  }
-  else if (skip_mu && !skip_nu)
-    shift_boundary_nu(nu,ix,jx,jb,ja,kb,ka,gs,gridm);
-  else if (!skip_mu && skip_nu)
-    shift_boundary_mu(mu,ix,jx,ib,ia,jb,kb,ka,gs,gridm);
-  else
-    shift_boundary_munu(mu,nu,ix,jx,ib,ia,jb,ja,kb,ka,gs,gridm);
-
-
-  //CPMZ be careful: should uniquely identify all 8 cells
-  //need to watch the near-linear angles
-
-  //move shifted grid points to end
-  {
-    double tmp[6];
-    #pragma acc enter data create(tmp[0:6])
-
-    #pragma acc serial present(gridm[0:gs6],tmp[0:6])
-    for (int k=0;k<2;k++)
+    if (skip_mu && prl>0)
     {
-      int ws = gs-8+k*4;
-      int kn = kb; if (k==1) kn = ka;
-
-      int in = ib*ix+jb*jx+6*kn;
-      for (int j=0;j<6;j++)
-      {
-        tmp[j] = gridm[6*ws+j];
-        gridm[6*ws+j] = gridm[in+j];
-        gridm[in+j] = tmp[j];
-      }
-      ws++;
-
-      in = ib*ix+ja*jx+6*kn;
-      for (int j=0;j<6;j++)
-      {
-        tmp[j] = gridm[6*ws+j];
-        gridm[6*ws+j] = gridm[in+j];
-        gridm[in+j] = tmp[j];
-      }
-      ws++;
-
-      in = ia*ix+jb*jx+6*kn;
-      for (int j=0;j<6;j++)
-      {
-        tmp[j] = gridm[6*ws+j];
-        gridm[6*ws+j] = gridm[in+j];
-        gridm[in+j] = tmp[j];
-      }
-      ws++;
-
-      in = ia*ix+ja*jx+6*kn;
-      for (int j=0;j<6;j++)
-      {
-        tmp[j] = gridm[6*ws+j];
-        gridm[6*ws+j] = gridm[in+j];
-        gridm[in+j] = tmp[j];
-      }
-      ws++;
+      printf("   nu:");
+      for (int j=0;j<nnu;j++)
+        printf(" %8.5f",gridm[j*jx+1]);
+      printf("\n");
     }
 
-    #pragma acc exit data delete(tmp[0:6])
-  }
+    if (skip_nu && prl>0)
+    {
+      printf("   mu:");
+      for (int i=0;i<nmu;i++)
+        printf(" %8.5f",gridm[i*ix]);
+      printf("\n");
+    }
+
+
+    if (prl>1) printf("   iba: %i %i  jba: %i %i  kba: %i %i \n",ib,ia,jb,ja,kb,ka);
+
+   #if 0
+    if ((ib==ia && !skip_mu) || (jb==ja && !skip_nu))
+    {
+      printf("\n ERROR: couldn't determine interval in 3-center PS \n");
+      printf("   mu/nu/phi: %8.5f %8.5f %8.5f \n",mu,nu,phi);
+      double x; double y; double z;
+      munuphi_to_xyz(a,mu,nu,phi,x,y,z);
+      printf("   ABC: %8.5f %8.5f %8.5f  xyz: %8.5f %8.5f %8.5f \n",A3,B3,C3,x,y,z);
+      printf("   iba: %i %i jba: %i %i \n",ib,ia,jb,ja);
+
+      printf("   AC1: %8.5f %8.5f %8.5f \n",coordm[0],coordm[1],coordm[2]);
+      printf("   AC2: %8.5f %8.5f %8.5f \n",coordm[3],coordm[4],coordm[5]);
+      printf("   AC3: %8.5f %8.5f %8.5f \n",coordm[6],coordm[7],coordm[8]);
+
+      printf("   mu:");
+      for (int i=0;i<nmu;i++)
+        printf(" %8.5f",gridm[i*ix]);
+      printf("\n");
+
+      printf("   nu:");
+      for (int j=0;j<nnu;j++)
+        printf(" %8.5f",gridm[j*jx+1]);
+      printf("\n");
+
+      printf("   phi:");
+      for (int k=0;k<nphi;k++)
+        printf(" %8.5f",gridm[6*k+2]);
+      printf("\n");
+
+      exit(-1);
+    }
+   #endif
+
+   #if 0
+    if (skip_mu || skip_nu)
+    {
+      printf("   skipmu/nu: %i %i \n",skip_mu,skip_nu);
+      printf("   mu: %8.5f is between %8.5f and %8.5f \n",mu,gridm[ix*ib+0],gridm[ix*ia+0]);
+      printf("   nu: %8.5f is between %8.5f and %8.5f \n",nu,gridm[jx*jb+1],gridm[jx*ja+1]);
+      printf("  phi: %8.5f is between %8.5f and %8.5f \n",phi,gridm[6*kb+2],gridm[6*ka+2]);
+    }
+   #endif
+
+
+    if (skip_mu && skip_nu)
+    {
+      //if (prl>0)
+      //  printf("   mu/nu are small \n");
+    }
+    else if (skip_mu && !skip_nu)
+      shift_boundary_nu(tid,nu,ix,jx,jb,ja,kb,ka,gs,gridm);
+    else if (!skip_mu && skip_nu)
+      shift_boundary_mu(tid,mu,ix,jx,ib,ia,jb,kb,ka,gs,gridm);
+    else
+      shift_boundary_munu(tid,mu,nu,ix,jx,ib,ia,jb,ja,kb,ka,gs,gridm);
+
+    //CPMZ be careful: should uniquely identify all 8 cells
+    //need to watch the near-linear angles
+
+    //move shifted grid points to end
+    {
+      double tmp[6];
+      #pragma acc enter data create(tmp[0:6]) async(tid+1)
+
+      #pragma acc serial present(gridm[0:gs6],tmp[0:6]) async(tid+1)
+      for (int k=0;k<2;k++)
+      {
+        int ws = gs-8+k*4;
+        int kn = kb; if (k==1) kn = ka;
+
+        int in = ib*ix+jb*jx+6*kn;
+        for (int j=0;j<6;j++)
+        {
+          tmp[j] = gridm[6*ws+j];
+          gridm[6*ws+j] = gridm[in+j];
+          gridm[in+j] = tmp[j];
+        }
+        ws++;
+
+        in = ib*ix+ja*jx+6*kn;
+        for (int j=0;j<6;j++)
+        {
+          tmp[j] = gridm[6*ws+j];
+          gridm[6*ws+j] = gridm[in+j];
+          gridm[in+j] = tmp[j];
+        }
+        ws++;
+
+        in = ia*ix+jb*jx+6*kn;
+        for (int j=0;j<6;j++)
+        {
+          tmp[j] = gridm[6*ws+j];
+          gridm[6*ws+j] = gridm[in+j];
+          gridm[in+j] = tmp[j];
+        }
+        ws++;
+
+        in = ia*ix+ja*jx+6*kn;
+        for (int j=0;j<6;j++)
+        {
+          tmp[j] = gridm[6*ws+j];
+          gridm[6*ws+j] = gridm[in+j];
+          gridm[in+j] = tmp[j];
+        }
+        ws++;
+      }
+
+      #pragma acc exit data delete(tmp[0:6]) async(tid+1)
+    }
+
+  } //acc serial section
+
+ //CPMZ check this
+  //#pragma acc update device(gridm[0:gs6])
 
  //order munuphi so third atom is "first"
   {
     if (prl>1) printf("   reordering end points of 3c grid (mnp: %8.5f %8.5f %8.5f) \n",mu,nu,phi);
 
     int i0 = gs6-48;
-   #pragma acc parallel loop independent present(gridm[0:gs6])
+   #pragma acc parallel loop independent present(gridm[0:gs6]) async(tid+1)
     for (int j=0;j<8;j++)
     {
       int i1 = i0+6*j;
@@ -1347,7 +1325,7 @@ void initialize_ps_coords_3c(double cf, int nmu, int nnu, int nphi, double phi_z
   return;
 }
 
-void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_zero, double* coordn, double* grid, double* gridm, double* wt, double* rot, int prl)
+void initialize_ps_coords_4c(int tid, double cf, int nmu, int nnu, int nphi, double phi_zero, double* coordn, double* grid, double* gridm, double* wt, double* rot, int prl)
 {
  //this code assumes first two atoms aligned along z axis, after the rotation
   double coordm[12];
@@ -1364,9 +1342,9 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
   get_munuphi(a,A4,B4,C4,mu4,nu4,phi4);
 
   if (phi4!=0.)
-    initialize_ps_coords_2c_phi(a,cf,nmu,nnu,nphi,phi_zero,phi4,grid,gridm,wt,prl);
+    initialize_ps_coords_2c_phi(tid,a,cf,nmu,nnu,nphi,phi_zero,phi4,grid,gridm,wt,prl);
   else
-    initialize_ps_coords_2c(a,cf,nmu,nnu,nphi,phi_zero,grid,gridm,wt,prl);
+    initialize_ps_coords_2c(tid,a,cf,nmu,nnu,nphi,phi_zero,grid,gridm,wt,prl);
 
   if (prl>1) printf("\n initialize_ps_coords with third center \n");
 
@@ -1380,7 +1358,7 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
     printf("   mu/nu/phi(4): %8.5f %8.5f %8.5f \n",mu4,nu4,phi4);
   }
 
-  if (prl>0)
+  if (prl>1)
   {
     double x; double y; double z;
     munuphi_to_xyz(a,mu3,nu3,phi3,x,y,z);
@@ -1389,156 +1367,158 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
     printf("  ABC4: %8.5f %8.5f %8.5f  xyz: %8.5f %8.5f %8.5f \n",A4,B4,C4,x,y,z);
   }
 
-  #pragma acc update self(gridm[0:gs6])
+ //changed to serial acc to avoid these two steps
+  #pragma acc update self(gridm[0:gs6]) async(tid+1)
+  #pragma acc wait
 
-  int ix = 6*nnu*nphi;
-  int jx = 6*nphi;
-  int kx = 6;
-
- //get the points that surround the third center
-  int ib3 = 0; int ia3 = 0;
-  for (int i=0;i<nmu;i++) if (gridm[ix*i+0]<mu3) ib3 = i; else break;
-  for (int i=nmu-1;i>=0;i--) if (gridm[ix*i+0]>mu3) ia3 = i;  else break;
-
-  int jb3 = 0; int ja3 = 0;
-  for (int j=0;j<nnu;j++) if (gridm[jx*j+1]<=nu3) jb3 = j; else break;
-  for (int j=nnu-1;j>=0;j--) if (gridm[jx*j+1]>=nu3) ja3 = j;  else break;
-
-  int kb3 = 0; int ka3 = nphi-1;
-
-
- //get the points that surround the fourth center
-  int ib4 = 0; int ia4 = 0;
-  for (int i=0;i<nmu;i++) if (gridm[ix*i+0]<mu4) ib4 = i; else break;
-  for (int i=nmu-1;i>=0;i--) if (gridm[ix*i+0]>mu4) ia4 = i;  else break;
-
-  int jb4 = 0; int ja4 = 0;
-  for (int j=0;j<nnu;j++) if (gridm[jx*j+1]<=nu4) jb4 = j; else break;
-
-  for (int j=nnu-1;j>=0;j--) if (gridm[jx*j+1]>=nu4) ja4 = j;  else break;
-
-  int kba = 0;
-  for (int k=0;k<nphi;k++) if (fabs(gridm[kx*k+2]-phi4)<1.e-6) { kba = k; break; }
-  int kb4 = kba-1; int ka4 = kba;
-  if (kb4<0) kb4 = nphi-1;
-
- //check if munu are near the boundaries already
-  double munu_thresh = 1.e-3;
-
-  bool skip_mu3 = 0;
-  if (mu3<munu_thresh)
-    skip_mu3 = 1;
-  else if (ib3==ia3)
-    ia3 = 1;
-
-  bool skip_nu3 = handle_linear_nu(jb3,ja3,nnu,nu3,munu_thresh);
-
-  if (skip_mu3 && prl>0)
+  //#pragma acc serial present(gridm[0:gs6]) async(tid+1)
   {
-    printf("   nu:");
-    for (int j=0;j<nnu;j++)
-      printf(" %8.5f",gridm[j*jx+1]);
-    printf("\n");
-  }
+    int ix = 6*nnu*nphi;
+    int jx = 6*nphi;
+    int kx = 6;
 
-  if (skip_nu3 && prl>0)
-  {
-    printf("   mu:");
-    for (int i=0;i<nmu;i++)
-      printf(" %8.5f",gridm[i*ix]);
-    printf("\n");
-  }
+   //get the points that surround the third center
+    int ib3 = 0; int ia3 = 0;
+    for (int i=0;i<nmu;i++) if (gridm[ix*i+0]<mu3) ib3 = i; else break;
+    for (int i=nmu-1;i>=0;i--) if (gridm[ix*i+0]>mu3) ia3 = i;  else break;
+
+    int jb3 = 0; int ja3 = 0;
+    for (int j=0;j<nnu;j++) if (gridm[jx*j+1]<=nu3) jb3 = j; else break;
+    for (int j=nnu-1;j>=0;j--) if (gridm[jx*j+1]>=nu3) ja3 = j;  else break;
+
+    int kb3 = 0; int ka3 = nphi-1;
+
+   //get the points that surround the fourth center
+    int ib4 = 0; int ia4 = 0;
+    for (int i=0;i<nmu;i++) if (gridm[ix*i+0]<mu4) ib4 = i; else break;
+    for (int i=nmu-1;i>=0;i--) if (gridm[ix*i+0]>mu4) ia4 = i;  else break;
+
+    int jb4 = 0; int ja4 = 0;
+    for (int j=0;j<nnu;j++) if (gridm[jx*j+1]<=nu4) jb4 = j; else break;
+
+    for (int j=nnu-1;j>=0;j--) if (gridm[jx*j+1]>=nu4) ja4 = j;  else break;
+
+    int kba = 0;
+    for (int k=0;k<nphi;k++) if (fabs(gridm[kx*k+2]-phi4)<1.e-6) { kba = k; break; }
+    int kb4 = kba-1; int ka4 = kba;
+    if (kb4<0) kb4 = nphi-1;
+
+   //check if munu are near the boundaries already
+    double munu_thresh = 1.e-3;
+
+    bool skip_mu3 = 0;
+    if (mu3<munu_thresh)
+      skip_mu3 = 1;
+    else if (ib3==ia3)
+      ia3 = 1;
+
+    bool skip_nu3 = handle_linear_nu(jb3,ja3,nnu,nu3,munu_thresh);
+
+    if (skip_mu3 && prl>1)
+    {
+      printf("   nu:");
+      for (int j=0;j<nnu;j++)
+        printf(" %8.5f",gridm[j*jx+1]);
+      printf("\n");
+    }
+
+    if (skip_nu3 && prl>1)
+    {
+      printf("   mu:");
+      for (int i=0;i<nmu;i++)
+        printf(" %8.5f",gridm[i*ix]);
+      printf("\n");
+    }
 
 
-  if (prl>0)
-  {
-    printf("   iba(3): %2i %2i  jba: %2i %2i  kba: %2i %2i \n",ib3,ia3,jb3,ja3,kb3,ka3);
-    printf("   iba(4): %2i %2i  jba: %2i %2i  kba: %2i %2i \n",ib4,ia4,jb4,ja4,kb4,ka4);
-  }
+    if (prl>1)
+    {
+      printf("   iba(3): %2i %2i  jba: %2i %2i  kba: %2i %2i \n",ib3,ia3,jb3,ja3,kb3,ka3);
+      printf("   iba(4): %2i %2i  jba: %2i %2i  kba: %2i %2i \n",ib4,ia4,jb4,ja4,kb4,ka4);
+    }
 
-  bool i34m = 0; if (ib3==ib4 && ia3==ia4) i34m = 1;
-  bool j34m = 0; if (jb3==jb4 && ja3==ja4) j34m = 1;
-  bool k34m = 0; if (kb3==kb4 && ka3==ka4) k34m = 1;
+    bool i34m = 0; if (ib3==ib4 && ia3==ia4) i34m = 1;
+    bool j34m = 0; if (jb3==jb4 && ja3==ja4) j34m = 1;
+    bool k34m = 0; if (kb3==kb4 && ka3==ka4) k34m = 1;
 
-  if ((ib3==ia3 && !skip_mu3) || (jb3==ja3 && !skip_nu3) || (i34m && j34m && k34m) )
-  {
-    printf("\n ERROR: couldn't determine interval in 3-center PS \n");
-    printf("   mu/nu/phi(3): %8.5f %8.5f %8.5f \n",mu3,nu3,phi3);
-    double x; double y; double z;
-    munuphi_to_xyz(a,mu3,nu3,phi3,x,y,z);
-    printf("   ABC: %8.5f %8.5f %8.5f  xyz: %8.5f %8.5f %8.5f \n",A3,B3,C3,x,y,z);
-    printf("   iba3: %i %i jba3: %i %i \n",ib3,ia3,jb3,ja3);
-    printf("   iba4: %i %i jba4: %i %i \n",ib4,ia4,jb4,ja4);
+    if ((ib3==ia3 && !skip_mu3) || (jb3==ja3 && !skip_nu3) || (i34m && j34m && k34m) )
+    {
+      printf("\n ERROR: couldn't determine interval in 3-center PS \n");
+      printf("   mu/nu/phi(3): %8.5f %8.5f %8.5f \n",mu3,nu3,phi3);
+      double x; double y; double z;
+      munuphi_to_xyz(a,mu3,nu3,phi3,x,y,z);
+      printf("   ABC: %8.5f %8.5f %8.5f  xyz: %8.5f %8.5f %8.5f \n",A3,B3,C3,x,y,z);
+      printf("   iba3: %i %i jba3: %i %i \n",ib3,ia3,jb3,ja3);
+      printf("   iba4: %i %i jba4: %i %i \n",ib4,ia4,jb4,ja4);
 
-    printf("   AC1: %8.5f %8.5f %8.5f \n",coordm[0],coordm[1],coordm[2]);
-    printf("   AC2: %8.5f %8.5f %8.5f \n",coordm[3],coordm[4],coordm[5]);
-    printf("   AC3: %8.5f %8.5f %8.5f \n",coordm[6],coordm[7],coordm[8]);
+      printf("   AC1: %8.5f %8.5f %8.5f \n",coordm[0],coordm[1],coordm[2]);
+      printf("   AC2: %8.5f %8.5f %8.5f \n",coordm[3],coordm[4],coordm[5]);
+      printf("   AC3: %8.5f %8.5f %8.5f \n",coordm[6],coordm[7],coordm[8]);
 
-    printf("   mu:");
-    for (int i=0;i<nmu;i++)
-      printf(" %8.5f",gridm[i*ix]);
-    printf("\n");
+      printf("   mu:");
+      for (int i=0;i<nmu;i++)
+        printf(" %8.5f",gridm[i*ix]);
+      printf("\n");
 
-    printf("   nu:");
-    for (int j=0;j<nnu;j++)
-      printf(" %8.5f",gridm[j*jx+1]);
-    printf("\n");
+      printf("   nu:");
+      for (int j=0;j<nnu;j++)
+        printf(" %8.5f",gridm[j*jx+1]);
+      printf("\n");
 
-    printf("   phi:");
-    for (int k=0;k<nphi;k++)
-      printf(" %8.5f",gridm[6*k+2]);
-    printf("\n");
+      printf("   phi:");
+      for (int k=0;k<nphi;k++)
+        printf(" %8.5f",gridm[6*k+2]);
+      printf("\n");
 
-    exit(-1);
-  }
+      //exit(-1);
+    }
 
- #if 0
-  printf("   mu3: %8.5f is between %8.5f and %8.5f \n",mu3,gridm[ix*ib+0],gridm[ix*ia+0]);
-  printf("   nu3: %8.5f is between %8.5f and %8.5f \n",nu3,gridm[jx*jb+1],gridm[jx*ja+1]);
-  printf("  phi3: %8.5f is between %8.5f and %8.5f \n",phi3,gridm[6*kb+2],gridm[6*ka+2]);
-  printf("   mu4: %8.5f is between %8.5f and %8.5f \n",mu4,gridm[ix*ib+0],gridm[ix*ia+0]);
-  printf("   nu4: %8.5f is between %8.5f and %8.5f \n",nu4,gridm[jx*jb+1],gridm[jx*ja+1]);
-  printf("  phi4: %8.5f is between %8.5f and %8.5f \n",phi4,gridm[6*kb+2],gridm[6*ka+2]);
- #endif
+   #if 0
+    printf("   mu3: %8.5f is between %8.5f and %8.5f \n",mu3,gridm[ix*ib+0],gridm[ix*ia+0]);
+    printf("   nu3: %8.5f is between %8.5f and %8.5f \n",nu3,gridm[jx*jb+1],gridm[jx*ja+1]);
+    printf("  phi3: %8.5f is between %8.5f and %8.5f \n",phi3,gridm[6*kb+2],gridm[6*ka+2]);
+    printf("   mu4: %8.5f is between %8.5f and %8.5f \n",mu4,gridm[ix*ib+0],gridm[ix*ia+0]);
+    printf("   nu4: %8.5f is between %8.5f and %8.5f \n",nu4,gridm[jx*jb+1],gridm[jx*ja+1]);
+    printf("  phi4: %8.5f is between %8.5f and %8.5f \n",phi4,gridm[6*kb+2],gridm[6*ka+2]);
+   #endif
 
-  if (skip_mu3 && skip_nu3)
-  {
-    if (prl>0)
-      printf("   mu/nu are small \n");
-  }
-  else if (skip_mu3 && !skip_nu3)
-    shift_boundary_nu(nu3,ix,jx,jb3,ja3,kb3,ka3,gs,gridm);
-  else if (!skip_mu3 && skip_nu3)
-    shift_boundary_mu(mu3,ix,jx,ib3,ia3,jb3,kb3,ka3,gs,gridm);
-  else
-    shift_boundary_munu(mu3,nu3,ix,jx,ib3,ia3,jb3,ja3,kb3,ka3,gs,gridm);
+    if (skip_mu3 && skip_nu3)
+    {
+      //if (prl>0)
+      //  printf("   mu/nu are small \n");
+    }
+    else if (skip_mu3 && !skip_nu3)
+      shift_boundary_nu(tid,nu3,ix,jx,jb3,ja3,kb3,ka3,gs,gridm);
+    else if (!skip_mu3 && skip_nu3)
+      shift_boundary_mu(tid,mu3,ix,jx,ib3,ia3,jb3,kb3,ka3,gs,gridm);
+    else
+      shift_boundary_munu(tid,mu3,nu3,ix,jx,ib3,ia3,jb3,ja3,kb3,ka3,gs,gridm);
 
-  bool skip_mu4 = 0;
-  if (mu4<munu_thresh)
-    skip_mu4 = 1;
-  else if (ib4==ia4)
-    ia4 = 1;
+    bool skip_mu4 = 0;
+    if (mu4<munu_thresh)
+      skip_mu4 = 1;
+    else if (ib4==ia4)
+      ia4 = 1;
 
-  bool skip_nu4 = handle_linear_nu(jb4,ja4,nnu,nu4,munu_thresh);
+    bool skip_nu4 = handle_linear_nu(jb4,ja4,nnu,nu4,munu_thresh);
 
-  if (skip_mu4 && skip_nu4)
-  {
-    if (prl>0)
-      printf("   mu/nu are small \n");
-  }
-  else if (skip_mu4 && !skip_nu4)
-    shift_boundary_nu(nu4,ix,jx,jb4,ja4,kb4,ka4,gs,gridm);
-  else if (!skip_mu4 && skip_nu4)
-    shift_boundary_mu(mu4,ix,jx,ib4,ia4,jb4,kb4,ka4,gs,gridm);
-  else
-    shift_boundary_munu(mu4,nu4,ix,jx,ib4,ia4,jb4,ja4,kb4,ka4,gs,gridm);
+    if (skip_mu4 && skip_nu4)
+    {
+      //if (prl>0)
+      //  printf("   mu/nu are small \n");
+    }
+    else if (skip_mu4 && !skip_nu4)
+      shift_boundary_nu(tid,nu4,ix,jx,jb4,ja4,kb4,ka4,gs,gridm);
+    else if (!skip_mu4 && skip_nu4)
+      shift_boundary_mu(tid,mu4,ix,jx,ib4,ia4,jb4,kb4,ka4,gs,gridm);
+    else
+      shift_boundary_munu(tid,mu4,nu4,ix,jx,ib4,ia4,jb4,ja4,kb4,ka4,gs,gridm);
 
-  //move shifted grid points to end
-  {
+   //move shifted grid points to end
     double tmp[6];
-    #pragma acc enter data create(tmp[0:6])
+    #pragma acc enter data create(tmp[0:6]) async(tid+1)
 
-    #pragma acc serial present(gridm[0:gs6],tmp[0:6])
+    #pragma acc serial present(gridm[0:gs6],tmp[0:6]) async(tid+1)
     for (int k=0;k<2;k++)
     {
       int ws = gs-16+k*4;
@@ -1581,7 +1561,7 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
       ws++;
     }
 
-    #pragma acc serial present(gridm[0:gs6],tmp[0:6])
+    #pragma acc serial present(gridm[0:gs6],tmp[0:6]) async(tid+1)
     for (int k=0;k<2;k++)
     {
       int ws = gs-8+k*4;
@@ -1624,14 +1604,15 @@ void initialize_ps_coords_4c(double cf, int nmu, int nnu, int nphi, double phi_z
       ws++;
     }
 
-    #pragma acc exit data delete(tmp[0:6])
-  }
+    #pragma acc exit data delete(tmp[0:6]) async(tid+1)
+
+  } //acc serial region
 
 
   return;
 }
 
-void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
+void initialize_ps_coords_batch(int tid, int wb, int nbatch, double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
 {
   if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
   //if (nnu<2 || nphi<2) { printf(" ERROR: cannot initialize PS coordinates with nnu<2 or nphi<2 \n"); exit(-1); }
@@ -1654,7 +1635,7 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
   if (prl>0)
     printf("\n init_ps_coords. wb/nbatch: %i %i -- a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",wb,nbatch,a,nmu,nnu,nphi,dnu,dphi,dx1);
   double rmax = a*cosh(c1*atanh(nmu*dx1));
-  if (prl>1) printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
+  //printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
   int ic = 0;
   for (int i=0;i<nmu;i++)
@@ -1680,7 +1661,7 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
       double cosn = cos(nu);
 
       int i1 = ic*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs])
+     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) async(tid+1)
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -1749,7 +1730,7 @@ void initialize_ps_coords_batch(int wb, int nbatch, double a, double cf, int nmu
 
 double get_rsp(int nsplit, double ztm, double* rsp, int prl)
 {
-  int c0 = 0; if (nsplit==2) c0 = 1; 
+  int c0 = 0; if (nsplit==2) c0 = 1;
   for (int j=0;j<nsplit-1;j++)
   {
     double cut = 0.5*pow(10.,-(c0+j));
@@ -1764,7 +1745,7 @@ double get_rsp(int nsplit, double ztm, double* rsp, int prl)
   return rsp[nsplit-2];
 }
 
-void refine_3c_grid(int nsplit, double ztm, double a, double A3, double B3, double C3, int gs, int nsg, double* gridm, double* rot, int prl)
+void refine_3c_grid(int tid, int nsplit, double ztm, double a, double A3, double B3, double C3, int gs, int nsg, double* gridm, double* rot, int prl)
 {
   //if (nsplit<2) return;
   if (nsg<1) return;
@@ -1781,19 +1762,16 @@ void refine_3c_grid(int nsplit, double ztm, double a, double A3, double B3, doub
   int ns3 = nsplit*nsplit*nsplit;
 
   double* gride = new double[48];
-  #pragma acc enter data create(gride[0:48])
+  #pragma acc enter data create(gride[0:48]) async(tid+1)
 
-  #pragma acc parallel loop collapse(2) present(gridm[0:gs6],gride[0:48])
+  #pragma acc parallel loop collapse(2) present(gridm[0:gs6],gride[0:48]) async(tid+1)
   for (int j=0;j<8;j++)
   for (int k=0;k<6;k++)
     gride[6*j+k] = gridm[i0+6*j+k];
 
  //not using rsp/rsmax
-  //double* rsp = new double[nsplit-1];
-  //double rsmax = get_rsp(nsplit,ztm,rsp,prl);
-  //#pragma acc enter data copyin(rsp[0:nsplit-1])
 
- #pragma acc parallel loop independent present(gridm[0:gs6],gride[0:48])
+ #pragma acc parallel loop independent present(gridm[0:gs6],gride[0:48]) async(tid+1)
   for (int j=0;j<8;j++)
   {
     double   mu = gride[6*j+0];
@@ -1936,10 +1914,8 @@ void refine_3c_grid(int nsplit, double ztm, double a, double A3, double B3, doub
   }
  #endif
 
-  #pragma acc exit data delete(gride[0:48])
-  //#pragma acc exit data delete(rsp[0:nsplit-1])
-
-  //delete [] rsp;
+  #pragma acc exit data delete(gride[0:48]) async(tid+1)
+  acc_wait_all();
   delete [] gride;
 
   return;
@@ -1985,7 +1961,7 @@ double get_cfn_3c(double ztm1, double ztm2, int nmu, double* coordn)
 }
 
 
-void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   if (natoms<3) { printf("\n ERROR: cannot use refined grid with natoms<3 \n"); exit(-1); }
   int prl = 0;
@@ -1996,6 +1972,8 @@ void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, do
  #if VOLUME_RESIZE && 0
   cfn = get_cfn_3c(ztm1,ztm2,nmu,coordn);
  #endif
+
+  //printf("  in generate_ps_quad_grid_3c_refine \n");
 
   int qo = quad_order;
   int qoh = quad_r_order;
@@ -2013,12 +1991,14 @@ void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, do
   get_quad(qo,Qy);
   get_quad(qo,Qz);
 
-  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])
+  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
 
   int gs0 = nmu*nnu*nphi-8;
   int nsg = 8*nsplit*nsplit*nsplit;
   int gs = gs0+nsg;
   int gsq = gs0*qos+nsg*qosh; //3-atom grid size
+  //printf("  gsq: %8i  nb: %2i  (wb: %2i) \n",gsq,nb,wb); fflush(stdout);
+
   if (gsq%nb>0) { printf("\n ERROR: couldn't divide up grid in 3c_refine (remainder: %i) \n",gsq%nb); exit(-1); }
   gsq /= nb;
   int gs6 = 6*gs; // w/o quad
@@ -2030,15 +2010,17 @@ void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, do
   double* gridq = new double[gsq6];
   double* gridm = new double[gs6];
 
-  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6])
+  //printf("   about to allocate gridq \n");
+  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
+  //printf("   after allocate gridq \n");
 
   double rot[9];
-  #pragma acc enter data create(rot[0:9])
-  #pragma acc parallel loop present(rot[0:9])
-  for (int j=0;j<9;j++) 
+  #pragma acc enter data create(rot[0:9]) async(tid+1)
+  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  for (int j=0;j<9;j++)
     rot[j] = 0.;
-  #pragma acc parallel loop present(rot[0:9])
-  for (int j=0;j<3;j++) 
+  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  for (int j=0;j<3;j++)
     rot[j*3+j] = 1.;
 
   double A2 = coordn[3]; double B2 = coordn[4]; double C2 = coordn[5];
@@ -2046,34 +2028,40 @@ void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, do
 
   {
     get_3c_position(coordn,rot);
+    #pragma acc update device(rot[0:9]) async(tid+1)
+    acc_wait_all();
+    #pragma acc wait
+
     double A3 = coordn[6]; double B3 = coordn[7]; double C3 = coordn[8];
 
-    initialize_ps_coords_3c(cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
+    initialize_ps_coords_3c(tid,cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
 
-    refine_3c_grid(nsplit,0.,z0,A3,B3,C3,gs,nsg,gridm,rot,prl);
+    refine_3c_grid(tid,nsplit,0.,z0,A3,B3,C3,gs,nsg,gridm,rot,prl);
 
    //now w/batching
-    quad_grid_munuphi(wb,nb,qo,qo,qo,0,z0,Qx,Qy,Qz,gs-nsg,0,gridm,gridq,wt);
+    quad_grid_munuphi(tid,wb,nb,qo,qo,qo,0,z0,Qx,Qy,Qz,gs-nsg,0,gridm,gridq,wt);
 
    //if splitting, create rest of grid
     if (nsg>0)
     {
       double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
       get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
-      #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+      #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
 
      //nsg pts surrounding third nucleus w/refined grid
-      quad_grid_munuphi(wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-nsg,gridm,gridq,wt);
+      quad_grid_munuphi(tid,wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-nsg,gridm,gridq,wt);
 
-      #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+      #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
     }
 
-    reorient_grid(z0,gsq,gridq,grid,rot);
+    reorient_grid(tid,z0,gsq,gridq,grid,rot);
   }
 
-  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])
-  #pragma acc exit data delete(rot[0:9])
-  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6])
+  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
+  #pragma acc exit data delete(rot[0:9]) async(tid+1)
+  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
+
+  acc_wait_all();
 
   if (0)
   {
@@ -2083,7 +2071,7 @@ void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, do
     for (int j=gsq-nsg*qosh;j<gsq;j++)
       printf("  xyz: %8.5f %8.5f %8.5f  wt: %9.6f \n",grid[6*j+0],grid[6*j+1],grid[6*j+2],wt[j]);
   }
- 
+
   delete [] Qx;
   delete [] Qy;
   delete [] Qz;
@@ -2093,17 +2081,17 @@ void generate_ps_quad_grid_3c_refine(double cfn, int wb, int nb, double ztm1, do
   return;
 }
 
-void generate_ps_quad_grid_3c_refine(int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid_3c_refine(int tid, int wb, int nb, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   double cfn = 1.;
-  return generate_ps_quad_grid_3c_refine(cfn,wb,nb,ztm1,ztm2,nsplit,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+  return generate_ps_quad_grid_3c_refine(tid,cfn,wb,nb,ztm1,ztm2,nsplit,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
 }
 
-void generate_ps_quad_grid_3c_refine(double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid_3c_refine(int tid, double ztm1, double ztm2, int nsplit, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   double cfn = 1.;
   int wb = 0; int nb = 1;
-  return generate_ps_quad_grid_3c_refine(cfn,wb,nb,ztm1,ztm2,nsplit,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+  return generate_ps_quad_grid_3c_refine(tid,cfn,wb,nb,ztm1,ztm2,nsplit,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
 }
 
 void get_nrad_nang_order(int& nrad, int& nang, int ang_order, int nb, int gsq)
@@ -2125,12 +2113,14 @@ void get_nrad_nang_order(int& nrad, int& nang, int ang_order, int nb, int gsq)
 }
 
 //wb,nb --> batches over grid
-void generate_ps_quad_grid(double cfn, int wb, int nb, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   int prl = 0;
   if (prl>1) printf("\n in generate_ps_quad_grid (natoms: %i) \n",natoms);
   if (nb>1 && natoms>2) printf(" TESTING: batching for 3c systems \n");
   if (wb>=nb) { printf("\n ERROR: wb cannot be larger than nb \n"); exit(-1); }
+
+  //printf("  in generate_ps_quad_grid \n"); fflush(stdout);
 
   int qo = quad_order;
   int qoh = quad_r_order;
@@ -2149,7 +2139,8 @@ void generate_ps_quad_grid(double cfn, int wb, int nb, double Z1, int natoms, do
   get_quad(qo,Qy);
   get_quad(qo,Qz);
 
-  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])
+  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
+  #pragma acc wait
 
   int gs = nmu*nnu*nphi;
   int gsq = qos*gs;
@@ -2158,143 +2149,136 @@ void generate_ps_quad_grid(double cfn, int wb, int nb, double Z1, int natoms, do
     gsq = (gs-nqa*8)*qos+nqa*8*qosh;
 
   if (natoms<=2 && nmu%nb>0) { printf("\n ERROR: batch must divide nmu \n"); exit(-1); }
-  if (natoms>2 && nb>1) { printf("\n ERROR: cannot use batching here when natoms>2 \n"); exit(-1); }
+  //if (natoms>2 && nb>1) { printf("\n ERROR: cannot use batching here when natoms>2 \n"); exit(-1); }
   if (gs%nb>0) { printf("\n ERROR: batch must divide gs \n"); exit(-1); }
   if (gsq%nb>0) { printf("\n ERROR: batch must divide gsq \n"); exit(-1); }
 
-  gs /= nb;
+  if (natoms<3)
+    gs /= nb;
   gsq /= nb;
   int gs6 = 6*gs;
   int gsq6 = 6*gsq;
 
-  if (natoms>=3)
-    printf("    natoms: %i  gs/q: %6i %6i \n",natoms,gs,gsq);
+  //if (natoms>=3)
+  //  printf("    natoms: %i  gs/q: %6i %6i \n",natoms,gs,gsq);
 
   double* gridq = new double[gsq6];
   double* gridm = new double[gs6];
 
-  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6])
+  //printf("    about to allocate gridq \n");
+  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
+  //printf("    after allocate gridq \n");
 
   double rot[9];
-  #pragma acc enter data create(rot[0:9])
-  #pragma acc parallel loop present(rot[0:9])
-  for (int j=0;j<9;j++) 
+  #pragma acc enter data create(rot[0:9]) async(tid+1)
+  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  for (int j=0;j<9;j++)
     rot[j] = 0.;
-  #pragma acc parallel loop present(rot[0:9])
-  for (int j=0;j<3;j++) 
+  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  for (int j=0;j<3;j++)
     rot[j*3+j] = 1.;
 
   double A2 = coordn[3]; double B2 = coordn[4]; double C2 = coordn[5];
   double z0 = sqrt(A2*A2+B2*B2+C2*C2)*0.5;
   if (natoms==1) z0 = 2.;
 
-  #define ATOMIC_GRID 1
- 
   if (natoms==1)
   {
-   #if ATOMIC_GRID
     int nrad = 0;
     int nang = 0;
 
    //maximum degree of Lebedev grid
-    int ang_order = 24;
+    int ang_order = 16;
     get_nrad_nang_order(nrad,nang,ang_order,nb,gsq*nb);
     int gsb = nrad*nang/nb;
 
    //zero weight on unused data pts. also need r1 to be nonzero
-    #pragma acc parallel loop present(wt[0:gsq])
+    #pragma acc parallel loop present(wt[0:gsq]) async(tid+1)
     for (int j=0;j<gsq;j++)
       wt[j] = 0.;
-    #pragma acc parallel loop present(grid[0:gsq6])
+    #pragma acc parallel loop present(grid[0:gsq6]) async(tid+1)
     for (int j=0;j<gsq6;j++)
       grid[j] = 1.e4;
     if (nrad<1) { printf("\n ERROR: could not form atomic grid \n"); exit(-1); }
 
-    if (prl > 1) printf("    using atomic grid (Z: %2i).  nrad: %4i  nang: %4i  gs: %7i  gsq: %7i \n",(int)Z1,nrad,nang,gsb,gsq);
-    generate_central_grid_2d(wb,nb,1,grid,wt,Z1,nrad,nang);
-
-   #else
-   //realigned PS grid
-    //double c2 = read_float_2("C2");
-    //if (c2<=-1.) c2 = 0.;
-    //if (c2<-0.5) { c2 = -0.5; printf("\n WARNING: C2 cannot be less than -0.5 \n"); } 
-    //if (c2>0.5)  { c2 =  0.5; printf("\n WARNING: C2 cannot be larger than 0.5 \n"); } 
-
-    //initialize_ps_coords_1c(z0,cfn,c2,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
-    initialize_ps_coords_batch(wb,nb,z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
-
-    quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wt);
-
-    #pragma acc parallel loop present(gridq[0:gsq6],grid[0:gsq6])
-    for (int j=0;j<gsq6;j++)
-      grid[j] = gridq[j];
-    //shift_grid(z0,gsq,grid);
-   #endif
+    if (prl>1) printf("    using atomic grid (Z: %2i).  nrad: %4i  nang: %4i  gs: %7i  gsq: %7i \n",(int)Z1,nrad,nang,gsb,gsq);
+    double zeta_murak = Z1J;
+    generate_central_grid_2d(tid,wb,nb,0,grid,wt,zeta_murak,nrad,nang);
+    //generate_central_grid_2d(tid,wb,nb,1,grid,wt,Z1,nrad,nang);
   }
   else if (natoms==2)
   {
     get_2c_position(coordn,rot);
+    #pragma acc update device(rot[0:9]) async(tid+1)
+    #pragma acc wait
 
-    initialize_ps_coords_batch(wb,nb,z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
+    initialize_ps_coords_batch(tid,wb,nb,z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
     //initialize_ps_coords_2c(z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
 
-    quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wt);
+    quad_grid_munuphi(tid,qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wt);
 
-    reorient_grid(z0,gsq,gridq,grid,rot);
+    reorient_grid(tid,z0,gsq,gridq,grid,rot);
   }
   else if (natoms==3)
   {
     get_3c_position(coordn,rot);
+    #pragma acc update device(rot[0:9]) async(tid+1)
+    #pragma acc wait
 
-    initialize_ps_coords_3c(cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
+    initialize_ps_coords_3c(tid,cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
 
-    quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs-8,0,gridm,gridq,wt);
+    quad_grid_munuphi(tid,wb,nb,qo,qo,qo,0,z0,Qx,Qy,Qz,gs-8,0,gridm,gridq,wt);
 
     double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
     get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
-    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
 
    //8 pts surrounding third nucleus w/refined grid
-    quad_grid_munuphi(wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-8,gridm,gridq,wt);
+    quad_grid_munuphi(tid,wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-8,gridm,gridq,wt);
 
-    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
 
-    reorient_grid(z0,gsq,gridq,grid,rot);
+    reorient_grid(tid,z0,gsq,gridq,grid,rot);
   }
   else if (natoms==4)
   {
-    if (nb>1) { printf("\n ERROR: shouldn't be here (4-atom grid) with nbatch>1 \n"); exit(-1); }
+    if (nb>1) { printf("\n WARNING: testing 4-atom grid with nbatch>1 \n"); }
 
    //first rotation matrix that takes three atoms into xz plane
     get_4c_position(coordn,rot);
+    #pragma acc update device(rot[0:9]) async(tid+1)
+    #pragma acc wait
 
     //initialize_ps_coords_3c(cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
-    initialize_ps_coords_4c(cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
+    initialize_ps_coords_4c(tid,cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
 
-    quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs-16,0,gridm,gridq,wt);
+    quad_grid_munuphi(tid,wb,nb,qo,qo,qo,0,z0,Qx,Qy,Qz,gs-16,0,gridm,gridq,wt);
 
     double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
     get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
-    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
 
    //16 pts surrounding latter two nuclei w/refined grid
-    quad_grid_munuphi(qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-16,gridm,gridq,wt);
+    quad_grid_munuphi(tid,wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-16,gridm,gridq,wt);
 
-    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])
+    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
 
-    reorient_grid(z0,gsq,gridq,grid,rot);
+    reorient_grid(tid,z0,gsq,gridq,grid,rot);
   }
   else
   {
     printf("\n ERROR: generate_ps_grid_quad supports natoms<5 \n"); exit(-1);
   }
+  acc_wait_all();
 
-  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])
-  #pragma acc exit data delete(rot[0:9])
-  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6])
+  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
+  #pragma acc exit data delete(rot[0:9]) async(tid+1)
+  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
 
- #if 1
-  if (natoms==1 && gsq<10000 && prl > 1)
+  acc_wait_all();
+
+ #if 0
+  if (natoms==1 && gsq<10000)
   {
     #pragma acc update self(grid[0:gsq6],wt[0:gsq])
     for (int j=0;j<gsq;j++)
@@ -2311,15 +2295,15 @@ void generate_ps_quad_grid(double cfn, int wb, int nb, double Z1, int natoms, do
   return;
 }
 
-void generate_ps_quad_grid(double cfn, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid(int tid, double cfn, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   int wb = 0; int nb = 1;
-  return generate_ps_quad_grid(cfn,wb,nb,Z1,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+  return generate_ps_quad_grid(tid,cfn,wb,nb,Z1,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
 }
 
-void generate_ps_quad_grid(double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
+void generate_ps_quad_grid(int tid, double Z1, int natoms, double* coordn, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* grid, double* wt)
 {
   double cfn = 1.;
   int wb = 0; int nb = 1;
-  return generate_ps_quad_grid(cfn,wb,nb,Z1,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
+  return generate_ps_quad_grid(tid,cfn,wb,nb,Z1,natoms,coordn,quad_order,quad_r_order,nmu,nnu,nphi,grid,wt);
 }

@@ -13,6 +13,9 @@ extern "C" {
 
 using namespace std;
 
+//allow external access to normalization
+double get_gto_norm(int shl1, double zeta1);
+
 class CINTPrep {
   public: //should probably make this private...
     string xyzfile;
@@ -48,6 +51,7 @@ class CINTPrep {
     void set_bas(int *&bas_in);
     void set_env(double *&env_in);
     void assign_coords(int natoms, int *atomlist, double *coords, bool in_bohr = true); 
+    void assign_coords(int natoms, int *atomlist, float *coords, bool in_bohr = true); 
 
     //RI funcs
     int get_var_dim_ri();
@@ -56,12 +60,12 @@ class CINTPrep {
 
     void read_xyz(string inpxyz);
     void read_bas(string inpbas);
-    void read_bas_ri(string inpbas);
+    bool read_bas_ri(string inpbas);
     void prep_env();
 
     void copy_atoms(vector< int > &atoms_copy);
     void copy_coord(vector< double > &coord_copy);
-
+ 
     unordered_map<short, short> anum_to_N;
 };
 

@@ -16,6 +16,10 @@
 
 using namespace std;
 
+#include "write.h"
+#include "cpu_util.h"
+#include "print.h"
+
 //#define A2B 1.8897261
 
 string SSTRF(float x);
@@ -35,6 +39,7 @@ double read_float(string filename);
 double read_float_2(string filename);
 int read_int(string filename);
 int read_int_2(string filename);
+int read_int_3(string filename);
 bool read_array(int size, double* A, string filename);
 vector<double> read_vector(string filename);
 void read_thresh(float& no_thresh, float& occ_thresh);
@@ -76,8 +81,10 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, double* A);
 int read_gridpts(int s1, int s2, float* A, string filename);
 int read_gridpts(int s1, int s2, double* A, string filename);
 int read_square_check(int N, double* Pao, string filename);
-int read_square(int N, double* Pao, string filename);
+int read_square(int N, int M, double** A, string filename);
+int read_square(int N, double* A, string filename);
 int read_square(vector<vector<double> > basis, double* Pao, string filename);
+int read_rect(int N, int M, double* C, string filename);
 
 bool check_PS();
 
