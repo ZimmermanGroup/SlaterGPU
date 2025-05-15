@@ -317,6 +317,7 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
      #else
       eval_sh(i1,1,grid1,tmp1,n1,l1,m1,zeta1);
      #endif
+      acc_wait_all();
       #pragma acc update self(tmp1[0:1])
 
       pb2[ind1] = Z1*norm[i1]*tmp1[0];
