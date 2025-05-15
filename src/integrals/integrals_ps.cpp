@@ -2038,7 +2038,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   return;
 }
 
-void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
+void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
 {
   if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_3c_ps \n"); }
 
@@ -2099,11 +2099,6 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
 
-  int nbatch = 1;
-
-  //sets a minimum amount of batching
-  int nbatch_read = read_int("NBATCH");
-  if (nbatch_read>1) nbatch = nbatch_read;
 
   int nbatch_max = 24;
   bool passed_mem_check = 0;
@@ -2934,7 +2929,7 @@ void reweight_core(int tid, const double beta, int natoms, int* atno, double* co
   return;
 }
 
-void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl)
+void compute_4c_ol_ps(int natoms, int nbatch, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl)
 {
   int ngpu = 0;
  #if USE_ACC
@@ -2971,10 +2966,6 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
 
   int M4 = iN*iN*iN*iN;
 
-  int nbatch = 1;
-  //sets a minimum amount of batching
-  int nbatch_read = read_int("NBATCH");
-  if (nbatch_read>1) nbatch = nbatch_read;
 
   int nbatch_max = 24;
   bool passed_mem_check = 0;
