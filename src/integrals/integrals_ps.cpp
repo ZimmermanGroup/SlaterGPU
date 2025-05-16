@@ -1714,7 +1714,7 @@ void eval_s12v3_2(int tid, bool dol, bool dy, double gamma, int s1, int s2, int 
 
 void eval_p12(int tid, int s1, int s2, int s3, int s4, int gs, double* grid, vector<vector<double> >& basis, double* val1, double* val2, double A12, double B12, double C12, double A13, double B13, double C13)
 {
-  if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }
+  //if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }
 
   int gs3 = gs*3;
   for (int i1=s1;i1<s2;i1++)
