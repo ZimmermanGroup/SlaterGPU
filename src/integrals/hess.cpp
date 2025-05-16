@@ -2,9 +2,7 @@
 
 void get_h_1s(int gs, float* grid, float* val, float zeta)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -16,8 +14,8 @@ void get_h_1s(int gs, float* grid, float* val, float zeta)
     float xy = x*y; float xz = x*z; float yz = y*z;
     float zr = zeta*r; float ozr = 1.f+zr;
 
-   //xx, xy, xz, yy, yz, zz 
-    val[6*i]   *= (-y2-z2+x2*zr)*ezor; 
+   //xx, xy, xz, yy, yz, zz
+    val[6*i]   *= (-y2-z2+x2*zr)*ezor;
     val[6*i+1] *= xy*ozr*ezor;
     val[6*i+2] *= xz*ozr*ezor;
     val[6*i+3] *= (-x2-z2+y2*zr)*ezor;
@@ -31,9 +29,7 @@ void get_h_2s(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -43,10 +39,10 @@ void get_h_2s(int gs, float* grid, float* val, float zeta)
 
     float x2 = x*x; float y2 = y*y; float z2 = z*z;
     float xy = x*y; float xz = x*z; float yz = y*z;
-    float zr = zeta*r; float ozr = 1.f+zr; 
+    float zr = zeta*r; float ozr = 1.f+zr;
 
-   //xx, xy, xz, yy, yz, zz 
-    val[6*i]   *= (y2+z2+zt2*x2*r2 - zr*(x2+r2))*ezor; 
+   //xx, xy, xz, yy, yz, zz
+    val[6*i]   *= (y2+z2+zt2*x2*r2 - zr*(x2+r2))*ezor;
     val[6*i+1] *= xy*(-1.f-zr+zt2*r2)*ezor;
     val[6*i+2] *= xz*(-1.f-zr+zt2*r2)*ezor;
     val[6*i+3] *= (z2+zt2*y2*(y2+z2)-zr*(2.f*y2+z2)+x2*(1.f+zt2*y2-zr))*ezor;
@@ -60,9 +56,7 @@ void get_h_2px(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -72,10 +66,10 @@ void get_h_2px(int gs, float* grid, float* val, float zeta)
 
     float x2 = x*x; float y2 = y*y; float z2 = z*z;
     float xy = x*y; float xz = x*z; float yz = y*z;
-    float zr = zeta*r; float ozr = 1.f+zr; 
+    float zr = zeta*r; float ozr = 1.f+zr;
 
-   //xx, xy, xz, yy, yz, zz 
-    val[6*i]   *= x*(-3.f*(y2+z2)+x2*(-2.f+zr))*ezor; 
+   //xx, xy, xz, yy, yz, zz
+    val[6*i]   *= x*(-3.f*(y2+z2)+x2*(-2.f+zr))*ezor;
     val[6*i+1] *= y*(-y2-z2+x2*zr)*ezor;
     val[6*i+2] *= z*(-y2-z2+x2*zr)*ezor;
     val[6*i+3] *= x*(-x2-z2 + y2*zr)*ezor;
@@ -89,9 +83,7 @@ void get_h_2py(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -101,10 +93,10 @@ void get_h_2py(int gs, float* grid, float* val, float zeta)
 
     float x2 = x*x; float y2 = y*y; float z2 = z*z;
     float xy = x*y; float xz = x*z; float yz = y*z;
-    float zr = zeta*r; float ozr = 1.f+zr; 
+    float zr = zeta*r; float ozr = 1.f+zr;
 
-   //xx, xy, xz, yy, yz, zz 
-    val[6*i]   *= y*(-y2-z2+x2*zr)*ezor; 
+   //xx, xy, xz, yy, yz, zz
+    val[6*i]   *= y*(-y2-z2+x2*zr)*ezor;
     val[6*i+1] *= x*(-x2-z2+y2*zr)*ezor;
     val[6*i+2] *= x*y*z*ozr*ezor;
     val[6*i+3] *= y*(-3.f*x2-3.f*z2+y2*(-2.f+zr))*ezor;
@@ -118,9 +110,7 @@ void get_h_2pz(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -130,10 +120,10 @@ void get_h_2pz(int gs, float* grid, float* val, float zeta)
 
     float x2 = x*x; float y2 = y*y; float z2 = z*z;
     float xy = x*y; float xz = x*z; float yz = y*z;
-    float zr = zeta*r; float ozr = 1.f+zr; 
+    float zr = zeta*r; float ozr = 1.f+zr;
 
-   //xx, xy, xz, yy, yz, zz 
-    val[6*i]   *= z*(-y2-z2+x2*zr)*ezor; 
+   //xx, xy, xz, yy, yz, zz
+    val[6*i]   *= z*(-y2-z2+x2*zr)*ezor;
     val[6*i+1] *= x*y*z*ozr*ezor;
     val[6*i+2] *= x*(-x2-y2+z2*zr)*ezor;
     val[6*i+3] *= z*(-x2-z2+y2*zr)*ezor;
