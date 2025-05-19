@@ -198,6 +198,8 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   ngpu = acc_get_num_devices(acc_device_nvidia);
  #endif
 
+  if (ngpu>1) printf("\nWARNING: Multi-GPU run detected. Code has been benchmarked for use with a single GPU only.\n\n");
+
   int N = basis.size();
   int N2 = N*N;
 
