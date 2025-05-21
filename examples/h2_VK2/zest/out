@@ -1,0 +1,100 @@
+ this is a GPU run 
+  MPI:  1 instances with  2 GPUs and  1 OMP threads 
+  Geometry: 
+   1  0.00000  0.00000 -0.70050 
+   1  0.00000  0.00000  0.70050 
+  found nplus spdf: 2 0 0 0 0 
+  lmax in auxiliary basis: 2 
+  found  2 atoms and 12 basis functions 
+   basis(  0):  1 0  0   0.690  norm:     0.32  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  1):  1 0  0   0.920  norm:     0.50  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  2):  1 0  0   1.580  norm:     1.12  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  3):  2 1  1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  4):  2 1 -1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  5):  2 1  0   1.250  norm:     0.99  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  6):  1 0  0   0.690  norm:     0.32  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis(  7):  1 0  0   0.920  norm:     0.50  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis(  8):  1 0  0   1.580  norm:     1.12  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis(  9):  2 1  1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis( 10):  2 1 -1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis( 11):  2 1  0   1.250  norm:     0.99  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+  found 40 auxiliary basis functions 
+   at: 0  l: 0  Naux:  6 
+   at: 0  l: 1  Naux:  3 
+   at: 0  l: 2  Naux:  1 
+   at: 1  l: 0  Naux:  6 
+   at: 1  l: 1  Naux:  3 
+   at: 1  l: 2  Naux:  1 
+ There are  1 occupied orbitals ( 0 core). Enn:   0.713776 
+  Na:  1 Nb:  1  charge: 0  spin: 0 
+
+  nrad: 100 nang: 23 size_ang: 2030 
+  atomic grid size: 203000 
+  PS grid size: 80 60 20 quad_order:  5  5  w/quad: 12000000 
+  beginning compute_STEn_ps 
+   gpu memory available: 21.423 GB 
+   after alloc, gpu memory available: 19.089 GB 
+  S diagonals accuracy:   -15.18 to -14.75 
+  beginning compute_2c_ps (ngpu: 2  nbatch:  1) 
+   gpu memory available: 21.409 GB 
+   after alloc, gpu memory available: 17.198 GB 
+  beginning compute_3c_ps (ngpu: 2  nbatch:  1) 
+   gpu memory available: 21.400 GB 
+   after alloc, gpu memory available: 17.824 GB 
+  writing S/En/T to file 
+  writing A to file 
+  writing C to file 
+  beginning compute_4c_ol_ps.  ngpu: 2  nbatch:  1 
+  gs: 12000000  gpu mem total: 21.400 GB ngpu:  2 
+   after alloc, gpu memory available: 18.539 GB 
+  attempting file read: Ciap 
+  attempting file read: A 
+  attempting file read: SENT 
+ memory needed -> N2a: 5760  N4:  20736 
+ invert_stable eigenvalues: 2.12e-08 7.53e-08 1.48e-06 1.16e-05 1.74e-05 1.58e-04 6.25e-04 9.26e-04 9.26e-04 1.71e-03
+  found 0 small eigen 
+ mat_root_inv_stable eigenvalues: 2.12e-08 7.53e-08 1.48e-06 1.16e-05 1.74e-05 1.58e-04 6.25e-04 9.26e-04 9.26e-04 1.71e-03
+  found 0 small eigen 
+ B and AC generated 
+  couldn't open file CA 
+  located MO coefs? 0 
+  couldn't open file Pao 
+  located a density matrix? 0 
+ doing HF for  1 occ orbs 
+
+
+
+ Beginning HF (No: 1 DIIS: 1) 
+   occupancy vector: 2.0000 0.0000
+   will use AO symmetry in Fock 
+  will restrict basis to cusp-fulfilling DOF 
+
+  HF run (xscale: 1.0) 
+  PSP eigenvalues: -4.9e+00 -1.9e+00 -1.8e+00 -6.5e-01 -5.8e-01 ... -1.1e-02 -2.8e-03 -2.2e-16 3.6e-16
+  getting initial MO coefs and density 
+  found  2 empty orbitals 
+ E( 0):   -1.09427561  Exc:  0.000000  dden:      4.81254231  diis err: 0.00000000 
+ E( 1):   -1.12988044  Exc:  0.000000  dden:      0.08582595  diis err: 0.00000000 
+ E( 2):   -1.13150173  Exc:  0.000000  dden:      0.00651150  diis err: 0.00000000 
+ E( 3):   -1.13157826  Exc:  0.000000  dden:      0.00047215  diis err: 0.00000000 
+ E( 4):   -1.13158223  Exc:  0.000000  dden:      0.00003339  diis err: 0.00000000 
+ E( 5):   -1.13158246  Exc:  0.000000  dden:      0.00000231  diis err: 0.00000003 
+ E( 6):   -1.13158247  Exc:  0.000000  dden:      0.00000028  diis err: 0.00000000 
+ E( 7):   -1.13158247  Exc:  0.000000  dden:      0.00000000  diis err: 0.00000000 
+  found  2 empty orbitals 
+
+ final Fock matrix in MO basis: 
+   -0.59380
+ LUMO:  0.14025  0.15199 
+
+ HF energies.  En+T:  -1.251557  G:   0.657756  F:  -0.593801 
+ current HF energy:  -1.13158247 
+
+ final HF energy:  -1.84535835 w/Enn:  -1.13158247 
+ Hartree Fock time:  0.014 
+  Mulliken charges (without 0 core): 
+   atom 0:  1.23117  net: -0.23117 
+   atom 1:  0.76883  net:  0.23117 
+  1s density:  0.000066 
+
+ run completed in 18.503 seconds 
