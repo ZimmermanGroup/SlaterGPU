@@ -16,7 +16,7 @@
 #define JDEBUG 0
 
 //minimum ratio of aux basis exponents (RI v5 only)
-#define BLIMIT 1.35
+#define BLIMIT_DEFAULT 1.3
 
 #include "read.h"
 
@@ -2688,7 +2688,7 @@ void get_nspdf(int& ns, int& np, int& nd, int& nf, int& ng, vector<vector<double
   return;
 }
 
-void create_basis_aux_v4(int jellium, int auto_ri, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+void create_basis_aux_v4(int jellium, int auto_ri, double Blimit, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
 
@@ -2947,7 +2947,7 @@ void create_basis_aux_v4(int jellium, int auto_ri, int natoms, vector<vector<dou
         while (nmax>2)
         {
           B = exp(log(zf)/(nmax-1));
-          if (B>BLIMIT) break;
+          if (B>Blimit) break;
           nmax--;
         }
         printf("  atom: %i  l: %i  B: %8.5f  nmax: %2i \n",n,l13,B,nmax);
@@ -3291,7 +3291,11 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
   {
     //basis_aux.clear();
     if (auto_ri>=4)
-      create_basis_aux_v4(jellium,auto_ri,natoms,basis,basis_aux);
+    {
+      double Blimit = read_float("BLIMIT");
+      if (Blimit<1.) Blimit = BLIMIT_DEFAULT;
+      create_basis_aux_v4(jellium,auto_ri,Blimit,natoms,basis,basis_aux);
+    }
     else if (auto_ri==3)
       create_basis_aux_v3(natoms,basis,basis_aux);
     else
