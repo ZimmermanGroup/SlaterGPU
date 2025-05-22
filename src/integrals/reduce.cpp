@@ -1215,7 +1215,7 @@ void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
     for (int j=0;j<gs;j++)
       valt1[j] = val1[ii1][j] * val2[ii2][j];
 
-    #pragma acc parallel loop present(valt1[0:gs],val3[0:imaxN][0:gs],C[0:N2a]) 
+    #pragma acc parallel loop present(valt1[0:gs],val3[0:imaxN][0:gs],C[0:N2a])
     for (int i3=s3;i3<s4;i3++)
     {
       int ii3 = i3-s3;
@@ -1247,9 +1247,7 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, 
   int igs = imaxN*gs;
   int iags = imaxNa*gs;
 
- #pragma acc parallel loop present(Ct[0:N2b])
-  for (int j=0;j<N2b;j++)
-    Ct[j] = 0.;
+ //reduced C memory storage (Ct[N2b])
 
  #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b]) async(tid+1)
   for (int i1=s1;i1<s2;i1++)
@@ -1268,28 +1266,9 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, 
       //val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
       val += valm[j] * valn[j] * valp[j];
 
-    Ct[ii1*N2+i2*N+i3] = val;
-    //C[i1*N2+i2*N+i3] += val;
+    Ct[ii1*N2+i2*N+i3] += val;
   } //i1,i2,i3
 
-  //if (tid<0)
-  //{
-  //  #pragma acc wait
-  //}
-
- //reduced C memory storage
-  //#pragma acc wait
-  acc_wait_all();
-  #pragma acc update self(Ct[0:N2b])
-
-  for (int i1=s1;i1<s2;i1++)
-  for (int i2=s3;i2<s4;i2++)
-  for (int i3=s3;i3<s4;i3++)
-  {
-    int ii1 = i1-s1; int ii2 = i2-s3; int ii3 = i3-s3;
-   //#pragma omp atomic
-    C[i1*N2+i2*N+i3] += Ct[ii1*N2+i2*N+i3];
-  }
 
   return;
 }
@@ -1303,9 +1282,7 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int gs
   int igs = imaxN*gs;
   int iags = imaxNa*gs;
 
- #pragma acc parallel loop present(Ct[0:N2b])
-  for (int j=0;j<N2b;j++)
-    Ct[j] = 0.;
+ //reduced C memory storage (Ct[N2b])
 
  #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b]) async(tid+1)
   for (int i1=s1;i1<s2;i1++)
@@ -1323,28 +1300,8 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int gs
     for (int j=0;j<gs;j++)
       val += valm[j] * valn[j] * valp[j];
 
-    Ct[ii1*N2+i2*N+i3] = val;
-    //C[i1*N2+i2*N+i3] += val;
+    Ct[ii1*N2+i2*N+i3] += val;
   } //i1,i2,i3
-
-  //if (tid<0)
-  //{
-  //  #pragma acc wait
-  //}
-
- //reduced C memory storage
-  //#pragma acc wait
-  acc_wait_all();
-  #pragma acc update self(Ct[0:N2b])
-
-  for (int i1=s1;i1<s2;i1++)
-  for (int i2=s3;i2<s4;i2++)
-  for (int i3=s5;i3<s6;i3++)
-  {
-    int ii1 = i1-s1; int ii2 = i2-s3; int ii3 = i3-s3;
-   //#pragma omp atomic
-    C[i1*N2+i2*N+i3] += Ct[ii1*N2+i2*N+i3];
-  }
 
   return;
 }

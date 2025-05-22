@@ -198,8 +198,6 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   ngpu = acc_get_num_devices(acc_device_nvidia);
  #endif
 
-  if (ngpu>1) printf("\nWARNING: Multi-GPU run detected. Code has been benchmarked for use with a single GPU only.\n\n");
-
   int N = basis.size();
   int N2 = N*N;
 
@@ -1716,7 +1714,7 @@ void eval_s12v3_2(int tid, bool dol, bool dy, double gamma, int s1, int s2, int 
 
 void eval_p12(int tid, int s1, int s2, int s3, int s4, int gs, double* grid, vector<vector<double> >& basis, double* val1, double* val2, double A12, double B12, double C12, double A13, double B13, double C13)
 {
-  //if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }
+  if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }
 
   int gs3 = gs*3;
   for (int i1=s1;i1<s2;i1++)
@@ -2040,7 +2038,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   return;
 }
 
-void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
+void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
 {
   if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_3c_ps \n"); }
 
@@ -2101,6 +2099,11 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
  //handle dummy atoms with no basis ftns
   natoms = get_natoms_with_basis(natoms,atno,basis);
 
+  int nbatch = 1;
+
+  //sets a minimum amount of batching
+  int nbatch_read = read_int("NBATCH");
+  if (nbatch_read>1) nbatch = nbatch_read;
 
   int nbatch_max = 24;
   bool passed_mem_check = 0;
@@ -2153,11 +2156,12 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   //double** valV3 = new double*[iNa]; for (int i=0;i<iNa;i++) valV3[i] = new double[gsh];
   double* valt = new double[gsh];
   double* Enp = new double[N2];
- //Cp (on gpu) will be added to Ct in reduce operations
-  double** Ct = new double*[ngpu];
+ //tmp storage on GPU
+  double** Ctp = new double*[ngpu];
   for (int n=0;n<ngpu;n++)
-    Ct[n] = new double[N2a]();
-  double* Cp = new double[N2b];
+    Ctp[n] = new double[N2b];
+
+ //will increment this as calculation proceeds
   for (int j=0;j<N2a;j++) C[j] = 0.;
 
  #if USE_ACC
@@ -2166,6 +2170,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   {
     acc_set_device_num(n,acc_device_nvidia);
 
+    double* Cp = Ctp[n];
     #pragma acc enter data create(Enp[0:N2],Cp[0:N2b])
 
     #pragma acc enter data create(grid[0:gs6],wt[0:gsh])
@@ -2196,7 +2201,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
     int tid = m%ngpu;
    #endif
     acc_set_device_num(tid,acc_device_nvidia);
-    double* Ctp = Ct[tid];
+    double* Cp = Ctp[tid];
 
     double Z1 = atnod[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
@@ -2206,24 +2211,39 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
     int s3 = s1; int s4 = s2;
+    int sp = 0;
+    int s5 = n2aip[m][sp]; int s6 = n2aip[m][sp+1];
+
+    #pragma acc parallel loop present(Cp[0:N2b])
+    for (int j=0;j<N2b;j++)
+      Cp[j] = 0.;
 
     for (int wb=0;wb<nbatch;wb++)
     {
       generate_ps_quad_grid(tid,1.,wb,nbatch,Z1,1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
       add_r1_to_grid(tid,gs,grid,0.,0.,0.);
 
-      int sp = 0;
-      int s5 = n2aip[m][sp]; int s6 = n2aip[m][sp+1];
-
      //all basis on one atom
       init_s12v3(tid,dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,valS1,valS2,valV3,wt);
       eval_s12v3(tid,dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3);
 
       //printf("    m: %i   s12: %2i %2i s56: %2i %2i \n",m,s1,s2,s5,s6);
-      reduce_3c1b(tid,s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Ctp,Cp);
+      reduce_3c1b(tid,s5,s6,s1,s2,gs,valV3,valS1,valS2,N,Naux,iN,iNa,NULL,Cp);
       acc_wait_all();
 
     } //loop wb over batches
+
+    #pragma acc update self(Cp[0:N2b])
+    //acc_wait_all();
+
+    for (int i1=s5;i1<s6;i1++)
+    for (int i2=s1;i2<s2;i2++)
+    for (int i3=s1;i3<s2;i3++)
+    {
+      int ii1 = i1-s5; int ii2 = i2-s1; int ii3 = i3-s1;
+     #pragma omp atomic
+      C[i1*N2+i2*N+i3] += Cp[ii1*N2+i2*N+i3];
+    }
 
    //two-atom ints
     for (int n=0;n<natoms;n++)
@@ -2235,6 +2255,12 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
       coordn[3] = A12; coordn[4] = B12; coordn[5] = C12;
 
       s3 = 0; if (n>0) s3 = n2i[n-1]; s4 = n2i[n];
+      int sp = 0;
+      int s5 = n2aip[n][sp]; int s6 = n2aip[n][sp+1];
+
+      #pragma acc parallel loop present(Cp[0:N2b])
+      for (int j=0;j<N2b;j++)
+        Cp[j] = 0.;
 
       //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i s56: %2i %2i \n",m,n,s1,s2,s3,s4,s5,s6);
       for (int wb=0;wb<nbatch;wb++)
@@ -2242,15 +2268,13 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
         generate_ps_quad_grid(tid,1.,wb,nbatch,0.,2,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
         add_r1_to_grid(tid,gs,grid,0.,0.,0.);
 
-        int sp = 0;
-        int s5 = n2aip[n][sp]; int s6 = n2aip[n][sp+1];
         //printf(" n: %i  s5/6: %3i %3i \n",n,s5,s6);
 
        //s1 on atom 1, s2v3 on atom 2
         init_s12v3  (tid,dy,s1,s2,s3,s4,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
         eval_s12v3_2(tid,dol,dy,gamma,s1,s2,s3,s4,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,1,A12,B12,C12,0.,0.,0.);
 
-        reduce_3c1b(tid,s5,s6,s1,s2,s3,s4,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Ctp,Cp);
+        reduce_3c1b(tid,s5,s6,s1,s2,s3,s4,gs,valV3,valS1,valS2,N,Naux,iN,iNa,NULL,Cp);
         acc_wait_all();
 
        //s12 on atom 1, v3 on atom 2
@@ -2260,9 +2284,30 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
         init_s12v3  (tid,dy,s1,s2,s3b,s4b,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
         eval_s12v3_2(tid,dol,dy,gamma,s1,s2,s3b,s4b,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,2,A12,B12,C12,0.,0.,0.);
 
-        reduce_3c1b(tid,s5,s6,s1,s2,s3b,s4b,gs,valV3,valS1,valS2,N,Naux,iN,iNa,Ctp,Cp);
+        reduce_3c1b(tid,s5,s6,s1,s2,s3b,s4b,gs,valV3,valS1,valS2,N,Naux,iN,iNa,NULL,Cp);
         acc_wait_all();
       } //loop wb over nbatch
+
+      #pragma acc update self(Cp[0:N2b])
+      //acc_wait_all();
+
+      for (int i1=s5;i1<s6;i1++)
+      for (int i2=s1;i2<s2;i2++)
+      for (int i3=s3;i3<s4;i3++)
+      {
+        int ii1 = i1-s5; int ii2 = i2-s1; int ii3 = i3-s3;
+       #pragma omp atomic
+        C[i1*N2+i2*N+i3] += Cp[ii1*N2+i2*N+i3];
+      }
+
+      for (int i1=s5;i1<s6;i1++)
+      for (int i2=s1;i2<s2;i2++)
+      for (int i3=s1;i3<s2;i3++)
+      {
+        int ii1 = i1-s5; int ii2 = i2-s1; int ii3 = i3-s3;
+       #pragma omp atomic
+        C[i1*N2+i2*N+i3] += Cp[ii1*N2+i2*N+i3];
+      }
 
     } //loop n over second atom
 
@@ -2272,8 +2317,8 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
 
   } //loop m over first atom
 
-  acc_wait_all();
-  #pragma omp barrier
+  //acc_wait_all();
+  //#pragma omp barrier
   //#pragma acc wait
 
  #if OMP_PARA
@@ -2287,7 +2332,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
     int tid = m%ngpu;
    #endif
     acc_set_device_num(tid,acc_device_nvidia);
-    double* Ctp = Ct[tid];
+    double* Cp = Ctp[tid];
 
     double Z1 = atnod[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
@@ -2319,7 +2364,6 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
 
         int sp = 0;
         int s5 = n2aip[p][sp]; int s6 = n2aip[p][sp+1];
-        //printf(" p: %i  s5/6: %3i %3i \n",p,s5,s6);
 
         //if (natoms>3) printf("     mnp: %i %i %i   s12: %3i %3i  s34: %3i %3i  s56: %3i %3i \n",m,n,p,s1,s2,s3,s4,s5,s6);
 
@@ -2327,6 +2371,10 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
         get_ztm_lm(s1,s2,basis,ztm1,lm1);
         get_ztm_lm(s3,s4,basis,ztm2,lm2);
         //printf("    3c ztm/lm: %8.5f %i - %8.5f %i \n",ztm1,lm1,ztm2,lm2);
+
+        #pragma acc parallel loop present(Cp[0:N2b])
+        for (int j=0;j<N2b;j++)
+          Cp[j] = 0.;
 
         for (int wb=0;wb<nbatch;wb++)
         {
@@ -2337,8 +2385,19 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
           init_s12v3  (tid,dy,s1,s2,s3,s4,s5,s6,iN,iNa,gsh,              valS1,valS2,valV3,wt);
           eval_s12v3_2(tid,dol,dy,gamma,s1,s2,s3,s4,s5,s6,gsh,grid,basis,basis_aux,valS1,valS2,valV3,3,A12,B12,C12,A13,B13,C13);
 
-          reduce_3c1b(tid,s5,s6,s1,s2,s3,s4,gsh,valV3,valS1,valS2,N,Naux,iN,iNa,Ctp,Cp);
+          reduce_3c1b(tid,s5,s6,s1,s2,s3,s4,gsh,valV3,valS1,valS2,N,Naux,iN,iNa,NULL,Cp);
           acc_wait_all();
+        }
+
+        #pragma acc update self(Cp[0:N2b])
+
+        for (int i1=s5;i1<s6;i1++)
+        for (int i2=s1;i2<s2;i2++)
+        for (int i3=s3;i3<s4;i3++)
+        {
+          int ii1 = i1-s5; int ii2 = i2-s1; int ii3 = i3-s3;
+         #pragma omp atomic
+          C[i1*N2+i2*N+i3] += Cp[ii1*N2+i2*N+i3];
         }
 
         if (!dol && !dy)
@@ -2379,10 +2438,6 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
 
     } //loop n over second atom
 
-   #if OMP_PARA
-    #pragma acc wait
-   #endif
-
   } //loop m over natoms
 
   acc_wait_all();
@@ -2411,10 +2466,12 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
     norm2[i] = basis[i][4];
   //#pragma acc enter data copyin(norm1[0:Naux],norm2[0:N])
 
+ #if 0
  //aggregate C elements
   for (int n=0;n<ngpu;n++)
   for (int j=0;j<N2a;j++)
     C[j] += Ct[n][j];
+ #endif
 
   if (ngpu>1)
   {
@@ -2515,6 +2572,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   {
     acc_set_device_num(n,acc_device_nvidia);
 
+    double* Cp = Ctp[n];
     #pragma acc exit data delete(Enp[0:N2],Cp[0:N2b])
     #pragma acc exit data delete(grid[0:gs6],wt[0:gsh])
     //#pragma acc exit data delete(valS1[0:iN][0:gsh],valS2[0:iN][0:gsh],valV3[0:iNa][0:gsh])
@@ -2539,9 +2597,9 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, in
   delete [] valt;
   delete [] Enp;
   for (int n=0;n<ngpu;n++)
-    delete [] Ct[n];
-  delete [] Ct;
-  delete [] Cp;
+    delete [] Ctp[n];
+  delete [] Ctp;
+  //delete [] Cp;
 
   delete [] grid;
   delete [] wt;
@@ -2931,7 +2989,7 @@ void reweight_core(int tid, const double beta, int natoms, int* atno, double* co
   return;
 }
 
-void compute_4c_ol_ps(int natoms, int nbatch, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl)
+void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl)
 {
   int ngpu = 0;
  #if USE_ACC
@@ -2968,6 +3026,10 @@ void compute_4c_ol_ps(int natoms, int nbatch, int* atno, double* coords, vector<
 
   int M4 = iN*iN*iN*iN;
 
+  int nbatch = 1;
+  //sets a minimum amount of batching
+  int nbatch_read = read_int("NBATCH");
+  if (nbatch_read>1) nbatch = nbatch_read;
 
   int nbatch_max = 24;
   bool passed_mem_check = 0;
