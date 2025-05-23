@@ -1714,7 +1714,7 @@ void eval_s12v3_2(int tid, bool dol, bool dy, double gamma, int s1, int s2, int 
 
 void eval_p12(int tid, int s1, int s2, int s3, int s4, int gs, double* grid, vector<vector<double> >& basis, double* val1, double* val2, double A12, double B12, double C12, double A13, double B13, double C13)
 {
-  if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }
+  //if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }
 
   int gs3 = gs*3;
   for (int i1=s1;i1<s2;i1++)
@@ -2038,7 +2038,7 @@ void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<doub
   return;
 }
 
-void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
+void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl)
 {
   if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_3c_ps \n"); }
 
@@ -2102,8 +2102,8 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   int nbatch = 1;
 
   //sets a minimum amount of batching
-  int nbatch_read = read_int("NBATCH");
-  if (nbatch_read>1) nbatch = nbatch_read;
+  //int nbatch_read = read_int("NBATCH");
+  if (nbatch_min>1) nbatch = nbatch_min;
 
   int nbatch_max = 24;
   bool passed_mem_check = 0;
@@ -2989,7 +2989,7 @@ void reweight_core(int tid, const double beta, int natoms, int* atno, double* co
   return;
 }
 
-void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl)
+void compute_4c_ol_ps(int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl)
 {
   int ngpu = 0;
  #if USE_ACC
@@ -3028,8 +3028,8 @@ void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<doubl
 
   int nbatch = 1;
   //sets a minimum amount of batching
-  int nbatch_read = read_int("NBATCH");
-  if (nbatch_read>1) nbatch = nbatch_read;
+  //int nbatch_read = read_int("NBATCH");
+  if (nbatch_min>1) nbatch = nbatch_min;
 
   int nbatch_max = 24;
   bool passed_mem_check = 0;
