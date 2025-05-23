@@ -30,8 +30,8 @@ void gather_12_d_En_0(int s1, int s2, int gs, int iN, float** valtx1, float** va
     for (int j=0;j<gs;j++)
     for (int k=0;k<3;k++)
       valtx2[ii1][3*j+k] = valS2x[ii1][3*j+k]*wtt2[j];
-  } 
-  
+  }
+
 }
 
 void gather_12_d_En(int s1, int s2, int gs, int iN, float** valS1, float** valS2, float** valtx1, float** valtx2, float* wtt1, float* wtt2)
@@ -46,7 +46,7 @@ void gather_12_d_En(int s1, int s2, int gs, int iN, float** valS1, float** valS2
     for (int k=0;k<3;k++)
       valtx1[ii1][3*j+k] = valS1[ii1][j]*wtt1[j];
   }
-   
+
  #pragma acc parallel loop present(wtt2[0:gs],valtx2[0:iN][0:gs3],valS2[0:iN][0:gs])
   for (int ii1=0;ii1<s2-s1;ii1++)
   {
@@ -55,7 +55,7 @@ void gather_12_d_En(int s1, int s2, int gs, int iN, float** valS1, float** valS2
     for (int k=0;k<3;k++)
       valtx2[ii1][3*j+k] = valS2[ii1][j]*wtt2[j];
   }
-   
+
   return;
 }
 
@@ -128,7 +128,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
   printf("\n ERROR: compute_all_3c_para requires OpenACC \n");
   exit(1);
  #endif
-  
+
   int nomp = ngpu;
  //#pragma omp parallel
  // nomp = omp_get_num_threads();
@@ -237,7 +237,6 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
 
 #if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
@@ -254,9 +253,9 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
     #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
     #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
 
-    #pragma acc enter data create(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3]) 
-    #pragma acc enter data create(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3]) 
-    #pragma acc enter data create(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3]) 
+    #pragma acc enter data create(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3])
+    #pragma acc enter data create(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3])
+    #pragma acc enter data create(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3])
 
     #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
     #pragma acc enter data create(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
@@ -273,6 +272,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
     acc_assign(N3,xyz_grad,0.);
   }
   acc_set_device_num(0,acc_device_nvidia);
+#endif
 
  //fixes undercounting, corrupts dC
  #pragma acc parallel loop independent present(dC[0:N2a],n2i[0:natoms],na2i[0:natoms])
@@ -284,7 +284,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
     int s1 = 0; if (m>0) s1 = na2i[m-1]; int s2 = na2i[m];
     int s3 = 0; if (m>0) s3 = n2i[m-1]; int s4 = n2i[m];
     int s5 = 0; if (n>0) s5 = n2i[n-1]; int s6 = n2i[n];
-   #pragma acc loop collapse(3) 
+   #pragma acc loop collapse(3)
     for (int i1=s1;i1<s2;i1++)
     for (int i2=s3;i2<s4;i2++)
     for (int i3=s5;i3<s6;i3++)
@@ -365,7 +365,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
         val1x[ii1][3*j+2] *= v1;
       }
 
-      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
 
       if (l1>0)
       {
@@ -374,7 +374,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
           valt1[3*j+0] = valt1[3*j+1] = valt1[3*j+2] = val1[ii1][j];
 
         eval_dp_3r(gs,grid1,valt1,n1,l1,m1);
-        
+
        #pragma acc parallel loop present(valt1[0:gs3],val1x[0:iNa][0:gs3])
         for (int j=0;j<gs3;j++)
           val1x[ii1][j] += valt1[j];
@@ -429,7 +429,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
       copy_grid(gs,grid2s,grid2);
       recenter_grid(gs,grid2,A12,B12,C12);
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copyf(gs,wtt1,wt1);
@@ -500,7 +500,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
           val4x[ii1][3*j+2] *= v1;
         }
 
-        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
 
         if (l1>0)
         {
@@ -509,7 +509,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
             valt1[3*j+0] = valt1[3*j+1] = valt1[3*j+2] = val4[ii1][j];
 
           eval_dp_3r(gs,grid2,valt1,n1,l1,m1);
-        
+
          #pragma acc parallel loop present(valt1[0:gs3],val4x[0:iNa][0:gs3])
           for (int j=0;j<gs3;j++)
             val4x[ii1][j] += valt1[j];
@@ -561,7 +561,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
           val2x[ii2][j] = val5x[ii2][j] = 1.f;
       }
 
-     #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],val3x[0:iN][0:gs3],val6x[0:iN][0:gs3],wt1[0:gs],wt2[0:gs])
+     #pragma acc parallel loop collapse(2) present(val3[0:iN][0:gs],val6[0:iN][0:gs],val3x[0:iN][0:gs3],val6x[0:iN][0:gs3],wtt1[0:gs],wt2[0:gs])
       for (int ii3=0;ii3<s6-s5;ii3++)
       {
         for (int j=0;j<gs;j++)
@@ -603,7 +603,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
       }
 
       reduce_3c2d122(m,n,s1,s2,s5,s6,gs,norms1,norms2,dC,val1,val2,val3,val4,val5,val6,val1x,val2x,val3x,val4x,val5x,val6x,N,Naux,iN,iNa,natoms,1.,xyz_grad);
- 
+
     } //loop n over second atom
 
 
@@ -705,7 +705,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
           }
         }
 
- 
+
         for (int i1=s1;i1<s2;i1++)
         {
           int ii1 = i1-s1;
@@ -731,8 +731,8 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
             val7x[ii1][3*j+0] *= v2; val7x[ii1][3*j+1] *= v2; val7x[ii1][3*j+2] *= v2;
           }
 
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
-          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
+          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
           if (l1>0)
           {
            #pragma acc parallel loop present(val4[0:iNa][0:gs],val7[0:iNa][0:gs],valt1[0:gs3],valt2[0:gs3])
@@ -776,7 +776,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
           int ii3 = i3-s5;
           vector<double> basis3 = basis[i3];
           int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; float zeta3 = basis3[3];
-    
+
           eval_sh(ii3,gs,grid3p,val9[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid2p,val6[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid1p,val3[ii3],n3,l3,m3,zeta3);
@@ -827,7 +827,6 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
 
 #if USE_ACC
  #pragma omp parallel for schedule(static,1) num_threads(nomp)
-#endif
   for (int n=0;n<nomp;n++)
   {
     int tid = omp_get_thread_num();
@@ -838,16 +837,16 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
     #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
     #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
 
-    #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-    #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-    #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+    #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs])
+    #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs])
+    #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs])
 
-    #pragma acc exit data delete(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3]) 
-    #pragma acc exit data delete(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3]) 
-    #pragma acc exit data delete(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3]) 
+    #pragma acc exit data delete(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3])
+    #pragma acc exit data delete(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3])
+    #pragma acc exit data delete(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3])
 
-    #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
-    #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
+    #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
+    #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
 
     #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
     #pragma acc exit data delete(valt1[0:gs],valt2[0:gs])
@@ -860,6 +859,7 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
     }
   }
   acc_set_device_num(0,acc_device_nvidia);
+#endif
 
   delete [] norms1;
   delete [] norms2;
@@ -1040,13 +1040,13 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
   #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
   #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
-  #pragma acc enter data create(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-  #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-  #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+  #pragma acc enter data create(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs])
+  #pragma acc enter data create(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs])
+  #pragma acc enter data create(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs])
 
-  #pragma acc enter data create(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3]) 
-  #pragma acc enter data create(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3]) 
-  #pragma acc enter data create(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3]) 
+  #pragma acc enter data create(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3])
+  #pragma acc enter data create(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3])
+  #pragma acc enter data create(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3])
 
   #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
   #pragma acc enter data create(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
@@ -1142,7 +1142,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
         val1x[ii1][3*j+2] *= v1;
       }
 
-      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
+      eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
 
       if (l1>0)
       {
@@ -1151,7 +1151,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
           valt1[3*j+0] = valt1[3*j+1] = valt1[3*j+2] = val1[ii1][j];
 
         eval_dp_3r(gs,grid1,valt1,n1,l1,m1);
-        
+
        #pragma acc parallel loop present(valt1[0:gs3],val1x[0:iNa][0:gs3])
         for (int j=0;j<gs3;j++)
           val1x[ii1][j] += valt1[j];
@@ -1277,7 +1277,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
           val4x[ii1][3*j+2] *= v1;
         }
 
-        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
 
         if (l1>0)
         {
@@ -1286,7 +1286,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
             valt1[3*j+0] = valt1[3*j+1] = valt1[3*j+2] = val4[ii1][j];
 
           eval_dp_3r(gs,grid2,valt1,n1,l1,m1);
-        
+
          #pragma acc parallel loop present(valt1[0:gs3],val4x[0:iNa][0:gs3])
           for (int j=0;j<gs3;j++)
             val4x[ii1][j] += valt1[j];
@@ -1508,8 +1508,8 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
             val7x[ii1][3*j+0] *= v2; val7x[ii1][3*j+1] *= v2; val7x[ii1][3*j+2] *= v2;
           }
 
-          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1,3);
-          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid2,val4[ii1],n1,l1,zeta1);
+          eval_inr_r12(gs,grid3,val7[ii1],n1,l1,zeta1);
           if (l1>0)
           {
            #pragma acc parallel loop present(val4[0:iNa][0:gs],val7[0:iNa][0:gs],valt1[0:gs3],valt2[0:gs3])
@@ -1553,7 +1553,7 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
           int ii3 = i3-s5;
           vector<double> basis3 = basis[i3];
           int n3 = basis3[0]; int l3 = basis3[1]; int m3 = basis3[2]; float zeta3 = basis3[3];
-    
+
           eval_sh(ii3,gs,grid3p,val9[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid2p,val6[ii3],n3,l3,m3,zeta3);
           eval_sh(ii3,gs,grid1p,val3[ii3],n3,l3,m3,zeta3);
@@ -1596,16 +1596,16 @@ void compute_d_3c(int natoms, int* atno, float* coords, vector<vector<double> > 
   #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
 
-  #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs]) 
-  #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs]) 
-  #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs]) 
+  #pragma acc exit data delete(val1[0:iNa][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs])
+  #pragma acc exit data delete(val4[0:iNa][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs])
+  #pragma acc exit data delete(val7[0:iNa][0:gs],val8[0:iN][0:gs],val9[0:iN][0:gs])
 
-  #pragma acc exit data delete(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3]) 
-  #pragma acc exit data delete(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3]) 
-  #pragma acc exit data delete(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3]) 
+  #pragma acc exit data delete(val1x[0:iNa][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3])
+  #pragma acc exit data delete(val4x[0:iNa][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3])
+  #pragma acc exit data delete(val7x[0:iNa][0:gs3],val8x[0:iN][0:gs3],val9x[0:iN][0:gs3])
 
-  #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6]) 
-  #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6]) 
+  #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6])
+  #pragma acc exit data delete(grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
 
   #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
   #pragma acc exit data delete(valt1[0:gs],valt2[0:gs])
@@ -1755,8 +1755,8 @@ void compute_d_En(int natoms, int* atno, float* coords, vector<vector<double> > 
   #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
-  #pragma acc enter data create(grid3[0:gs6],wt3[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
+  #pragma acc enter data create(grid3[0:gs6],wt3[0:gs])
   #pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
   #pragma acc enter data create(valS1x[0:iN][0:gs3],valS2x[0:iN][0:gs3],valS3x[0:iN][0:gs3],valS4x[0:iN][0:gs3],valS5x[0:iN][0:gs3],valS6x[0:iN][0:gs3])
   #pragma acc enter data create(valt1[0:iN][0:gs],valt2[0:iN][0:gs],valt3[0:iN][0:gs])
@@ -1779,9 +1779,7 @@ void compute_d_En(int natoms, int* atno, float* coords, vector<vector<double> > 
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valS1x[0:iN][0:gs3],valS3[0:iN][0:gs],valS3x[0:iN][0:gs3])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -1955,9 +1953,7 @@ void compute_d_En(int natoms, int* atno, float* coords, vector<vector<double> > 
       add_r2_to_grid(gs,grid2,A12,B12,C12);
 
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS2[0:iN][0:gs],valS2x[0:iN][0:gs3])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -1968,9 +1964,7 @@ void compute_d_En(int natoms, int* atno, float* coords, vector<vector<double> > 
           valS2x[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS3[0:iN][0:gs],valS3x[0:iN][0:gs3],valS4[0:iN][0:gs],valS4x[0:iN][0:gs3])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -2079,7 +2073,7 @@ void compute_d_En(int natoms, int* atno, float* coords, vector<vector<double> > 
         add_r123_to_grid(gs,grid1,0.,0.,0.,A12,B12,C12,A1n,B1n,C1n);
         add_r123_to_grid(gs,grid2,A12,B12,C12,0.,0.,0.,A1n,B1n,C1n);
       	add_r123_to_grid(gs,grid3,A1n,B1n,C1n,A12,B12,C12,0.,0.,0.);
-     
+
         acc_copyf(gs,wtt1,wt1,wtt2,wt2);
 
         becke_weight_3c(gs,grid1,wtt1,grid2,wtt2,grid3,wt3,Z1,Z2,Zn,A12,B12,C12,A1n,B1n,C1n);
@@ -2092,9 +2086,7 @@ void compute_d_En(int natoms, int* atno, float* coords, vector<vector<double> > 
         add_r2_to_grid(gs,grid3,A1n,B1n,C1n);
 
 
-      #if USE_ACC
        #pragma acc parallel loop collapse(2) present(valS6[0:iN][0:gs],valS6x[0:iN][0:gs3])
-      #endif
         for (int ii2=0;ii2<s4-s3;ii2++)
         {
           for (int j=0;j<gs;j++)
@@ -2181,8 +2173,8 @@ void compute_d_En(int natoms, int* atno, float* coords, vector<vector<double> > 
 
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
-  #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
+  #pragma acc exit data delete(grid3[0:gs6],wt3[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],grid3s[0:gs6],grid1p[0:gs6],grid2p[0:gs6],grid3p[0:gs6])
   #pragma acc exit data delete(wtt1[0:gs],wtt2[0:gs])
   #pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS5[0:iN][0:gs],valS6[0:iN][0:gs])
@@ -2310,7 +2302,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
   #pragma acc enter data copyin(norms[0:N2])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
   #pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs])
   #pragma acc enter data create(valT1[0:iN][0:gs],valT2[0:iN][0:gs])
   #pragma acc enter data create(valS1x[0:iN][0:gs3],valS2x[0:iN][0:gs3],valS3x[0:iN][0:gs3],valS4x[0:iN][0:gs3])
@@ -2331,9 +2323,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valS1x[0:iN][0:gs3])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -2344,9 +2334,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
         valS1x[ii1][j] = 1.f;
     }
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS3[0:iN][0:gs],valS3x[0:iN][0:gs3],wt1[0:gs])
-  #endif
     for (int ii2=0;ii2<s2-s1;ii2++)
     {
      #pragma acc loop
@@ -2379,9 +2367,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
       eval_p(gs,grid1,valS3x[ii2],n2,l2,m2,zeta2);
     } //loop i2 evaluate
 
-  #if USE_ACC
    #pragma acc parallel loop present(valS1[0:iN][0:gs],valT1[0:iN][0:gs],valT1x[0:iN][0:gs3])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -2391,7 +2377,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
       for (int j=0;j<gs3;j++)
         valT1x[ii1][j] = 1.f;
     }
- 
+
    //KE terms
     for (int i1=s1;i1<s2;i1++)
     {
@@ -2442,7 +2428,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
       copy_grid(gs,grid2s,grid2); //grid 2 centered on atom 2
       recenter_grid(gs,grid2,A12,B12,C12); //grid 2 centered on atom 1
 
-      copy_grid(gs,grid1s,grid1); 
+      copy_grid(gs,grid1s,grid1);
       recenter_grid_zero(gs,grid1s,-A12,-B12,-C12); //grid 1 centered on atom 2
 
       acc_copyf(gs,wtt1,wt1);
@@ -2457,9 +2443,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
      //needs to happen after Becke weighting
       add_r1_to_grid(gs,grid2,0.,0.,0.);
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS1x[0:iN][0:gs3],valS2x[0:iN][0:gs3])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -2470,9 +2454,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
           valS1x[ii1][j] = valS2x[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS3[0:iN][0:gs],valS4[0:iN][0:gs],valS3x[0:iN][0:gs3],valS4x[0:iN][0:gs3],wtt1[0:gs],wt2[0:gs])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
@@ -2510,9 +2492,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
         eval_p(gs,grid2s,valS4x[ii2],n2,l2,m2,zeta2); //center 2 moves
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(valS1[0:iN][0:gs],valT1[0:iN][0:gs],valT1x[0:iN][0:gs3])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -2522,9 +2502,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
         for (int j=0;j<gs3;j++)
           valT1x[ii1][j] = 1.f;
       }
-    #if USE_ACC
      #pragma acc parallel loop present(valS2[0:iN][0:gs],valT2[0:iN][0:gs],valT2x[0:iN][0:gs3])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -2598,7 +2576,7 @@ void compute_d_ST(int natoms, int* atno, float* coords, vector<vector<double> > 
 
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6],wtt1[0:gs])
   #pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valS3[0:iN][0:gs],valS4[0:iN][0:gs])
   #pragma acc exit data delete(valT1[0:iN][0:gs],valT2[0:iN][0:gs])
@@ -2715,7 +2693,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
   #pragma acc enter data copyin(n2i[0:natoms])
 
   #pragma acc enter data create(grid1[0:gs6],wt1[0:gs])
-  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc enter data create(grid2[0:gs6],wt2[0:gs])
   #pragma acc enter data create(wtt1[0:gs])
   #pragma acc enter data create(val1[0:iN][0:gs],val2[0:iN][0:gs])
   #pragma acc enter data create(val3[0:iN][0:gs],val4[0:iN][0:gs])
@@ -2724,7 +2702,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
   #pragma acc enter data create(valt[0:gs3])
   #pragma acc enter data create(grid1s[0:gs6],grid2s[0:gs6])
   #pragma acc enter data create(xyz_grad[0:N3])
-  #pragma acc enter data copyin(norms[0:N2]) 
+  #pragma acc enter data copyin(norms[0:N2])
   //,dpq[0:N2])
  #endif
   acc_assign(N3,xyz_grad,0.);
@@ -2739,9 +2717,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
 
     generate_central_grid_2(grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
-  #if USE_ACC
    #pragma acc parallel loop present(val1[0:iN][0:gs],val1x[0:iN][0:gs3])
-  #endif
     for (int ii1=0;ii1<s2-s1;ii1++)
     {
      #pragma acc loop
@@ -2752,9 +2728,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
         val1x[ii1][j] = 1.f;
     }
 
-  #if USE_ACC
    #pragma acc parallel loop present(val3[0:iN][0:gs],wt1[0:gs],val3x[0:iN][0:gs3])
-  #endif
     for (int ii2=0;ii2<s2-s1;ii2++)
     {
      #pragma acc loop
@@ -2795,9 +2769,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
      //needs to happen after Becke weighting
       add_r1_to_grid(gs,grid2,0.,0.,0.);
 
-    #if USE_ACC
      #pragma acc parallel loop present(val1[0:iN][0:gs],val2[0:iN][0:gs],val1x[0:iN][0:gs3],val2x[0:iN][0:gs3])
-    #endif
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
        #pragma acc loop
@@ -2808,14 +2780,12 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
           val1x[ii1][j] = val2x[ii1][j] = 1.f;
       }
 
-    #if USE_ACC
      #pragma acc parallel loop present(val3[0:iN][0:gs],val4[0:iN][0:gs],val3x[0:iN][0:gs3],val4x[0:iN][0:gs3],wtt1[0:gs],wt2[0:gs])
-    #endif
       for (int ii2=0;ii2<s4-s3;ii2++)
       {
        #pragma acc loop
         for (int j=0;j<gs;j++)
-          val3[ii2][j] = wtt1[j]; 
+          val3[ii2][j] = wtt1[j];
        #pragma acc loop
         for (int j=0;j<gs;j++)
           val3x[ii2][3*j+0] = val3x[ii2][3*j+1] = val3x[ii2][3*j+2] = wtt1[j];
@@ -2826,7 +2796,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
         for (int j=0;j<gs;j++)
           val4x[ii2][3*j+0] = val4x[ii2][3*j+1] = val4x[ii2][3*j+2] = wt2[j];
       }
- 
+
    #if 1
       for (int i1=s1;i1<s2;i1++)
       {
@@ -2835,8 +2805,8 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
         vector<double> basis1 = basis[i1];
         int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; float zeta1 = basis1[3];
 
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
-        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
+        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
 
         eval_inr_d(gs,grid1,val1x[ii1],n1,l1,zeta1);
         eval_inr_d(gs,grid2,val2x[ii1],n1,l1,zeta1);
@@ -2999,8 +2969,8 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
           val2x[ii1][3*j+0] *= v1; val2x[ii1][3*j+1] *= v1; val2x[ii1][3*j+2] *= v1;
         }
 
-        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
-        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+        eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
+        eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
         eval_sh_3r(gs,grid1,val1[ii1],n1,l1,m1);
         eval_sh_3r(gs,grid2,val2[ii1],n1,l1,m1);
       } //loop i1
@@ -3033,8 +3003,8 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
         {
           acc_assign(gs,val1[ii1],1.);
           acc_assign(gs,val2[ii1],1.);
-          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1,3);
-          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1,3);
+          eval_inr_r12(gs,grid1,val1[ii1],n1,l1,zeta1);
+          eval_inr_r12(gs,grid2,val2[ii1],n1,l1,zeta1);
 
           acc_assign(gs3,val1x[ii1],1.);
           acc_assign(gs3,val2x[ii1],1.);
@@ -3095,7 +3065,7 @@ void compute_d_2c(int natoms, int* atno, float* coords, vector<vector<double> > 
 
 #if USE_ACC
   #pragma acc exit data delete(grid1[0:gs6],wt1[0:gs])
-  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs]) 
+  #pragma acc exit data delete(grid2[0:gs6],wt2[0:gs])
   #pragma acc exit data delete(grid1s[0:gs6],grid2s[0:gs6])
   #pragma acc exit data delete(val1[0:iN][0:gs],val2[0:iN][0:gs],wtt1[0:gs])
   #pragma acc exit data delete(val3[0:iN][0:gs],val4[0:iN][0:gs])

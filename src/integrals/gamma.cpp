@@ -61,9 +61,9 @@ float igamf(float aa, float xx) {
   float x = xx;
 
   // x,a <= 0 should never happen for our code
-  
+
   // x > 1 and x > a should be dealt with outside
-  // this function. 
+  // this function.
   if (x > 1.f && x > a) {
     return 1.f - igamcf(a,x);
   }
@@ -92,11 +92,11 @@ float igamcf(float aa, float xx) {
   float x = xx;
   float t, yc, pk, qk, r;
   t = 1.;
-  
+
   // x,a <= 0 should never happen for our code
-  
+
   // x < 1 and x < a should be dealt with outside
-  // this function. 
+  // this function.
   if (x < 1. || x < a) {
     return 1. - igamf(a,x);
   }
@@ -225,7 +225,7 @@ double igam(double aa, double xx) {
   // x,a <= 0 should never happen for our code
 
   // x > 1 and x > a should be dealt with outside
-  // this function. 
+  // this function.
   if (x > 1. && x > a) {
     return 1. - igamc(a,x);
   }
@@ -256,9 +256,9 @@ double igamc(double aa, double xx) {
   double t, yc, pk, qk, r;
   t = 1.;
   // x,a <= 0 should never happen for our code
-  
+
   // x < 1 and x < a should be dealt with outside
-  // this function. 
+  // this function.
   if (x < 1. || x < a) {
     return 1. - igam(a,x);
   }
@@ -354,7 +354,7 @@ double vinr_gam(int n, int l, double r, double z) {
   double g1 = igam(n-l+1,rz) * (double)lnf;
   double g2 = igam(n+l+2,rz) * (double)lnf2;
   ans *= rzl * (lnf - g1) + g2;
-  
+
   if (std::isnan(ans) || std::isinf(ans)) {
     ans = 0.;
   }

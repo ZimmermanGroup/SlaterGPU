@@ -1,9 +1,7 @@
 set(CINT_SOURCES
-    cint_funcs.h cint.h
-    cintprep.cpp cintprep.h
-    cintwrapper.cpp cintwrapper.h
-    elements.h gto_grid.cpp
-    gto_grid.h
+    cintprep.cpp
+    cintwrapper.cpp
+    gto_grid.cpp
     )
 
 find_package(BLAS REQUIRED)
@@ -13,7 +11,7 @@ set(LIBCINT_PATH $ENV{LIBCINT_PATH})
 
 add_library(cintw SHARED ${CINT_SOURCES})
 set_property(TARGET cintw PROPERTY CXX_STANDARD 14)
-set(CINTW_COMP_FLAGS ${CMAKE_CXX_FLAGS} 
+set(CINTW_COMP_FLAGS ${CMAKE_CXX_FLAGS}
     -O2 -g
     )
 
@@ -21,6 +19,7 @@ add_definitions("-w")
 
 target_compile_options(cintw PRIVATE ${CINTW_COMP_FLAGS})
 target_include_directories(cintw PRIVATE
+    "${CMAKE_SOURCE_DIR}/include"
     "${LIBCINT_PATH}/include"
     "$ENV{BLAS_INCLUDE_DIR}"
     "$ENV{PREFIX}/include" # include pixi dependencies
