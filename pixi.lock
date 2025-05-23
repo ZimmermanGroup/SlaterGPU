@@ -187,7 +187,7 @@ packages:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: 14900cb85e6cb36ad40dbdc02ba8e7e8456fc9120e1e1439e7cff59139f99f26
+    hash: f2e4d3d7d0d69b85e11117535ee562aa3246c2f98c0170fb898aeceb293ae848
     globs:
     - pixi.toml
     - recipe.yaml
@@ -200,7 +200,7 @@ packages:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: 14900cb85e6cb36ad40dbdc02ba8e7e8456fc9120e1e1439e7cff59139f99f26
+    hash: f2e4d3d7d0d69b85e11117535ee562aa3246c2f98c0170fb898aeceb293ae848
     globs:
     - pixi.toml
     - recipe.yaml
