@@ -1,33 +1,28 @@
 #!/bin/bash
 
-#REMOVE nvidia-sdk module to avoid overriding compilers/libs
-# module load nvidia-sdk
-
-#REMOVE outdated PGI_LIBS
-# export PGI_LIBS=/export/apps/RockyOS8/nvidia_hpc/2024_249/Linux_x86_64/24.9/
-
-#SET 25.5 NVHPC runtime paths
+# Use NVHPC 25.5
 export NVHPC=/home/vkchem/nvhpc
 export PATH=$NVHPC/25.5/Linux_x86_64/2025/compilers/bin:$PATH
-export LD_LIBRARY_PATH=$NVHPC/25.5/Linux_x86_64/2025/compilers/lib:$LD_LIBRARY_PATH
 
-#working dirs and libraries
+# Include both compiler + CUDA runtime libraries
+export LD_LIBRARY_PATH=$NVHPC/25.5/Linux_x86_64/2025/compilers/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$NVHPC/25.5/Linux_x86_64/25.5/cuda/lib64:$LD_LIBRARY_PATH
+
+# Paul’s dirs
 export SGPU_DIR=/home/paulzim/SlaterGPU
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/paulzim/integrate/gpu/lib/
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/paulzim/SlaterGPU/lib/
 
-# Optional: keep this commented unless needed
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/export/zimmerman/khoidang/eris/libcint/build_zimintel_pgi/libcint/lib64/
-# export BLAS_INCLUDE_DIR=/usr/include/openblas
+# Optional: libcint, only if needed
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/export/zimmerman/khoidang/eris/libcint/build_zimintel_pgi/libcint/lib64/
+export BLAS_INCLUDE_DIR=/usr/include/openblas
 
-# Threads & ulimit
+# Threads and MPI
 export OMP_NUM_THREADS=4
 ulimit -s unlimited
-
-# Optional: update MPIR if you're using a newer one, or keep as-is
 export MPIR=/export/apps/CentOS7/pgi/2020/Linux_x86_64/20.7/comm_libs/mpi/bin/mpirun
 
-# Aliases for ease of running
+# Aliases
 alias r="~/integrate/gpu/zest.exe"
 alias r2="~/integrate/gpu/zest.exe2"
 alias t="~/integrate/gpu/test.exe"
@@ -36,3 +31,10 @@ alias m="/export/apps/CentOS7/pgi/2020/Linux_x86_64/20.7/comm_libs/mpi/bin/mpiru
 alias m2="/export/apps/CentOS7/pgi/2020/Linux_x86_64/20.7/comm_libs/mpi/bin/mpirun -n 2 --bind-to none --mca btl ^openib /home/paulzim/integrate/gpu/mpi.exe "
 alias m4="/export/apps/CentOS7/pgi/2020/Linux_x86_64/20.7/comm_libs/mpi/bin/mpirun -n 4 --bind-to none --mca btl ^openib /home/paulzim/integrate/gpu/mpi.exe "
 
+# CMake configure (optional — run only when building or rebuilding)
+#cmake -Bbuild \
+#  -DCMAKE_C_COMPILER=/home/vkchem/nvhpc/25.5/Linux_x86_64/2025/compilers/bin/nvc \
+#  -DCMAKE_CXX_COMPILER=/home/vkchem/nvhpc/25.5/Linux_x86_64/2025/compilers/bin/nvc++
+
+#Then 
+#cmake --build build -j 16
