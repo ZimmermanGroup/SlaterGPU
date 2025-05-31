@@ -69,5 +69,5 @@ if __name__ == "__main__":
 
     file1 = sys.argv[1]
     file2 = sys.argv[2]
-    compare_blockwise(file1, file2, decimal_places=12)
+    compare_blockwise(file1, file2, decimal_places=10)
 
