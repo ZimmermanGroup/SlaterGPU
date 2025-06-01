@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cctype>
 
+#define ROOTEIGHTPI 5.013256549262001
+
 CINTPrep::CINTPrep(bool doing_ri) {
   atm = NULL;
   bas = NULL;
@@ -40,6 +42,11 @@ CINTPrep::~CINTPrep() {
   if (env != NULL) {
     delete [] env;
   }
+}
+
+double get_gto_norm(int shl1, double zeta1)
+{
+  return CINTgto_norm(shl1, zeta1)/ROOTEIGHTPI;
 }
 
 int CINTPrep::get_var_dim() {
@@ -129,6 +136,22 @@ void CINTPrep::copy_coord(vector< double > &coord_copy) {
 }
 
 void CINTPrep::assign_coords(int natoms, int *atomlist, double *coords, bool in_bohr) {
+  vector< double >().swap(coord);
+  vector< int >().swap(atoms);
+  atoms.reserve(natoms);
+  coord.reserve(natoms*3);
+
+  double scale = (in_bohr) ? 1. : ANG2BOHR;
+
+  for (int i = 0; i < natoms; i++) {
+    atoms.push_back(atomlist[i]);
+  }
+  for (int i = 0; i < natoms * 3; i++) {
+    coord.push_back(coords[i]*scale);
+  }
+}
+
+void CINTPrep::assign_coords(int natoms, int *atomlist, float *coords, bool in_bohr) {
   vector< double >().swap(coord);
   vector< int >().swap(atoms);
   atoms.reserve(natoms);
@@ -356,7 +379,7 @@ void CINTPrep::read_bas(string inpbas) {
   }
 }
 
-void CINTPrep::read_bas_ri(string auxbas) {
+bool CINTPrep::read_bas_ri(string auxbas) {
   if (basmap_ri.size() > 0) {
     basmap_ri.clear();
   }
@@ -364,10 +387,8 @@ void CINTPrep::read_bas_ri(string auxbas) {
   ifstream inpfile(basfile_ri.c_str());
   unordered_set< int > present_atoms;
 
-  if (inpfile.fail()) {
-    printf("ERROR: could not open aux basis file %s\n", basfile_ri.c_str());
-    exit(1);
-  }
+  if (inpfile.fail())
+    return 0;
 
   for (int i = 0; i < atoms.size(); i++) {
     present_atoms.insert(atoms[i]);
@@ -495,10 +516,14 @@ void CINTPrep::read_bas_ri(string auxbas) {
       i++;
     }
   } // while i < lines.size (outer)
-  if (present_atoms.size() != 0) {
-    printf("ERROR: Missing basis set for some atoms\n");
-    exit(1);
+  if (present_atoms.size() != 0)
+  {
+    printf("  did not find an auxiliary basis set \n");
+    return 0;
+    //printf("ERROR: Missing basis set for some atoms\n");
+    //exit(1);
   }
+  return 1;
 }
 
 void CINTPrep::prep_env() {
@@ -540,8 +565,8 @@ void CINTPrep::prep_env() {
     nbas_all++;
   }
 
-  bas = new int[nbas_all * BAS_SLOTS];
-  atm = new int[natm * ATM_SLOTS];
+  bas = new int[nbas_all * BAS_SLOTS]();
+  atm = new int[natm * ATM_SLOTS]();
 
   for (int i = 0; i < natm; i++) {
     int atom_num = atoms[i];
@@ -574,6 +599,7 @@ void CINTPrep::prep_env() {
 
     var_dim += N_at;
     anum_to_N[atom_num] = N_at;
+
   } // for i
 
   if (do_ri) {
