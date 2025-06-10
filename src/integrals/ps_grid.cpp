@@ -46,7 +46,7 @@ void reorient_grid(int tid, const double z0, int gs, double* grid, double* grid2
     grid[6*j+2] += shift_z;
 #endif
 
- #pragma acc parallel loop collapse(2) present(grid[0:gs6], rot[0:9], grid2[0:gs6]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(grid[0:gs6], rot[0:9], grid2[0:gs6])// async(tid+1)
   for (int i=0;i<gs;i++)
   {
     for(int j=0;j<3;j++)
@@ -514,7 +514,7 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
   //printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f  c2: %8.5f \n",cf,c1,rmax,c2);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
- #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) //async(tid+1)
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) ////async(tid+1)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -599,7 +599,7 @@ void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int
   double rmax = a*cosh(c1*atanh(nmu*dx1));
   //printf("    cf: %5.1f  c1: %8.5f  rmax: %8.3f \n",cf,c1,rmax);
 
- #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) async(tid+1)
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs])// async(tid+1)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -717,13 +717,13 @@ void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu,
     printf("\n");
   }
 
-  #pragma acc enter data copyin(phia[0:nphi],phiad[0:nphi]) async(tid+1)
+  #pragma acc enter data copyin(phia[0:nphi],phiad[0:nphi])// async(tid+1)
 
   if (prl>0)
   printf("\n init_ps_coords. a: %8.5f nmu/nu/phi: %2i %2i %2i  dnu/dphi: %8.5f %8.5f  dx1: %8.5f \n",a,nmu,nnu,nphi,dnu,dphi,dx1);
 
   //double xmax = 0.; double ymax = 0.; double zmax = 0.;
- #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs],phia[0:nphi],phiad[0:nphi]) async(tid+1)
+ #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs],phia[0:nphi],phiad[0:nphi])// async(tid+1)
   for (int i=0;i<nmu;i++)
   {
     double x0  =  i*dx1;
@@ -761,7 +761,7 @@ void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu,
     } //loop nu
   } //loop mu
 
-  #pragma acc exit data delete(phia[0:nphi],phiad[0:nphi]) async(tid+1)
+  #pragma acc exit data delete(phia[0:nphi],phiad[0:nphi])// async(tid+1)
 
   munuphi_to_xyz(a,gs,gridm,grid,wt);
 
@@ -829,7 +829,7 @@ void shift_boundary_munu(int tid, double mu, double nu, int ix, int jx, int ib, 
   double nu2 = nu_ja+dnu_ja*0.5;
 
  //recenters mu/nu so 3rd atom is at boundary of cells, leave phi alone
-  #pragma acc serial present(gridm[0:gs6]) async(tid+1)
+  #pragma acc serial present(gridm[0:gs6])// async(tid+1)
   for (int k=0;k<2;k++)
   {
     int kn = kb; if (k==1) kn = ka;
@@ -904,7 +904,7 @@ void shift_boundary_nu(int tid, double nu, int ix, int jx, int jb, int ja, int k
   double nu2 = nu_ja+dnu_ja*0.5;
 
  //recenters nu so 3rd atom is at boundary of cells, leave mu/phi alone
-  #pragma acc serial present(gridm[0:gs6]) async(tid+1)
+  #pragma acc serial present(gridm[0:gs6])// async(tid+1)
   for (int k=0;k<2;k++)
   {
     int kn = kb; if (k==1) kn = ka;
@@ -948,7 +948,7 @@ void shift_boundary_mu(int tid, double mu, int ix, int jx, int ib, int ia, int j
   double mu2 = mu_ia+dmu_ia*0.5;
 
  //recenters mu so 3rd atom is at boundary of cells, leave nu/phi alone
-  #pragma acc serial present(gridm[0:gs6]) async(tid+1)
+  #pragma acc serial present(gridm[0:gs6])// async(tid+1)
   for (int k=0;k<2;k++)
   {
     int kn = kb; if (k==1) kn = ka;
@@ -1041,13 +1041,13 @@ void initialize_ps_coords_3c(int tid, double cf, int nmu, int nnu, int nphi, dou
 
   //replace by acc serial to avoid these two steps
   //was okay for latest nvidia compilers
-  #pragma acc update self(gridm[0:gs6]) async(tid+1)
+  #pragma acc update self(gridm[0:gs6])// async(tid+1)
   #pragma acc wait
 
   //double tmp[6];
-  //#pragma acc enter data create(tmp[0:6]) async(tid+1)
+  //#pragma acc enter data create(tmp[0:6])// async(tid+1)
 
- //#pragma acc serial present(tmp[0:6],gridm[0:gs6]) async(tid+1)
+ //#pragma acc serial present(tmp[0:6],gridm[0:gs6])// async(tid+1)
   {
     int ix = 6*nnu*nphi;
     int jx = 6*nphi;
@@ -1158,9 +1158,9 @@ void initialize_ps_coords_3c(int tid, double cf, int nmu, int nnu, int nphi, dou
     //move shifted grid points to end
     {
       double tmp[6];
-      #pragma acc enter data create(tmp[0:6]) async(tid+1)
+      #pragma acc enter data create(tmp[0:6])// async(tid+1)
 
-      #pragma acc serial present(gridm[0:gs6],tmp[0:6]) async(tid+1)
+      #pragma acc serial present(gridm[0:gs6],tmp[0:6])// async(tid+1)
       for (int k=0;k<2;k++)
       {
         int ws = gs-8+k*4;
@@ -1203,7 +1203,7 @@ void initialize_ps_coords_3c(int tid, double cf, int nmu, int nnu, int nphi, dou
         ws++;
       }
 
-      #pragma acc exit data delete(tmp[0:6]) async(tid+1)
+      #pragma acc exit data delete(tmp[0:6])// async(tid+1)
     }
 
   } //acc serial section
@@ -1216,7 +1216,7 @@ void initialize_ps_coords_3c(int tid, double cf, int nmu, int nnu, int nphi, dou
     if (prl>1) printf("   reordering end points of 3c grid (mnp: %8.5f %8.5f %8.5f) \n",mu,nu,phi);
 
     int i0 = gs6-48;
-   #pragma acc parallel loop independent present(gridm[0:gs6]) async(tid+1)
+   #pragma acc parallel loop independent present(gridm[0:gs6])// async(tid+1)
     for (int j=0;j<8;j++)
     {
       int i1 = i0+6*j;
@@ -1368,10 +1368,10 @@ void initialize_ps_coords_4c(int tid, double cf, int nmu, int nnu, int nphi, dou
   }
 
  //changed to serial acc to avoid these two steps
-  #pragma acc update self(gridm[0:gs6]) async(tid+1)
+  #pragma acc update self(gridm[0:gs6])// async(tid+1)
   #pragma acc wait
 
-  //#pragma acc serial present(gridm[0:gs6]) async(tid+1)
+  //#pragma acc serial present(gridm[0:gs6])// async(tid+1)
   {
     int ix = 6*nnu*nphi;
     int jx = 6*nphi;
@@ -1516,9 +1516,9 @@ void initialize_ps_coords_4c(int tid, double cf, int nmu, int nnu, int nphi, dou
 
    //move shifted grid points to end
     double tmp[6];
-    #pragma acc enter data create(tmp[0:6]) async(tid+1)
+    #pragma acc enter data create(tmp[0:6])// async(tid+1)
 
-    #pragma acc serial present(gridm[0:gs6],tmp[0:6]) async(tid+1)
+    #pragma acc serial present(gridm[0:gs6],tmp[0:6])// async(tid+1)
     for (int k=0;k<2;k++)
     {
       int ws = gs-16+k*4;
@@ -1561,7 +1561,7 @@ void initialize_ps_coords_4c(int tid, double cf, int nmu, int nnu, int nphi, dou
       ws++;
     }
 
-    #pragma acc serial present(gridm[0:gs6],tmp[0:6]) async(tid+1)
+    #pragma acc serial present(gridm[0:gs6],tmp[0:6])// async(tid+1)
     for (int k=0;k<2;k++)
     {
       int ws = gs-8+k*4;
@@ -1604,7 +1604,7 @@ void initialize_ps_coords_4c(int tid, double cf, int nmu, int nnu, int nphi, dou
       ws++;
     }
 
-    #pragma acc exit data delete(tmp[0:6]) async(tid+1)
+    #pragma acc exit data delete(tmp[0:6])// async(tid+1)
 
   } //acc serial region
 
@@ -1661,7 +1661,7 @@ void initialize_ps_coords_batch(int tid, int wb, int nbatch, double a, double cf
       double cosn = cos(nu);
 
       int i1 = ic*nnu*nphi + j*nphi;
-     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs]) async(tid+1)
+     #pragma acc parallel loop present(grid[0:gs6],gridm[0:gs6],wt[0:gs])// async(tid+1)
       for (int k=0;k<nphi;k++)
       {
         int i2 = i1+k;
@@ -1762,16 +1762,16 @@ void refine_3c_grid(int tid, int nsplit, double ztm, double a, double A3, double
   int ns3 = nsplit*nsplit*nsplit;
 
   double* gride = new double[48];
-  #pragma acc enter data create(gride[0:48]) async(tid+1)
+  #pragma acc enter data create(gride[0:48])// async(tid+1)
 
-  #pragma acc parallel loop collapse(2) present(gridm[0:gs6],gride[0:48]) async(tid+1)
+  #pragma acc parallel loop collapse(2) present(gridm[0:gs6],gride[0:48])// async(tid+1)
   for (int j=0;j<8;j++)
   for (int k=0;k<6;k++)
     gride[6*j+k] = gridm[i0+6*j+k];
 
  //not using rsp/rsmax
 
- #pragma acc parallel loop independent present(gridm[0:gs6],gride[0:48]) async(tid+1)
+ #pragma acc parallel loop independent present(gridm[0:gs6],gride[0:48])// async(tid+1)
   for (int j=0;j<8;j++)
   {
     double   mu = gride[6*j+0];
@@ -1914,7 +1914,7 @@ void refine_3c_grid(int tid, int nsplit, double ztm, double a, double A3, double
   }
  #endif
 
-  #pragma acc exit data delete(gride[0:48]) async(tid+1)
+  #pragma acc exit data delete(gride[0:48])// async(tid+1)
   acc_wait_all();
   delete [] gride;
 
@@ -1991,7 +1991,7 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
   get_quad(qo,Qy);
   get_quad(qo,Qz);
 
-  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
+  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])// async(tid+1)
 
   int gs0 = nmu*nnu*nphi-8;
   int nsg = 8*nsplit*nsplit*nsplit;
@@ -2011,15 +2011,15 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
   double* gridm = new double[gs6];
 
   //printf("   about to allocate gridq \n");
-  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
+  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6])// async(tid+1)
   //printf("   after allocate gridq \n");
 
   double rot[9];
-  #pragma acc enter data create(rot[0:9]) async(tid+1)
-  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  #pragma acc enter data create(rot[0:9])// async(tid+1)
+  #pragma acc parallel loop present(rot[0:9])// async(tid+1)
   for (int j=0;j<9;j++)
     rot[j] = 0.;
-  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  #pragma acc parallel loop present(rot[0:9])// async(tid+1)
   for (int j=0;j<3;j++)
     rot[j*3+j] = 1.;
 
@@ -2028,7 +2028,7 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
 
   {
     get_3c_position(coordn,rot);
-    #pragma acc update device(rot[0:9]) async(tid+1)
+    #pragma acc update device(rot[0:9])// async(tid+1)
     acc_wait_all();
     #pragma acc wait
 
@@ -2046,20 +2046,20 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
     {
       double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
       get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
-      #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
+      #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])// async(tid+1)
 
      //nsg pts surrounding third nucleus w/refined grid
       quad_grid_munuphi(tid,wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-nsg,gridm,gridq,wt);
 
-      #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
+      #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])// async(tid+1)
     }
 
     reorient_grid(tid,z0,gsq,gridq,grid,rot);
   }
 
-  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
-  #pragma acc exit data delete(rot[0:9]) async(tid+1)
-  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
+  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])// async(tid+1)
+  #pragma acc exit data delete(rot[0:9])// async(tid+1)
+  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6])// async(tid+1)
 
   acc_wait_all();
 
@@ -2139,7 +2139,7 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   get_quad(qo,Qy);
   get_quad(qo,Qz);
 
-  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
+  #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])// async(tid+1)
   #pragma acc wait
 
   int gs = nmu*nnu*nphi;
@@ -2166,15 +2166,15 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   double* gridm = new double[gs6];
 
   //printf("    about to allocate gridq \n");
-  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
+  #pragma acc enter data create(gridq[0:gsq6],gridm[0:gs6])// async(tid+1)
   //printf("    after allocate gridq \n");
 
   double rot[9];
-  #pragma acc enter data create(rot[0:9]) async(tid+1)
-  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  #pragma acc enter data create(rot[0:9])// async(tid+1)
+  #pragma acc parallel loop present(rot[0:9])// async(tid+1)
   for (int j=0;j<9;j++)
     rot[j] = 0.;
-  #pragma acc parallel loop present(rot[0:9]) async(tid+1)
+  #pragma acc parallel loop present(rot[0:9])// async(tid+1)
   for (int j=0;j<3;j++)
     rot[j*3+j] = 1.;
 
@@ -2193,10 +2193,10 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
     int gsb = nrad*nang/nb;
 
    //zero weight on unused data pts. also need r1 to be nonzero
-    #pragma acc parallel loop present(wt[0:gsq]) async(tid+1)
+    #pragma acc parallel loop present(wt[0:gsq])// async(tid+1)
     for (int j=0;j<gsq;j++)
       wt[j] = 0.;
-    #pragma acc parallel loop present(grid[0:gsq6]) async(tid+1)
+    #pragma acc parallel loop present(grid[0:gsq6])// async(tid+1)
     for (int j=0;j<gsq6;j++)
       grid[j] = 1.e4;
     if (nrad<1) { printf("\n ERROR: could not form atomic grid \n"); exit(-1); }
@@ -2209,7 +2209,7 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   else if (natoms==2)
   {
     get_2c_position(coordn,rot);
-    #pragma acc update device(rot[0:9]) async(tid+1)
+    #pragma acc update device(rot[0:9])// async(tid+1)
     #pragma acc wait
 
     initialize_ps_coords_batch(tid,wb,nb,z0,cfn,nmu,nnu,nphi,0.,NULL,gridm,NULL,prl);
@@ -2222,7 +2222,7 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   else if (natoms==3)
   {
     get_3c_position(coordn,rot);
-    #pragma acc update device(rot[0:9]) async(tid+1)
+    #pragma acc update device(rot[0:9])// async(tid+1)
     #pragma acc wait
 
     initialize_ps_coords_3c(tid,cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
@@ -2231,12 +2231,12 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
 
     double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
     get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
-    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
+    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])// async(tid+1)
 
    //8 pts surrounding third nucleus w/refined grid
     quad_grid_munuphi(tid,wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-8,gridm,gridq,wt);
 
-    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
+    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])// async(tid+1)
 
     reorient_grid(tid,z0,gsq,gridq,grid,rot);
   }
@@ -2246,7 +2246,7 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
 
    //first rotation matrix that takes three atoms into xz plane
     get_4c_position(coordn,rot);
-    #pragma acc update device(rot[0:9]) async(tid+1)
+    #pragma acc update device(rot[0:9])// async(tid+1)
     #pragma acc wait
 
     //initialize_ps_coords_3c(cfn,nmu,nnu,nphi,0.,coordn,NULL,gridm,NULL,rot,prl);
@@ -2256,12 +2256,12 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
 
     double Qxh[qoh2]; double Qyh[qoh2]; double Qzh[qoh2];
     get_quad(qoh,Qxh); get_quad(qoh,Qyh); get_quad(qoh,Qzh);
-    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
+    #pragma acc enter data copyin(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])// async(tid+1)
 
    //16 pts surrounding latter two nuclei w/refined grid
     quad_grid_munuphi(tid,wb,nb,qoh,qoh,qoh,qos,z0,Qxh,Qyh,Qzh,gs,gs-16,gridm,gridq,wt);
 
-    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2]) async(tid+1)
+    #pragma acc exit data delete(Qxh[0:qoh2],Qyh[0:qoh2],Qzh[0:qoh2])// async(tid+1)
 
     reorient_grid(tid,z0,gsq,gridq,grid,rot);
   }
@@ -2271,9 +2271,9 @@ void generate_ps_quad_grid(int tid, double cfn, int wb, int nb, double Z1, int n
   }
   acc_wait_all();
 
-  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid+1)
-  #pragma acc exit data delete(rot[0:9]) async(tid+1)
-  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6]) async(tid+1)
+  #pragma acc exit data delete(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2])// async(tid+1)
+  #pragma acc exit data delete(rot[0:9])// async(tid+1)
+  #pragma acc exit data delete(gridq[0:gsq6],gridm[0:gs6])// async(tid+1)
 
   acc_wait_all();
 

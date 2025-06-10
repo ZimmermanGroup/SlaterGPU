@@ -2,7 +2,7 @@
 
 void get_h_1s(int gs, float* grid, float* val, float zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -29,7 +29,7 @@ void get_h_2s(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -56,7 +56,7 @@ void get_h_2px(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -83,7 +83,7 @@ void get_h_2py(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -110,7 +110,7 @@ void get_h_2pz(int gs, float* grid, float* val, float zeta)
 {
   float zt2 = zeta*zeta;
 
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) //async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:6*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i]; float y = grid[6*i+1]; float z = grid[6*i+2];

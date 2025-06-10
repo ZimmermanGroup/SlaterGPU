@@ -43,7 +43,7 @@ void eval_ked(int tid, int gs, double* grid, double* val, int n, int l, double z
   double f2 = 2.*n*zeta;
   double f3 = zeta*zeta;
 
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid+1)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])// async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1752,7 +1752,7 @@ void eval_inr_1s_r1(int gs, float* grid, float* val, float zeta)
 void eval_inr_d(int gs, double* grid, double* val, int n1, int l1, double zeta1)
 {
  #if EVL64
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1763,7 +1763,7 @@ void eval_inr_d(int gs, double* grid, double* val, int n1, int l1, double zeta1)
   }
   return;
  #else
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid)
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1885,7 +1885,7 @@ void eval_inr_r12(int tid, int gs, double* grid, double* val, int n1, int l1, do
 {
  //double precision evaluation, gamma ftn only
 
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid+1)
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])// async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double v1d = vinr_gam(n1,l1,grid[6*i+3],zeta1);

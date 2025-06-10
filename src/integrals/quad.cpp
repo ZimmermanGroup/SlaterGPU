@@ -586,7 +586,7 @@ void quad_grid_munuphi(int tid, int wb, int nb, const int nptsx, const int nptsy
 
   //printf("  qos/p: %2i %2i  offset: %6i  gsq(quad_grid): %6i  wb: %i  nb: %i \n",qos,qosp,offset,gsq,wb,nb);
 
- #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq]) async(tid+1)
+ #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq])// async(tid+1)
   for (int n=offset;n<gs;n++)
   if (n%nb==wb)
   {
@@ -674,7 +674,7 @@ void quad_grid_munuphi(int tid, const int nptsx, const int nptsy, const int npts
 
   //printf("  gsq(quad_grid): %6i \n",gsq);
 
- #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq]) async(tid+1)
+ #pragma acc parallel loop present(Qx[0:2*nptsx],Qy[0:2*nptsy],Qz[0:2*nptsz],gridm[0:6*gs],grid[0:6*gsq],wt[0:gsq])// async(tid+1)
   for (int n=offset;n<gs;n++)
   {
     double mu   = gridm[6*n+0]; double nu  = gridm[6*n+1]; double phi  = gridm[6*n+2];

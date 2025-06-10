@@ -230,7 +230,7 @@ void reduce_2c1(int tid, int s1, int s2, int gs, double* val1, double* val3, int
   int igs = iN*gs;
 
 #if USE_ACC
- #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2])// async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   {
     for (int i2=s1;i2<s2;i2++)
@@ -279,7 +279,7 @@ void reduce_2c1(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, d
   int igs = iN*gs;
 
 #if USE_ACC
- #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2])// async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   {
     for (int i2=s3;i2<s4;i2++)
@@ -329,7 +329,7 @@ void reduce_2c1(int tid, int s1, int s2, int gs, double** val1, double** val3, i
   int igs = iN*gs;
 
 #if USE_ACC
- #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2])// async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   {
     for (int i2=s1;i2<s2;i2++)
@@ -1249,7 +1249,7 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, 
 
  //reduced C memory storage (Ct[N2b])
 
- #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b]) async(tid+1)
+ #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b])// async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s3;i3<s4;i3++)
@@ -1284,7 +1284,7 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int gs
 
  //reduced C memory storage (Ct[N2b])
 
- #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b]) async(tid+1)
+ #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b])// async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s5;i3<s6;i3++)

@@ -42,14 +42,14 @@ void reduce_3cenp(int tid, double Z3, int s1, int s2, int s3, int s4, int N, int
   int N2 = N*N;
   int igs3 = iN*gs3;
 
- #pragma acc parallel loop present(grid[0:gs6],wt[0:gs],valt[0:gs]) async(tid+1)
+ #pragma acc parallel loop present(grid[0:gs6],wt[0:gs],valt[0:gs])// async(tid+1)
   for (int j=0;j<gs;j++)
   {
     double R = grid[6*j+3];
     valt[j] = -Z3/R*wt[j];
   }
 
- #pragma acc parallel loop collapse(2) present(valS1[0:igs3],valS2[0:igs3],valt[0:gs],pVp1[0:N2]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(valS1[0:igs3],valS2[0:igs3],valt[0:gs],pVp1[0:N2])// async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   {
@@ -86,7 +86,7 @@ void reduce_3cen(int tid, double Z3, int s1, int s2, int s3, int s4, int N, int 
   int igs = iN*gs;
 
   if (wt==NULL)
- #pragma acc parallel loop present(grid[0:gs6],valt[0:gs]) async(tid+1)
+ #pragma acc parallel loop present(grid[0:gs6],valt[0:gs])// async(tid+1)
   for (int j=0;j<gs;j++)
   {
     double R = grid[6*j+3];
@@ -94,7 +94,7 @@ void reduce_3cen(int tid, double Z3, int s1, int s2, int s3, int s4, int N, int 
   }
 
   if (wt!=NULL)
- #pragma acc parallel loop present(grid[0:gs6],wt[0:gs],valt[0:gs]) async(tid+1)
+ #pragma acc parallel loop present(grid[0:gs6],wt[0:gs],valt[0:gs])// async(tid+1)
   for (int j=0;j<gs;j++)
   {
     double R = grid[6*j+3];
@@ -103,7 +103,7 @@ void reduce_3cen(int tid, double Z3, int s1, int s2, int s3, int s4, int N, int 
     //printf(" b13: %i %i   R: %8.5f \n",s1,s3,R);
   }
 
- #pragma acc parallel loop collapse(2) present(valS1[0:igs],valS2[0:igs],valt[0:gs],En1[0:N2]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(valS1[0:igs],valS2[0:igs],valt[0:gs],En1[0:N2])// async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   {
@@ -133,14 +133,14 @@ void reduce_3cen(int tid, double Z3, int s1, int s2, int s3, int s4, int N, int 
 void init_s12nw(int tid, int s1, int s2, int s3, int s4, int iN, int gs, double* valS1, double* valS2)
 {
   int igs = iN*gs;
- #pragma acc parallel loop collapse(2) present(valS1[0:igs]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(valS1[0:igs])// async(tid+1)
   for (int ii1=0;ii1<s2-s1;ii1++)
   {
     for (int j=0;j<gs;j++)
       valS1[ii1*gs+j] = 1.;
   }
 
- #pragma acc parallel loop collapse(2) present(valS2[0:igs]) async(tid+1)
+ #pragma acc parallel loop collapse(2) present(valS2[0:igs])// async(tid+1)
   for (int ii1=0;ii1<s4-s3;ii1++)
   {
     for (int j=0;j<gs;j++)
@@ -262,12 +262,12 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   {
     acc_set_device_num(n,acc_device_nvidia);
 
-    #pragma acc enter data create(S[0:N2],T[0:N2],En[0:N2]) //async(n+1)
+    #pragma acc enter data create(S[0:N2],T[0:N2],En[0:N2]) ////async(n+1)
 
-    #pragma acc enter data create(grid[0:gs6],wt[0:gs]) //async(n+1)
+    #pragma acc enter data create(grid[0:gs6],wt[0:gs]) ////async(n+1)
     //#pragma acc enter data create(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valT1[0:iN][0:gs])
-    #pragma acc enter data create(valS1[0:igs],valS2[0:igs],valT1[0:igs]) //async(n+1)
-    #pragma acc enter data create(valt[0:gs]) //async(n+1)
+    #pragma acc enter data create(valS1[0:igs],valS2[0:igs],valT1[0:igs]) ////async(n+1)
+    #pragma acc enter data create(valt[0:gs]) ////async(n+1)
 
     acc_assign(N2,S,0.);
     acc_assign(N2,T,0.);
@@ -311,14 +311,14 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
       int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
       int s3 = n2ip[m][sp2]; int s4 = n2ip[m][sp2+1];
 
-     #pragma acc parallel loop collapse(2) present(valS1[0:igs]) async(tid+1)
+     #pragma acc parallel loop collapse(2) present(valS1[0:igs])// async(tid+1)
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
         for (int j=0;j<gs;j++)
           valS1[ii1*gs+j] = 1.;
       }
 
-     #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs]) async(tid+1)
+     #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])// async(tid+1)
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
         for (int j=0;j<gs;j++)
@@ -348,7 +348,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
         eval_shd(tid,gs,grid,&valS2[ii1*gs],n1,l1,m1,zeta1);
       }
 
-     #pragma acc parallel loop collapse(2) present(valS1[0:igs],valT1[0:igs]) async(tid+1)
+     #pragma acc parallel loop collapse(2) present(valS1[0:igs],valT1[0:igs])// async(tid+1)
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
         for (int j=0;j<gs;j++)
@@ -395,14 +395,14 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
         int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
         int s3 = n2ip[n][sp2]; int s4 = n2ip[n][sp2+1];
 
-       #pragma acc parallel loop collapse(2) present(valS1[0:igs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valS1[0:igs])// async(tid+1)
         for (int ii1=0;ii1<s2-s1;ii1++)
         {
           for (int j=0;j<gs;j++)
             valS1[ii1*gs+j] = 1.;
         }
 
-       #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])// async(tid+1)
         for (int ii1=0;ii1<s4-s3;ii1++)
         {
           for (int j=0;j<gs;j++)
@@ -420,7 +420,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
           eval_shd(tid,gs,grid,&valS1[ii1*gs],n1,l1,m1,zeta1);
         }
 
-       #pragma acc parallel loop collapse(2) present(valS1[0:igs],valT1[0:igs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valS1[0:igs],valT1[0:igs])// async(tid+1)
         for (int ii1=0;ii1<s2-s1;ii1++)
         {
           for (int j=0;j<gs;j++)
@@ -456,7 +456,7 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
 
        ///////////////////////////////////////////////////////////////////
        //electron-nuclear attraction centers 1+2
-       #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])// async(tid+1)
         for (int ii1=0;ii1<s4-s3;ii1++)
         {
           for (int j=0;j<gs;j++)
@@ -647,11 +647,11 @@ void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double
   {
     acc_set_device_num(n,acc_device_nvidia);
 
-    #pragma acc exit data delete(S[0:N2],T[0:N2],En[0:N2]) //async(n+1)
-    #pragma acc exit data delete(grid[0:gs6],wt[0:gs]) //async(n+1)
+    #pragma acc exit data delete(S[0:N2],T[0:N2],En[0:N2]) ////async(n+1)
+    #pragma acc exit data delete(grid[0:gs6],wt[0:gs]) ////async(n+1)
     //#pragma acc exit data delete(valS1[0:iN][0:gs],valS2[0:iN][0:gs],valT1[0:iN][0:gs])
-    #pragma acc exit data delete(valS1[0:igs],valS2[0:igs],valT1[0:igs]) //async(n+1)
-    #pragma acc exit data delete(valt[0:gs]) //async(n+1)
+    #pragma acc exit data delete(valS1[0:igs],valS2[0:igs],valT1[0:igs]) ////async(n+1)
+    #pragma acc exit data delete(valt[0:gs]) ////async(n+1)
 
     //acc_wait_all();
   }
@@ -790,14 +790,14 @@ void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double>
 
       //printf(" pVp_2c s12: %2i %2i s34: %2i %2i \n",s1,s2,s3,s4);
 
-     #pragma acc parallel loop collapse(2) present(valS1[0:igs3]) async(tid+1)
+     #pragma acc parallel loop collapse(2) present(valS1[0:igs3])// async(tid+1)
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
         for (int j=0;j<gs3;j++)
           valS1[ii1*gs3+j] = 1.;
       }
 
-     #pragma acc parallel loop collapse(2) present(valS2[0:gs3]) async(tid+1)
+     #pragma acc parallel loop collapse(2) present(valS2[0:gs3])// async(tid+1)
       for (int ii1=0;ii1<s2-s1;ii1++)
       {
         for (int j=0;j<gs3;j++)
@@ -1242,11 +1242,11 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   {
     acc_set_device_num(n,acc_device_nvidia);
 
-    #pragma acc enter data create(A[0:N2]) //async(n+1)
+    #pragma acc enter data create(A[0:N2]) ////async(n+1)
 
-    #pragma acc enter data create(grid[0:gs6],wt[0:gs]) //async(n+1)
+    #pragma acc enter data create(grid[0:gs6],wt[0:gs]) ////async(n+1)
     //#pragma acc enter data create(valS1[0:iN][0:gs],valV2[0:iN][0:gs])
-    #pragma acc enter data create(valS1[0:igs],valV2[0:igs]) //async(n+1)
+    #pragma acc enter data create(valS1[0:igs],valV2[0:igs]) ////async(n+1)
 
     acc_assign(N2,A,0.);
 
@@ -1291,24 +1291,24 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
       if (dy)
       {
-       #pragma acc parallel loop collapse(2) present(valS1[0:igs],wt[0:gs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valS1[0:igs],wt[0:gs])// async(tid+1)
         for (int ii1=0;ii1<s2-s1;ii1++)
         for (int j=0;j<gs;j++)
           valS1[ii1*gs+j] = wt[j];
 
-       #pragma acc parallel loop collapse(2) present(valV2[0:igs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valV2[0:igs])// async(tid+1)
         for (int ii2=0;ii2<s4-s3;ii2++)
         for (int j=0;j<gs;j++)
           valV2[ii2*gs+j] = 0.;
       }
       else
       {
-       #pragma acc parallel loop collapse(2) present(valS1[0:igs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valS1[0:igs])// async(tid+1)
         for (int ii1=0;ii1<s2-s1;ii1++)
         for (int j=0;j<gs;j++)
           valS1[ii1*gs+j] = 1.;
 
-       #pragma acc parallel loop collapse(2) present(valV2[0:gs],wt[0:gs]) async(tid+1)
+       #pragma acc parallel loop collapse(2) present(valV2[0:gs],wt[0:gs])// async(tid+1)
         for (int ii2=0;ii2<s4-s3;ii2++)
         for (int j=0;j<gs;j++)
           valV2[ii2*gs+j] = wt[j];
@@ -1370,22 +1370,22 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
 
         if (dy)
         {
-         #pragma acc parallel loop collapse(2) present(valS1[0:igs],wt[0:gs]) async(tid+1)
+         #pragma acc parallel loop collapse(2) present(valS1[0:igs],wt[0:gs])// async(tid+1)
           for (int ii1=0;ii1<s2-s1;ii1++)
           for (int j=0;j<gs;j++)
             valS1[ii1*gs+j] = wt[j];
-         #pragma acc parallel loop collapse(2) present(valV2[0:igs]) async(tid+1)
+         #pragma acc parallel loop collapse(2) present(valV2[0:igs])// async(tid+1)
           for (int ii1=0;ii1<s4-s3;ii1++)
           for (int j=0;j<gs;j++)
             valV2[ii1*gs+j] = 0.;
         }
         else
         {
-         #pragma acc parallel loop collapse(2) present(valS1[0:igs]) async(tid+1)
+         #pragma acc parallel loop collapse(2) present(valS1[0:igs])// async(tid+1)
           for (int ii1=0;ii1<s2-s1;ii1++)
           for (int j=0;j<gs;j++)
             valS1[ii1*gs+j] = 1.;
-         #pragma acc parallel loop collapse(2) present(valV2[0:igs],wt[0:gs]) async(tid+1)
+         #pragma acc parallel loop collapse(2) present(valV2[0:igs],wt[0:gs])// async(tid+1)
           for (int ii1=0;ii1<s4-s3;ii1++)
           for (int j=0;j<gs;j++)
             valV2[ii1*gs+j] = wt[j];
@@ -1459,7 +1459,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
     {
       acc_set_device_num(n,acc_device_nvidia);
 
-      #pragma acc update self(A[0:N2]) //async(n+1)
+      #pragma acc update self(A[0:N2]) ////async(n+1)
 
       for (int j=0;j<N2;j++)
         At[j] += A[j];
@@ -1538,10 +1538,10 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   {
     acc_set_device_num(n,acc_device_nvidia);
 
-    #pragma acc exit data delete(A[0:N2]) //async(n+1)
-    #pragma acc exit data delete(grid[0:gs6],wt[0:gs]) //async(n+1)
+    #pragma acc exit data delete(A[0:N2]) ////async(n+1)
+    #pragma acc exit data delete(grid[0:gs6],wt[0:gs]) ////async(n+1)
     //#pragma acc exit data delete(valS1[0:iN][0:gs],valV2[0:iN][0:gs])
-    #pragma acc exit data delete(valS1[0:igs],valV2[0:igs]) //async(n+1)
+    #pragma acc exit data delete(valS1[0:igs],valV2[0:igs]) ////async(n+1)
 
     //acc_wait_all();
   }
@@ -1565,7 +1565,7 @@ void init_s12v3(int tid, bool dy, int s1, int s2, int s3, int s4, int s5, int s6
 {
   int igs = iN*gs;
   int iags = iNa*gs;
-  #pragma acc parallel loop collapse(2) present(val2[0:igs]) async(tid+1)
+  #pragma acc parallel loop collapse(2) present(val2[0:igs])// async(tid+1)
   for (int ii2=0;ii2<s4-s3;ii2++)
   {
     for (int j=0;j<gs;j++)
@@ -1574,26 +1574,26 @@ void init_s12v3(int tid, bool dy, int s1, int s2, int s3, int s4, int s5, int s6
 
   if (dy)
   {
-    #pragma acc parallel loop collapse(2) present(val1[0:igs],wt[0:gs]) async(tid+1)
+    #pragma acc parallel loop collapse(2) present(val1[0:igs],wt[0:gs])// async(tid+1)
     for (int ii1=0;ii1<s2-s1;ii1++)
     for (int j=0;j<gs;j++)
       val1[ii1*gs+j] = wt[j];
 
     if (val3!=NULL)
-    #pragma acc parallel loop collapse(2) present(val3[0:iags]) async(tid+1)
+    #pragma acc parallel loop collapse(2) present(val3[0:iags])// async(tid+1)
     for (int ii3=0;ii3<s6-s5;ii3++)
     for (int j=0;j<gs;j++)
       val3[ii3*gs+j] = 0.;
   }
   else
   {
-    #pragma acc parallel loop collapse(2) present(val1[0:igs]) async(tid+1)
+    #pragma acc parallel loop collapse(2) present(val1[0:igs])// async(tid+1)
     for (int ii1=0;ii1<s2-s1;ii1++)
     for (int j=0;j<gs;j++)
       val1[ii1*gs+j] = 1.;
 
     if (val3!=NULL)
-    #pragma acc parallel loop collapse(2) present(val3[0:iags],wt[0:gs]) async(tid+1)
+    #pragma acc parallel loop collapse(2) present(val3[0:iags],wt[0:gs])// async(tid+1)
     for (int ii3=0;ii3<s6-s5;ii3++)
     for (int j=0;j<gs;j++)
       val3[ii3*gs+j] = wt[j];
@@ -2610,28 +2610,28 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
 void init_s14(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int s7, int s8, int iN, int gs, double* val1, double* val2, double* val3, double* val4, double* wt)
 {
   int igs = iN*gs;
-  #pragma acc parallel loop collapse(2) present(val1[0:igs]) async(tid+1)
+  #pragma acc parallel loop collapse(2) present(val1[0:igs])// async(tid+1)
   for (int ii1=0;ii1<s2-s1;ii1++)
   {
     for (int j=0;j<gs;j++)
       val1[ii1*gs+j] = 1.;
   }
 
-  #pragma acc parallel loop collapse(2) present(val2[0:igs]) async(tid+1)
+  #pragma acc parallel loop collapse(2) present(val2[0:igs])// async(tid+1)
   for (int ii2=0;ii2<s4-s3;ii2++)
   {
     for (int j=0;j<gs;j++)
       val2[ii2*gs+j] = 1.;
   }
 
-  #pragma acc parallel loop collapse(2) present(val3[0:igs]) async(tid+1)
+  #pragma acc parallel loop collapse(2) present(val3[0:igs])// async(tid+1)
   for (int ii3=0;ii3<s6-s5;ii3++)
   {
     for (int j=0;j<gs;j++)
       val3[ii3*gs+j] = 1.;
   }
 
-  #pragma acc parallel loop collapse(2) present(val4[0:igs],wt[0:gs]) async(tid+1)
+  #pragma acc parallel loop collapse(2) present(val4[0:igs],wt[0:gs])// async(tid+1)
   for (int ii4=0;ii4<s8-s7;ii4++)
   {
     for (int j=0;j<gs;j++)
@@ -2829,7 +2829,7 @@ void reduce_4c_ol1(int tid, int ii1, int ii2, int s5, int s6, int s7, int s8, in
 
   if (s5!=s7)
   {
-   #pragma acc parallel loop collapse(2) present(valm[0:gs],valn[0:gs],val3[0:igs],val4[0:igs],tmp[0:M4]) async(tid+1)
+   #pragma acc parallel loop collapse(2) present(valm[0:gs],valn[0:gs],val3[0:igs],val4[0:igs],tmp[0:M4])// async(tid+1)
     for (int i3=s5;i3<s6;i3++)
     for (int i4=s7;i4<s8;i4++)
     {
@@ -2849,7 +2849,7 @@ void reduce_4c_ol1(int tid, int ii1, int ii2, int s5, int s6, int s7, int s8, in
   }
   else
   {
-   #pragma acc parallel loop present(valm[0:gs],valn[0:gs],val3[0:igs],val4[0:igs],tmp[0:M4]) async(tid+1)
+   #pragma acc parallel loop present(valm[0:gs],valn[0:gs],val3[0:igs],val4[0:igs],tmp[0:M4])// async(tid+1)
     for (int i3=s5;i3<s6;i3++)
    #pragma acc loop
     for (int i4=s5;i4<=i3;i4++)
@@ -2915,7 +2915,7 @@ void reduce_4c_ol1(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int 
 
     reduce_4c_ol1(tid,ii1,ii2,s5,s6,s7,s8,gs,valm,valn,val3,val4,iN,M,M2,M3,M4,tmp);
 
-   #pragma acc serial present(tmp[0:M4]) async(tid+1)
+   #pragma acc serial present(tmp[0:M4])// async(tid+1)
     for (int i3=s5;i3<s6;i3++)
     for (int i4=s7;i4<s8;i4++)
     {
@@ -2940,7 +2940,7 @@ void reduce_4c_ol1(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int 
     reduce_4c_ol1(tid,ii1,ii2,s5,s6,s7,s8,gs,valm,valn,val3,val4,iN,M,M2,M3,M4,tmp);
   }
 
-  #pragma acc update self(tmp[0:M4]) async(tid+1)
+  #pragma acc update self(tmp[0:M4])// async(tid+1)
 
  //CPMZ will limit parallelization?
   //#pragma acc wait(tid)
@@ -2974,7 +2974,7 @@ void reweight_core(int tid, const double beta, int natoms, int* atno, double* co
     double alpha = 2.*atno[n];
     double A1 = coords[3*n+0]; double B1 = coords[3*n+1]; double C1 = coords[3*n+2];
 
-   #pragma acc parallel loop present(grid[0:gs6],wt[0:gs]) async(tid+1)
+   #pragma acc parallel loop present(grid[0:gs6],wt[0:gs])// async(tid+1)
     for (int j=0;j<gs;j++)
     {
       double x12 = grid[6*j+0]-A1;
