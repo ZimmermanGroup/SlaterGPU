@@ -74,11 +74,14 @@ void reduce_2c3vd(int p1, int s1, int s2, int s3, int s4, int gs, double* norms,
 void reduce_2c3vd(int p1, int s1, int s2, int s3, int s4, int gs, double* norms, double* dpq, float** val1x, float** val2x, float** val3x, float** val4, float** val5, float** val6, int iN, int N, int nc, double scalar, float* dV);
 
 //reduce fully double precision
-void reduce_2c1(int s1, int s2, int gs, double** val1, double** val3, int iN, int N, double* An);
-void reduce_2c1(int s1, int s2, int s3, int s4, int gs, double** val1, double** val3, int iN, int N, double* An);
+//void reduce_2c1(int s1, int s2, int s3, int s4, int gs, double** val1, double** val3, int iN, int N, double* An);
+void reduce_2c1(int tid, int s1, int s2, int gs, double** val1, double** val3, int iN, int N, double* An);
 void reduce_2c2(int s1, int s2, int s3, int s4, int gs, double** val1, double** val2, double** val3, double** val4, int iN, int N, double* An);
-void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C);
-void reduce_3c1b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C);
+
+void reduce_2c1(int tid, int s1, int s2, int gs, double* val1, double* val3, int iN, int N, double* An);
+void reduce_2c1(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, double* val3, int iN, int N, double* An);
+void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, double* val2, double* val3, int N, int Naux, int imaxN, int imaxNa, double* C, double* Ct);
+void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* val1, double* val2, double* val3, int N, int Naux, int imaxN, int imaxNa, double* C, double* Ct);
 
 
 #endif

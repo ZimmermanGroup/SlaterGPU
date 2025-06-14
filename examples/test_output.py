@@ -6,7 +6,7 @@ import pytest
 
 @pytest.mark.parametrize("filename", ["A", "Ciap", "pVp", "SENT"])
 def test_output(filename):
-    example_output_dir = Path("geom_1")
+    example_output_dir = Path("lih_VK1")
 
     with open(example_output_dir / f"{filename}_ref") as reference_output:
         reference_output_lines = reference_output.readlines()

@@ -601,10 +601,10 @@ void assemble_sh_vals(int n1, int l1, int m1, double zt1, double norm1, int n2, 
   for (int j=0;j<gs3;j++)
     val2p[j] = norm2;
 
-  eval_shd(0,gs,grid1,val1,n1,l1,m1,zt1); //nu=0  ->+z
-  eval_shd(0,gs,grid2,val2,n2,l2,m2,zt2); //nu=180->-z
-  eval_pd(gs,grid1,val1p,n1,l1,m1,zt1);
-  eval_pd(gs,grid2,val2p,n2,l2,m2,zt2);
+  eval_shd(-1,gs,grid1,val1,n1,l1,m1,zt1); //nu=0  ->+z
+  eval_shd(-1,gs,grid2,val2,n2,l2,m2,zt2); //nu=180->-z
+  eval_pd(-1,gs,grid1,val1p,n1,l1,m1,zt1);
+  eval_pd(-1,gs,grid2,val2p,n2,l2,m2,zt2);
 
   return;
 }
@@ -625,7 +625,7 @@ void assemble_vc_vals(int n1, int l1, int m1, double zt1, double norm1v, int gs,
 
  //S in valt, V in val1
   eval_sh_3rd(gs,grid1,valt,n1,l1,m1);
-  eval_inr_r12(gs,grid1,val1,n1,l1,zt1,3);
+  eval_inr_r12(-1,gs,grid1,val1,n1,l1,zt1);
 
    //first term: SdV
  #pragma acc parallel loop present(val1p[0:gs3],valt[0:gs3])
@@ -637,7 +637,7 @@ void assemble_vc_vals(int n1, int l1, int m1, double zt1, double norm1v, int gs,
  #pragma acc parallel loop present(valt[0:gs3],val1[0:gs])
   for (int j=0;j<gs;j++)
     valt[3*j+0] = valt[3*j+1] = valt[3*j+2] = val1[j];
-  eval_dp_3rd(gs,grid1,valt,n1,l1,m1);
+  eval_dp_3rd(-1,gs,grid1,valt,n1,l1,m1);
 
  #pragma acc parallel loop present(val1p[0:gs3],valt[0:gs3])
   for (int j=0;j<gs3;j++)
@@ -667,20 +667,20 @@ void assemble_vc_vals(int a12, int b12, int c12, int n1, int l1, int m1, double 
   for (int j=0;j<gs;j++)
     val2[j] = n12;
 
-  eval_shd(0,gs,grida,val1,n1,l1,m1,zt1);
+  eval_shd(-1,gs,grida,val1,n1,l1,m1,zt1);
 
  //mu dnu
  #pragma acc parallel loop present(valtp[0:gs3],val1[0:gs])
   for (int j=0;j<gs;j++)
     valtp[3*j+0] = valtp[3*j+1] = valtp[3*j+2] = val1[j];
-  eval_pd(gs,gridb,valtp,n2,l2,m2,zt2);
+  eval_pd(-1,gs,gridb,valtp,n2,l2,m2,zt2);
 
  //nu dmu
-  eval_shd(0,gs,gridb,val2,n2,l2,m2,zt2);
+  eval_shd(-1,gs,gridb,val2,n2,l2,m2,zt2);
  #pragma acc parallel loop present(valt[0:gs3],val2[0:gs])
   for (int j=0;j<gs;j++)
     valt[3*j+0] = valt[3*j+1] = valt[3*j+2] = val2[j];
-  eval_pd(gs,grida,valt,n1,l1,m1,zt1);
+  eval_pd(-1,gs,grida,valt,n1,l1,m1,zt1);
 
  //mu dnu + nu dmu
  #pragma acc parallel loop present(val1p[0:gs3],valt[0:gs3],valtp[0:gs3])
@@ -688,7 +688,7 @@ void assemble_vc_vals(int a12, int b12, int c12, int n1, int l1, int m1, double 
     val1p[j] = valt[j] + valtp[j];
 
  //mu nu
-  eval_shd(0,gs,gridb,val1,n2,l2,m2,zt2);
+  eval_shd(-1,gs,gridb,val1,n2,l2,m2,zt2);
 
  #pragma acc parallel loop present(val2[0:gs])
   for (int j=0;j<gs;j++)
@@ -705,18 +705,18 @@ void assemble_vc_vals(int a12, int b12, int c12, int n1, int l1, int m1, double 
  #pragma acc parallel loop present(valt[0:gs3])
   for (int j=0;j<gs;j++)
     valt[j] = norm3v;
-  eval_inr_r12(gs,gridc,valt,n3,l3,zt3,3);
+  eval_inr_r12(-1,gs,gridc,valt,n3,l3,zt3);
  #pragma acc parallel loop present(valtp[0:gs3],valt[0:gs3])
   for (int j=0;j<gs;j++)
     valtp[3*j+0] = valtp[3*j+1] = valtp[3*j+2] = valt[j];
-  eval_dp_3rd(gs,gridc,valtp,n3,l3,m3);
+  eval_dp_3rd(-1,gs,gridc,valtp,n3,l3,m3);
 
  #pragma acc parallel loop present(val2p[0:gs3],valtp[0:gs3])
   for (int j=0;j<gs3;j++)
     val2p[j] += valtp[j];
 
  //finishing VS
-  eval_inr_r12(gs,gridc,val2,n3,l3,zt3,3);
+  eval_inr_r12(-1,gs,gridc,val2,n3,l3,zt3);
 
   return;
 }
@@ -798,9 +798,9 @@ void evaluate_over_grid_quad_3c(int qo, int n1, int l1, int m1, double zt1, doub
   double* gridb = grid2;
   double* gridc = grid3;
 
-  quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wtq);
+  quad_grid_munuphi(-1,qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wtq);
 
-  reorient_grid(z0,gsq,gridq,gridqr,rot);
+  reorient_grid(-1,z0,gsq,gridq,gridqr,rot);
 
   get_three_grids(gsq,grid1,grid2,grid3,gridqr,A1,B1,C1,A2,B2,C2,A3,B3,C3);
 
@@ -808,11 +808,11 @@ void evaluate_over_grid_quad_3c(int qo, int n1, int l1, int m1, double zt1, doub
   for (int k=0;k<gsq;k++)
     valq[k] = norm123;
 
-  eval_shd(0,gsq,grida,valq,n1,l1,m1,zt1);
-  eval_shd(0,gsq,gridb,valq,n2,l2,m2,zt2);
+  eval_shd(-1,gsq,grida,valq,n1,l1,m1,zt1);
+  eval_shd(-1,gsq,gridb,valq,n2,l2,m2,zt2);
 
   eval_sh_3rd(gsq,gridc,valq,n3,l3,m3);
-  eval_inr_r12(gsq,gridc,valq,n3,l3,zt3,3);
+  eval_inr_r12(-1,gsq,gridc,valq,n3,l3,zt3);
 
  #pragma acc parallel loop present(val[0:gs],valq[0:gsq],wtq[0:gsq])
   for (int j=0;j<gs;j++)
@@ -891,7 +891,7 @@ void do_4c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
   }
   if (lmax>3)
   {
-    printf("\n ERROR: 4c integrals require l<4 (l: %i) \n",lmax); exit(-1); 
+    printf("\n ERROR: 4c integrals require l<4 (l: %i) \n",lmax); exit(-1);
   }
 
   int gs = nmu*nnu*nphi1;
@@ -962,7 +962,7 @@ void do_4c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
 
    //CPMZ hard-coded
     double cfn = 1.1*cf;
-    initialize_ps_coords_batch(0,1,z0,cfn,nmu,nnu,nphi1,phi_phase,grid,gridm,wt,prl);
+    initialize_ps_coords_batch(-1,0,1,z0,cfn,nmu,nnu,nphi1,phi_phase,grid,gridm,wt,prl);
     quad_grid_munu(qo,qo,z0,Qx,Qy,gs,gridm,gridq,wtq);
 
     #pragma acc parallel loop present(gridq[0:gsq6],gridqr[0:gsq6])
@@ -1017,7 +1017,7 @@ void do_4c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
      #pragma acc parallel loop present(val1[0:N][0:gsq])
       for (int j=0;j<gsq;j++)
         val1[i1][j] = norm1;
-      eval_shd(0,gsq,grida,val1[i1],n1,l1,m1,zt1);
+      eval_shd(-1,gsq,grida,val1[i1],n1,l1,m1,zt1);
     }
 
    #pragma omp parallel for schedule(static,1) num_threads(nomp)
@@ -1113,35 +1113,6 @@ void do_4c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
 void evaluate_over_grid_3c(int n, int m, int p, int n1, int l1, int m1, double zt1, double norm1, int n2, int l2, int m2, double zt2, double norm2, int n3, int l3, int m3, double zt3, double norm3v,
                         double z0, double A1, double B1, double C1, double A2, double B2, double C2, int gs, double* grid, double* gridm, double* wt, double* val)
 {
-  int gs3 = 3*gs;
-  int gs6 = 6*gs;
-
-  double* val1 = new double[gs]; //AO
-  double* val2 = new double[gs]; //AO
-  double* val1p = new double[gs3]; //AO dxdydz
-  double* val2p = new double[gs3]; //AO dxdydz
-  double* valt = new double[gs3];
-  double* valtp = new double[gs3];
-
-  double* grid1 = new double[gs6];
-  double* grid2 = new double[gs6];
-
-  #pragma acc enter data create(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],valtp[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  get_two_grids(gs,grid1,grid2,grid,A1,B1,C1,A2,B2,C2);
-
-  assemble_vc_vals(n+1,m+1,p+1,n1,l1,m1,zt1,norm1,n2,l2,m2,zt2,norm2,n3,l3,m3,zt3,norm3v,gs,grid1,grid2,val1,val1p,val2,val2p,valt,valtp);
-
-  get_ab_2d(gs,z0,val1,val2,val1p,val2p,grid,gridm,wt,val);
-  //get_ab_mnp(gs,z0,0,n1,l1,m1,n2,l2,m2,norm1,norm2,zt1,zt2,grid,gridm,wt,val);
-
-  #pragma acc exit data delete(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],valtp[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  delete [] val1; delete [] val2;
-  delete [] val1p; delete [] val2p;
-  delete [] valt; delete [] valtp;
-  delete [] grid1; delete [] grid2;
-
   return;
 }
 
@@ -1179,9 +1150,9 @@ void evaluate_over_grid_quad_En_3c(int qo, int n1, int l1, int m1, double zt1, d
 
   #pragma acc update self(gridm[0:6*gs],wt[0:gs])
 
-  quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wtq);
+  quad_grid_munuphi(-1,qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wtq);
 
-  reorient_grid(z0,gsq,gridq,gridqr,rot);
+  reorient_grid(-1,z0,gsq,gridq,gridqr,rot);
 
   get_two_grids(gsq,grid1,grid2,gridqr,A1,B1,C1,A2,B2,C2);
 
@@ -1192,8 +1163,8 @@ void evaluate_over_grid_quad_En_3c(int qo, int n1, int l1, int m1, double zt1, d
 
   //nuclear attraction integrals
   {
-    eval_shd(0,gsq,grid1,valq,n1,l1,m1,zt1);
-    eval_shd(0,gsq,grid2,valq,n2,l2,m2,zt2);
+    eval_shd(-1,gsq,grid1,valq,n1,l1,m1,zt1);
+    eval_shd(-1,gsq,grid2,valq,n2,l2,m2,zt2);
 
    #pragma acc parallel loop present(valq[0:gsq],grid1[0:gsq],grid2[0:gsq]) //note grid1/2 here
     for (int j=0;j<gsq;j++)
@@ -1241,21 +1212,20 @@ void get_2c_position(double* coordn, double* rot)
 {
  //this ftn assumes two distinct atoms in coordn (on cpu)
 
-  #pragma acc enter data copyin(coordn[0:9])
+  //#pragma acc enter data copyin(coordn[0:9])
   gen_total_rot_n2(2,coordn,rot);
 
   int prl = 0;
   if (prl>1)
   {
-    #pragma acc update self(rot[0:9])
+    //#pragma acc update self(rot[0:9])
     printf("\n rot(0): \n");
     print_square(3,rot);
   }
 
  //inverse of rot via transpose
-  #pragma acc parallel loop present(rot[0:9])
+  //#pragma acc parallel loop present(rot[0:9])
   for (int j=0;j<3;j++)
-  #pragma acc loop
   for (int k=0;k<j;k++)
   {
     double r1 = rot[j*3+k];
@@ -1265,8 +1235,7 @@ void get_2c_position(double* coordn, double* rot)
     rot[k*3+j] = r1;
   }
 
- //CPMZ check?
-  #pragma acc update self(rot[0:9])
+  //#pragma acc update self(rot[0:9])
 
   if (prl>1)
   {
@@ -1275,7 +1244,7 @@ void get_2c_position(double* coordn, double* rot)
     print_square(3,rot);
   }
 
-  #pragma acc exit data delete(coordn[0:9])
+  //#pragma acc exit data delete(coordn[0:9])
 
   return;
 }
@@ -1311,15 +1280,14 @@ void get_2c_position(double& A1, double& B1, double& C1, double& A2, double& B2,
 
   if (ab_match)
   {
-   #pragma acc parallel loop present(rot[0:9])
+   //#pragma acc parallel loop present(rot[0:9])
     for (int j=0;j<9;j++)
       rot[j] = 0.;
-   #pragma acc parallel loop present(rot[0:9])
+   //#pragma acc parallel loop present(rot[0:9])
     for (int j=0;j<3;j++)
       rot[3*j+j] = 1.;
 
-   //CPMZ check?
-    #pragma acc update self(rot[0:9])
+    //#pragma acc update self(rot[0:9])
 
     return;
   }
@@ -1334,15 +1302,14 @@ void get_3c_position(double* coordn, double* rot)
 
   if (abc_match)
   {
-   #pragma acc parallel loop present(rot[0:9])
+   //#pragma acc parallel loop present(rot[0:9])
     for (int j=0;j<9;j++)
       rot[j] = 0.;
-   #pragma acc parallel loop present(rot[0:9])
+   //#pragma acc parallel loop present(rot[0:9])
     for (int j=0;j<3;j++)
       rot[3*j+j] = 1.;
 
-   //CPMZ check?
-    #pragma acc update self(rot[0:9])
+    //#pragma acc update self(rot[0:9])
 
     return;
   }
@@ -1356,7 +1323,7 @@ void get_3c_position(double* coordn, double* rot)
     coordn[7] = 0.;
     coordn[8] = 0.;
   }
- 
+
   int prl = 0;
   if (prl>1)
   {
@@ -1365,20 +1332,20 @@ void get_3c_position(double* coordn, double* rot)
       printf("  %8.5f %8.5f %8.5f \n",coordn[3*k+0],coordn[3*k+1],coordn[3*k+2]);
   }
 
-  #pragma acc enter data copyin(coordn[0:9])
+  //#pragma acc enter data copyin(coordn[0:9])
   gen_total_rot_n3(3-ab_match-abc_match,coordn,rot);
 
   if (prl>0)
   {
-    #pragma acc update self(rot[0:9])
+    //#pragma acc update self(rot[0:9])
     printf("\n rot(0): \n");
     print_square(3,rot);
   }
 
  //inverse of rot via transpose
-  #pragma acc parallel loop present(rot[0:9])
+  //#pragma acc parallel loop present(rot[0:9])
   for (int j=0;j<3;j++)
-  #pragma acc loop independent
+  //#pragma acc loop independent
   for (int k=0;k<j;k++)
   {
     double r1 = rot[j*3+k];
@@ -1388,8 +1355,7 @@ void get_3c_position(double* coordn, double* rot)
     rot[k*3+j] = r1;
   }
 
- //CPMZ check?
-  #pragma acc update self(rot[0:9])
+  //#pragma acc update self(rot[0:9])
 
   if (prl>0)
   {
@@ -1397,23 +1363,23 @@ void get_3c_position(double* coordn, double* rot)
     print_square(3,rot);
   }
 
-  #pragma acc exit data delete(coordn[0:9])
+  //#pragma acc exit data delete(coordn[0:9])
 
   return;
 }
 
 void get_4c_position(double* coordn, double* rot)
 {
- //assumes all 4 centers are unique 
+ //assumes all 4 centers are unique
   int prl = 0;
 
-  #pragma acc enter data copyin(coordn[0:9])
+  //#pragma acc enter data copyin(coordn[0:9])
   gen_total_rot_n3(3,coordn,rot);
 
  //inverse of rot via transpose
-  #pragma acc parallel loop present(rot[0:9])
+  //#pragma acc parallel loop present(rot[0:9])
   for (int j=0;j<3;j++)
-  #pragma acc loop independent
+  //#pragma acc loop independent
   for (int k=0;k<j;k++)
   {
     double r1 = rot[j*3+k];
@@ -1423,8 +1389,7 @@ void get_4c_position(double* coordn, double* rot)
     rot[k*3+j] = r1;
   }
 
- //CPMZ check?
-  #pragma acc update self(rot[0:9])
+  //#pragma acc update self(rot[0:9])
 
   if (prl>0)
   {
@@ -1432,7 +1397,7 @@ void get_4c_position(double* coordn, double* rot)
     print_square(3,rot);
   }
 
-  #pragma acc exit data delete(coordn[0:9])
+  //#pragma acc exit data delete(coordn[0:9])
 
   return;
 }
@@ -1634,9 +1599,9 @@ void do_3c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
         }
 
         if (ncenters==3)
-          initialize_ps_coords_3c(cfn,nmu,nnu,nphi1,0.,coordn,grid0,gridm0,wt0,rot,prl-tid);
+          initialize_ps_coords_3c(-1,cfn,nmu,nnu,nphi1,0.,coordn,grid0,gridm0,wt0,rot,prl-tid);
         else
-          initialize_ps_coords_batch(wb,nbatch,z0,cfn,nmu,nnu,nphi1,0.,grid0,gridm0,wt0,prl-tid);
+          initialize_ps_coords_batch(-1,wb,nbatch,z0,cfn,nmu,nnu,nphi1,0.,grid0,gridm0,wt0,prl-tid);
 
         if (maxsteps>1)
           half_split_ps(1,gs0,grid0,gridm0,wt0,z0,grid,gridm,wt,prl);
@@ -1800,9 +1765,9 @@ void do_3c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
         }
 
         if (ncenters==3)
-          initialize_ps_coords_3c(cfn,nmu,nnu,nphi1,0.,coordn,grid0,gridm0,wt0,rot,prl-tid);
+          initialize_ps_coords_3c(-1,cfn,nmu,nnu,nphi1,0.,coordn,grid0,gridm0,wt0,rot,prl-tid);
         else
-          initialize_ps_coords_batch(wb,nbatch,z0,cfn,nmu,nnu,nphi1,0.,grid0,gridm0,wt0,prl-tid);
+          initialize_ps_coords_batch(-1,wb,nbatch,z0,cfn,nmu,nnu,nphi1,0.,grid0,gridm0,wt0,prl-tid);
 
         if (maxsteps>1)
           half_split_ps(1,gs0,grid0,gridm0,wt0,z0,grid,gridm,wt,prl);
@@ -1827,7 +1792,7 @@ void do_3c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
         #pragma acc enter data create(grid1[0:gs6])
 
         #pragma acc update self(grid[0:gs6])
-        reorient_grid(z0,gs,grid,grid1,rot);
+        reorient_grid(-1,z0,gs,grid,grid1,rot);
 
         printf(" grid: \n");
         for (int k=0;k<gs;k++)
@@ -1999,8 +1964,8 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
 
   if (do_rot)
   {
-    quad_grid_munuphi(qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wtq);
-    reorient_grid(z0,gsq,gridq,gridqr,rot);
+    quad_grid_munuphi(-1,qo,qo,qo,0,z0,Qx,Qy,Qz,gs,0,gridm,gridq,wtq);
+    reorient_grid(-1,z0,gsq,gridq,gridqr,rot);
     get_two_grids(gsq,grid1,grid2,gridqr,A1,B1,C1,A2,B2,C2);
   }
   else
@@ -2020,13 +1985,13 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
   {
    //overlap
     if (!do_coulomb)
-      eval_shd(0,gsq,grida,valq,n1,l1,m1,zt1);
-    eval_shd(0,gsq,gridb,valq,n2,l2,m2,zt2);
+      eval_shd(-1,gsq,grida,valq,n1,l1,m1,zt1);
+    eval_shd(-1,gsq,gridb,valq,n2,l2,m2,zt2);
 
     if (do_coulomb)
     {
       eval_sh_3rd(gsq,grida,valq,n1,l1,m1);
-      eval_inr_r12(gsq,grida,valq,n1,l1,zt1,3);
+      eval_inr_r12(-1,gsq,grida,valq,n1,l1,zt1);
     }
   } //S or 2c Coulomb
 
@@ -2036,8 +2001,8 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
     if (Z1==0. || Z2==0.) { printf("\n ERROR: type==2 integrals cannot have Z=0. \n"); exit(-1); }
 
     //nuclear attraction integrals
-    eval_shd(0,gsq,grida,valq,n1,l1,m1,zt1);
-    eval_shd(0,gsq,gridb,valq,n2,l2,m2,zt2);
+    eval_shd(-1,gsq,grida,valq,n1,l1,m1,zt1);
+    eval_shd(-1,gsq,gridb,valq,n2,l2,m2,zt2);
 
     double fn = 1.; if (a12==b12) fn = 0.5;
    #pragma acc parallel loop present(valq[0:gsq],grid1[0:gsq],grid2[0:gsq]) //note grid1/2 here
@@ -2048,7 +2013,7 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
       valq[j] *= fn*ne;
     }
 
-  } //En 
+  } //En
 
   if (type==3)
   {
@@ -2056,8 +2021,8 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
     //#pragma acc enter data create(valqt[0:gsq])
 
     //kinetic energy integrals
-    eval_shd(0,gsq,grida,valq,n1,l1,m1,zt1);
-    eval_shd(0,gsq,gridb,valq,n2,l2,m2,zt2);
+    eval_shd(-1,gsq,grida,valq,n1,l1,m1,zt1);
+    eval_shd(-1,gsq,gridb,valq,n2,l2,m2,zt2);
 
   #if 0
    #pragma acc parallel loop present(valqt[0:gsq],valq[0:gsq])
@@ -2065,7 +2030,7 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
       valqt[j] = valq[j];
   #endif
 
-    eval_ke(gsq,grida,valq,n1,l1,zt1);
+    eval_ked(-1,gsq,grida,valq,n1,l1,zt1);
 
   #if 0
     eval_ke(gsq,gridb,valqt,n2,l2,zt2);
@@ -2117,37 +2082,6 @@ void evaluate_over_grid_quad(int qo, bool do_coulomb, int type, int n1, int l1, 
 void evaluate_over_grid(bool do_coulomb, int n1, int l1, int m1, double zt1, double norm1, double norm1v, int n2, int l2, int m2, double zt2, double norm2, 
                         double z0, double A1, double B1, double C1, double A2, double B2, double C2, int gs, double* grid, double* gridm, double* wt, double* val)
 {
-  int gs3 = 3*gs;
-  int gs6 = 6*gs;
-
-  double* grid1 = new double[gs6]; //XYZ grid centered on an atom
-  double* grid2 = new double[gs6]; //XYZ grid centered on an atom
-
-  double* val1 = new double[gs]; //AO
-  double* val2 = new double[gs]; //AO
-  double* val1p = new double[gs3]; //AO dxdydz
-  double* val2p = new double[gs3]; //AO dxdydz
-  double* valt = new double[gs3];
-
-  #pragma acc enter data create(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  get_two_grids(gs,grid1,grid2,grid,A1,B1,C1,A2,B2,C2);
-
-  assemble_sh_vals(n1,l1,m1,zt1,norm1,n2,l2,m2,zt2,norm2,gs,grid1,grid2,val1,val2,val1p,val2p);
-  //extra work
-  if (do_coulomb)
-    assemble_vc_vals(n1,l1,m1,zt1,norm1v,gs,grid1,val1,val1p,valt);
-
-  get_ab_2d(gs,z0,val1,val2,val1p,val2p,grid,gridm,wt,val);
-  //get_ab_mnp(gs,z0,0,Z1,Z2,n1,l1,m1,n2,l2,m2,norm1,norm2,zt1,zt2,grid,gridm,wt,val);
-
-  #pragma acc exit data delete(val1[0:gs],val2[0:gs],val1p[0:gs3],val2p[0:gs3],valt[0:gs3],grid1[0:gs6],grid2[0:gs6])
-
-  delete [] grid1; delete [] grid2;
-  delete [] val1; delete [] val2;
-  delete [] val1p; delete [] val2p;
-  delete [] valt;
-
   return;
 }
 
@@ -2189,7 +2123,7 @@ void integrate_STEnAC_2c(int natoms, int* atno, double* coords, vector<vector<do
 
   int gs_quad = nmu*nnu*nphi*quad_order*quad_order*quad_order;
   printf("  basis sizes: %2i  %2i  initial grid size: %7i \n",basis.size(),basis_aux.size(),gs_quad);
-  if (basis.size()<1 || (basis_aux.size()<1 && do_coulomb)) 
+  if (basis.size()<1 || (basis_aux.size()<1 && do_coulomb))
   {
     return;
   }
@@ -2343,7 +2277,7 @@ void integrate_STEnAC_2c(int natoms, int* atno, double* coords, vector<vector<do
 
         #pragma acc enter data create(grid[0:gs6],gridm[0:gs6],wt[0:gs])
 
-        initialize_ps_coords_batch(wb,nbatch,z0,cfn,nmu,nnu,nphi1,phi_phase,grid0,gridm0,wt0,prl-tid);
+        initialize_ps_coords_batch(-1,wb,nbatch,z0,cfn,nmu,nnu,nphi1,phi_phase,grid0,gridm0,wt0,prl-tid);
         half_split_ps(1,gs0,grid0,gridm0,wt0,z0,grid,gridm,wt,prl);
 
        //adapt the grid for overlap (or Coulomb)
@@ -2621,7 +2555,7 @@ bool integrate_ol_4c(int natoms, int* atno, double* coords, vector<vector<double
  #endif
 
   printf("  basis size: %2i  ngpu/nomp: %2i \n",basis.size(),nomp);
-  if (basis.size()<1) 
+  if (basis.size()<1)
     return 0;
 
   size_t gpumem = acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
@@ -2774,113 +2708,7 @@ double test_1s_integrate_v2(int ss, int maxsteps, double epsilon, int gs1, doubl
 
 double test_1s_integrate(int ss, int maxsteps, double epsilon, int gs, double*& grid, double*& gridm, double*& wt, int prl)
 {
-  double z0 = 1.; //parameter
-  const double zt1 = 2.; //parameter
-
-  double tisum = 0.; //inactive terms
-  double sum = 0.; //total sum
-  int wsgst = 0;
-  int wsc = 1;
-  int phi_check = 0;
-  bool skip_phi = 0; //for cylindrically symmetric cases
-  for (int n=0;n<maxsteps;n++)
-  {
-    int ws = (wsc%3)+1;
-    wsc++;
-//    if (skip_phi && ws==3) { ws = 1; wsc++; }
-
-    double eps1 = epsilon; if (n+1==maxsteps) eps1 = 0.;
-    printf("\n iter %2i with eps: %4.1e ws: %i \n",n+1,eps1,ws);
-
-    double* val = new double[gs];
-    for (int j=0;j<gs;j++)
-    {
-     //test function, two 1s AOs
-      double x1 = grid[6*j+0]; double y1 = grid[6*j+1]; double z1 = grid[6*j+2]-z0;
-      double r1 = sqrt(x1*x1+y1*y1+z1*z1);
-      double x2 = grid[6*j+0]; double y2 = grid[6*j+1]; double z2 = grid[6*j+2]+z0;
-      double r2 = sqrt(x2*x2+y2*y2+z2*z2);
-
-      double mu = gridm[6*j+0];  double nu = gridm[6*j+1];  double phi = gridm[6*j+2];
-      double dmu = gridm[6*j+3]; double dnu = gridm[6*j+4]; double dphi = gridm[6*j+5];
-      double dxdmu = sin(nu)*cos(phi)*cosh(mu);
-      double dydmu = sin(nu)*sin(phi)*cosh(mu);
-      double dzdmu = cos(nu)*sinh(mu);
-
-      double ezor1 = zt1*exp(-zt1*r1)/r1; //includes *zeta
-      double ezor2 = zt1*exp(-zt1*r2)/r2;
-      ezor1 *= exp(-zt1*r2);
-      ezor2 *= exp(-zt1*r1);
-      double dfdx1 = -x1*ezor1; double dfdy1 = -y1*ezor1; double dfdz1 = -z1*ezor1;
-      double dfdx2 = -x2*ezor2; double dfdy2 = -y2*ezor2; double dfdz2 = -z2*ezor2;
-      double dfdmu = (dfdx1+dfdx2)*dxdmu + (dfdy1+dfdy2)*dydmu + (dfdz1+dfdz2)*dzdmu;
-      dfdmu *= 32.; //norm
-
-      double mu1 = mu-0.5*dmu; double mu2 = mu+0.5*dmu;
-      double nu1 = nu-0.5*dnu; double nu2 = nu+0.5*dnu;
-
-      double a = 32.*exp(-zt1*r1)*exp(-zt1*r2);
-      double b = dfdmu*0.5; //1/2 factor needed
-      double v1 = first_order_fdV(mu,mu1,mu2,nu1,nu2,a,b)*dphi;
-      //double v1 = first_order_frdV(mu,mu1,mu2,nu1,nu2,a,b)*dphi;
-      //double v2 = first_order_fdV(mu,mu1,mu2,nu1,nu2,a,0)*dphi;
-      val[j] = v1;
-
-     #if 0
-      if (j<100)
-      {
-        //double wt1 = wt[j];
-        printf("  mu/nu/phi: %8.5f %8.5f %8.5f   dmu/nu/phi: %8.5f %8.5f %8.5f   xyz: %8.5f %8.5f %8.5f \n",mu,nu,phi,dmu,dnu,dphi,x1,y1,z1);
-        printf("  r: %8.5f  dfdxyz: %8.5f %8.5f %8.5f \n",r1,dfdx1,dfdy1,dfdz1);
-        printf("  r: %8.5f  dfdxyz: %8.5f %8.5f %8.5f \n",r2,dfdx2,dfdy2,dfdz2);
-        printf("  dxyzdmu: %8.5f %8.5f %8.5f  a/b: %10.6f %10.6f v12: %10.6f %10.6f \n",dxdmu,dydmu,dzdmu,a,b,v1,v2);
-        printf("\n");
-        //printf("   wt1: %10.6f val: %10.6f \n",wt1,val[j]);
-      }
-     #endif
-
-      //val[j] = x1*a*wt1;
-      //val[j] = (z1-z0)*a*wt1;
-      //val[j] = a*wt1;
-    }
-
-    double* gridn = NULL;
-    double* gridmn = NULL;
-    double* wtn = NULL;
-
-    double isum = 0.; double asum = 0.; bool gup = 0; double maxd;
-    int gs1 = adaptive_split_ps(eps1,ws,ss,gs,z0,grid,gridm,wt,val,gup,isum,asum,maxd,gridn,gridmn,wtn,prl);
-    tisum += isum;
-    sum = asum+tisum;
-
-   //phi DOF invariant
-    if (ws==1 && gup==0) phi_check++;
-    if (phi_check>3) skip_phi = 1;
-
-    printf("  gs1: %4i  phi_check: %i  skip? %i \n",gs1,phi_check,skip_phi);
-
-   //conv check
-    if (ws==1) wsgst = 0;
-    wsgst += gs1;
-
-    printf(" asum: %11.8f tisum: %11.8f sum: %11.8f \n",asum,tisum,sum);
-
-    delete [] val;
-
-    if (gs1<1 && ss==9)
-    if (n+1==maxsteps) break;
-
-    if (gs1>0)
-    {
-      if (prl>1) printf("  updating grid (size: %4i) \n",gs1);
-      gs = gs1;
-     //replace prior grid
-      delete [] grid; delete [] gridm; delete [] wt;
-      grid = gridn; gridm = gridmn; wt = wtn;
-    }
-  }
-  printf("\n final sum: %11.8f  (%4.1e) \n",sum,epsilon);
-
+  double sum = 0.;
   return sum;
 }
 
@@ -2908,7 +2736,7 @@ void test_prosph()
   double* gridm0 = new double[6*gs0];
   double* wt0 = new double[gs0];
 
-  initialize_ps_coords_2c(z0,1.,nmu,nnu,nphi,0.,grid0,gridm0,wt0,prl);
+  initialize_ps_coords_2c(-1,z0,1.,nmu,nnu,nphi,0.,grid0,gridm0,wt0,prl);
 
   if (prl>0)
   {
@@ -2926,7 +2754,7 @@ void test_prosph()
   double* grid = new double[6*gs];
   double* gridm = new double[6*gs];
   double* wt = new double[gs];
-  
+
   if (ss==9) //octree grid
     full_split_ps(gs0,grid0,gridm0,wt0,z0,gs,grid,gridm,wt,prl+1);
   else
