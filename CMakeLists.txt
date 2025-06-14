@@ -40,8 +40,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+# Install directories
+include(GNUInstallDirs)
+
 add_subdirectory(src)
 add_subdirectory(examples)
+
+# Install header files
+install(DIRECTORY include/ 
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h")
 
 add_definitions("-w")
 message(STATUS "${CMAKE_CXX_FLAGS}")
