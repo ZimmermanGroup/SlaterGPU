@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
+
+set(CMAKE_C_COMPILER nvc)
+set(CMAKE_CXX_COMPILER nvc++)
+
 project(SlaterGPU VERSION 0.1 
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
                   LANGUAGES C CXX)
