@@ -46,6 +46,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # Install directories
 include(GNUInstallDirs)
+# Force lib directory instead of lib64 to match conda expectations
+set(CMAKE_INSTALL_LIBDIR lib)
 
 add_subdirectory(src)
 add_subdirectory(examples)
