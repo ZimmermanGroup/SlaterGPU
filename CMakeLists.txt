@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Set the C and C++ compilers to NVIDIA HPC SDK compilers
+# Ensure that the nvc and nvc++ compilers are available in the PATH
 set(CMAKE_C_COMPILER nvc)
 set(CMAKE_CXX_COMPILER nvc++)
 
