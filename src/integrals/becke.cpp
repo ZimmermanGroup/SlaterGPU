@@ -1978,8 +1978,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
             delt[3*j+2] += d1*(valn[j]*valpm[3*j+2]+valpn[3*j+2]*valm[j]);
           }
 
-          d1 *= 0.5; //CPMZ not sure
-          if (0)
+          d1 *= 0.5;
           if (Td!=NULL)
          #pragma acc parallel loop present(Td[0:gsa],valpn[0:gsa3],valpm[0:gsa3])
           for (int j=0;j<gsa;j++)
