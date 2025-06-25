@@ -20,7 +20,7 @@ slurm-job = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n16 --gpus=1 --pty /b
 
 [tasks.clean]
 description = "Remove example output files"
-cwd = "examples/geom_1"
+cwd = "examples/lih_VK1"
 cmd = "rm -f A Ciap g pVp SENT"
 
 [feature.pytest.tasks.test]
