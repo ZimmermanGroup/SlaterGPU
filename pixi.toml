@@ -9,7 +9,7 @@ version = "0.2.0"
 
 [package.build]
 # backend = { name = "pixi-build-cmake", version = "*" }
-backend = { name = "pixi-build-rattler-build", version = "==0.1.12" }
+backend = { name = "pixi-build-rattler-build", version = "==0.1.15" }
 channels = [
   "https://prefix.dev/pixi-build-backends",
   "https://prefix.dev/conda-forge",
