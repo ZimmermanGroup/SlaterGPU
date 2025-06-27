@@ -178,32 +178,6 @@ environments:
       - conda: .
         build: he8cfe8b_0
 packages:
-- conda: .
-  name: SlaterGPU
-  version: 0.1.0
-  build: hb0f4dca_0
-  subdir: linux-64
-  depends:
-  - libcint 5.3.0.*
-  - libcint >=5.3,<5.4.0a0
-  input:
-    hash: f9d4f6f4a5996b6d98443ba05cac47fb8fd3954845218b22dec7e4819ee9a7d4
-    globs:
-    - pixi.toml
-    - recipe.yaml
-- conda: .
-  name: SlaterGPU
-  version: 0.1.0
-  build: he8cfe8b_0
-  subdir: linux-aarch64
-  depends:
-  - libcint 5.3.0.*
-  - libcint >=5.3,<5.4.0a0
-  input:
-    hash: f9d4f6f4a5996b6d98443ba05cac47fb8fd3954845218b22dec7e4819ee9a7d4
-    globs:
-    - pixi.toml
-    - recipe.yaml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
   md5: d7c89558ba9fa0495403155b64376d81
@@ -1201,6 +1175,32 @@ packages:
   license_family: MIT
   size: 201958
   timestamp: 1728886717057
+- conda: .
+  name: slatergpu
+  version: 0.1.0
+  build: hb0f4dca_0
+  subdir: linux-64
+  depends:
+  - libcint 5.3.0.*
+  - libcint >=5.3,<5.4.0a0
+  input:
+    hash: b05abb6074ef5bddbe7b3c407471348cb38258661d8184731eac9a754de86e69
+    globs:
+    - pixi.toml
+    - recipe.yaml
+- conda: .
+  name: slatergpu
+  version: 0.1.0
+  build: he8cfe8b_0
+  subdir: linux-aarch64
+  depends:
+  - libcint 5.3.0.*
+  - libcint >=5.3,<5.4.0a0
+  input:
+    hash: b05abb6074ef5bddbe7b3c407471348cb38258661d8184731eac9a754de86e69
+    globs:
+    - pixi.toml
+    - recipe.yaml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h4845f30_101.conda
   sha256: e0569c9caa68bf476bead1bed3d79650bb080b532c64a4af7d8ca286c08dea4e
   md5: d453b98d9c83e71da0741bb0ff4d76bc
