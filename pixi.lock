@@ -1177,27 +1177,27 @@ packages:
   timestamp: 1728886717057
 - conda: .
   name: slatergpu
-  version: 0.1.0
+  version: 0.1.2
   build: hb0f4dca_0
   subdir: linux-64
   depends:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: b05abb6074ef5bddbe7b3c407471348cb38258661d8184731eac9a754de86e69
+    hash: cf75ca79cac2a7224017e07aadd6001eb59af1da6d775797ba8d53a4c0446b3d
     globs:
     - pixi.toml
     - recipe.yaml
 - conda: .
   name: slatergpu
-  version: 0.1.0
+  version: 0.1.2
   build: he8cfe8b_0
   subdir: linux-aarch64
   depends:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: b05abb6074ef5bddbe7b3c407471348cb38258661d8184731eac9a754de86e69
+    hash: cf75ca79cac2a7224017e07aadd6001eb59af1da6d775797ba8d53a4c0446b3d
     globs:
     - pixi.toml
     - recipe.yaml

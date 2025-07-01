@@ -26,4 +26,5 @@ endif()
 # Export targets for use by other projects
 install(EXPORT SlaterGPUTargets
         FILE SlaterGPUTargets.cmake
+        NAMESPACE SlaterGPU::
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SlaterGPU)

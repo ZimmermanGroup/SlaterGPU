@@ -62,3 +62,28 @@ install(DIRECTORY include/
 add_definitions("-w")
 message(STATUS "${CMAKE_CXX_FLAGS}")
 message(STATUS "DO_GTO: ${DO_GTO}")
+
+# Generate package configuration files
+include(CMakePackageConfigHelpers)
+
+# Configure the config file
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/SlaterGPUConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SlaterGPU
+    PATH_VARS CMAKE_INSTALL_INCLUDEDIR
+)
+
+# Configure the version file
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+# Install the config files
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SlaterGPU
+)
