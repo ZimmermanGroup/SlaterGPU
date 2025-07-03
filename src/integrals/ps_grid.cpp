@@ -491,7 +491,7 @@ double get_c0(double a, double nmu, double cf, double rm)
 
 void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
 {
-  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
+  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 a=%.8f (in ps_coords_1c)\n",a); exit(-1); }
   //if (nnu<2 || nphi<2) { printf(" ERROR: cannot initialize PS coordinates with nnu<2 or nphi<2 \n"); exit(-1); }
 
   double c0 = get_c0(a,nmu,cf,RMAX);
@@ -574,7 +574,7 @@ void initialize_ps_coords_1c(double a, double cf, const double c2, int nmu, int 
 
 void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
 {
-  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
+  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 a=%.8f (in ps_coords_2c)\n",a); exit(-1); }
 
   double c0 = get_c0(a,nmu,cf,RMAX);
   if (cf<0.) c0 = -cf; //c1 passed to ftn
@@ -651,8 +651,8 @@ void initialize_ps_coords_2c(int tid, double a, double cf, int nmu, int nnu, int
 
 void initialize_ps_coords_2c_phi(int tid, double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double phi_add, double* grid, double* gridm, double* wt, int prl)
 {
-  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
-  if (nphi<3) { printf(" ERROR: initialize_ps_coords_phi with nphi<3 \n"); exit(-1); }
+  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 a=%.8f (in ps_coords_2c_phi)\n",a); exit(-1); }
+  if (nphi<3) { printf(" ERROR: initialize_ps_coords_phi with nphi<3 phi=%i \n",nphi); exit(-1); }
 
   //printf("  testing initialize_ps_coords_2c_phi \n");
 
@@ -1614,7 +1614,7 @@ void initialize_ps_coords_4c(int tid, double cf, int nmu, int nnu, int nphi, dou
 
 void initialize_ps_coords_batch(int tid, int wb, int nbatch, double a, double cf, int nmu, int nnu, int nphi, double phi_zero, double* grid, double* gridm, double* wt, int prl)
 {
-  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 \n",a); exit(-1); }
+  if (a<=0.) { printf(" ERROR: initialize_ps_coords with a<0 a=%.8f (in ps_coords_batch)\n",a); exit(-1); }
   //if (nnu<2 || nphi<2) { printf(" ERROR: cannot initialize PS coordinates with nnu<2 or nphi<2 \n"); exit(-1); }
 
   double c0 = get_c0(a,nmu,cf,RMAX);
@@ -1972,6 +1972,18 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
   cfn = get_cfn_3c(ztm1,ztm2,nmu,coordn);
  #endif
 
+  #if 0
+  int* n2i = new int[natoms];
+  int iN = get_imax_n2i(natoms,N,basis,n2i);
+
+  vector<vector<int> > n2aip;
+  int iNa = get_imax_n2ip(10000,natoms,Naux,basis_aux,n2aip);
+  if (prl>1) printf("   iNa: %2i \n",iNa);
+
+  int* na2i = new int[natoms]; //needed for copy_symm
+  get_imax_n2i(natoms,Naux,basis_aux,na2i);
+  #endif
+
   //printf("  in generate_ps_quad_grid_3c_refine \n");
 
   int qo = quad_order;
@@ -1992,10 +2004,42 @@ void generate_ps_quad_grid_3c_refine(int tid, double cfn, int wb, int nb, double
 
   #pragma acc enter data copyin(Qx[0:qo2],Qy[0:qo2],Qz[0:qo2]) async(tid)
 
+  
   int gs0 = nmu*nnu*nphi-8;
   int nsg = 8*nsplit*nsplit*nsplit;
   int gs = gs0+nsg;
   int gsq = gs0*qos+nsg*qosh; //3-atom grid size
+  
+  #if 0 
+  int gsb = 1;
+  int gshb = 1;
+  int gs6b = 1;
+
+  double gpumem = 1.*acc_get_property(0,acc_device_nvidia,acc_property_free_memory);
+  double togb = pow(1024.,-3.);
+
+  int nbatch_max = 24;
+  bool passed_mem_check = 0; 
+  for (int nbatch=1;nbatch<nbatch_max;nbatch++)
+  if (nmu%nbatch==0 && gsq%nbatch==0)
+  {
+    //printf("   nb loop: %2i \n",nb);
+    gsb =(nmu*nnu*nphi)*qos/nbatch; //2-atom grid size
+    gshb =((nmu*nnu*nphi-8)*qos+*nsg*qosh)/nbatch; //3-atom grid size
+    gs6b = 6*gshb;
+
+    int Nmax = iNa; 
+    double mem0 = gsh*iN*2. + gsh*7. + 1.*nmu*nnu*nphi + 1.*gs6 + 1.*N2 + 2.*N2a;
+    double mem1 = 8.*(2.*gsh*iN + mem0 + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
+
+    if (mem1<gpumem)
+    {    
+      nb = nbatch;
+      passed_mem_check = 1; 
+      break;
+    }    
+  }
+  #endif
   if (gsq%nb>0) { printf("\n ERROR: couldn't divide up grid in 3c_refine (remainder: %i) \n",gsq%nb); exit(-1); }
   gsq /= nb;
   int gs6 = 6*gs; // w/o quad

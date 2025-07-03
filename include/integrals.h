@@ -6,8 +6,8 @@
 //KE is slightly sensitive to this cutoff
 
 //was 1.e-10
-#define WT_THRESH 1.e-10
-#define WT_THRESH_D 1.e-10
+#define WT_THRESH 1.e-14
+#define WT_THRESH_D 1.e-14
 #define CL_THRESH 1.e-7
 #define REDUCEV 0
 

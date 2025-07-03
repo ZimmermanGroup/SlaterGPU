@@ -68,7 +68,7 @@ void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<
   compute_pVp_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,pVpsp,prl);
   compute_pVp_3c_ps(natoms,atno,coords,basis,nquad,nquad2,nsplit,nmu,nnu,nphi,pVpsp,prl);
   compute_2c_ps(0,0,gamma,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
-  compute_3c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
+  compute_3c_ps(0,0,gamma,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
 
   if (prl > 0) printf("Printing PS Integral Files:\n");
   write_S_En_T(N,Ssp,Ensp,Tsp);

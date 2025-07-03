@@ -82,6 +82,7 @@ int read_square(int N, int M, double** A, string filename);
 int read_square(int N, double* A, string filename);
 int read_square(vector<vector<double> > basis, double* Pao, string filename);
 int read_rect(int N, int M, double* C, string filename);
+void print_coords(int natoms, float* coordsf);
 
 bool check_PS();
 

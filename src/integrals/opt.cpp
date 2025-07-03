@@ -78,3 +78,37 @@ double sd_step(float scalar, float maxstep, int natoms, double* grad, double* xy
 
   return mag;
 }
+
+double sd_step(float scalar, float maxstep, int natoms, double* grad, float* xyz)
+{
+  int N3 = 3*natoms;
+  double mag = 0.; 
+  double* step = new double[N3];
+  for (int i=0;i<N3;i++)
+  {
+    double step1 = scalar*grad[i];
+    step[i] = step1;
+    mag += step1*step1;
+  }
+  mag = sqrt(mag);
+
+  if (mag>maxstep)
+  {
+    scalar = maxstep/mag;
+    mag = 0.; 
+    for (int i=0;i<N3;i++)
+    {   
+      double step1 = scalar*step[i];
+      step[i] = step1;
+      mag += step1*step1;
+    }   
+    mag = sqrt(mag);
+  }
+
+  for (int i=0;i<N3;i++)
+    xyz[i] -= step[i];
+
+  delete [] step;
+
+  return mag;
+}

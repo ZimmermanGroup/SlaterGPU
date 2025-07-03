@@ -554,10 +554,13 @@ int find_center_of_grid(float Z1, int nrad)
   get_murak_grid_f(nrad,r,w,Z1,3);
 
   int s1 = 0;
- #pragma acc parallel loop present(w[0:nrad])
+ #pragma acc parallel loop present(w[0:nrad]) reduction(max:s1)
   for (int i=0;i<nrad;i++)
-  if (w[i]<WT_THRESH_D)
-    s1 = i;
+  {
+    //printf("weight[%i]: %.16f rad_dist[%i]: %.16f \n",i,w[i],i,r[i]);
+    if (w[i]<WT_THRESH_D)
+      s1 = i;
+  }
   s1++;
 
   //printf(" s1: %2i \n",s1);
@@ -1529,9 +1532,12 @@ int get_natoms_with_basis(int natoms, int* atno, vector<vector<double> >& basis)
 {
   int N = basis.size();
 
+  //printf("natoms: %i \n",natoms);
+
   int natoms1 = 0;
   for (int n=0;n<natoms;n++)
   {
+    //printf("atno[%i]: %i \n",n,atno[n]);
     if (atno[n]==0)
     {
       bool found = 0;

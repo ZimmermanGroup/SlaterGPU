@@ -657,6 +657,8 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
   const float a1 = becke_a(Z1,Z2);
   const float a2 = becke_a(Z2,Z1);
 
+  //printf("Z1/2: %i %i \n",Z1,Z2);
+  //printf("1/R: %8.5f \n",oR);
   //printf(" a1/2: %8.5f %8.5f \n",a1,a2);
 
  #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs])
@@ -678,6 +680,8 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
     //printf(" r1/2: %8.5f %8.5f s1: %8.5f \n",r1,r2,s1);
     wt1[i] *= s1;
   }
+
+  //printf("done with g1 \n");
 
  #pragma acc parallel loop independent present(grid2[0:6*gs],wt2[0:gs])
   for (int i=0;i<gs;i++)

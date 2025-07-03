@@ -21,7 +21,7 @@ set(INTEGRALS_SOURCES
     cpu_util.cpp
     gpu_util.cpp
     cuda_util.cpp
-    scf_util.cpp
+    scf_util.cpp    
     symm.cpp
     gauss.cpp
     hess.cpp

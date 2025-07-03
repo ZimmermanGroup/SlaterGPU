@@ -25,6 +25,12 @@ double norm(int n, int l, int m, double zeta);
 
 #define A2B 1.8897261
 
+void print_coords(int natoms, float* coordsf)
+{
+  float B2A = 1.f/A2B;
+  for (int n=0;n<natoms;n++)
+    printf(" %10.5f %10.5f %10.5f \n",coordsf[3*n+0]*B2A,coordsf[3*n+1]*B2A,coordsf[3*n+2]*B2A);
+}
 
 int check_file(string filename)
 {

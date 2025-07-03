@@ -1084,6 +1084,11 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   int N = basis.size();
   int N2 = N*N;
 
+  for (int i=0;i<N;i++)
+  {
+    printf("bas[%i]: %i \n",i,basis[i][1]);
+  }
+
   if (N<1) { printf(" ERROR: cannot compute 2c integrals, no RI basis functions \n"); exit(-1); }
 
   int qos = quad_order*quad_order*quad_order;
@@ -1625,7 +1630,7 @@ void eval_s12v3_2(int tid, bool dol, bool dy, double gamma, int s1, int s2, int 
 
 void eval_p12(int tid, int s1, int s2, int s3, int s4, int gs, double* grid, vector<vector<double> >& basis, double** val1, double** val2, double A12, double B12, double C12, double A13, double B13, double C13)
 {
-  if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }
+  //if (tid>-1) { printf("\n ERROR eval_p12 not ready for tid \n"); exit(-1); }  //commented this out and added pragma wait statement ADS
 
   for (int i1=s1;i1<s2;i1++)
   {
@@ -1650,6 +1655,8 @@ void eval_p12(int tid, int s1, int s2, int s3, int s4, int gs, double* grid, vec
   }
 
   recenter_grid_zero(tid,gs,grid,A12,B12,C12);
+
+  #pragma acc wait
 
   return;
 }
@@ -2000,7 +2007,7 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   int nbatch_max = 24;
   bool passed_mem_check = 0;
   for (int nb=1;nb<nbatch_max;nb++)
-  if (nmu%nb==0)
+  if (nmu%nb==0 && gsh%nb==0)
   {
     //printf("   nb loop: %2i \n",nb);
     gs =(nmu*nnu*nphi)*qos/nb; //2-atom grid size
