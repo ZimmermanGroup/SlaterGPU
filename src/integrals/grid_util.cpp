@@ -5,7 +5,6 @@
 
 using namespace std;
 
-
 //delete this file, these functions are in integrals_aux
 #if 0
 void get_angular_grid(int size_ang, double* ang_g, double* ang_w)

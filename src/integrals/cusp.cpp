@@ -282,12 +282,30 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
 
+  printf("  atomic charges in compute_cusp \n");
+  float atchg[natoms];
+  for (int n=0;n<natoms;n++)
+  if (not_X[n])
+  {
+    int j1 = -1;
+    for (int j=0;j<N;j++)
+    if ((int)basis[j][9]==n)
+    { j1 = j; break; }
+
+    float Zeff = basis[j1][8];
+    printf("   %i %8.5f \n",n,Zeff);
+    atchg[n] = Zeff;
+  }
+  else atchg[n] = 0.;
+
+
   for (int n=0;n<natoms;n++)
   if (not_X[n])
   {
     int s1 = 0; if (n>0) s1 = n2i[n-1]; int s2 = n2i[n];
 
-    double Z1 = (double)atno[n];
+    double Z1 = atchg[n];
+    //double Z1 = (double)atno[n];
     double A1 = coords[3*n+0]; double B1 = coords[3*n+1]; double C1 = coords[3*n+2];
 
    //basis functions on all atoms, evaluated at atom n
@@ -317,6 +335,7 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
      #else
       eval_sh(i1,1,grid1,tmp1,n1,l1,m1,zeta1);
      #endif
+     //needed for async in eval_shd
       acc_wait_all();
       #pragma acc update self(tmp1[0:1])
 
@@ -607,8 +626,11 @@ int prepare_PSP(double thresh, int natoms, int N, double* S, vector<double*> Pc_
 
   int nPc = Pc_all.size();
   int nlowexpected = nPc + natoms-1;
-  //printf(" X: \n");
-  //print_square(N,X);
+  if (prl>2)
+  {
+    printf(" X: \n");
+    print_square(N,X);
+  }
 
   for (int i=0;i<N2;i++)
     X[i] *= -1;
@@ -639,10 +661,10 @@ int prepare_PSP(double thresh, int natoms, int N, double* S, vector<double*> Pc_
     printf("  PSP eigenvalues:");
     int N1 = N; if (N1>nprint1) N1 = nprint1;
     for (int i=0;i<N1;i++)
-      printf(" %4.1e",Xe[i]);
+      printf(" %5.2e",Xe[i]);
     if (N1!=N) printf(" ...");
     for (int i=max(N1,N-nprint);i<N;i++)
-      printf(" %4.1e",Xe[i]);
+      printf(" %5.2e",Xe[i]);
     printf("\n");
 
     int nlow = 0;
