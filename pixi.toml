@@ -33,6 +33,11 @@ description = "Test SlaterGPU executable on a small molecular system in a github
 cwd = "examples/lih_VK1"
 cmd = "sgpu.exe && cd .. && pytest"
 
+[feature.pytest.tasks.test-perlmutter]
+description = "Test SlaterGPU executable on a small molecular system in a Perlmutter environment"
+cwd = "examples/lih_VK1"
+cmd = "salloc --qos shared_interactive -N1 -n1 -c32 --constraint=gpu --gpus=1 sgpu.exe && cd .. && pytest"
+
 [system-requirements]
 linux = "3.10"
 libc = { family="glibc", version="2.17" }
