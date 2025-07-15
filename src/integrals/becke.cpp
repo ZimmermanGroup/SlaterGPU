@@ -1760,7 +1760,7 @@ void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > 
 }
 
 //evaluates in double precision
-void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* rho, double* drho, double* Td, int prl)
+void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* rho, double* drho, double* delrho, double* Td, int prl)
 {
   int gsa3 = 3*gsa;
   int gsa6 = 6*gsa;
@@ -1774,6 +1774,8 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
 
   if (sgs_basis && natoms>1){ printf("\n ERROR: compute_rho doesn't support natoms>1 for SGS basis \n"); exit(-1); }
   if (sgs_basis && drho!=NULL) printf("\n WARNING: compute_rho for SGS basis does not support drho \n");
+
+  bool need_dr = drho!=NULL || delrho!=NULL || Td !=NULL;
 
   //if (Td!=NULL && natoms>1) printf("\n WARNING: testing Td in compute_rhod for natoms>1 \n");
 
@@ -1854,7 +1856,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
     for (int j=0;j<gsa;j++)
       val1[i1][j] = 1.;
 
-    if (drho!=NULL)
+    if (need_dr)
     #pragma acc parallel loop collapse(2) present(val1p[0:iN][0:gsa3])
     for (int i1=0;i1<s2-s1;i1++)
     for (int j=0;j<gsa3;j++)
@@ -1873,7 +1875,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
         eval_sgsd(ii1,gs1,gs2,grid1,val1[ii1],n1,l1,m1,zeta1,Rc);
       else
         eval_shd(ii1,gsa,grid1,val1[ii1],n1,l1,m1,zeta1);
-      if (drho!=NULL)
+      if (need_dr)
       {
         if (ss_basis)
           eval_ss_pd(gs2,grid1,val1p[ii1],tmp,n1,l1,m1,zeta1,Rc);
@@ -1881,6 +1883,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
           eval_pd(tid,gsa,grid1,val1p[ii1],n1,l1,m1,zeta1);
       }
     }
+    acc_wait_all();
 
    //single-atom Pao elements added to grid
     for (int i1=s1;i1<s2;i1++)
@@ -1900,7 +1903,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
         for (int j=0;j<gsa;j++)
           rho[j] += d1*valn[j]*valm[j];
 
-        if (drho!=NULL)
+        if (need_dr)
        #pragma acc parallel loop present(delt[0:gsa3],valn[0:gsa],valpn[0:gsa3],valm[0:gsa],valpm[0:gsa3])
         for (int j=0;j<gsa;j++)
         {
@@ -1931,6 +1934,8 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
       for (int i2=0;i2<s4-s3;i2++)
       for (int j=0;j<gsa;j++)
         val2[i2][j] = 1.;
+
+      if (need_dr)
       #pragma acc parallel loop collapse(2) present(val2p[0:iN][0:gsa3])
       for (int i2=0;i2<s4-s3;i2++)
       for (int j=0;j<gsa3;j++)
@@ -1947,9 +1952,10 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
         int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
         eval_shd(ii2,gsa,grid2,val2[ii2],n2,l2,m2,zeta2);
-        if (drho!=NULL)
+        if (need_dr)
           eval_pd(tid,gsa,grid2,val2p[ii2],n2,l2,m2,zeta2);
       }
+      acc_wait_all();
 
      //two-atom Pao elements added to grid
       for (int i1=s1;i1<s2;i1++)
@@ -1969,7 +1975,7 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
           for (int j=0;j<gsa;j++)
             rho[j] += d1*valn[j]*valm[j];
 
-          if (drho!=NULL)
+          if (need_dr)
           #pragma acc parallel loop present(delt[0:gsa3],valn[0:gsa],valpn[0:gsa3],valm[0:gsa],valpm[0:gsa3])
           for (int j=0;j<gsa;j++)
           {
@@ -1995,10 +2001,16 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
   } //loop m over natoms
 
 
+ //delrho dot delrho
   if (drho!=NULL)
   #pragma acc parallel loop present(drho[0:gsa],delt[0:gsa3])
   for (int m=0;m<gsa;m++)
     drho[m] = delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2];
+
+  if (delrho!=NULL)
+ #pragma acc parallel loop present(delrho[0:gsa3],delt[0:gsa3])
+  for (int m=0;m<gsa3;m++)
+    delrho[m] = delt[m];
 
 
  //cleanup
@@ -2030,6 +2042,13 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
 
   return;
 }
+
+void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* rho, double* drho, double* Td, int prl)
+{
+  double* delrho = NULL;
+  return compute_rhod(natoms,atno,coords,basis,Pao,nrad,gsa,grid,rho,drho,delrho,Td,prl);
+}
+
 
 void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* gridf, double* rho, double* drho, int prl)
 {

@@ -31,6 +31,7 @@ void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int na
 void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt);
 
 void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);
+void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* rho, double* drho, double* delrho, double* Td, int prl);
 void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* rho, double* drho, double* Td, int prl);
 void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);
 void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);

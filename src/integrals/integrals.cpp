@@ -1,8 +1,10 @@
 #include "integrals.h"
- 
+
 #define TEST_SORT 0
 //symmetrize wrt atom swap
 #define SYMM_ST 1
+
+#define RPAD 1.e-10
 
 /*
  //current status of compute_all_2/3c code:
@@ -2840,7 +2842,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
    #pragma acc parallel loop present(grid1[0:gs6],valt1[0:iN][0:gs],valtv1[0:iN][0:gs3])
     for (int j=0;j<gs;j++)
     {
-      float Rn1 = grid1[6*j+3]+1.e-20f;
+      float Rn1 = grid1[6*j+3]+RPAD;
       float ne1 = Z1/Rn1;
 
      #pragma acc loop
@@ -2943,8 +2945,8 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
      #pragma acc parallel loop present(grid1[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valS2[0:iN][0:gs],valtv1[0:iN][0:gs3],valV2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        float Rn1 = grid1[6*j+4]+1.e-20f;
-        float Rn3 = grid3[6*j+4]+1.e-20f;
+        float Rn1 = grid1[6*j+4]+RPAD;
+        float Rn3 = grid3[6*j+4]+RPAD;
         float ne1 = Zn/Rn1;
         float ne3 = Zn/Rn3;
 
@@ -3098,10 +3100,10 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
      #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        float Rn1a = grid1[6*j+3]+1.e-20f;
-        float Rn2a = grid1[6*j+4]+1.e-20f;
-        float Rn1b = grid2[6*j+3]+1.e-20f;
-        float Rn2b = grid2[6*j+4]+1.e-20f;
+        float Rn1a = grid1[6*j+3]+RPAD;
+        float Rn2a = grid1[6*j+4]+RPAD;
+        float Rn1b = grid2[6*j+3]+RPAD;
+        float Rn2b = grid2[6*j+4]+RPAD;
         float ne1 = Z1/Rn1a+Z2/Rn2a;
         float ne2 = Z1/Rn1b+Z2/Rn2b;
 
@@ -3252,7 +3254,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
        #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valS5[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3],valV5[0:iN][0:gs3])
         for (int j=0;j<gs;j++)
         {
-          float Rn1 = grid1[6*j+4]+1.e-20f; float Rn2 = grid2[6*j+4]+1.e-20f; float Rn3 = grid3[6*j+4]+1.e-20f;
+          float Rn1 = grid1[6*j+4]+RPAD; float Rn2 = grid2[6*j+4]+RPAD; float Rn3 = grid3[6*j+4]+RPAD;
           float ne1 = Zn/Rn1; float ne2 = Zn/Rn2; float ne3 = Zn/Rn3;
 
          #pragma acc loop
@@ -3651,7 +3653,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
    #pragma acc parallel loop present(grid1[0:gs6],valt1[0:iN][0:gs],valtv1[0:iN][0:gs3])
     for (int j=0;j<gs;j++)
     {
-      float Rn1 = grid1[6*j+3]+1.e-20f;
+      float Rn1 = grid1[6*j+3]+RPAD;
       float ne1 = Z1/Rn1;
 
      #pragma acc loop
@@ -3754,8 +3756,8 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
      #pragma acc parallel loop present(grid1[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valS2[0:iN][0:gs],valtv1[0:iN][0:gs3],valV2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        float Rn1 = grid1[6*j+4]+1.e-20f;
-        float Rn3 = grid3[6*j+4]+1.e-20f;
+        float Rn1 = grid1[6*j+4]+RPAD;
+        float Rn3 = grid3[6*j+4]+RPAD;
         float ne1 = Zn/Rn1;
         float ne3 = Zn/Rn3;
 
@@ -3909,10 +3911,10 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
      #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3])
       for (int j=0;j<gs;j++)
       {
-        float Rn1a = grid1[6*j+3]+1.e-20f;
-        float Rn2a = grid1[6*j+4]+1.e-20f;
-        float Rn1b = grid2[6*j+3]+1.e-20f;
-        float Rn2b = grid2[6*j+4]+1.e-20f;
+        float Rn1a = grid1[6*j+3]+RPAD;
+        float Rn2a = grid1[6*j+4]+RPAD;
+        float Rn1b = grid2[6*j+3]+RPAD;
+        float Rn2b = grid2[6*j+4]+RPAD;
         float ne1 = Z1/Rn1a+Z2/Rn2a;
         float ne2 = Z1/Rn1b+Z2/Rn2b;
 
@@ -4063,7 +4065,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
        #pragma acc parallel loop present(grid1[0:gs6],grid2[0:gs6],grid3[0:gs6],valt1[0:iN][0:gs],valt2[0:iN][0:gs],valS5[0:iN][0:gs],valtv1[0:iN][0:gs3],valtv2[0:iN][0:gs3],valV5[0:iN][0:gs3])
         for (int j=0;j<gs;j++)
         {
-          float Rn1 = grid1[6*j+4]+1.e-20f; float Rn2 = grid2[6*j+4]+1.e-20f; float Rn3 = grid3[6*j+4]+1.e-20f;
+          float Rn1 = grid1[6*j+4]+RPAD; float Rn2 = grid2[6*j+4]+RPAD; float Rn3 = grid3[6*j+4]+RPAD;
           float ne1 = Zn/Rn1; float ne2 = Zn/Rn2; float ne3 = Zn/Rn3;
 
          #pragma acc loop
@@ -6066,7 +6068,7 @@ void compute_all_2c(int natoms, int* atno, float* coords, vector<vector<double> 
             valt2[i2][j] = val2[j];
         }
 
-       //launch async processes over i2
+       //launch //async processes over i2
         for (int i2=i1+1;i2<N;i2++)
         if (basis[i2][9]==n)
         {

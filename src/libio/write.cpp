@@ -1,6 +1,10 @@
 #include "write.h"
 
 #include <sstream>
+#define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(8) << scientific << x ) ).str()
+#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << scientific << x ) ).str()
+//#define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(8) << x ) ).str()
+//#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
 
 #define A2B 1.8897261
 
@@ -1058,7 +1062,8 @@ void save_dft_vals(int save_type, double thresh, int natoms, int nrad, int nang,
       if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
       //if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0. && rho[j]>thresh)
       {
-        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]);
+        string line = SSTRF2(grid[6*j+1]) + "," + SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j])
+              + "," + SSTRF2(Td[j]) + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]);
         outfile << line << endl;
       }
     }
@@ -1068,7 +1073,8 @@ void save_dft_vals(int save_type, double thresh, int natoms, int nrad, int nang,
       if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
       //if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0. && rho[j]>thresh)
       {
-        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(vc[j]);
+        string line = SSTRF2(grid[6*j+1]) + "," + SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j])
+              + "," + SSTRF2(Td[j]) + "," + SSTRF2(vc[j]);
         outfile << line << endl;
       }
     }

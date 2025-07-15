@@ -22,9 +22,6 @@ using namespace std;
 
 //#define A2B 1.8897261
 
-string SSTRF(float x);
-string SSTRF2(double x);
-
 vector<string> split1(const string &s, char delim);
 
 int check_file(string filename);
@@ -42,6 +39,7 @@ int read_int_2(string filename);
 int read_int_3(string filename);
 bool read_array(int size, double* A, string filename);
 vector<double> read_vector(string filename);
+vector<vector<double> > read_vecvec_csv(string filename);
 void read_thresh(float& no_thresh, float& occ_thresh);
 int read_opt();
 bool read_dft(int& dt1, int& dt2, int type);
@@ -70,6 +68,7 @@ int read_spinref();
 int read_group();
 int read_restart();
 int read_nsteps();
+void read_ci_state(int wr, int& nstates, int& spin, double& degen_thresh);
 void read_eps(double& eps1, double& eps2);
 void read_eps(double& eps1, double& eps2, double& eps1s);
 int read_tuples(vector<vector<int> >& tuples);

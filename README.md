@@ -39,7 +39,7 @@ The executable will be generated at `build/examples/sgpu.exe`
 ### Testing:
 Go into one of the example directories inside the build directory.
 ```
-cd build/examples/geom_1
+cd build/examples/lih_VK1
 ```
 
 Then execute SlaterGPU within this directory to run the test.

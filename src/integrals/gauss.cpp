@@ -2296,3 +2296,19 @@ void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1
   return;
 }
 
+void eval_gh(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1)
+{
+  #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+  for (int i=0;i<gs;i++)
+  {
+    double r = grid[6*i+3];
+    double g1 = exp(-r*r*zeta1);
+    val1[i] = norm1*g1;
+  }
+
+  if (l1==0) return;
+
+  printf("\n ERROR: eval_gh for double not available \n");
+
+  return;
+}

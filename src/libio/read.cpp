@@ -21,24 +21,13 @@
 #include "read.h"
 
 #include <sstream>
+#define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
+//#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
 
 double norm(int n, int l, int m, double zeta);
 
 #define A2B 1.8897261
 
-string SSTRF(float x)
-{
-  std::ostringstream ss;
-  ss << std::fixed << std::setprecision(8) << std::scientific << (x);
-  return ss.str();
-}
-
-string SSTRF2(double x)
-{
-  std::ostringstream ss;
-  ss << std::fixed << std::setprecision(14) << std::scientific << (x);
-  return ss.str();
-}
 
 int check_file(string filename)
 {
@@ -221,6 +210,48 @@ void read_thresh(float& no_thresh, float& occ_thresh)
   }
 
   infile.close();
+
+  return;
+}
+
+void read_ci_state(int wr, int& nstates, int& spin, double& degen_thresh)
+{
+  string filename = "CI";
+  if (wr==2) filename = "CI_ION";
+
+  nstates = 1;
+  spin = -1; //don't target by default
+  degen_thresh = 0.;
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+  {
+    nstates = atoi(line.c_str());
+
+    success = (bool)getline(infile, line);
+    if (success)
+      spin = atoi(line.c_str());
+
+    success = (bool)getline(infile, line);
+    if (success)
+      degen_thresh = atof(line.c_str());
+  }
+
+  infile.close();
+
+  if (nstates<1)
+    nstates = 1;
+  if (spin<-1)
+    spin = -1;
+  if (degen_thresh<0.)
+    degen_thresh = 0.;
 
   return;
 }
@@ -774,6 +805,35 @@ vector<double> read_vector(string filename)
   return vec;
 }
 
+vector<vector<double> > read_vecvec_csv(string filename)
+{
+  vector<vector<double> > vecvec;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return vecvec;
+
+  string line;
+
+  while (!infile.eof())
+  {
+    bool success = (bool)getline(infile, line);
+
+    if (success)
+    {
+      vector<string> tok_line = split1(line,',');
+      vector<double> vals;
+      for (int i=0;i<tok_line.size();i++)
+        vals.push_back(atof(tok_line[i].c_str()));
+      vecvec.push_back(vals);
+    }
+  }
+
+  infile.close();
+
+  return vecvec;
+}
+
 bool read_cas_act(int& N, int& M)
 {
   string filename = "CAS_ACT";
@@ -1089,8 +1149,9 @@ void read_nrad_nang(int& nrad, int& nang, int type)
 
   ifstream infile;
   infile.open(filename.c_str());
-  if (!infile && type<3)
+  if (!infile)
   {
+    if (type==3) return;
     printf("  couldn't open GRID file. please provide GRID \n");
     exit(1);
   }
@@ -2605,26 +2666,35 @@ void screen_basis_aux(vector<vector<double> >& basis_aux, int prl)
   return;
 }
 
-int get_bsize_jellium(double ztr, int l1)
+int get_bsize_jellium(double ztr, int l1, int auto_ri)
 {
  //if small basis, this adds too many aux ftns
   int bmax = 1;
   if (l1==0)
   {
-    if (ztr>20.)
+    if (ztr>200. && auto_ri>4)
+      bmax = 33;
+    else if (ztr>20.)
       bmax = 21;
     else
       bmax = 17;
   }
   if (l1==1)
   {
-    if (ztr>20.)
+    if (ztr>200. && auto_ri>4)
+      bmax = 29;
+    else if (ztr>20.)
       bmax = 19;
     else
       bmax = 15;
   }
   if (l1==2)
-    bmax = 9;
+  {
+    if (ztr>10. && auto_ri>4)
+      bmax = 12;
+    else
+      bmax = 9;
+  }
   if (l1==3)
     bmax = 7;
   if (l1==4)
@@ -2902,7 +2972,7 @@ void create_basis_aux_v4(int jellium, int auto_ri, double Blimit, int natoms, ve
       vector<double> basis1 = basis_min[i1];
 
       int nmax = get_bsize(zt13,zt24);
-      if (jellium) nmax = get_bsize_jellium(zt24/zt13,l13);
+      if (jellium) nmax = get_bsize_jellium(zt24/zt13,l13,auto_ri);
       if (!jellium)
       {
         if (l24==0) nmax += plus_s;
