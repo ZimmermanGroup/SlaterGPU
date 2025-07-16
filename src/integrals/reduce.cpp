@@ -224,12 +224,112 @@ void reduce_4c_1(int s1, int s2, int s3, int s4, int gs, int gsp, int M, float* 
 }
 
 //fully double precision
-void reduce_2c1(int s1, int s2, int gs, double** val1, double** val3, int iN, int N, double* An)
+void reduce_2c1(int tid, int s1, int s2, int gs, double* val1, double* val3, int iN, int N, double* An)
 {
   int N2 = N*N;
+  int igs = iN*gs;
 
 #if USE_ACC
- #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gs],val3[0:iN][0:gs],An[0:N2])
+ #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2]) //async(tid+1)
+  for (int i1=s1;i1<s2;i1++)
+  {
+    for (int i2=s1;i2<s2;i2++)
+    {
+      int ii1 = i1-s1;
+      int ii2 = i2-s1;
+      double* valm = &val1[ii1*gs];
+      double* valn = &val3[ii2*gs];
+      double val = 0.;
+
+     #pragma acc loop reduction(+:val)
+      for (int j=0;j<gs;j++)
+        val += valm[j]*valn[j];
+        //val += val1[ii1*gs+j]*val3[ii2*gs+j];
+
+      An[i1*N+i2] += val;
+    }
+  } //MM reduction
+
+  //if (tid<0)
+  //{
+  //  #pragma acc wait
+  //}
+  //#pragma acc wait
+  acc_wait_all();
+
+#else
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s1;i2<s2;i2++)
+  {
+    int ii1 = i1-s1; int ii2 = i2-s1;
+    double val = 0.;
+    for (int j=0;j<gs;j++)
+      val += val1[ii1*gs+j]*val3[ii2*gs+j];
+    An[i1*N+i2] += val;
+  }
+#endif
+
+  return;
+}
+
+//fully double precision
+void reduce_2c1(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, double* val3, int iN, int N, double* An)
+{
+  int N2 = N*N;
+  int igs = iN*gs;
+
+#if USE_ACC
+ #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2]) //async(tid+1)
+  for (int i1=s1;i1<s2;i1++)
+  {
+    for (int i2=s3;i2<s4;i2++)
+    {
+      int ii1 = i1-s1;
+      int ii2 = i2-s3;
+      double* valm = &val1[ii1*gs];
+      double* valn = &val3[ii2*gs];
+      double val = 0.;
+
+     #pragma acc loop reduction(+:val)
+      for (int j=0;j<gs;j++)
+        val += valm[j]*valn[j];
+        //val += val1[ii1][j]*val3[ii2][j];
+
+      An[i1*N+i2] += val;
+    }
+  } //MM reduction
+
+  //if (tid<0)
+  //{
+  //  #pragma acc wait
+  //}
+
+  //#pragma acc wait
+  acc_wait_all();
+
+#else
+  for (int i1=s1;i1<s2;i1++)
+  for (int i2=s3;i2<s4;i2++)
+  {
+    int ii1 = i1-s1; int ii2 = i2-s3;
+    double val = 0.;
+    for (int j=0;j<gs;j++)
+      val += val1[ii1*gs+j]*val3[ii2*gs+j];
+    An[i1*N+i2] += val;
+  }
+#endif
+
+  return;
+}
+
+//fully double precision
+void reduce_2c1(int tid, int s1, int s2, int gs, double** val1, double** val3, int iN, int N, double* An)
+{
+  int N2 = N*N;
+  int igs = iN*gs;
+
+#if USE_ACC
+ #pragma acc parallel loop collapse(2) present(val1[0:igs],val3[0:igs],An[0:N2]) //async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   {
     for (int i2=s1;i2<s2;i2++)
@@ -241,50 +341,16 @@ void reduce_2c1(int s1, int s2, int gs, double** val1, double** val3, int iN, in
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
-   
-      An[i1*N+i2] = val;
+
+      An[i1*N+i2] += val;
     }
   } //MM reduction
-  #pragma acc wait
 
-#else
-  for (int i1=s1;i1<s2;i1++)
-  for (int i2=s1;i2<s2;i2++)
-  {
-    int ii1 = i1-s1; int ii2 = i2-s1;
-    double val = 0.;
-    for (int j=0;j<gs;j++)
-      val += val1[ii1][j]*val3[ii2][j];
-    An[i1*N+i2] = val;
-  }
-#endif
-
-  return;
-}
-
-//fully double precision
-void reduce_2c1(int s1, int s2, int s3, int s4, int gs, double** val1, double** val3, int iN, int N, double* An)
-{
-  int N2 = N*N;
-
-#if USE_ACC
- #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gs],val3[0:iN][0:gs],An[0:N2])
-  for (int i1=s1;i1<s2;i1++)
-  {
-    for (int i2=s3;i2<s4;i2++)
-    {
-      int ii1 = i1-s1;
-      int ii2 = i2-s3;
-      double val = 0.;
-
-     #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++)
-        val += val1[ii1][j]*val3[ii2][j];
-   
-      An[i1*N+i2] = val;
-    }
-  } //MM reduction
-  #pragma acc wait
+  //if (tid<0)
+  //{
+  //  #pragma acc wait
+  //}
+  acc_wait_all();
 
 #else
   for (int i1=s1;i1<s2;i1++)
@@ -294,7 +360,7 @@ void reduce_2c1(int s1, int s2, int s3, int s4, int gs, double** val1, double** 
     double val = 0.;
     for (int j=0;j<gs;j++)
       val += val1[ii1][j]*val3[ii2][j];
-    An[i1*N+i2] = val;
+    An[i1*N+i2] += val;
   }
 #endif
 
@@ -326,7 +392,7 @@ void reduce_2c1(int s1, int s2, int gs, float** val1, float** val3, int iN, int 
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
-   
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -360,16 +426,16 @@ void reduce_2c2(int s1, int s2, int s3, int s4, int gs, double** val1, double** 
     {
       int ii1 = i1-s1;
       int ii2 = i2-s3;
-    
+
       double val = 0.;
 
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val2[ii1][j]*val4[ii2][j];
-        
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -408,7 +474,7 @@ void reduce_2c2(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
     {
       int ii1 = i1-s1;
       int ii2 = i2-s3;
-    
+
      #if RED_DOUBLE
       double val = 0.;
      #else
@@ -419,9 +485,9 @@ void reduce_2c2(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val2[ii1][j]*val4[ii2][j];
-        
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -461,7 +527,7 @@ void reduce_2c3(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
     {
       int ii1 = i1-s1;
       int ii2 = i2-s3;
-    
+
      #if RED_DOUBLE
       double val = 0.;
      #else
@@ -472,12 +538,12 @@ void reduce_2c3(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
       for (int j=0;j<gs;j++)
         val += val1[ii1][j]*val3[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val2[ii1][j]*val4[ii2][j];
      #pragma acc loop reduction(+:val)
-      for (int j=0;j<gs;j++) 
+      for (int j=0;j<gs;j++)
         val += val5[ii1][j]*val6[ii2][j];
-        
+
       An[i1*N+i2] = val;
     }
   } //MM reduction
@@ -516,9 +582,7 @@ void reduce_2c1d(int m1, int s1, int s2, int s3, int s4, int gs, double* norms, 
   double valyt = 0.;
   double valzt = 0.;
 
-#if USE_ACC
  #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gs],val3[0:iN][0:gs],val1x[0:iN][0:gs3],val3x[0:iN][0:gs3],dpq[0:N2],norms[0:N2],xyz_grad[0:3*natoms]) reduction(+:valxt,valyt,valzt)
-#endif
   for (int i1=s1;i1<s2;i1++)
   {
     for (int i2=s3;i2<s4;i2++)
@@ -578,9 +642,7 @@ void reduce_2c1ds(int m1, int n1, int s1, int s2, int s3, int s4, int gs, double
   double valyt = 0.;
   double valzt = 0.;
 
-#if USE_ACC
  #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gs],val2[0:iN][0:gs],val3x[0:iN][0:gs3],val4x[0:iN][0:gs3],dpq[0:N2],norms[0:N2],xyz_grad[0:3*natoms]) reduction(+:valxt,valyt,valzt)
-#endif
   for (int i1=s1;i1<s2;i1++)
   {
     for (int i2=s3;i2<s4;i2++)
@@ -838,9 +900,7 @@ void reduce_2c3d(int m1, int n1, int p1, int s1, int s2, int s3, int s4, int gs,
   double valxt1 = 0.; double valyt1 = 0.; double valzt1 = 0.;
   double valxt2 = 0.; double valyt2 = 0.; double valzt2 = 0.;
 
-#if USE_ACC
  #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gs],val2[0:iN][0:gs],val3[0:iN][0:gs],val4[0:iN][0:gs],val5[0:iN][0:gs],val6[0:iN][0:gs],val1x[0:iN][0:gs3],val2x[0:iN][0:gs3],val3x[0:iN][0:gs3],val4x[0:iN][0:gs3],val5x[0:iN][0:gs3],val6x[0:iN][0:gs3],norms[0:N2],dpq[0:N2],xyz_grad[0:3*natoms]) reduction(+:valxt1,valyt1,valzt1,valxt2,valyt2,valzt2)
-#endif
   for (int i1=s1;i1<s2;i1++)
   {
     for (int i2=s3;i2<s4;i2++)
@@ -897,9 +957,7 @@ void reduce_2c3de(int m1, int s1, int s2, int s3, int s4, int gs, double* norms,
 
   double valxt = 0.; double valyt = 0.; double valzt = 0.;
 
-#if USE_ACC
  #pragma acc parallel loop collapse(2) present(val1[0:imaxN][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],val1x[0:imaxN][0:gs3],val2x[0:imaxN][0:gs3],val3x[0:imaxN][0:gs3],norms[0:N2],Pao[0:N2]) reduction(+:valxt,valyt,valzt)
-#endif
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   {
@@ -948,9 +1006,7 @@ void reduce_3c2d112(int m1, int n1, int s1, int s2, int s3, int s4, int s5, int 
   double valxt1 = 0.; double valyt1 = 0.; double valzt1 = 0.;
   double valxt2 = 0.; double valyt2 = 0.; double valzt2 = 0.;
 
-#if USE_ACC
  #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],val6[0:imaxN][0:gs],val1x[0:imaxNa][0:gs3],val2x[0:imaxN][0:gs3],val3x[0:imaxN][0:gs3],val4x[0:imaxNa][0:gs],val5x[0:imaxN][0:gs],val6x[0:imaxN][0:gs],norms1[0:Naux],norms2[0:N2],dC[0:N2a]) reduction(+:valxt1,valyt1,valzt1,valxt2,valyt2,valzt2)
-#endif
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s5;i3<s6;i3++)
@@ -1014,9 +1070,7 @@ void reduce_3c2d122(int m1, int n1, int s1, int s2, int s3, int s4, int gs, doub
   double valxt1 = 0.; double valyt1 = 0.; double valzt1 = 0.;
   double valxt2 = 0.; double valyt2 = 0.; double valzt2 = 0.;
 
-#if USE_ACC
  #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],val6[0:imaxN][0:gs],val1x[0:imaxNa][0:gs3],val2x[0:imaxN][0:gs3],val3x[0:imaxN][0:gs3],val4x[0:imaxNa][0:gs],val5x[0:imaxN][0:gs],val6x[0:imaxN][0:gs],norms1[0:Naux],norms2[0:N2],dC[0:N2a]) reduction(+:valxt1,valyt1,valzt1,valxt2,valyt2,valzt2)
-#endif
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s3;i3<s4;i3++)
@@ -1081,9 +1135,7 @@ void reduce_3c3d(int m1, int n1, int p1, int s1, int s2, int s3, int s4, int s5,
   double valxt2 = 0.; double valyt2 = 0.; double valzt2 = 0.;
   double valxt3 = 0.; double valyt3 = 0.; double valzt3 = 0.;
 
-#if USE_ACC
  #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],val6[0:imaxN][0:gs],val7[0:imaxNa][0:gs],val8[0:imaxN][0:gs],val9[0:imaxN][0:gs],val1x[0:imaxNa][0:gs3],val2x[0:imaxN][0:gs3],val3x[0:imaxN][0:gs3],val4x[0:imaxNa][0:gs3],val5x[0:imaxN][0:gs3],val6x[0:imaxN][0:gs3],val7x[0:imaxNa][0:gs3],val8x[0:imaxN][0:gs3],val9x[0:imaxN][0:gs3],norms1[0:Naux],norms2[0:N2],dC[0:N2a]) reduction(+:valxt1,valyt1,valzt1,valxt2,valyt2,valzt2,valxt3,valyt3,valzt3)
-#endif
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s5;i3<s6;i3++)
@@ -1163,9 +1215,7 @@ void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
     for (int j=0;j<gs;j++)
       valt1[j] = val1[ii1][j] * val2[ii2][j];
 
-   #if USE_ACC
-    #pragma acc parallel loop present(valt1[0:gs],val3[0:imaxN][0:gs],C[0:N2a]) 
-   #endif
+    #pragma acc parallel loop present(valt1[0:gs],val3[0:imaxN][0:gs],C[0:N2a])
     for (int i3=s3;i3<s4;i3++)
     {
       int ii3 = i3-s3;
@@ -1179,7 +1229,7 @@ void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
      #pragma acc loop reduction(+:val)
       for (int j=0;j<gs;j++)
         val += valt1[j] * val3[ii3][j];
- 
+
       C[i1*N2+i2*N+i3] = val;
 
       //printf(" m: %i  i1/2/3: %2i %2i %2i val: %8.5f \n",m,i1,i2,i3,val);
@@ -1189,14 +1239,17 @@ void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
 }
 
 //fully double precision
-void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C)
+void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, double* val2, double* val3, int N, int Naux, int imaxN, int imaxNa, double* C, double* Ct)
 {
   int N2 = N*N;
   int N2a = N2*Naux;
+  int N2b = N2*imaxNa;
+  int igs = imaxN*gs;
+  int iags = imaxNa*gs;
 
-#if USE_ACC
- #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],C[0:N2a]) 
-#endif
+ //reduced C memory storage (Ct[N2b])
+
+ #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b]) //async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s3;i3<s4;i3++)
@@ -1204,26 +1257,34 @@ void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, double** val1, double**
     int ii1 = i1-s1; int ii2 = i2-s3; int ii3 = i3-s3;
 
     double val = 0.;
+    double* valm = &val1[ii1*gs];
+    double* valn = &val2[ii2*gs];
+    double* valp = &val3[ii3*gs];
 
    #pragma acc loop reduction(+:val)
     for (int j=0;j<gs;j++)
-      val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
- 
-    C[i1*N2+i2*N+i3] += val;
+      //val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
+      val += valm[j] * valn[j] * valp[j];
+
+    Ct[ii1*N2+i2*N+i3] += val;
   } //i1,i2,i3
+
 
   return;
 }
 
 //fully double precision
-void reduce_3c1b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, double** val1, double** val2, double** val3, int N, int Naux, int imaxN, int imaxNa, double* C)
+void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* val1, double* val2, double* val3, int N, int Naux, int imaxN, int imaxNa, double* C, double* Ct)
 {
   int N2 = N*N;
   int N2a = N2*Naux;
+  int N2b = N2*imaxNa;
+  int igs = imaxN*gs;
+  int iags = imaxNa*gs;
 
-#if USE_ACC
- #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],C[0:N2a]) 
-#endif
+ //reduced C memory storage (Ct[N2b])
+
+ #pragma acc parallel loop collapse(3) present(val1[0:iags],val2[0:igs],val3[0:igs],Ct[0:N2b]) //async(tid+1)
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s5;i3<s6;i3++)
@@ -1231,12 +1292,15 @@ void reduce_3c1b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, double*
     int ii1 = i1-s1; int ii2 = i2-s3; int ii3 = i3-s5;
 
     double val = 0.;
+    double* valm = &val1[ii1*gs];
+    double* valn = &val2[ii2*gs];
+    double* valp = &val3[ii3*gs];
 
    #pragma acc loop reduction(+:val)
     for (int j=0;j<gs;j++)
-      val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
- 
-    C[i1*N2+i2*N+i3] += val;
+      val += valm[j] * valn[j] * valp[j];
+
+    Ct[ii1*N2+i2*N+i3] += val;
   } //i1,i2,i3
 
   return;
@@ -1251,9 +1315,7 @@ void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, float** val1, float** v
   int N2 = N*N;
   int N2a = N2*Naux;
 
-#if USE_ACC
- #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],C[0:N2a]) 
-#endif
+ #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],C[0:N2a])
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s3;i3<s4;i3++)
@@ -1269,7 +1331,7 @@ void reduce_3c1b(int s1, int s2, int s3, int s4, int gs, float** val1, float** v
    #pragma acc loop reduction(+:val)
     for (int j=0;j<gs;j++)
       val += val1[ii1][j] * val2[ii2][j] * val3[ii3][j];
- 
+
     C[i1*N2+i2*N+i3] = val;
 
     //printf(" m: %i  i1/2/3: %2i %2i %2i val: %8.5f \n",m,i1,i2,i3,val);
@@ -1291,20 +1353,14 @@ void reduce_3c2(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** 
   for (int i2=s3;i2<s4;i2++)
   {
     int ii1 = i1-s1; int ii2 = i2-s3;
-  #if USE_ACC
-   #pragma acc parallel loop present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],valt1[0:gs]) 
-  #endif
+   #pragma acc parallel loop present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],valt1[0:gs])
     for (int j=0;j<gs;j++)
       valt1[j] = val1[ii1][j] * val2[ii2][j];
-  #if USE_ACC
-   #pragma acc parallel loop present(val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],valt2[0:gs]) 
-  #endif
+   #pragma acc parallel loop present(val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],valt2[0:gs])
     for (int j=0;j<gs;j++)
       valt2[j] = val4[ii1][j] * val5[ii2][j];
 
-  #if USE_ACC
-   #pragma acc parallel loop present(val3[0:imaxN][0:gs],val6[0:imaxN][0:gs],valt1[0:gs],valt2[0:gs],C[0:N2a]) 
-  #endif
+   #pragma acc parallel loop present(val3[0:imaxN][0:gs],val6[0:imaxN][0:gs],valt1[0:gs],valt2[0:gs],C[0:N2a])
     for (int i3=s5;i3<s6;i3++)
     {
       int ii3 = i3-s5;
@@ -1315,17 +1371,13 @@ void reduce_3c2(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** 
       float val = 0.f;
      #endif
 
-    #if USE_ACC
      #pragma acc loop reduction(+:val)
-    #endif
       for (int j=0;j<gs;j++)
         val += valt1[j] * val3[ii3][j];
-    #if USE_ACC
      #pragma acc loop reduction(+:val)
-    #endif
       for (int j=0;j<gs;j++)
         val += valt2[j] * val6[ii3][j];
- 
+
       C[i1*N2+i3*N+i2] = val;
     }
   }
@@ -1342,9 +1394,7 @@ void reduce_3c2b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float**
   int N2 = N*N;
   int N2a = N2*Naux;
 
- #if USE_ACC
   #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],val6[0:imaxN][0:gs],C[0:N2a])
- #endif
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s5;i3<s6;i3++)
@@ -1363,8 +1413,8 @@ void reduce_3c2b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float**
    #pragma acc loop reduction(+:val)
     for (int j=0;j<gs;j++)
       val += val4[ii1][j] * val5[ii2][j] * val6[ii3][j];
- 
-    C[i1*N2+i3*N+i2] = val; 
+
+    C[i1*N2+i3*N+i2] = val;
   }
 
   return;
@@ -1384,25 +1434,17 @@ void reduce_3c3(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float** 
   for (int i2=s3;i2<s4;i2++)
   {
     int ii1 = i1-s1; int ii2 = i2-s3; 
-   #if USE_ACC
     #pragma acc parallel loop present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],valt1[0:gs]) 
-   #endif
     for (int j=0;j<gs;j++)
       valt1[j] = val1[ii1][j] * val2[ii2][j];
-   #if USE_ACC
     #pragma acc parallel loop present(val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],valt2[0:gs]) 
-   #endif
     for (int j=0;j<gs;j++)
       valt2[j] = val4[ii1][j] * val5[ii2][j];
-   #if USE_ACC
     #pragma acc parallel loop present(val7[0:imaxNa][0:gs],val8[0:imaxN][0:gs],valt3[0:gs]) 
-   #endif
     for (int j=0;j<gs;j++)
       valt3[j] = val7[ii1][j] * val8[ii2][j];
 
-   #if USE_ACC
     #pragma acc parallel loop present(val3[0:imaxN][0:gs],val6[0:imaxN][0:gs],val9[0:imaxN][0:gs],valt1[0:gs],valt2[0:gs],valt3[0:gs],C[0:N2a]) 
-   #endif
     for (int i3=s5;i3<s6;i3++)
     {
       int ii3 = i3-s5;
@@ -1439,9 +1481,7 @@ void reduce_3c3b(int s1, int s2, int s3, int s4, int s5, int s6, int gs, float**
   int N2 = N*N;
   int N2a = N2*Naux;
 
- #if USE_ACC
   #pragma acc parallel loop collapse(3) present(val1[0:imaxNa][0:gs],val2[0:imaxN][0:gs],val3[0:imaxN][0:gs],val4[0:imaxNa][0:gs],val5[0:imaxN][0:gs],val6[0:imaxN][0:gs],val7[0:imaxNa][0:gs],val8[0:imaxN][0:gs],val9[0:imaxN][0:gs],C[0:N2a])
- #endif
   for (int i1=s1;i1<s2;i1++)
   for (int i2=s3;i2<s4;i2++)
   for (int i3=s5;i3<s6;i3++)

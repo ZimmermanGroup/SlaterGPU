@@ -23,9 +23,7 @@ void eval_ke(int gs, float* grid, float* val, int n, int l, float zeta)
   float f2 = 2.f*n*zeta;
   float f3 = zeta*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -39,15 +37,13 @@ void eval_ke(int gs, float* grid, float* val, int n, int l, float zeta)
   return;
 }
 
-void eval_ke(int gs, double* grid, double* val, int n, int l, double zeta)
+void eval_ked(int tid, int gs, double* grid, double* val, int n, int l, double zeta)
 {
   double f1 = n*(n-1) - l*(l+1);
   double f2 = 2.*n*zeta;
   double f3 = zeta*zeta;
 
-#if USE_ACC
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -56,6 +52,15 @@ void eval_ke(int gs, double* grid, double* val, int n, int l, double zeta)
 
     double term = f1*or2 - f2*or1 + f3;
     val[i] *= term;
+  }
+
+  if (tid>=0)
+  {
+    #pragma acc wait(tid+1)
+  }
+  else
+  {
+    #pragma acc wait
   }
 
   return;
@@ -70,16 +75,14 @@ void eval_ke_erf(int gs, float* grid, float* val, int n, int l, float zeta, floa
   float f2 = -2.f*n*zeta;
   float f3 = zeta*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
     float or1 = 1.f/r;
     //float or2 = or1*or1;
     float erf1 = erff(ef1*r);
- 
+
     or1 *= erf1;
     //or2 *= erf1;
 
@@ -97,9 +100,7 @@ void eval_ke3(int gs, float* grid, float* val, int n, int l, float zeta)
   float f2 = 2.f*n*zeta;
   float f3 = zeta*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -120,9 +121,7 @@ void eval_dke(int gs, float* grid, float* val, int n, int l, float zeta)
   double f1 = n*(n-1) - l*(l+1);
   double f2 = 2.*n*zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -143,9 +142,7 @@ void eval_ne(int gs, float* grid, float** val, int s1, int s2, int natoms, int* 
 {
   int ng = s2-s1;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:ng][0:gs],atno[0:natoms],coords[0:3*natoms])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x1 = grid[6*i]+A0;
@@ -176,9 +173,7 @@ void eval_ne_3(int gs, float* grid, float** val, int s1, int s2, int natoms, int
 {
   int ng = s2-s1;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:ng][0:3*gs],atno[0:natoms],coords[0:3*natoms])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x1 = grid[6*i]+A0;
@@ -211,9 +206,7 @@ void eval_d_ne_3(int gs, float* grid, float** val, int s1, int s2, int natoms, i
 {
   int ng = s2-s1;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:ng][0:3*gs],atno[0:natoms],coords[0:3*natoms])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x1 = grid[6*i]+A0;
@@ -260,9 +253,7 @@ void eval_inr_6h_r1d(int gs, float* grid, float* val, float zeta)
   double oz10 = oz5*oz5;
   double oz11 = oz6*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -302,9 +293,7 @@ void eval_inr_5g_r1d(int gs, float* grid, float* val, float zeta)
   double oz10 = oz5*oz5;
   double oz11 = oz6*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -348,9 +337,7 @@ void eval_inr_6f_r1d(int gs, float* grid, float* val, float zeta)
   double oz10 = oz5*oz5;
   double oz11 = oz5*oz6;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -384,9 +371,7 @@ void eval_inr_5f_r1d(int gs, float* grid, float* val, float zeta)
   double oz9 = oz4*oz5;
   double oz10 = oz5*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -420,9 +405,7 @@ void eval_inr_4f_r1d(int gs, float* grid, float* val, float zeta)
 
   //#pragma acc update self(grid[0:6*gs],val[0:3*gs])
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -459,9 +442,7 @@ void eval_inr_7d_r1d(int gs, float* grid, float* val, float zeta)
   double oz9 = oz5*oz4;
   double oz11 = oz5*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -493,9 +474,7 @@ void eval_inr_6d_r1d(int gs, float* grid, float* val, float zeta)
   double oz9 = oz5*oz4;
   double oz10 = oz5*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -526,9 +505,7 @@ void eval_inr_5d_r1d(int gs, float* grid, float* val, float zeta)
   //double oz8 = oz4*oz4;
   double oz9 = oz5*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -560,9 +537,7 @@ void eval_inr_4d_r1d(int gs, float* grid, float* val, float zeta)
   //double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -593,9 +568,7 @@ void eval_inr_3d_r1d(int gs, float* grid, float* val, float zeta)
   double oz5 = oz2*oz3;
   double oz7 = oz3*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -631,9 +604,7 @@ void eval_inr_7p_r1d(int gs, float* grid, float* val, float zeta)
   double oz9 = oz4*oz5;
   double oz10 = oz5*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -664,9 +635,7 @@ void eval_inr_6p_r1d(int gs, float* grid, float* val, float zeta)
   double oz8 = oz4*oz4;
   double oz9 = oz4*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -696,9 +665,7 @@ void eval_inr_5p_r1d(int gs, float* grid, float* val, float zeta)
   double oz7 = oz4*oz3;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -729,9 +696,7 @@ void eval_inr_4p_r1d(int gs, float* grid, float* val, float zeta)
   double oz6 = oz3*oz3;
   double oz7 = oz4*oz3;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -761,9 +726,7 @@ void eval_inr_3p_r1d(int gs, float* grid, float* val, float zeta)
   double oz5 = oz3*oz2;
   double oz6 = oz3*oz3;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -794,9 +757,7 @@ void eval_inr_2p_r1d(int gs, float* grid, float* val, float zeta)
   double oz4 = oz2*oz2;
   double oz5 = oz3*oz2;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -831,9 +792,7 @@ void eval_inr_8s_r1d(int gs, float* grid, float* val, float zeta)
   double oz9 = oz4*oz5;
   double oz10 = oz5*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -864,9 +823,7 @@ void eval_inr_7s_r1d(int gs, float* grid, float* val, float zeta)
   double oz8 = oz4*oz4;
   double oz9 = oz4*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -896,9 +853,7 @@ void eval_inr_6s_r1d(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -927,9 +882,7 @@ void eval_inr_5s_r1d(int gs, float* grid, float* val, float zeta)
   double oz6 = oz3*oz3;
   double oz7 = oz3*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -957,9 +910,7 @@ void eval_inr_4s_r1d(int gs, float* grid, float* val, float zeta)
   double oz5 = oz2*oz3;
   double oz6 = oz3*oz3;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -986,9 +937,7 @@ void eval_inr_3s_r1d(int gs, float* grid, float* val, float zeta)
   double oz4 = oz2*oz2;
   double oz5 = oz2*oz3;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -1016,9 +965,7 @@ void eval_inr_2s_r1d(int gs, float* grid, float* val, float zeta)
   double oz3 = oz2*oz;
   double oz4 = oz2*oz2;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -1043,9 +990,7 @@ void eval_inr_1s_r1d(int gs, float* grid, float* val, float zeta)
   double oz2 = oz*oz;
   double oz3 = oz2*oz;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid[6*i+0]; float y = grid[6*i+1]; float z = grid[6*i+2];
@@ -1083,9 +1028,7 @@ void eval_inr_6h_r1(int gs, float* grid, float* val, float zeta)
   double oz12 = oz11*oz;
   double oz13 = oz12*oz;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1095,7 +1038,7 @@ void eval_inr_6h_r1(int gs, float* grid, float* val, float zeta)
 #if 1
     double ezr = exp(-zeta*r);
     double foz13r6 = 479001600.*oz13/r6;
-  
+
     val[i] *= -ezr*(foz13r6 + 479001600.*oz12/r5 + 239500800.*oz11/r4 + 79833600.*oz10/r3 + 19958400.*oz9/r2
                     + 3991680.*oz8/r + 665280.*oz7 + 95040.*r*oz6 + 11880.*r2*oz5 + 1320.*r3*oz4 + 132.*r4*oz3 + 11.*r5*oz2)
               + foz13r6;
@@ -1105,7 +1048,7 @@ void eval_inr_6h_r1(int gs, float* grid, float* val, float zeta)
 #else
     float ezr = expf(-zeta*r);
     float foz13r6 = 479001600.f*oz13/r6;
-  
+
     val[i] *= -ezr*(foz13r6 + 479001600.f*oz12/r5 + 239500800.f*oz11/r4 + 79833600.f*oz10/r3 + 19958400.f*oz9/r2
                     + 3991680.f*oz8/r + 665280.f*oz7 + 95040.f*r*oz6 + 11880.f*r2*oz5 + 1320.f*r3*oz4 + 132.f*r4*oz3 + 11.f*r5*oz2)
               + foz13r6;
@@ -1130,9 +1073,7 @@ void eval_inr_5g_r1(int gs, float* grid, float* val, float zeta)
   double oz10 = oz9*oz;
   double oz11 = oz10*oz;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1174,9 +1115,7 @@ void eval_inr_6f_r1(int gs, float* grid, float* val, float zeta)
   double oz9 = oz8*oz;
   double oz10 = oz9*oz;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1207,9 +1146,7 @@ void eval_inr_5f_r1(int gs, float* grid, float* val, float zeta)
   double oz9 = oz8*oz;
   double oz10 = oz9*oz;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1239,9 +1176,7 @@ void eval_inr_4f_r1(int gs, float* grid, float* val, float zeta)
   double oz8 = oz4*oz4;
   double oz9 = oz4*oz5;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1261,7 +1196,7 @@ void eval_inr_4f_r1(int gs, float* grid, float* val, float zeta)
     double foz9r4 = 40320.*oz9r4;
 
     val[i] *= -ezr*(foz9r4 + 40320.*oz8r3 + 20160.*oz7r2 + 6720.*oz6r + 1680.*oz5 + 336.*roz4 + 56.*r2oz3 + 7.*r3oz2)+foz9r4;
-#else  
+#else
     float ezr = expf(-zeta*r);
     float foz9r4 = 40320.f*oz9r4;
 
@@ -1285,9 +1220,7 @@ void eval_inr_7d_r1(int gs, float* grid, float* val, float zeta)
   double oz8 = oz4*oz4;
   double oz9 = oz5*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1297,7 +1230,7 @@ void eval_inr_7d_r1(int gs, float* grid, float* val, float zeta)
     double foz11r3 = 3628800.*oz9/r3;
     val[i] *= oz2*(foz11r3 - ezr*(foz11r3 + foz11r3*zeta*r + 1814400.*oz7/r + 604800.*oz6 + 151200.*r*oz5 + 30120.*r2*oz4 + 4920.*r3*oz3 + 660.*r4*oz2 + + 70.*r3*r2*oz + 5.*r3*r3));
   }
- 
+
   return;
 }
 
@@ -1314,9 +1247,7 @@ void eval_inr_6d_r1(int gs, float* grid, float* val, float zeta)
   double oz8 = oz4*oz4;
   double oz9 = oz5*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1326,7 +1257,7 @@ void eval_inr_6d_r1(int gs, float* grid, float* val, float zeta)
     double foz10r3 = 362880.*oz8/r3;
     val[i] *= oz2*(foz10r3 - ezr*(foz10r3 + foz10r3*zeta*r + 181440.*oz6/r + 60480.*oz5 + 15120.*r*oz4 + 3000.*r2*oz3 + 480.*r3*oz2 + 60.*r4*oz + 5.*r3*r2));
   }
- 
+
   return;
 }
 
@@ -1344,9 +1275,7 @@ void eval_inr_5d_r1(int gs, float* grid, float* val, float zeta)
   double oz8 = oz4*oz4;
   double oz9 = oz5*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1357,7 +1286,7 @@ void eval_inr_5d_r1(int gs, float* grid, float* val, float zeta)
 
     val[i] *= oz2*(foz9r3 - ezr*(foz9r3 + 40320.*oz6/r2 + 20160.*oz5/r + 6720.*oz4 + 1680.*r*oz3 + 330.*r2*oz2 + 50.*r3*oz + 5.*r4));
   }
- 
+
   return;
 }
 
@@ -1372,9 +1301,7 @@ void eval_inr_4d_r1(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1385,7 +1312,7 @@ void eval_inr_4d_r1(int gs, float* grid, float* val, float zeta)
 
     val[i] *= foz8r3 - ezr*(foz8r3 + 5040.*oz7/r2 + 2520.*oz6/r + 840.*oz5 + 210.*r*oz4 + 40.*r2*oz3 + 5.*r3*oz2);
   }
- 
+
   return;
 }
 
@@ -1405,9 +1332,7 @@ void eval_inr_3d_r1(int gs, float* grid, float* val, float zeta)
   float oz7 = oz3*oz4;
 #endif
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1449,9 +1374,7 @@ void eval_inr_7p_r1(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1480,9 +1403,7 @@ void eval_inr_6p_r1(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1511,9 +1432,7 @@ void eval_inr_5p_r1(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1542,7 +1461,7 @@ void eval_inr_4p_r1(int gs, float* grid, float* val, float zeta)
   double oz4 = oz2*oz2;
   double oz5 = oz3*oz2;
   double oz6 = oz3*oz3;
-  double oz7 = oz3*oz4; 
+  double oz7 = oz3*oz4;
  #else
   float oz = 1.f/zeta;
   float oz2 = oz*oz;
@@ -1550,12 +1469,10 @@ void eval_inr_4p_r1(int gs, float* grid, float* val, float zeta)
   float oz4 = oz2*oz2;
   float oz5 = oz3*oz2;
   float oz6 = oz3*oz3;
-  float oz7 = oz3*oz4; 
+  float oz7 = oz3*oz4;
  #endif
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1576,7 +1493,7 @@ void eval_inr_4p_r1(int gs, float* grid, float* val, float zeta)
     val[i] *= v1;
    #endif
   }
- 
+
   return;
 }
 
@@ -1589,9 +1506,7 @@ void eval_inr_3p_r1(int gs, float* grid, float* val, float zeta)
   double oz5 = oz3*oz2;
   double oz6 = oz3*oz3;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1623,9 +1538,7 @@ void eval_inr_2p_r1(int gs, float* grid, float* val, float zeta)
   double oz4 = oz2*oz2;
   double oz5 = oz3*oz2;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1650,9 +1563,7 @@ void eval_inr_8s_r1(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1677,9 +1588,7 @@ void eval_inr_7s_r1(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1704,9 +1613,7 @@ void eval_inr_6s_r1(int gs, float* grid, float* val, float zeta)
   double oz7 = oz3*oz4;
   double oz8 = oz4*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1733,9 +1640,7 @@ void eval_inr_5s_r1(int gs, float* grid, float* val, float zeta)
   double oz6 = oz3*oz3;
   double oz7 = oz3*oz4;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1763,9 +1668,7 @@ void eval_inr_4s_r1(int gs, float* grid, float* val, float zeta)
   double oz5 = oz2*oz3;
   double oz6 = oz3*oz3;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1788,9 +1691,7 @@ void eval_inr_3s_r1(int gs, float* grid, float* val, float zeta)
   double oz4 = oz2*oz2;
   double oz5 = oz2*oz3;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1813,9 +1714,7 @@ void eval_inr_2s_r1(int gs, float* grid, float* val, float zeta)
   double oz3 = oz2/zeta;
   double oz4 = oz2*oz2;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1842,9 +1741,7 @@ void eval_inr_1s_r1(int gs, float* grid, float* val, float zeta)
   double oz2 = 1./zeta/zeta;
   double toz3 = 2.*oz2/zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1859,7 +1756,7 @@ void eval_inr_1s_r1(int gs, float* grid, float* val, float zeta)
 void eval_inr_d(int gs, double* grid, double* val, int n1, int l1, double zeta1)
 {
  #if EVL64
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -1870,7 +1767,7 @@ void eval_inr_d(int gs, double* grid, double* val, int n1, int l1, double zeta1)
   }
   return;
  #else
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs])
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) ////async(tid)
   for (int i=0;i<gs;i++)
   {
     float r = grid[6*i+3];
@@ -1988,21 +1885,30 @@ void eval_inr_d(int gs, float* grid, float* val, int n1, int l1, float zeta1)
   }
 }
 
-void eval_inr_r12(int gs, double* grid, double* val, int n1, int l1, double zeta1, int index)
+void eval_inr_r12(int tid, int gs, double* grid, double* val, int n1, int l1, double zeta1)
 {
  //double precision evaluation, gamma ftn only
 
-  //printf("  eval_inr_r12 for n/l/zt: %i %i %8.5f \n",n1,l1,zeta1);
-
-  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
+  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double v1d = vinr_gam(n1,l1,grid[6*i+3],zeta1);
     val[i] *= v1d;
   }
+
+  if (tid>=0)
+  {
+    #pragma acc wait(tid+1)
+  }
+  else
+  {
+    #pragma acc wait
+  }
+
+  return;
 }
 
-void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, int index)
+void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1)
 {
 #if USE_GAM
  #if EVL64
@@ -2024,7 +1930,7 @@ void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, 
 #endif
 
  #if !USE_GAM
-  if (index==3)
+  //if (index==3)
   {
     if (n1==1)
       eval_inr_1s_r1(gs,grid,val,zeta1);
@@ -2101,11 +2007,6 @@ void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1, 
       if (l1==0)
         eval_inr_8s_r1(gs,grid,val,zeta1);
     }
-  } 
-  if (index==4)
-  {
-    printf(" ERROR: shouldn't be here in index==4 \n");
-    exit(1);
   }
  #endif
 
@@ -2117,9 +2018,7 @@ void get_inr_2s_f(int nrad, float zeta, float* r, float* inr)
   float oz2 = 1./zeta/zeta;
   float oz3 = oz2/zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:nrad],inr[0:nrad])
-#endif
   for (int i=0;i<nrad;i++)
   {
     float r1 = r[i];
@@ -2144,9 +2043,7 @@ void get_inr_2p_f(int nrad, float zeta, float* r, float* inr)
   float oz4 = oz2*oz2;
   float oz5 = oz3*oz2;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:nrad],inr[0:nrad])
-#endif
   for (int i=0;i<nrad;i++)
   {
     float r1 = r[i];
@@ -2168,16 +2065,14 @@ void get_inr_1s_f(int nrad, float zeta, float* r, float* inr)
   float oz2 = 1./zeta/zeta;
   float oz3 = oz2/zeta;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:nrad],inr[0:nrad])
-#endif
   for (int i=0;i<nrad;i++)
   {
     float r1 = r[i];
     float zr = zeta*r1;
     float ezr = expf(-zeta*r1);
     float tz3r = 2.*oz3/r1;
-  
+
     float t1 = -ezr*(oz2 + tz3r);
     float t2 = tz3r;
 
@@ -2198,7 +2093,7 @@ void get_inr_1s(int nrad, double zeta, double* r, double* inr)
     double zr = zeta*r1;
     double ezr = exp(-zeta*r1);
     double tz3r = 2.*oz3/r1;
-  
+
     double t1 = -ezr*(oz2 + tz3r);
     double t2 = tz3r;
 
@@ -2224,7 +2119,7 @@ void get_inr(int n1, int l1, double zeta1, int nrad, float* r, float* inr)
   {
     //if (l1==0)
     //  get_inr_3d_f(nrad,zeta1,r,inr);
-  }   
+  }
   else
   {
     //printf(" INR not available for n1>2 \n"); exit(1);
@@ -2824,9 +2719,7 @@ void eval_inr_yukawa(int gs, double* grid, double* val, int n1, int l1, double z
 
     printf("  m: %i lcm: %8.5f tm1: %8.5f gm: %8.5f zgnm: %8.5f %8.5f s2: %8.5f \n",m,lcm,tm1,gm,zgpnm,zgmnm,s2);
 
-  #if USE_ACC
    #pragma acc parallel loop present(val[0:gs],grid[0:gs6])
-  #endif
     for (int j=0;j<gs;j++)
     {
       double r = grid[6*j+3];
@@ -2867,9 +2760,7 @@ void eval_inr_yukawa(int gs, double* grid, double* val, int n1, int l1, double z
 
     printf("  m: %i lcm: %8.5f tm1: %8.5f gm: %8.5f zgnm: %8.5f %8.5f s2: %8.5f \n",m,lcm,tm1,gm,zgpnm,zgmnm,s2);
 
-  #if USE_ACC
    #pragma acc parallel loop present(val[0:gs],grid[0:gs6])
-  #endif
     for (int j=0;j<gs;j++)
     {
       double r = grid[6*j+3];
@@ -2914,7 +2805,7 @@ double norm_sh(int l, int m)
  #if CART_D
   if (l==2)
   {
-    if (m<3) 
+    if (m<3)
       return 1.092548430592080*0.577350269189626;
     else
       return 1.092548430592080;
@@ -3029,7 +2920,7 @@ double norm(int n, int l, int m, double zeta)
   return val;
 }
 
-size_t fact(size_t N) 
+size_t fact(size_t N)
 {
   if (N==0) return 1;
   return N*fact(N-1);

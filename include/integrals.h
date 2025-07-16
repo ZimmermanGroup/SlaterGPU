@@ -6,9 +6,10 @@
 //KE is slightly sensitive to this cutoff
 
 //was 1.e-10
-#define WT_THRESH 1.e-10
-#define WT_THRESH_D 1.e-10
-#define CL_THRESH 1.e-7
+#define WT_THRESH 1.e-30
+#define WT_THRESH_D 1.e-30
+//#define CL_THRESH 1.e-7
+#define CL_THRESH 1.e-30
 #define REDUCEV 0
 
 
@@ -33,9 +34,10 @@ using namespace std;
 #include "murak.h"
 #include "becke.h"
 #include "sortUtil.h"
-#include "gpu_util.h"
+#include "lebedev2.h"
 
 extern void sortByKeys( fp_t * A, xyz<fp_t> * Av, size_t N);
+
 
 #define PI 3.141592653589793238
 
@@ -43,6 +45,8 @@ extern void sortByKeys( fp_t * A, xyz<fp_t> * Av, size_t N);
 void print_square(int N, double* S);
 
 double simple_test(int size1, int size2);
+
+int get_npts_from_order(int order);
 
 float compute_2c_trial(float zeta1, float zeta2, int nrad, int nang, double* ang_g, double* ang_w);
 
@@ -78,7 +82,6 @@ void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &b
 void compute_cusp(int natoms, int* atno, float* coords, vector<vector<double> > &basis, double* pb, int prl);
 
 void compute_all_2c(int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* A, int prl);
-//void compute_all_2c(int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* A, int prl);
 
 void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* A, int prl);
 void compute_all_2c_v2(bool do_overlap, int natoms, int* atno, float* coordsf, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* A, int prl);
@@ -88,7 +91,6 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
 void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* An, int prl);
 
 void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* C, int prl);
-//void compute_all_3c(int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* C, int prl);
 
 void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, double* C, int prl);
 void compute_all_3c_v2(bool do_overlap, int natoms, int* atno, float* coords, vector<vector<double> > &basis, vector<vector<double> > &basis_aux, int nrad, int nang, double* ang_g0, double* ang_w0, float* C, int prl);
@@ -110,23 +112,23 @@ void compute_all_4c_ol_gend(int ngpu, int natoms, int* atno, float* coords, vect
 void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* ol, int prl);
 void compute_all_4c_ol_gen(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* ol, int prl);
 
-//Nate's Edits
 void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* g, int prl);
 void compute_all_4c_v2(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* g, int prl);
 
 double compute_2c(int Z1, int Z2, float zeta10, float zeta20, float A20, float B20, float C20, int nrad, int nang, double* ang_g0, double* ang_w0, int prl);
 double compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
-
 //float compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
 
+//debug function
+void give_me_an_error(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl);
 
 ///// Prolate spheroidal coordinates /////
 void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* S, double* T, double* En, int prl);
 void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* pVp, int prl);
 void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* pVp, int prl);
 void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl);
-void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> >& basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl);
-void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl);
+void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> >& basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl);
+void compute_4c_ol_ps(int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl);
 /////////////////////////////////////////
 
 void get_inr_1s(int nrad, double zeta, double* r, double* inr);
@@ -141,10 +143,12 @@ size_t fact(size_t N);
 int get_imax_n2i(int natoms, int N, vector<vector<double> >& basis, int* n2i);
 int get_imax_n2ip(int Nmax, int natoms, int N, vector<vector<double> >& basis, vector<vector<int> >& n2ip);
 
+
 int find_center_of_grid(float Z1, int nrad);
-void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w);
+void get_angular_grid(int size_ang, double* ang_g, double* ang_w);
 void acc_assign(int size, float* vec, float v1);
 void acc_assign(int size, double* vec, double v1);
+void acc_assign(int tid, int size, double* vec, double v1);
 void acc_copy(int size, double* v1, double* v2);
 void acc_copyf(int size, float* v1, float* v2);
 void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4);
@@ -159,11 +163,13 @@ void eliminate_small_wt(int s1, int size, float* wt1);
 void eliminate_small_wt_3(int s1, int size, float* wt1, float* wt2, float* wt3);
 void recenter_grid_zero(int gs, float* grid, float x2, float y2, float z2);
 void recenter_grid_zero(int gs, double* grid, double x2, double y2, double z2);
+void recenter_grid_zero(int tid, int gs, double* grid, double x2, double y2, double z2);
 void recenter_grid(int gs, float* grid, float x2, float y2, float z2);
 void recenter_grid(int gs, double* grid, double x2, double y2, double z2);
 
 void add_r1_to_grid(int gs, float* grid1, float A2, float B2, float C2);
 void add_r1_to_grid(int gs, double* grid1, double A2, double B2, double C2);
+void add_r1_to_grid(int tid, int gs, double* grid1, double A2, double B2, double C2);
 void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2);
 void add_r2_to_grid(int gs, double* grid1, double A2, double B2, double C2);
 void add_r3_to_grid(int gs, float* grid1, float A3, float B3, float C3);
@@ -172,7 +178,6 @@ void add_r1_to_grid_6z(int gs, float* grid1, float* grid2, float* grid3, float* 
 
 void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2, int Z1, int Z2, float A2, float B2, float C2);
 void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2, float* grid3, float* wt3, int Z1, int Z2, int Z3, float A2, float B2, float C2, float A3, float B3, float C3);
-
 
 //integrals_aux.cpp:
 void print_array(int size, float* vec);
@@ -200,10 +205,12 @@ void add_r1_to_grid_6z(int gs, float* grid1, float* grid2, float* grid3, float* 
 void add_r1_to_grid(int gs, float* grid1, float A2, float B2, float C2);
 void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2);
 void add_r3_to_grid(int gs, float* grid1, float A3, float B3, float C3);
-void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
-void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
-void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
-void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
+void rgrid_one_atom(int nrad, int Z1, float* r1);
+void generate_central_grid_3d(int m, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
+void generate_central_grid_2d(int tid, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
+void generate_central_grid_2d(int tid, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
+void generate_central_grid_2d(int tid, int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang);
+void generate_central_grid_2d(int tid, int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w);
 void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w);
 void generate_central_grid(float* grid1, float* wt1, float* val1, int need_inr, float Z1, int n1, int l1, float zeta1, int nrad, int nang, float* ang_g, float* ang_w);
 void transpose_C(int Naux, int N, float* C);
@@ -214,11 +221,5 @@ void copy_symm_3c_ps(int natoms, int N, int Naux, int* n2i, int* na2i, double* C
 void copy_symm_4c_ps(int natoms, int* n2i, int N, double* olp);
 void copy_symm_4c_ps_cpu(int natoms, int* n2i, int N, double* olp);
 int get_natoms_with_basis(int natoms, int* atno, vector<vector<double> >& basis);
-
-
-void collect_4c_1(int s1, int s2, int s3, int s4, bool lr_copy, int gs, int gsp, int M, int N, float* gt, double* g);
-void collect_4c_1b(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g);
-void collect_4c_1c(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g);
-void collect_4c_1d(int s1, int s2, int s3, int s4, int gs, int gsp, int M, int N, float* gt, double* g);
 
 #endif

@@ -4,12 +4,12 @@ platforms = ["linux-64", "linux-aarch64"]
 preview = ["pixi-build"]
 
 [package]
-name = "SlaterGPU"
-version = "0.2.0"
+name = "slatergpu"
+version = "0.1.4"
 
 [package.build]
 # backend = { name = "pixi-build-cmake", version = "*" }
-backend = { name = "pixi-build-rattler-build", version = "==0.1.12" }
+backend = { name = "pixi-build-rattler-build", version = "==0.1.15" }
 channels = [
   "https://prefix.dev/pixi-build-backends",
   "https://prefix.dev/conda-forge",
@@ -20,18 +20,23 @@ slurm-job = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n16 --gpus=1 --pty /b
 
 [tasks.clean]
 description = "Remove example output files"
-cwd = "examples/geom_1"
+cwd = "examples/lih_VK1"
 cmd = "rm -f A Ciap g pVp SENT"
 
 [feature.pytest.tasks.test]
 description = "Test SlaterGPU executable on a small molecular system"
-cwd = "examples/geom_1"
+cwd = "examples/lih_VK1"
 cmd = "/export/SLURM/default/bin/srun -p zim2080 -N1 -n1 -c2 --gpus=1 sgpu.exe && cd .. && pytest"
 
 [feature.pytest.tasks.test-in-gh-action]
 description = "Test SlaterGPU executable on a small molecular system in a github actions environment"
-cwd = "examples/geom_1"
+cwd = "examples/lih_VK1"
 cmd = "sgpu.exe && cd .. && pytest"
+
+[feature.pytest.tasks.test-perlmutter]
+description = "Test SlaterGPU executable on a small molecular system in a Perlmutter environment"
+cwd = "examples/lih_VK1"
+cmd = "salloc --qos shared_interactive -N1 -n1 -c32 --constraint=gpu --gpus=1 sgpu.exe && cd .. && pytest"
 
 [system-requirements]
 linux = "3.10"
@@ -40,7 +45,7 @@ libc = { family="glibc", version="2.17" }
 [dependencies]
 cmake = ">=3.21.0,<4"
 # libgcc = ">=12,<13"
-SlaterGPU = {path = "."}
+slatergpu = {path = "."}
 
 [package.host-dependencies]
 libcint = "5.3.0.*"

@@ -5,7 +5,8 @@
 
 using namespace std;
 
-
+//delete this file, these functions are in integrals_aux
+#if 0
 void get_angular_grid(int size_ang, double* ang_g, double* ang_w)
 {
   double* xa = new double[size_ang];
@@ -60,3 +61,5 @@ int electron_count(int charge, int natoms, int* atno, int& Nc, int& Na, int& Nb)
   return No;
 }
 
+
+#endif

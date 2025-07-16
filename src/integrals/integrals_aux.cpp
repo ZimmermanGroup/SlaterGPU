@@ -1,6 +1,7 @@
 #include "integrals.h"
 #include "grid_util.h"
 
+
 void auto_crash()
 {
   //return;
@@ -49,36 +50,35 @@ void clean_small_values(int N, double* S)
 
 void acc_assign(int size, float* vec, float v1)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(vec[0:size])
-#endif
   for (int j=0;j<size;j++)
     vec[j] = v1;
 }
 
 void acc_assign(int size, double* vec, double v1)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(vec[0:size])
-#endif
+  for (int j=0;j<size;j++)
+    vec[j] = v1;
+}
+
+void acc_assign(int tid, int size, double* vec, double v1)
+{
+ #pragma acc parallel loop independent present(vec[0:size]) //async(tid+1)
   for (int j=0;j<size;j++)
     vec[j] = v1;
 }
 
 void acc_assign(int size, float* vec1, float* vec2, float v1)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(vec1[0:size],vec2[0:size])
-#endif
   for (int j=0;j<size;j++)
     vec1[j] = vec2[j] = v1;
 }
 
 void acc_assign(int size, float* vec1, float* vec2, float* vec3, float v1)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(vec1[0:size],vec2[0:size],vec3[0:size])
-#endif
   for (int j=0;j<size;j++)
     vec1[j] = vec2[j] = vec3[j] = v1;
 }
@@ -86,9 +86,7 @@ void acc_assign(int size, float* vec1, float* vec2, float* vec3, float v1)
 float acc_sum(int size, float* vec)
 {
   float sum = 0.;
-#if USE_ACC
  #pragma acc parallel loop present(vec[0:size]) reduction(+:sum)
-#endif
   for (int i=0;i<size;i++)
     sum += vec[i];
 
@@ -97,9 +95,7 @@ float acc_sum(int size, float* vec)
 
 void acc_copy(int tid, int size, double* v1, double* v2)
 {
- #if USE_ACC
-  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid)
- #endif
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid+1)
   for (int i=0;i<size;i++)
     v1[i] = v2[i];
 
@@ -108,9 +104,7 @@ void acc_copy(int tid, int size, double* v1, double* v2)
 
 void acc_copy(int size, double* v1, double* v2)
 {
- #if USE_ACC
-  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid)
- #endif
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size])
   for (int i=0;i<size;i++)
     v1[i] = v2[i];
 
@@ -119,9 +113,7 @@ void acc_copy(int size, double* v1, double* v2)
 
 void acc_copyf(int tid, int size, float* v1, float* v2)
 {
- #if USE_ACC
-  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid)
- #endif
+  #pragma acc parallel loop independent present(v1[0:size],v2[0:size]) //async(tid+1)
   for (int i=0;i<size;i++)
     v1[i] = v2[i];
 
@@ -130,9 +122,7 @@ void acc_copyf(int tid, int size, float* v1, float* v2)
 
 void acc_copyf(int size, float* v1, float* v2)
 {
- #if USE_ACC
   #pragma acc parallel loop independent present(v1[0:size],v2[0:size])
- #endif
   for (int i=0;i<size;i++)
     v1[i] = v2[i];
 
@@ -141,9 +131,7 @@ void acc_copyf(int size, float* v1, float* v2)
 
 void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4)
 {
- #if USE_ACC
   #pragma acc parallel loop independent present(v1[0:size],v2[0:size],v3[0:size],v4[0:size])
- #endif
   for (int i=0;i<size;i++)
   {
     v1[i] = v2[i];
@@ -155,9 +143,7 @@ void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4)
 
 void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4, float* v5, float* v6)
 {
- #if USE_ACC
   #pragma acc parallel loop independent present(v1[0:size],v2[0:size],v3[0:size],v4[0:size],v5[0:size],v6[0:size])
- #endif
   for (int i=0;i<size;i++)
   {
     v1[i] = v2[i];
@@ -170,10 +156,8 @@ void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4, float* v5, 
 
 void eliminate_small_wt_3(int size, float* wt1, float* wt2, float* wt3)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(wt1[0:size],wt2[0:size],wt3[0:size])
-#endif
-  for (int i=0;i<size;i++) 
+  for (int i=0;i<size;i++)
   {
     if (wt1[i]<WT_THRESH)
       wt1[i] = 0.;
@@ -187,10 +171,8 @@ void eliminate_small_wt_3(int size, float* wt1, float* wt2, float* wt3)
 
 void eliminate_small_wt_3(int s1, int size, float* wt1, float* wt2, float* wt3)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(wt1[0:size],wt2[0:size],wt3[0:size])
-#endif
-  for (int i=s1;i<size;i++) 
+  for (int i=s1;i<size;i++)
   {
     if (wt1[i]<WT_THRESH_D)
       wt1[i] = 0.;
@@ -204,10 +186,8 @@ void eliminate_small_wt_3(int s1, int size, float* wt1, float* wt2, float* wt3)
 
 void eliminate_small_wt(int size, float* wt1)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(wt1[0:size])
-#endif
-  for (int i=0;i<size;i++) 
+  for (int i=0;i<size;i++)
   if (wt1[i]<WT_THRESH)
   {
     //printf(" small wt: %12.10f \n",wt1[i]);
@@ -218,10 +198,8 @@ void eliminate_small_wt(int size, float* wt1)
 
 void eliminate_small_wt(int s1, int size, float* wt1)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(wt1[0:size])
-#endif
-  for (int i=s1;i<size;i++) 
+  for (int i=s1;i<size;i++)
   if (wt1[i]<WT_THRESH_D)
   {
     //printf(" small wt: %12.10f \n",wt1[i]);
@@ -232,9 +210,7 @@ void eliminate_small_wt(int s1, int size, float* wt1)
 
 void copy_grid(int gs, float* grid1, float* grid2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     grid1[6*i+0] = grid2[6*i+0];
@@ -248,9 +224,7 @@ void copy_grid(int gs, float* grid1, float* grid2)
 
 void copy_grid(int gs, double* grid1, float* grid2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs])
-#endif
   for (int j=0;j<6*gs;j++)
     grid1[j] = grid2[j];
 
@@ -259,9 +233,7 @@ void copy_grid(int gs, double* grid1, float* grid2)
 
 void copy_grid(int gs, double* grid1, double* grid2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     grid1[6*i+0] = grid2[6*i+0];
@@ -275,9 +247,7 @@ void copy_grid(int gs, double* grid1, double* grid2)
 
 void copy_grid(int gs, float* grid1, float* wt1, float* grid2, float* wt2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],wt1[0:gs],grid2[0:6*gs],wt2[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     grid2[6*i+0] = grid1[6*i+0];
@@ -293,9 +263,7 @@ void copy_grid(int gs, float* grid1, float* wt1, float* grid2, float* wt2)
 
 void recenter_grid_zero(int gs, float* grid, float x2, float y2, float z2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     grid[6*i+0] += x2;
@@ -314,9 +282,26 @@ void recenter_grid_zero(int gs, float* grid, float x2, float y2, float z2)
 
 void recenter_grid_zero(int gs, double* grid, double x2, double y2, double z2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs])
-#endif
+  for (int i=0;i<gs;i++)
+  {
+    grid[6*i+0] += x2;
+    grid[6*i+1] += y2;
+    grid[6*i+2] += z2;
+    double xn = grid[6*i+0];
+    double yn = grid[6*i+1];
+    double zn = grid[6*i+2];
+
+    double r1 = sqrt(xn*xn+yn*yn+zn*zn);
+    grid[6*i+3] = r1;
+  }
+
+  return;
+}
+
+void recenter_grid_zero(int tid, int gs, double* grid, double x2, double y2, double z2)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     grid[6*i+0] += x2;
@@ -335,9 +320,7 @@ void recenter_grid_zero(int gs, double* grid, double x2, double y2, double z2)
 
 void recenter_grid(int gs, float* grid, float x2, float y2, float z2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     grid[6*i+0] += x2;
@@ -357,9 +340,7 @@ void recenter_grid(int gs, float* grid, float x2, float y2, float z2)
 
 void recenter_grid(int gs, double* grid, double x2, double y2, double z2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     grid[6*i+0] += x2;
@@ -379,9 +360,7 @@ void recenter_grid(int gs, double* grid, double x2, double y2, double z2)
 
 void recenter_grid_exp(int gs, float* grid, float* wt, float* val, float x2, float y2, float z2, float zeta2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     grid[6*i+0] += x2;
@@ -406,9 +385,7 @@ void recenter_grid_exp(int gs, float* grid, float* wt, float* val, float x2, flo
 
 void add_r123_to_grid(int gs, float* grid1, float A1, float B1, float C1, float A2, float B2, float C2, float A3, float B3, float C3)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x = grid1[6*i+0];
@@ -430,9 +407,7 @@ void add_r123_to_grid(int gs, float* grid1, float A1, float B1, float C1, float 
 
 void add_r1_to_grid_6z(int gs, float* grid1, float* grid2, float* grid3, float* grid4, float* grid5, float* grid6)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs],grid2[0:6*gs],grid3[0:6*gs],grid4[0:6*gs],grid5[0:6*gs],grid6[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x1 = grid1[6*i+0]; float y1 = grid1[6*i+1]; float z1 = grid1[6*i+2];
@@ -465,9 +440,8 @@ void add_r1_to_grid_6z(int gs, float* grid1, float* grid2, float* grid3, float* 
 
 void add_r1_to_grid(int gs, float* grid1, float A2, float B2, float C2)
 {
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
+  int gs6 = 6*gs;
+ #pragma acc parallel loop present(grid1[0:gs6])
   for (int i=0;i<gs;i++)
   {
     float x1 = grid1[6*i+0];
@@ -483,11 +457,31 @@ void add_r1_to_grid(int gs, float* grid1, float A2, float B2, float C2)
   return;
 }
 
+void add_r1_to_grid(int tid, int gs, double* grid1, double A2, double B2, double C2)
+{
+  int gs6 = 6*gs;
+
+ #pragma acc parallel loop present(grid1[0:gs6]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x1 = grid1[6*i+0];
+    double y1 = grid1[6*i+1];
+    double z1 = grid1[6*i+2];
+    double x12 = x1-A2;
+    double y12 = y1-B2;
+    double z12 = z1-C2;
+    double r2 = sqrt(x12*x12+y12*y12+z12*z12);
+    grid1[6*i+3] = r2;
+  }
+
+  return;
+}
+
 void add_r1_to_grid(int gs, double* grid1, double A2, double B2, double C2)
 {
-#if USE_ACC
- #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
+  int gs6 = 6*gs;
+
+ #pragma acc parallel loop present(grid1[0:gs6])
   for (int i=0;i<gs;i++)
   {
     double x1 = grid1[6*i+0];
@@ -505,9 +499,7 @@ void add_r1_to_grid(int gs, double* grid1, double A2, double B2, double C2)
 
 void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x1 = grid1[6*i+0];
@@ -525,9 +517,7 @@ void add_r2_to_grid(int gs, float* grid1, float A2, float B2, float C2)
 
 void add_r2_to_grid(int gs, double* grid1, double A2, double B2, double C2)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     double x1 = grid1[6*i+0];
@@ -545,9 +535,7 @@ void add_r2_to_grid(int gs, double* grid1, double A2, double B2, double C2)
 
 void add_r3_to_grid(int gs, float* grid1, float A3, float B3, float C3)
 {
-#if USE_ACC
  #pragma acc parallel loop independent present(grid1[0:6*gs])
-#endif
   for (int i=0;i<gs;i++)
   {
     float x1 = grid1[6*i+0];
@@ -568,19 +556,15 @@ int find_center_of_grid(float Z1, int nrad)
   float* r = new float[nrad];
   float* w = new float[nrad];
 
- #if USE_ACC
   #pragma acc enter data create(r[0:nrad],w[0:nrad])
- #endif
 
   get_murak_grid_f(nrad,r,w,Z1,3);
 
   int s1 = 0;
-#if USE_ACC
  #pragma acc parallel loop present(w[0:nrad])
-#endif
   for (int i=0;i<nrad;i++)
   if (w[i]<WT_THRESH_D)
-    s1 = i; 
+    s1 = i;
   s1++;
 
   //printf(" s1: %2i \n",s1);
@@ -590,43 +574,134 @@ int find_center_of_grid(float Z1, int nrad)
   return s1;
 }
 
-void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
+void get_angular_grid(int size_ang, double* ang_g, double* ang_w)
+{
+  double* xa = new double[size_ang];
+  double* ya = new double[size_ang];
+  double* za = new double[size_ang];
+  ld_by_order(size_ang,xa,ya,za,ang_w);
+  for (int i=0;i<size_ang;i++)
+  {
+    ang_g[3*i+0] = xa[i];
+    ang_g[3*i+1] = ya[i];
+    ang_g[3*i+2] = za[i];
+  }
+  delete [] xa;
+  delete [] ya;
+  delete [] za;
+
+#if 0
+  float sumawt = 0.;
+  for (int j=0;j<size_ang;j++)
+    sumawt += ang_w[j];
+  printf(" ang_w: ");
+  for (int j=0;j<size_ang;j++)
+    printf(" %8.5f",ang_w[j]);
+  printf("\n");
+  printf(" sum(ang_w): %8.5f \n",sumawt);
+#endif
+
+  return;
+}
+
+void rgrid_one_atom(int nrad, int Z1, float* r1)
+{
+  float w1[nrad];
+  #pragma acc enter data create(r1[0:nrad],w1[0:nrad])
+
+  get_murak_grid_f(nrad,r1,w1,Z1,3);
+  #pragma acc exit data copyout(r1[0:nrad])
+  #pragma acc exit data delete(w1[0:nrad])
+
+  return;
+}
+
+void generate_central_grid_3d(int m, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
 {
   double* r = new double[nrad];
   double* w = new double[nrad];
 
- #if USE_ACC
   #pragma acc enter data create(r[0:nrad],w[0:nrad])
- #endif
+
+  //printf("  in generate_central_grid_3d. m_murak: %i \n",m);
+
+  if (m<1) { printf("\n  ERROR: m cannot be less than 1 in get_murak_grid \n"); exit(-1); }
+
+  double zeta = Z1/10.; //exponent
+  if (Z1<0.) zeta = -Z1;
+  get_murak_grid_zeta(nrad,r,w,zeta,m);
+
+  int gs = nrad*nang;
+
+  for (int i=0;i<nrad;i++)
+  {
+   #pragma acc parallel loop present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
+    for (int j=0;j<nang;j++)
+    {
+      double r1 = r[i];
+      double wr1 = w[i];
+      double w1 = wr1*ang_w[j];
+
+     //grid positions
+      double x1 = r1 * ang_g[3*j+0];
+      double y1 = r1 * ang_g[3*j+1];
+      double z1 = r1 * ang_g[3*j+2];
+
+      int wg = i*nang+j;
+      grid1[6*wg+0] = x1;
+      grid1[6*wg+1] = y1;
+      grid1[6*wg+2] = z1;
+      grid1[6*wg+3] = r1;
+      grid1[6*wg+4] = r1;
+      grid1[6*wg+5] = r1;
+      wt1[wg] = w1;
+    }
+  }
+
+  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
+
+  delete [] r;
+  delete [] w;
+
+  return;
+}
+
+void generate_central_grid_2d(int tid, int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
+{
+  double* r = new double[nrad];
+  double* w = new double[nrad];
+
+  #pragma acc enter data create(r[0:nrad],w[0:nrad]) //async(tid+1)
+
+  //printf("  in generate_central_grid_2d. use_murak: %i \n",(int)use_murak);
 
   //use_murak = 1;
  #if 0
-  printf("  in generate_central_grid_2d. use_murak: %i \n",(int)use_murak);
   get_eumac_grid(nrad,r,w,25,1);
  #endif
  #if 1
   if (use_murak)
-    get_murak_grid(nrad,r,w,Z1,3);
+    get_murak_grid(tid,nrad,r,w,Z1,3);
   else
   {
     int m = 3;
     double zeta = Z1/10.; //exponent
-    get_murak_grid_zeta(nrad,r,w,zeta,m);
+    if (Z1<0.) zeta = -Z1;
+    get_murak_grid_zeta(tid,nrad,r,w,zeta,m);
   }
  #endif
 
   int gs = nrad*nang/nb;
 
   //int ic = 0;
+ #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs]) //async(tid+1)
   for (int i=0;i<nrad;i++)
   if (i%nb==wb)
   {
     int i1 = i/nb;
     //printf(" (%i/%i) \n",i1,ic);
 
-  #if USE_ACC
-   #pragma acc parallel loop present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
-  #endif
+    #pragma acc loop independent
     for (int j=0;j<nang;j++)
     {
       double r1 = r[i];
@@ -650,22 +725,26 @@ void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, dou
     //ic++;
   }
 
- #if USE_ACC
-  #pragma acc exit data delete(r[0:nrad],w[0:nrad])
- #endif
+  #pragma acc exit data delete(r[0:nrad],w[0:nrad]) //async(tid+1)
 
   delete [] r;
   delete [] w;
 
+  if (tid<0)
+  {
+    #pragma acc wait
+  }
+  acc_wait_all();
+
   return;
 }
 
-void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
+void generate_central_grid_2d(int tid, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang, double* ang_g, double* ang_w)
 {
-  return generate_central_grid_2d(0,1,use_murak,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+  return generate_central_grid_2d(tid,0,1,use_murak,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 }
 
-void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang)
+void generate_central_grid_2d(int tid, int wb, int nb, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang)
 {
   double* ang_g = new double[nang*3];
   double* ang_w = new double[nang];
@@ -673,16 +752,16 @@ void generate_central_grid_2d(int wb, int nb, bool use_murak, double* grid1, dou
   get_angular_grid(nang,ang_g,ang_w);
   #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
 
-  generate_central_grid_2d(wb,nb,use_murak,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
+  generate_central_grid_2d(tid,wb,nb,use_murak,grid1,wt1,Z1,nrad,nang,ang_g,ang_w);
 
   #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
   delete [] ang_g;
   delete [] ang_w;
 }
 
-void generate_central_grid_2d(bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang)
+void generate_central_grid_2d(int tid, bool use_murak, double* grid1, double* wt1, float Z1, int nrad, int nang)
 {
-  return generate_central_grid_2d(0,1,use_murak,grid1,wt1,Z1,nrad,nang);
+  return generate_central_grid_2d(tid,0,1,use_murak,grid1,wt1,Z1,nrad,nang);
 }
 
 void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w)
@@ -690,25 +769,19 @@ void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int n
   float* r = new float[nrad];
   float* w = new float[nrad];
 
- #if USE_ACC
   #pragma acc enter data create(r[0:nrad],w[0:nrad])
- #endif
 
   get_murak_grid_f(nrad,r,w,Z1,3);
 
   int gs = nrad*nang;
 
-#if USE_ACC
  #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs])
-#endif
   for (int i=0;i<nrad;i++)
   {
     float r1 = r[i];
     float wr1 = w[i];
 
-  #if USE_ACC
-   #pragma acc loop independent 
-  #endif
+   #pragma acc loop independent
     for (int j=0;j<nang;j++)
     {
       float w1 = wr1*ang_w[j];
@@ -729,87 +802,13 @@ void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int n
     }
   }
 
-#if USE_ACC
   #pragma acc exit data delete(r[0:nrad],w[0:nrad])
-#endif
 
   delete [] r;
   delete [] w;
 
   return;
 }
-
-#if 0
-void generate_central_grid(float* grid1, float* wt1, float* val1, int need_inr, float Z1, int n1, int l1, float zeta1, int nrad, int nang, float* ang_g, float* ang_w)
-{
-  printf("\n WARNING: shouldn't be here in generate_central_grid() \n");
-
-  float* r = new float[nrad];
-  float* w = new float[nrad];
-  float* er = new float[nrad];
-  float* inr = new float[nrad];
-
- #if DEBUG
-  printf("  generate_central_grid for: %i %i (zeta: %8.5f) \n",n1,l1,zeta1);
- #endif
-
- #if USE_ACC
-  #pragma acc enter data create(r[0:nrad],w[0:nrad],er[0:nrad],inr[0:nrad])
- #endif
-
-  get_murak_grid_f(nrad,r,w,er,Z1,zeta1,3);
-  if (need_inr)
-    get_inr(n1,l1,zeta1,nrad,r,inr);
-  else
-    acc_assign(nrad,inr,0.);
-
-  int gs = nrad*nang;
-
-#if USE_ACC
- #pragma acc parallel loop independent present(r[0:nrad],w[0:nrad],inr[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid1[0:6*gs],wt1[0:gs],val1[0:gs])
-#endif
-  for (int i=0;i<nrad;i++)
-  {
-    float r1 = r[i];
-    float wr1 = w[i];
-    float inr1 = inr[i];
- 
-  #if USE_ACC
-   #pragma acc loop independent 
-  #endif
-    for (int j=0;j<nang;j++)
-    {
-      float w1 = wr1*ang_w[j];
-
-     //grid positions
-      float x1 = r1 * ang_g[3*j+0];
-      float y1 = r1 * ang_g[3*j+1];
-      float z1 = r1 * ang_g[3*j+2];
-
-      int wg = i*nang+j;
-      grid1[6*wg+0] = x1;
-      grid1[6*wg+1] = y1;
-      grid1[6*wg+2] = z1;
-      grid1[6*wg+3] = r1;
-      grid1[6*wg+4] = r1;
-      grid1[6*wg+5] = r1;
-      wt1[wg] = w1;
-      val1[wg] = inr1;
-    }
-  }
-
-#if USE_ACC
-  #pragma acc exit data delete(r[0:nrad],w[0:nrad],er[0:nrad],inr[0:nrad])
-#endif
-
-  delete [] r;
-  delete [] w;
-  delete [] er;
-  delete [] inr;
-
-  return;
-}
-#endif
 
 void transpose_C(int Naux, int N, float* C)
 {
@@ -819,7 +818,7 @@ void transpose_C(int Naux, int N, float* C)
 
   float* tmp = new float[N2a];
 
-  for (int i=0;i<Naux;i++) 
+  for (int i=0;i<Naux;i++)
   for (int j=0;j<N;j++)
   for (int k=0;k<N;k++)
     tmp[j*nna+k*Naux+i] = C[i*N2+j*N+k];
@@ -840,7 +839,7 @@ void transpose_C(int Naux, int N, double* C)
 
   double* tmp = new double[N2a];
 
-  for (int i=0;i<Naux;i++) 
+  for (int i=0;i<Naux;i++)
   for (int j=0;j<N;j++)
   for (int k=0;k<N;k++)
     tmp[j*nna+k*Naux+i] = C[i*N2+j*N+k];
@@ -860,7 +859,7 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vect
 
   for (int m=0;m<natoms;m++)
   {
-    for (int i1=0;i1<Naux;i1++) 
+    for (int i1=0;i1<Naux;i1++)
     if (basis_aux[i1][9]==m)
     {
       for (int n=0;n<natoms;n++)
@@ -888,7 +887,7 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vect
           }
         }
 
-       //3-atom 
+       //3-atom
         for (int p=n+1;p<natoms;p++)
         if (p!=m)
         {
@@ -914,7 +913,7 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vect
 
   for (int m=0;m<natoms;m++)
   {
-    for (int i1=0;i1<Naux;i1++) 
+    for (int i1=0;i1<Naux;i1++)
     if (basis_aux[i1][9]==m)
     {
       for (int n=0;n<natoms;n++)
@@ -942,7 +941,7 @@ void copy_symm(int natoms, int N, int Naux, vector<vector<double> > &basis, vect
           }
         }
 
-       //3-atom 
+       //3-atom
         for (int p=n+1;p<natoms;p++)
         if (p!=m)
         {

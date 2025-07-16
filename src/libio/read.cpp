@@ -15,6 +15,9 @@
 #define IDEBUG 0
 #define JDEBUG 0
 
+//minimum ratio of aux basis exponents (RI v5 only)
+#define BLIMIT_DEFAULT 1.3
+
 #include "read.h"
 
 #include <sstream>
@@ -43,241 +46,17 @@ int check_file(string filename)
   infile.open(filename.c_str());
   if (!infile)
     return 0;
-     
+
   infile.close();
-   
-  return 1;   
-}  
 
-void print_coords(int natoms, float* coordsf)
-{
-  float B2A = 1.f/A2B;
-  for (int n=0;n<natoms;n++)
-    printf(" %10.5f %10.5f %10.5f \n",coordsf[3*n+0]*B2A,coordsf[3*n+1]*B2A,coordsf[3*n+2]*B2A);
-}
-
-void print_gradient(int natoms, double* grad)
-{
-  for (int n=0;n<natoms;n++)
-    printf(" %10.5f %10.5f %10.5f \n",grad[3*n+0],grad[3*n+1],grad[3*n+2]);
-}
-
-void print_square_diff(int N, double* S1, double* S2) 
-{
-  for (int n=0;n<N;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %10.5f",S1[n*N+m],S1[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_fine(int N, float* S) 
-{
-  for (int n=0;n<N;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %12.8f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_fine(int M, int N, double* S) 
-{
-  for (int n=0;n<M;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %12.8f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_fine(int N, double* S) 
-{
-  for (int n=0;n<N;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %12.8f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square(int N, double* S) 
-{
-  for (int n=0;n<N;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square(int N, float* S) 
-{
-  for (int n=0;n<N;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square(int M, int N, float* S) 
-{
-  for (int n=0;n<M;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square(int M, int N, double* S) 
-{
-  for (int n=0;n<M;n++)
-  {
-    for (int m=0;m<N;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_mos_col(int M, int N, vector<vector<double> > basis, double* jCA)
-{
-  if (M<1) return;
-  for (int j=0;j<N;j++)
-  {
-    int n1 = basis[j][0]; int l1 = basis[j][1]; int m1 = basis[j][2];
-
-    printf("  %i%i%2i ",n1,l1,m1);
-    for (int k=0;k<M;k++)
-      printf(" %10.5f",jCA[j*N+k]);
-    printf("\n");
-  }
-}
-
-void print_square_col(int M, int N, double* S) 
-{
-  for (int n=0;n<N;n++)
-  {
-    for (int m=0;m<M;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_col_sm(int M, int N, double* S) 
-{
-  for (int n=0;n<N;n++)
-  {
-    for (int m=0;m<M;m++)
-      printf(" %6.3f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_ss(int N, double* S)
-{
-  for (int n=0;n<N;n++)
-  {
-    printf("  ");
-    for (int m=0;m<N;m++)
-      printf(" %8.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_sm(int N, double* S)
-{
-  for (int n=0;n<N;n++)
-  {
-    printf("  ");
-    for (int m=0;m<N;m++)
-      printf(" %5.2f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_sm(int N, float* S)
-{
-  for (int n=0;n<N;n++)
-  {
-    printf("  ");
-    for (int m=0;m<N;m++)
-      printf(" %5.2f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_ss_sm(int N, double* S)
-{ 
-  for (int n=0;n<N;n++)
-  {
-    printf("  ");
-    for (int m=0;m<N;m++)
-      printf(" %6.3f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_nxn(int No, int N, float* S)
-{
-  for (int n=0;n<No;n++)
-  {
-    for (int m=0;m<No;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_square_nxn(int No, int N, double* S)
-{
-  for (int n=0;n<No;n++)
-  {
-    for (int m=0;m<No;m++)
-      printf(" %10.5f",S[n*N+m]);
-    printf("\n");
-  }
-}
-
-void print_rectangle(int N1, int N2, double* S)
-{
-  for (int n=0;n<N1;n++)
-  {
-    printf("  ");
-    for (int m=0;m<N2;m++)
-      printf(" %10.5f",S[n*N2+m]);
-    printf("\n");
-  }
-}
-
-void print_rectangle_e(int N1, int N2, double* S)
-{
-  for (int n=0;n<N1;n++)
-  {
-    printf("  ");
-    for (int m=0;m<N2;m++)
-      printf(" %5.1e",S[n*N2+m]);
-    printf("\n");
-  }
-}
-
-void print_rectangle_sm(int N1, int N2, double* S)
-{
-  for (int n=0;n<N1;n++)
-  {
-    printf("  ");
-    for (int m=0;m<N2;m++)
-      printf(" %7.4f",S[n*N2+m]);
-    printf("\n");
-  }
+  return 1;
 }
 
 
 vector<string> split1(const string &s, char delim)
 {
   stringstream ss(s);
-  string item;  
+  string item;
   vector<string> tokens;
   while ((bool)getline(ss, item, delim))
     tokens.push_back(item);
@@ -298,7 +77,7 @@ string read_basis_text(string aname)
   bool done = 0;
   string text = "";
   while (!infile.eof() && !done)
-  {  
+  {
     string line;
     (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
@@ -401,6 +180,25 @@ int read_int_2(string filename)
   return val;
 }
 
+int read_int_3(string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return -111;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  int val = 0.;
+  if (success)
+    val = atoi(line.c_str());
+
+  infile.close();
+
+  return val;
+}
+
 void read_thresh(float& no_thresh, float& occ_thresh)
 {
   string filename = "THRESH";
@@ -423,6 +221,48 @@ void read_thresh(float& no_thresh, float& occ_thresh)
   }
 
   infile.close();
+
+  return;
+}
+
+void read_ci_state(int wr, int& nstates, int& spin, double& degen_thresh)
+{
+  string filename = "CI";
+  if (wr==2) filename = "CI_ION";
+
+  nstates = 1;
+  spin = -1; //don't target by default
+  degen_thresh = 0.;
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+  {
+    nstates = atoi(line.c_str());
+
+    success = (bool)getline(infile, line);
+    if (success)
+      spin = atoi(line.c_str());
+
+    success = (bool)getline(infile, line);
+    if (success)
+      degen_thresh = atof(line.c_str());
+  }
+
+  infile.close();
+
+  if (nstates<1)
+    nstates = 1;
+  if (spin<-1)
+    spin = -1;
+  if (degen_thresh<0.)
+    degen_thresh = 0.;
 
   return;
 }
@@ -592,7 +432,7 @@ int read_hfx()
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
-    return 0;
+    return -1;
 
   string line;
   bool success = (bool)getline(infile, line);
@@ -909,7 +749,7 @@ void read_cas_size(int& Nc, int& Na, int& Nb)
     return;
 
   string line;
-  bool success; 
+  bool success;
 
   success = (bool)getline(infile, line);
   if (success)
@@ -976,6 +816,35 @@ vector<double> read_vector(string filename)
   return vec;
 }
 
+vector<vector<double> > read_vecvec_csv(string filename)
+{
+  vector<vector<double> > vecvec;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return vecvec;
+
+  string line;
+
+  while (!infile.eof())
+  {
+    bool success = (bool)getline(infile, line);
+
+    if (success)
+    {
+      vector<string> tok_line = split1(line,',');
+      vector<double> vals;
+      for (int i=0;i<tok_line.size();i++)
+        vals.push_back(atof(tok_line[i].c_str()));
+      vecvec.push_back(vals);
+    }
+  }
+
+  infile.close();
+
+  return vecvec;
+}
+
 bool read_cas_act(int& N, int& M)
 {
   string filename = "CAS_ACT";
@@ -1007,15 +876,47 @@ bool read_cas_act(int& N, int& M)
 
 int read_rotate(int N, double* jCA)
 {
+  int prl = 1;
   string filename = "ROT";
+  string filename2 = "EIG";
 
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
     return 0;
 
-  printf("\n jCA(in) \n");
-  print_square_sm(N,jCA);
+  if (prl>1 && N<20)
+  {
+    printf("\n jCA(in) \n");
+    print_square_sm(N,jCA);
+  }
+
+  bool have_eig = 1;
+  ifstream infile2;
+  infile2.open(filename2.c_str());
+  if (!infile2)
+    have_eig = 0;
+
+  double* eig = NULL;
+  if (have_eig)
+  {
+    eig = new double[N]();
+
+    string line;
+    bool success = (bool)getline(infile2, line);
+    vector<string> tok_line = split1(line,' ');
+
+    for (int j=0;j<N;j++)
+      eig[j] = atof(tok_line[j].c_str());
+
+    if (prl>0)
+    {
+      printf("  initial eig: ");
+      for (int j=0;j<N;j++)
+        printf(" %8.5f",eig[j]);
+      printf("\n");
+    }
+  }
 
   int nrot = 0;
   while (!infile.eof())
@@ -1034,6 +935,17 @@ int read_rotate(int N, double* jCA)
         int i1 = atoi(tok_line[0].c_str())-1;
         int i2 = atoi(tok_line[1].c_str())-1;
 
+        if (i1<0 || i2<0)
+        { printf("\n ERROR: counting of MOs starts at 1. found MO indices below 0 \n"); exit(-1); }
+
+        if (have_eig)
+        {
+          double e1 = eig[i1];
+          double e2 = eig[i2];
+          eig[i1] = e2;
+          eig[i2] = e1;
+        }
+
         printf("   rotate %2i->%2i \n",i1+1,i2+1);
         for (int i=0;i<N;i++) vec1[i] = jCA[i*N+i1];
         for (int i=0;i<N;i++) vec2[i] = jCA[i*N+i2];
@@ -1045,11 +957,31 @@ int read_rotate(int N, double* jCA)
   }
 
   infile.close();
+  infile2.close();
 
-  printf("\n  rotated %2i orbitals \n",nrot);
+  if (N<20)
+  {
+    printf("\n  rotated %2i orbitals \n",nrot);
 
-  printf("\n jCA(out) \n");
-  print_square_sm(N,jCA);
+    printf("\n jCA(out) \n");
+    print_square_sm(N,jCA);
+  }
+
+
+  if (have_eig)
+  {
+    write_vector(N,eig,"EIGr");
+    if (prl>0)
+    {
+      printf("    final eig: ");
+      for (int j=0;j<N;j++)
+        printf(" %8.5f",eig[j]);
+      printf("\n");
+    }
+
+    delete [] eig;
+  }
+
 
   return 1;
 }
@@ -1099,7 +1031,7 @@ int read_spinref()
       spinref = 0;
   }
   infile.close();
- 
+
   return spinref;
 }
 
@@ -1123,7 +1055,7 @@ int read_group()
       group_size = 1;
   }
   infile.close();
- 
+
   return group_size;
 }
 
@@ -1149,22 +1081,8 @@ int read_restart()
     //printf(" found restart: %i \n",is_restart);
   }
   infile.close();
- 
+
   return is_restart;
-}
-
-bool check_PS()
-{
-  string filename = "GRIDPS";
-
-  ifstream infile;
-  infile.open(filename.c_str());
-  if (!infile)
-    return 0;
-
-  infile.close();
-
-  return 1;
 }
 
 void read_gridps(int& nmu, int& nnu, int& nphi, int type)
@@ -1172,18 +1090,18 @@ void read_gridps(int& nmu, int& nnu, int& nphi, int type)
   string filename = "GRIDPS";
   if (type==2) filename = "GRIDPS2";
 
-  nmu  = 16;
-  nnu  = 8;
+  nmu = 40;
+  nnu = 24;
   nphi = 8;
 
   ifstream infile;
-  infile.open(filename.c_str());    
+  infile.open(filename.c_str());
   if (!infile)
   {
     printf("  couldn't open GRIDPS file. \n");
     return;
   }
-  
+
   string line;
   bool success = (bool)getline(infile, line);
   if (success)
@@ -1212,10 +1130,10 @@ void read_quad(int& qo1, int& qo2)
   qo2 = 8;
 
   ifstream infile;
-  infile.open(filename.c_str());    
+  infile.open(filename.c_str());
   if (!infile)
     return;
-  
+
   string line;
   bool success = (bool)getline(infile, line);
   if (success)
@@ -1238,15 +1156,17 @@ void read_nrad_nang(int& nrad, int& nang, int type)
 {
   string filename = "GRID";
   if (type==2) filename = "GRID2";
+  if (type==3) filename = "GRIDR";
 
   ifstream infile;
-  infile.open(filename.c_str());    
+  infile.open(filename.c_str());
   if (!infile)
   {
+    if (type==3) return;
     printf("  couldn't open GRID file. please provide GRID \n");
     exit(1);
   }
-  
+
   string line;
   bool success = (bool)getline(infile, line);
   if (success)
@@ -1362,6 +1282,20 @@ int read_iarray(short type1, short type2, short i1, int s1, int s2, double* A)
   return found;
 }
 
+bool check_PS()
+{
+  string filename = "GRIDPS";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return 0;
+
+  infile.close();
+
+  return 1;
+}
+
 int read_gridpts(int s1, int s2, float* A, string filename)
 {
   ifstream infile;
@@ -1384,7 +1318,7 @@ int read_gridpts(int s1, int s2, float* A, string filename)
       wi++;
     }
   }
-  
+
   infile.close();
 
   return 1;
@@ -1412,7 +1346,7 @@ int read_gridpts(int s1, int s2, double* A, string filename)
       wi++;
     }
   }
-  
+
   infile.close();
 
   return 1;
@@ -1446,7 +1380,39 @@ int read_square_check(int N, double* A, string filename)
     else
       return 0;
   }
-  
+
+  infile.close();
+
+  return 1;
+}
+
+int read_square(int N, int M, double** A, string filename)
+{
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    //printf("  couldn't open file \n");
+    return 0;
+  }
+
+  string line;
+  bool success = (bool)getline(infile, line);
+  int wi = 0;
+  while (wi<N)
+  {
+    success = (bool)getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
+    if (tok_line.size()>0)
+    {
+      if (tok_line.size()<M) { printf(" ERROR: file (%s) size not square \n",filename.c_str()); exit(1); }
+      for (int m=0;m<M;m++)
+        A[wi][m] = atof(tok_line[m+1].c_str());
+      wi++;
+    }
+  }
+
   infile.close();
 
   return 1;
@@ -1478,7 +1444,7 @@ int read_square(int N, double* A, string filename)
       wi++;
     }
   }
-  
+
   infile.close();
 
   return 1;
@@ -1490,20 +1456,57 @@ int read_square(vector<vector<double> > basis, double* A, string filename)
   return read_square(N,A,filename);
 }
 
+int read_rect(int N2, int Naux, double* C, string filename)
+{
+  printf("  attempting file read: %s \n",filename.c_str());
+  int prl = 0;
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    printf("  couldn't open file \n");
+    return 0;
+  }
+
+  string line;
+  bool found = (bool)getline(infile, line);
+
+  int wi = 0;
+  while (!infile.eof())
+  {
+    found = (bool)getline(infile, line);
+    vector<string> tok_line = split1(line,' ');
+    if (tok_line.size()>0)
+    {
+      if (tok_line.size()<Naux+1) { printf(" ERROR: file size wrong (%2i vs %2i) \n",tok_line.size(),Naux); exit(1); }
+      for (int m=0;m<Naux;m++)
+        C[wi*Naux+m] = atof(tok_line[m+1].c_str());
+      wi++;
+    }
+  }
+
+  if (wi==N2) { if (prl>1) printf("   found all lines \n"); }
+  else printf(" %s missing lines \n",filename.c_str());
+  infile.close();
+
+  return 1;
+}
+
 void read_SENT(string dirname, int N, double* S, double* T, double* En, int prl)
 {
   string filename = "SENT"; if (dirname!="0") filename = dirname+"/"+"SENT";
   printf("  attempting file read: %s \n",filename.c_str());
 
   ifstream infile;
-  infile.open(filename.c_str());    
+  infile.open(filename.c_str());
   if (!infile)
   {
     printf("  couldn't open file \n");
     return;
   }
 
-  string line;  
+  string line;
   (bool)getline(infile, line);
   int wi = 0;
   while (wi<N)
@@ -1591,13 +1594,13 @@ void read_Ciap(int N, int Naux, double* Ciap, string filename)
   int prl = 0;
 
   ifstream infile;
-  infile.open(filename.c_str());    
+  infile.open(filename.c_str());
   if (!infile)
   {
     printf("  couldn't open file \n");
     return;
   }
-  
+
   string line;
 
   (bool)getline(infile, line);
@@ -1638,13 +1641,13 @@ bool read_integrals(string dirname, int N, int Naux, double* S, double* T, doubl
   printf("  attempting file read: %s \n",filename.c_str());
 
   ifstream infile;
-  infile.open(filename.c_str());    
+  infile.open(filename.c_str());
   if (!infile)
   {
     printf("  couldn't open file \n");
     return 0;
   }
-  
+
   string line;
   (bool)getline(infile, line);
   int wi = 0;
@@ -1669,13 +1672,13 @@ bool read_integrals(string dirname, int N, int Naux, double* S, double* T, doubl
   filename = "SENT"; if (dirname!="0") filename = dirname+"/"+"SENT";
   printf("  attempting file read: %s \n",filename.c_str());
 
-  infile.open(filename.c_str());    
+  infile.open(filename.c_str());
   if (!infile)
   {
     printf("  couldn't open file \n");
     return 0;
   }
-  
+
   (bool)getline(infile, line);
   wi = 0;
   while (wi<N)
@@ -1740,7 +1743,7 @@ bool read_integrals(string dirname, int N, int Naux, double* S, double* T, doubl
   if (prl>1)
   {
     printf(" C: \n");
-    for (int i=0;i<N2;i++) 
+    for (int i=0;i<N2;i++)
     {
       for (int j=0;j<Naux;j++)
         printf(" %6.3f",Ciap[i*Naux+j]);
@@ -1797,7 +1800,7 @@ void add_s(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   return;
 }
 
-void add_p(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int np)
+void add_p(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int np, bool z_is_odd)
 {
  //2px
   ao1[0] = n; ao1[1] = 1; ao1[2] = 1;
@@ -1805,18 +1808,21 @@ void add_p(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   ao1[4] = norm(n,1,0,zeta);
 
  #if PDEBUG || CYLINDER_Z<=1
-  //z function only
-  ao1[2] = 0;
-  basis1.push_back(ao1);
-  return;
+  z_is_odd = 1;
  #endif
+  if (z_is_odd)
+  {
+    ao1[2] = 0;
+    basis1.push_back(ao1);
+    return;
+  }
 
   basis1.push_back(ao1);
 
   if (np<2) return;
 
  //2py
-  ao1[2] = -1; 
+  ao1[2] = -1;
   basis1.push_back(ao1);
  //2pz
   ao1[2] = 0;
@@ -1910,9 +1916,9 @@ void add_hz5(vector<vector<double> > &basis1, vector<double> ao1, int n, double 
   return;
 }
 
-void add_d(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nd)
+void add_d(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nd, bool z_is_odd)
 {
-  if (nd<2) { printf(" ERROR: cannot use nd anymore \n"); exit(1); } 
+  if (nd<2) { printf(" ERROR: cannot use nd anymore \n"); exit(1); }
 
  //3d
   ao1[0] = n; ao1[1] = 2;
@@ -1929,15 +1935,17 @@ void add_d(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   basis1.push_back(ao1);
   #endif
 
+  if (z_is_odd) printf(" WARNING: z_is_odd doesn't work with cartesian functions \n");
   ao1[4] = norm(n,2,3,zeta);
   ao1[2] = 3;
   basis1.push_back(ao1);
   ao1[2] = 4;
-  basis1.push_back(ao1); 
+  basis1.push_back(ao1);
   ao1[2] = 5;
-  basis1.push_back(ao1); 
+  basis1.push_back(ao1);
  #else
   for (int m=-2;m<=2;m++)
+  if (!z_is_odd || m%2)
   {
     ao1[2] = m;
     ao1[4] = norm(n,2,m,zeta);
@@ -1952,7 +1960,7 @@ void add_d(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   return;
 }
 
-void add_f(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nf)
+void add_f(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nf, bool z_is_odd)
 {
  //4f
   ao1[0] = n; ao1[1] = 3;
@@ -1964,6 +1972,7 @@ void add_f(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
 
   int bf = 0;
   for (int m=-3;m<=3;m++)
+  if (!z_is_odd || m%2==0)
   {
     ao1[2] = m;
     ao1[4] = norm(n,3,m,zeta);
@@ -1982,7 +1991,7 @@ void add_f(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   return;
 }
 
-void add_g(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int ng)
+void add_g(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int ng, bool z_is_odd)
 {
  //5g
   ao1[0] = n; ao1[1] = 4;
@@ -1997,6 +2006,7 @@ void add_g(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
 
   int bf = 0;
   for (int m=-4;m<=4;m++)
+  if (!z_is_odd || m%2)
   {
     ao1[2] = m;
     ao1[4] = norm(n,4,m,zeta);
@@ -2007,14 +2017,14 @@ void add_g(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
     {
       basis1.push_back(ao1);
     }
-            
+
     bf++; if (bf>ng) break;
   }
-       
+
   return;
 }
 
-void add_h(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nh)
+void add_h(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nh, bool z_is_odd)
 {
  //6h
   ao1[0] = n; ao1[1] = 5;
@@ -2032,21 +2042,22 @@ void add_h(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   basis1.push_back(ao1);
   return;
  #endif
- 
+
   int bf = 0;
   for (int m=-5;m<=5;m++)
+  if (!z_is_odd || m%2==0)
   {
     ao1[2] = m;
     ao1[4] = norm(n,5,m,zeta);
     basis1.push_back(ao1);
- 
+
     bf++; if (bf>nh) break;
   }
- 
+
   return;
 }
 
-void add_i(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int ni)
+void add_i(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int ni, bool z_is_odd)
 {
  //7i
   ao1[0] = n; ao1[1] = 6;
@@ -2064,21 +2075,22 @@ void add_i(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   basis1.push_back(ao1);
   return;
  #endif
- 
+
   int bf = 0;
   for (int m=-6;m<=6;m++)
+  if (!z_is_odd || m%2)
   {
     ao1[2] = m;
     ao1[4] = norm(n,6,m,zeta);
     basis1.push_back(ao1);
- 
+
     bf++; if (bf>ni) break;
   }
- 
+
   return;
 }
 
-void add_j(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nj)
+void add_j(vector<vector<double> > &basis1, vector<double> ao1, int n, double zeta, int nj, bool z_is_odd)
 {
  //6h
   ao1[0] = n; ao1[1] = 7;
@@ -2096,26 +2108,27 @@ void add_j(vector<vector<double> > &basis1, vector<double> ao1, int n, double ze
   basis1.push_back(ao1);
   return;
  #endif
- 
+
   int bf = 0;
   for (int m=-7;m<=7;m++)
+  if (!z_is_odd || m%2==0)
   {
     ao1[2] = m;
     ao1[4] = norm(n,7,m,zeta);
     basis1.push_back(ao1);
- 
+
     bf++; if (bf>nj) break;
   }
- 
+
   return;
 }
 
 void get_n_l(string aotype, int& n, int& l)
 {
-  int size = aotype.length(); 
-  char char_array[size+1]; 
+  int size = aotype.length();
+  char char_array[size+1];
 
-  strcpy(char_array, aotype.c_str()); 
+  strcpy(char_array, aotype.c_str());
 
   n = (int)char_array[0]-48;
   if (char_array[1]=='S')
@@ -2169,8 +2182,9 @@ bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vec
 
   string line;
   int on_basis = 0;
+  bool z_is_odd = 0;
   while (!bfile.eof())
-  {  
+  {
     (bool)getline(bfile, line);
    //this split function is sensitive to number of spaces
     vector<string> tok_line = split1(line,' ');
@@ -2179,7 +2193,7 @@ bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vec
     if (size>0)
     {
      //generic basis function centered at some XYZ
-      vector<double> b1; 
+      vector<double> b1;
       for (int m=0;m<10;m++) b1.push_back(0);
       b1[5] = coords1[0]; b1[6] = coords1[1]; b1[7] = coords1[2];
       b1[8] = Zeff; b1[9] = atnum;
@@ -2199,13 +2213,13 @@ bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vec
           if (on_basis==1)
           {
             if (l==0) add_s(basis1,b1,n,zeta);
-            if (l==1) add_p(basis1,b1,n,zeta,3);
-            if (l==2) add_d(basis1,b1,n,zeta,5);
-            if (l==3) add_f(basis1,b1,n,zeta,7);
-            if (l==4) add_g(basis1,b1,n,zeta,9);
-            if (l==5) add_h(basis1,b1,n,zeta,11);
-            if (l==6) add_i(basis1,b1,n,zeta,13);
-            if (l==7) add_j(basis1,b1,n,zeta,15);
+            if (l==1) add_p(basis1,b1,n,zeta,3,z_is_odd);
+            if (l==2) add_d(basis1,b1,n,zeta,5,z_is_odd);
+            if (l==3) add_f(basis1,b1,n,zeta,7,z_is_odd);
+            if (l==4) add_g(basis1,b1,n,zeta,9,z_is_odd);
+            if (l==5) add_h(basis1,b1,n,zeta,11,z_is_odd);
+            if (l==6) add_i(basis1,b1,n,zeta,13,z_is_odd);
+            if (l==7) add_j(basis1,b1,n,zeta,15,z_is_odd);
 
            //add just z symmetry function (m=0)
             if (l==11) add_pz (basis1,b1,n,zeta);
@@ -2217,16 +2231,17 @@ bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vec
           else if (on_basis==2)
           {
             if (l==0) add_s(basis_aux1,b1,n,zeta);
-            if (l==1) add_p(basis_aux1,b1,n,zeta,3);
-            if (l==2) add_d(basis_aux1,b1,n,zeta,5);
-            if (l==3) add_f(basis_aux1,b1,n,zeta,7);
-            if (l==4) add_g(basis_aux1,b1,n,zeta,9);
-            if (l==5) add_h(basis_aux1,b1,n,zeta,11);
-            if (l==6) add_i(basis_aux1,b1,n,zeta,13);
-            if (l==7) add_j(basis_aux1,b1,n,zeta,15);
+            if (l==1) add_p(basis_aux1,b1,n,zeta,3,z_is_odd);
+            if (l==2) add_d(basis_aux1,b1,n,zeta,5,z_is_odd);
+            if (l==3) add_f(basis_aux1,b1,n,zeta,7,z_is_odd);
+            if (l==4) add_g(basis_aux1,b1,n,zeta,9,z_is_odd);
+            if (l==5) add_h(basis_aux1,b1,n,zeta,11,z_is_odd);
+            if (l==6) add_i(basis_aux1,b1,n,zeta,13,z_is_odd);
+            if (l==7) add_j(basis_aux1,b1,n,zeta,15,z_is_odd);
           }
         }
-      }
+      } //on_basis
+
       if (tok_line[0]=="BASIS")
       {
         if (prl>1) printf(" found BASIS \n");
@@ -2236,6 +2251,11 @@ bool get_basis(string aname, int atnum, double Zeff, double* coords1, vector<vec
       {
         if (prl>1) printf(" found FIT \n");
         on_basis = 2;
+      }
+      else if (tok_line[0]=="ZODD")
+      {
+        //printf("   will use z-symmetry basis set \n");
+        z_is_odd = 1;
       }
     }
   }
@@ -2343,9 +2363,9 @@ bool get_secondary_basis(string name, int natoms, int* atno, double* coords, vec
   {
     double atno1 = atno[i];
     string aname = get_aname(atno1)+name;
-    coords1[0] = coords[3*i+0]; 
-    coords1[1] = coords[3*i+1]; 
-    coords1[2] = coords[3*i+2]; 
+    coords1[0] = coords[3*i+0];
+    coords1[1] = coords[3*i+1];
+    coords1[2] = coords[3*i+2];
 
     bool found = get_basis(aname,i,atno1,coords1,basis,basis_aux);
     if (!found)
@@ -2357,7 +2377,7 @@ bool get_secondary_basis(string name, int natoms, int* atno, double* coords, vec
 
   //printf("  found %2i basis functions and %2i auxiliary functions \n",basis.size(),basis_aux.size());
   print_basis(natoms,basis,basis_aux,prl);
- 
+
   return 1;
 }
 
@@ -2378,7 +2398,7 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
   int geom_in_ang = 0;
   charge = 0;
   while (!infile.eof())
-  {  
+  {
     (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
 
@@ -2395,7 +2415,7 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
       if (nup==1) nup = 0;
       else if (nup==3) nup = 1;
       else if (nup==5) nup = 2;
-      else if (nup==2 || nup==4) 
+      else if (nup==2 || nup==4)
       {
         printf(" ERROR: doublet/quartet not available \n");
         exit(1);
@@ -2415,7 +2435,7 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
   coords = new double[3*natoms]();
   int wa = 0;
   while (!infile.eof())
-  {  
+  {
     (bool)getline(infile, line);
     vector<string> tok_line = split1(line,' ');
 
@@ -2489,7 +2509,7 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
       coordn[i*natoms+j] = tr;
     }
 
-    
+
     for (int j=0;j<9;j++) rot[j] = 0.;
     double angle_2 = randomf(0,PI);
    //xy
@@ -2541,6 +2561,20 @@ void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<doubl
   {
     for (int n=0;n<Naux;n++)
       printf("   basis_aux(%3i):  %i %i %2i  %6.3f  norm: %7.2f  (XYZ: %8.5f %8.5f %8.5f) \n",n,(int)basis_aux[n][0],(int)basis_aux[n][1],(int)basis_aux[n][2],basis_aux[n][3],basis_aux[n][4],basis_aux[n][5],basis_aux[n][6],basis_aux[n][7]);
+  }
+  else //if (natoms==1)
+  {
+    int lmax = LMAX_AUX+1;
+    for (int n=0;n<natoms;n++)
+    for (int l=0;l<lmax;l++)
+    {
+      int nl = 0;
+      for (int j=0;j<Naux;j++)
+      if (basis_aux[j][9]==n && basis_aux[j][1]==l)
+        nl++;
+
+      if (nl>0) printf("   at: %i  l: %i  Naux: %2i \n",n,l,nl/(2*l+1));
+    }
   }
 
 }
@@ -2643,24 +2677,46 @@ void screen_basis_aux(vector<vector<double> >& basis_aux, int prl)
   return;
 }
 
-#if 0
-int get_bsize(int n1, int l1, int n2, int l2, int bs1, int bs2)
+int get_bsize_jellium(double ztr, int l1, int auto_ri)
 {
-  int bsize = 1;
-  if (l1==0 && l2==0) //s ftns
+ //if small basis, this adds too many aux ftns
+  int bmax = 1;
+  if (l1==0)
   {
-    bsize = 8;
+    if (ztr>200. && auto_ri>4)
+      bmax = 33;
+    else if (ztr>20.)
+      bmax = 21;
+    else
+      bmax = 17;
   }
-  if (l1+l2==1) //p ftns
-    bsize = 6;
-  if (l2==2)
+  if (l1==1)
   {
-    if (bs12
-    bsize = 1;
-    bsize = 4;
+    if (ztr>200. && auto_ri>4)
+      bmax = 29;
+    else if (ztr>20.)
+      bmax = 19;
+    else
+      bmax = 15;
   }
+  if (l1==2)
+  {
+    if (ztr>10. && auto_ri>4)
+      bmax = 12;
+    else
+      bmax = 9;
+  }
+  if (l1==3)
+    bmax = 7;
+  if (l1==4)
+    bmax = 5;
+  if (l1==5)
+    bmax = 3;
+  if (l1==6)
+    bmax = 1;
+
+  return bmax;
 }
-#endif
 
 int get_bsize(double ztmin, double ztmax)
 {
@@ -2668,17 +2724,52 @@ int get_bsize(double ztmin, double ztmax)
   double dd = ztmax/ztmin;
 
  //wider zeta range, more ftns
-  if (dd>4.8) return 6;
-  if (dd>3.8) return 5;
-  if (dd>2.8) return 4;
-  if (dd>1.8) return 3;
-  if (dd>1.) return 2;
+  if (dd>80.) return 16;
+  if (dd>30.) return 12;
+  if (dd>10.) return 10;
+  if (dd>4.8) return 8;
+  if (dd>3.8) return 7;
+  if (dd>2.8) return 6;
+  if (dd>1.8) return 4;
+  if (dd>1.0) return 3;
 
  //dd==1.
   return 1;
 }
 
-void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+void get_nspdf(int& ns, int& np, int& nd, int& nf, int& ng, vector<vector<double> > basis)
+{
+  int N = basis.size();
+
+  ns = np = nd = nf = ng = 0;
+
+ //need to update this
+ //for the moment only checking first atom
+/*  int Nmax = 0;
+  for (int j=0;j<Nmax;j++)
+  if (basis[j][9]==0)
+    Nmax = j+1; */
+
+  int Nmax = N;
+  for (int j=0;j<Nmax;j++)
+  {
+    int l1 = basis[j][1];
+    if (l1==0)
+      ns++;
+    if (l1==1)
+      np++;
+    if (l1==2)
+      nd++;
+    if (l1==3)
+      nf++;
+    if (l1==4)
+      ng++;
+  }
+
+  return;
+}
+
+void create_basis_aux_v4(int jellium, int auto_ri, double Blimit, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
 
@@ -2686,18 +2777,40 @@ void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std,
  // invoked only if lz>10
  // untested
   int no_lz = 6;
-  if (lz<10) lz = 10; else lz -= 10;
 
-  int plus_s = 2;
-  int plus_p = 0;
-  int plus_d = 0;
+ //CPMZ commented out lines with lz
+  //if (lz<10) lz = 10; else lz -= 10;
+
+  int plus_s, plus_p, plus_d, plus_f, plus_g;
+  get_nspdf(plus_s,plus_p,plus_d,plus_f,plus_g,basis_aux);
+
+  printf("  found nplus spdf: %i %i %i %i %i \n",plus_s,plus_p,plus_d,plus_f,plus_g);
+
+  basis_aux.clear();
+ //debug
+  //plus_s = plus_p = plus_d = plus_f = 0;
+
+  double jellium_minus = 0.5;
+  double jellium_plus = 1.8;
+  double jellium_plus_read = read_float("JPLUS");
+  double jellium_minus_read = read_float("JMINUS");
+  if (jellium_plus_read>0.) jellium_plus = jellium_plus_read;
+  if (jellium_minus_read>0.) jellium_minus = jellium_minus_read;
 
   vector<vector<double> > basis_max;
   vector<vector<double> > basis_min;
   vector<int> basis_size;
 
  //CPMZ parameter
-  const double zsc = 1.2;
+  const double zsc = 1.2; //approximately convert n-1>l to n-1=l
+
+  bool z_basis_only = 1;
+  for (int j=0;j<basis_std.size();j++)
+  if ( ((int)basis_std[j][1]+(int)basis_std[j][2])%2==0)
+  { z_basis_only = 0; break; }
+
+  if (z_basis_only)
+    printf("  basis is z odd only \n");
 
  //gather basis set, skipping m sequence
  //taking only the min and max values of zeta
@@ -2708,9 +2821,9 @@ void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std,
     double ztmax = 0.;    int maxz = -1;
     int bsize = 0;
 
-   //find basis ftns with specific l(m=0) on atom a
+   //find basis ftns with specific l on atom a
     for (int i1=0;i1<basis_std.size();i1++)
-    if (basis_std[i1][9]==a && basis_std[i1][1]==l && basis_std[i1][2]==0)
+    if (basis_std[i1][9]==a && basis_std[i1][1]==l) // && basis_std[i1][2]==0) //m=0 not compatible with z_odd functionality
     {
       int n = basis_std[i1][0];
       int l = basis_std[i1][1];
@@ -2723,12 +2836,13 @@ void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std,
       bsize++;
     }
 
-    if (l==0 && bsize>5)
-      plus_s = 5;
-    if (l==1 && bsize>5)
-      plus_p = 3;
-    if (l==2 && bsize>5)
-      plus_d = 2;
+   //turned off
+    //if (l==0 && bsize>5)
+    //  plus_s = 5;
+    //if (l==1 && bsize>5)
+    //  plus_p = 3;
+    //if (l==2 && bsize>5)
+    //  plus_d = 2;
 
     //printf("  minmaxz: %i %i - %8.5f %8.5f \n",minz,maxz,ztmin,ztmax);
     if (minz!=-1 && maxz!=-1 && l!=8)
@@ -2782,7 +2896,7 @@ void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std,
       double zt13 = zt1+zt3;
       double zt24 = zt2+zt4;
 
-      int n24 = get_n12(n2,n4,l2,l4); 
+      int n24 = get_n12(n2,n4,l2,l4);
       int l24 = l2+l4;
 
       //printf("  n13/24: %i %i l13/24: %i %i ztmm: %8.5f %8.5f \n",n13,n24,l13,l24,zt13,zt24);
@@ -2849,41 +2963,82 @@ void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std,
       double zt13 = p1[5];
       double zt24 = p1[6];
 
+     //increase spatial extent a bit
+      if (jellium>1)
+      {
+        if (l13<3)
+        {
+          zt13 *= jellium_minus;
+          zt24 *= jellium_plus;
+        }
+        else
+        {
+          zt13 *= 0.5;
+          zt24 *= 1.8;
+        }
+        printf("  jellium adjustment of aux exp: %8.5f / %8.5f -> %8.5f %8.5f \n",p1[5],p1[6],zt13,zt24);
+      }
+
       int i1 = p1[7];
       vector<double> basis1 = basis_min[i1];
 
       int nmax = get_bsize(zt13,zt24);
-      if (l24==0) nmax += plus_s;
-      if (l24==1) nmax += plus_p;
-      if (l24==2) nmax += plus_d;
-      if (l24>=2 && nmax>4) nmax--; //trimming
-      if (l24>=3 && nmax>2) nmax--; //trimming
-      if (l24>=4 && nmax>2) nmax--; //trimming
+      if (jellium) nmax = get_bsize_jellium(zt24/zt13,l13,auto_ri);
+      if (!jellium)
+      {
+        if (l24==0) nmax += plus_s;
+        if (l24==1) nmax += plus_p;
+        if (l24==2) nmax += plus_d;
+        if (l24==3) nmax += plus_f;
+        if (l24==4) nmax += plus_g;
 
-     //hard limits
-      if (l24==2 && nmax>4) nmax = 4;
-      if (l24==3 && nmax>3) nmax = 3;
-      if (l24==4 && nmax>2) nmax = 2;
+        //if (l24>=2 && nmax>4) nmax--; //trimming
+        //if (l24>=3 && nmax>2) nmax--; //trimming
+        //if (l24>=4 && nmax>2) nmax--; //trimming
+
+       //hard limits
+        if (l24==2 && nmax>10) nmax = 10;
+        if (l24==3 && nmax>8) nmax = 8;
+        if (l24==4 && nmax>3) nmax = 3;
+      }
+
+      //if (jellium && prl>1) printf("  nl: %i %i  nmax: %2i \n",n13,l13,nmax);
 
      //restriction to z-axis (m=0)
       int lm13 = l13;
-      if (lm13>=lz) lm13 = 0;
+      //if (lm13>=lz) lm13 = 0;
+     //CPMZ try this
+      //if (z_basis_only) lm13--;
 
      //max zt only for higher angular momentum
-      if (l13>5 || l13>=lz) { nmax = 1; zt13 = zt24; }
+      //if (l13>5 || l13>=lz) { nmax = 1; zt13 = zt24; }
 
      //skip r^n higher angular momentum entirely
       //if (l13>0 && n13-l13-1>0) { nmax = 1; zt13 = zt24; }
       //if (l13>=3 && n13-l13-1>0) nmax = 0;
 
       double zf = zt24/zt13;
-      double B = 1;
-      if (nmax>1) B = exp(log(zf)/(nmax-1));
+      double B = 1.;
+      if (nmax>1)
+        B = exp(log(zf)/(nmax-1));
+
+     //make sure aux basis is not overcomplete
+      if (auto_ri==5)
+      {
+        while (nmax>2)
+        {
+          B = exp(log(zf)/(nmax-1));
+          if (B>Blimit) break;
+          nmax--;
+        }
+        printf("  atom: %i  l: %i  B: %8.5f  nmax: %2i \n",n,l13,B,nmax);
+      }
 
       bool valid_basis = check_valid_basis(n13,l13);
 
       if (valid_basis)
       for (int ns=nmax-1;ns>=0;ns--)
+      //for (int ns=0;ns<nmax;ns++)
       {
         double ztn = zt13*pow(B,ns);
         vector<double> b1 = basis1;
@@ -2914,6 +3069,8 @@ void create_basis_aux_v4(int lz, int natoms, vector<vector<double> >& basis_std,
 void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
+
+  basis_aux.clear();
 
   vector<vector<double> > basis_max;
   vector<vector<double> > basis_min;
@@ -3029,6 +3186,8 @@ void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vec
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
 
+  basis_aux.clear();
+
   vector<vector<double> > basis;
 
  //gather basis set, skipping m sequence
@@ -3036,9 +3195,9 @@ void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vec
   basis.push_back(basis_std[0]);
   for (int i1=1;i1<basis_std.size();i1++)
   {
-    vector<double> basis1 = basis_std[i1]; 
+    vector<double> basis1 = basis_std[i1];
     int nat1 = basis1[9]; int n1 = basis1[0]; int l1 = basis1[1]; double zeta1 = basis1[3];
- 
+
     if (fabs(zeta1-zetap)>0.01 || n1!=np || l1!=lp || nat1!=natp)
     {
       zetap = zeta1; natp = nat1; np = n1; lp = l1;
@@ -3135,18 +3294,55 @@ void set_zero_coords_basis(int natoms, double* coords, vector<vector<double> >& 
 
 int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int* atno, double* &coords, int& charge, int& unpaired, double& Enn, int prl)
 {
-  //int prl = 1;
-
-  //int charge = 0;
-  //double* coords;
-  //int* atno = new int[100]();
-
-  //vector<vector<double> > basis;
-  //vector<vector<double> > basis_aux;
-
   string geomfile = "GEOM";
   int natoms = read_input(geomfile,gbasis,basis,basis_aux,charge,unpaired,atno,coords);
-  //void set_zero_coords_basis(int natoms, double* coords, vector<vector<double> >& basis, vector<vector<double> >& basis_aux)
+
+  int diatomic = read_int("DIATOM");
+  if (diatomic)
+  {
+    double x1 = coords[0]; double y1 = coords[1]; double z1 = coords[2];
+    double x2 = coords[3]; double y2 = coords[4]; double z2 = coords[5];
+    if (x1!=0. || y1!=0.) { printf("\n ERROR: diatomic must be aligned along z axis \n"); exit(-1); }
+    if (x2!=0. || y2!=0.) { printf("\n ERROR: diatomic must be aligned along z axis \n"); exit(-1); }
+
+    double a = 0.5*fabs(z2-z1);
+    //if (a<1.) a = 1.;
+    if (a<1.) a = sqrt(a);
+
+    printf("  setting up diatomic basis.  l: %i  scalar: %8.5f \n",diatomic,a);
+   //rescaling ftns along z axis
+    if (a!=1.)
+    for (int i=0;i<basis.size();i++)
+    if (basis[i][1]>=diatomic && basis[i][2]==0)
+    {
+      double zeta1 = basis[i][3];
+      double zeta2 = zeta1 / a;
+
+      double norm2 = norm(basis[i][0],basis[i][1],basis[i][2],zeta2);
+
+      basis[i][3] = zeta2;
+      basis[i][4] = norm2;
+    }
+  }
+
+  int jellium = read_int("JELLIUM");
+  if (jellium>=2)
+  {
+    double Rc = read_float("RC");
+    double Rc1 = 0.5; if (Rc>0.5) Rc1 = Rc;
+    printf("  rescaling exponents (actual Rc: %8.5f / scaling: %8.5f) \n",Rc,Rc1);
+    if (Rc<=0.) { printf("\n ERROR: RC must be greater than zero \n"); exit(-1); }
+
+    for (int i=0;i<basis.size();i++)
+    {
+      double zeta1 = basis[i][3];
+      double zeta2 = zeta1/Rc1;
+      double norm2 = norm(basis[i][0],basis[i][1],basis[i][2],zeta2);
+
+      basis[i][3] = zeta2;
+      basis[i][4] = norm2;
+    }
+  }
 
   //bool do_ps_integrals = read_int("PS");
   //if (!do_ps_integrals) do_ps_integrals = read_int("QUAD");
@@ -3174,9 +3370,13 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
 
   if (auto_ri>=2)
   {
-    basis_aux.clear();
+    //basis_aux.clear();
     if (auto_ri>=4)
-      create_basis_aux_v4(auto_ri,natoms,basis,basis_aux);
+    {
+      double Blimit = read_float("BLIMIT");
+      if (Blimit<1.) Blimit = BLIMIT_DEFAULT;
+      create_basis_aux_v4(jellium,auto_ri,Blimit,natoms,basis,basis_aux);
+    }
     else if (auto_ri==3)
       create_basis_aux_v3(natoms,basis,basis_aux);
     else
@@ -3184,28 +3384,45 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
     prl++;
   }
 
- //after creating aux, make tail of Jellium basis match original input exponents
-  bool jellium = read_int("JELLIUM");
   if (jellium)
   {
     double Rc = 1.;
     double Rc_read = read_float("RC");
     if (Rc_read>0.) Rc = Rc_read;
 
-    for (int i=0;i<basis.size();i++)
+    int N = basis.size();
+    double norms[N];
+    if (jellium>1)
+    {
+      if (prl>1) printf("  setup for jellium==2 basis \n");
+      bool found = read_array(N,norms,"NGS");
+      if (found)
+      {
+        printf("  retrieved norms of SS basis from disk \n");
+        for (int i=0;i<N;i++)
+          basis[i][4] = norms[i];
+      }
+    }
+
+    if (jellium>1)
+    for (int i=0;i<N;i++)
     {
       double zt1 = basis[i][3];
       double zt2 = zt1/(2.*Rc);
-      basis[i][3] = zt2;
+     //old basis: after creating aux, make tail of Jellium basis match original input exponents
+      //if (jellium>1)
+      //  basis[i][3] = zt2;
+     //add zt1 at end to mark as SGS basis
+      basis[i].push_back(zt1);
     }
   }
 
-  int prl1 = prl; 
+  int prl1 = prl;
  #if PDEBUG || DDEBUG || FDEBUG || GDEBUG || HDEBUG || IDEBUG || JDEBUG
   prl1 = 2;
  #endif
 
-  prl1++;
+  //prl1++;
   print_basis(natoms,basis,basis_aux,prl1);
 
   return natoms;
