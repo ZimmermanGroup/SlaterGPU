@@ -1184,9 +1184,8 @@ packages:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: cf75ca79cac2a7224017e07aadd6001eb59af1da6d775797ba8d53a4c0446b3d
+    hash: cef3f8c29a2c49c67d15efa435e78241fc5f7502330968561d5704fb94c010f7
     globs:
-    - pixi.toml
     - recipe.yaml
 - conda: .
   name: slatergpu
@@ -1197,9 +1196,8 @@ packages:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: cf75ca79cac2a7224017e07aadd6001eb59af1da6d775797ba8d53a4c0446b3d
+    hash: cef3f8c29a2c49c67d15efa435e78241fc5f7502330968561d5704fb94c010f7
     globs:
-    - pixi.toml
     - recipe.yaml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h4845f30_101.conda
   sha256: e0569c9caa68bf476bead1bed3d79650bb080b532c64a4af7d8ca286c08dea4e
