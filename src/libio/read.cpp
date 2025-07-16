@@ -21,13 +21,24 @@
 #include "read.h"
 
 #include <sstream>
-#define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
-//#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(4) << x ) ).str()
 
 double norm(int n, int l, int m, double zeta);
 
 #define A2B 1.8897261
 
+string SSTRF(float x)
+{
+  std::ostringstream ss;
+  ss << std::fixed << std::setprecision(8) << std::scientific << (x);
+  return ss.str();
+}
+
+string SSTRF2(double x)
+{
+  std::ostringstream ss;
+  ss << std::fixed << std::setprecision(14) << std::scientific << (x);
+  return ss.str();
+}
 
 int check_file(string filename)
 {
