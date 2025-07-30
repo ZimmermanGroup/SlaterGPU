@@ -62,6 +62,20 @@ There are example calculations in `SlaterGPU/examples/` with integral files deno
 Please see LICENSE file for licensing information.
 
 ## Experimental pixi build:
+- Clone this repository
+- Install [pixi](https://pixi.sh/latest/installation/) if you don't already have it (`curl -fsSL https://pixi.sh/install.sh | sh`)
+- Ensure NVIDIA HPC SDK is available on the path
+  - On athena: `module load nvidia-sdk/24.11-multi`
+  - On perlmutter:
+    ```
+    module use /global/cfs/cdirs/m4957/joshkamm/hpc_sdk/modulefiles
+    module unload cudatoolkit
+    module load nvhpc/24.11
+    ```
+- Install dependencies and build ZEST with `pixi -v install` (`-v` to see output from pixi and cmake build)
+- If the install has succeeded, activate the pixi environment with `pixi shell` inside the folder where this repository is cloned
+- Run the zest executable using `mpirun -n <NUMBER_OF_THREADS> zest` in a directory with the appropriate input files (including the integral files SENT, A, Ciap).
+- Please note that MPI parallel is not available except for NHBCI and iFCI.
 Pixi should automatically install whatever dependencies are necessary to run a pixi task (except NVHPC, which cannot yet be installed automatically). Run tasks with `pixi run <TASK>` where \<TASK\> is one of the following:
 ```
  - clean           Remove example output files
@@ -71,3 +85,4 @@ Pixi should automatically install whatever dependencies are necessary to run a p
 Above list generated with `pixi task list`
 
 Configuration of tasks and dependencies can be found in the `pixi.toml` file.
+
