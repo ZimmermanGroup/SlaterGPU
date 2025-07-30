@@ -7,9 +7,11 @@ set(CINT_SOURCES
 find_package(BLAS REQUIRED)
 message(STATUS "${BLAS_LIBRARIES}")
 
-set(LIBCINT_PATH $ENV{LIBCINT_PATH})
+find_library(LIBCINT_LIBRARY cint PATHS ${CMAKE_PREFIX_PATH}/lib)
+# set(LIBCINT_PATH $ENV{LIBCINT_PATH})
 
 add_library(cintw SHARED ${CINT_SOURCES})
+target_link_libraries(cintw ${LIBCINT_LIBRARY})
 set_property(TARGET cintw PROPERTY CXX_STANDARD 14)
 set(CINTW_COMP_FLAGS ${CMAKE_CXX_FLAGS}
     -O2 -g
