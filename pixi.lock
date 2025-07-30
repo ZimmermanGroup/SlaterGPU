@@ -1779,6 +1779,7 @@ packages:
   - libcint 5.3.0.*
   - openmpi >=5.0.7,<6.0a0
   - libcint >=5.3,<5.4.0a0
+  - openmpi >=5.0.7,<6.0a0
   input:
     hash: 612064d27fa0cf4e5eb88bc892fa270a253c133c60f2f81698c3e5c679a83127
     globs:
