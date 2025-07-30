@@ -28,6 +28,8 @@ source env.set.local0
 
 For other users, this bash script may be a helpful example to see how to install / load necessary dependencies.
 
+- Temporary note: uncomment here https://github.com/ZimmermanGroup/SlaterGPU/blob/fe697ef15a370fac4ea4d6ef943fa39a2e8526c9/src/libcintw/CMakeLists.txt#L28-L32 if not using pixi until Josh adds automatic check for pixi env
+
 ### For compiling run :
 ```
 cmake -Bbuild
