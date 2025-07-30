@@ -72,17 +72,9 @@ Please see LICENSE file for licensing information.
     module unload cudatoolkit
     module load nvhpc/24.11
     ```
-- Install dependencies and build ZEST with `pixi -v install` (`-v` to see output from pixi and cmake build)
+- Install dependencies and build SlaterGPU with `pixi -v install` (`-v` to see output from pixi and cmake build)
 - If the install has succeeded, activate the pixi environment with `pixi shell` inside the folder where this repository is cloned
-- Run the zest executable using `mpirun -n <NUMBER_OF_THREADS> zest` in a directory with the appropriate input files (including the integral files SENT, A, Ciap).
-- Please note that MPI parallel is not available except for NHBCI and iFCI.
-Pixi should automatically install whatever dependencies are necessary to run a pixi task (except NVHPC, which cannot yet be installed automatically). Run tasks with `pixi run <TASK>` where \<TASK\> is one of the following:
-```
- - clean           Remove example output files
- - test            Test SlaterGPU executable on a small molecular system
- - test-in-gh-action Test SlaterGPU executable on a small molecular system in a github actions environment
-```
-Above list generated with `pixi task list`
+- Run the executable using `sgpu.exe` in a directory with the appropriate input files
 
-Configuration of tasks and dependencies can be found in the `pixi.toml` file.
+Configuration of can be found in the `pixi.toml` file.
 
