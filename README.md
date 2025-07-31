@@ -72,7 +72,7 @@ Please see LICENSE file for licensing information.
     ```
     module use /global/cfs/cdirs/m4957/joshkamm/hpc_sdk/modulefiles
     module unload cudatoolkit
-    module load nvhpc/24.11
+    module load nvhpc/25.5
     ```
 - Install dependencies and build SlaterGPU with `pixi -v install` (`-v` to see output from pixi and cmake build)
 - If the install has succeeded, activate the pixi environment with `pixi shell` inside the folder where this repository is cloned
