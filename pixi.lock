@@ -1183,6 +1183,7 @@ packages:
   depends:
   - libcint 5.3.0.*
   - libcint >=5.3,<5.4.0a0
+  - openmpi >=5.0.7,<6.0a0
   input:
     hash: 10187b73ae6cb66b247adc7ea1487a8368f029065a7fee8724358738479a1071
     globs:

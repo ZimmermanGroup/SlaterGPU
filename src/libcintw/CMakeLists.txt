@@ -29,6 +29,6 @@ target_include_directories(cintw PRIVATE
 
 # Uncomment this block if you want to link against a manually built libcint
 # outside of pixi
-# target_link_libraries(cintw PRIVATE
-#     "${LIBCINT_PATH}/lib64/libcint.so.5.3.0" 
-#     )
+target_link_libraries(cintw PRIVATE
+    "${LIBCINT_PATH}/lib64/libcint.so.5.3.0" 
+    )
