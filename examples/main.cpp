@@ -16,7 +16,10 @@
 #include "prosph.h"
 #include "quad.h"
 
+
 using namespace std;
+
+
 
 void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<vector<double> > basis, vector<vector<double> > basis_aux, int prl)
 {
@@ -114,8 +117,10 @@ int main(int argc, char* argv[]) {
   vector< vector< double > > basis_aux;
   double Enn = 0;
 
+  bool gbasis = read_basis();
+
   // seting up
-  int natoms = initialize(false,basis,basis_aux,atno,coords,charge,nup,Enn,1);
+  int natoms = initialize(gbasis,basis,basis_aux,atno,coords,charge,nup,Enn,1);
   float * coordsf = new float[3*natoms];
   for (int i = 0; i < 3*natoms; i++) {
     coordsf[i] = coords[i];
@@ -129,6 +134,16 @@ int main(int argc, char* argv[]) {
 
   int N = basis.size();
   int Naux = basis_aux.size();
+
+  int nbas,nenv,nbas_ri;
+  int* atm; int* bas; double* env;
+  if (gbasis)
+  {
+    basis = setup_integrals_gsgpu(basis_aux,natoms,atno,coords,nbas,nenv,N,Naux,nbas_ri,atm,bas,env,1);
+
+    printf("  Gaussian basis sizes, N: %2i Naux: %3i \n",N,Naux);
+    printf("  basis size: %2i \n",basis.size());
+  }
 
   int N2 = N*N;
   int Naux2 = Naux*Naux;
@@ -177,7 +192,12 @@ int main(int argc, char* argv[]) {
     #pragma acc enter data create(g[0:N2*N2])
     printf("1e ints: %d\n2c2e ints: %d\n3c3e ints: %d\n4c4e ints: %d\n",N2, Naux2, N2a, N2*N2);
 
-    if (check_PS() > 0)
+    if (gbasis)
+    {
+      printf("\n TESTING gaussian integrals \n");
+      compute_gaussian_integrals_to_disk(N,Naux,natoms,nbas,nenv,nbas_ri,atm,bas,env);
+    }
+    else if (check_PS() > 0)
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl);
     else
     {
