@@ -22,6 +22,8 @@ Note: This repository is an experimental research project, and functionality rel
 
 Source the script that automatically loads modules and adds dependencies to PATH:
 
+- Note: Paul's nvhpc install seems to have the math libraries in a different location which requires a cmake modification
+
 ```
 source env.set.local0
 ```
