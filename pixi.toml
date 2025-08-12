@@ -5,7 +5,7 @@ preview = ["pixi-build"]
 
 [package]
 name = "slatergpu"
-version = "0.1.4"
+version = "0.1.5"
 
 [package.build]
 # backend = { name = "pixi-build-cmake", version = "*" }
