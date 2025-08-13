@@ -5,7 +5,8 @@
 
 ##* Move this file to input directory and submit to SLURM
 
-source ../../env.set.local0
+# source ../../env.set.local0
+eval "$(pixi shell-hook)"
 export OMP_NUM_THREADS=2
 
-time ../sgpu.exe > hf.out
+time sgpu.exe > hf.out
