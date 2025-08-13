@@ -1,4 +1,4 @@
-pixi global install cmake
+pixi global install cmake=4.0.3
 pixi global install environment-modules
 pixi global install helix
 
