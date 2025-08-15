@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Warning for potentially problematic CMake versions
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.1.0")
+    message(WARNING 
+        "CMake version 4.1.0 seemed to break CUDA library detection. "
+        "If you encounter CUDART_LIBRARY errors, please downgrade to CMake <4.1.0. "
+        "See: https://github.com/ZimmermanGroup/SlaterGPU/pull/50")
+endif()
+
 # Set the C and C++ compilers to NVIDIA HPC SDK compilers
 # Ensure that the nvc and nvc++ compilers are available in the PATH
 set(CMAKE_C_COMPILER nvc)

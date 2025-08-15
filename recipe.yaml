@@ -1,5 +1,5 @@
 context:
-  version: "0.1.5"
+  version: "0.1.6"
 
 package:
   name: slatergpu
@@ -12,8 +12,8 @@ build:
   number: 0
 
 requirements:
-  # build:
+  build:
+    - cmake =4.0.3
   host:
     - libcint =5.3.0
   run:
-    - libcint =5.3.0
