@@ -67,7 +67,7 @@ Please see LICENSE file for licensing information.
 - Clone this repository
 - Install [pixi](https://pixi.sh/latest/installation/) if you don't already have it (`curl -fsSL https://pixi.sh/install.sh | sh`)
 - Ensure NVIDIA HPC SDK is available on the path
-  - On athena: `module load nvidia-sdk/24.11-multi`
+  - On athena: `module load nvidia-sdk/25.5`
   - On perlmutter:
     ```
     module use /global/cfs/cdirs/m4957/joshkamm/hpc_sdk/modulefiles
