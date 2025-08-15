@@ -1,0 +1,69 @@
+Running test code for SlaterGPU
+This is a GPU run with 1 GPUs found
+  Geometry: 
+   1  0.00000  0.00000 -0.70050 
+   1  0.00000  0.00000  0.70050 
+  nuclear repulsion:   0.71377587 
+  found nplus spdf: 2 0 0 0 0 
+  atom: 0  l: 0  B:  1.31806  nmax:  4 
+  atom: 0  l: 1  B:  1.20779  nmax:  2 
+  atom: 0  l: 2  B:  1.00000  nmax:  1 
+  atom: 1  l: 0  B:  1.31806  nmax:  4 
+  atom: 1  l: 1  B:  1.20779  nmax:  2 
+  atom: 1  l: 2  B:  1.00000  nmax:  1 
+  lmax in auxiliary basis: 0 
+  found  2 atoms and 12 basis functions 
+   basis(  0):  1 0  0   0.690  norm:     0.32  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  1):  1 0  0   0.920  norm:     0.50  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  2):  1 0  0   1.580  norm:     1.12  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  3):  2 1  1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  4):  2 1 -1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  5):  2 1  0   1.250  norm:     0.99  (XYZ:  0.00000  0.00000 -0.70050 Z: 1.00) 
+   basis(  6):  1 0  0   0.690  norm:     0.32  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis(  7):  1 0  0   0.920  norm:     0.50  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis(  8):  1 0  0   1.580  norm:     1.12  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis(  9):  2 1  1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis( 10):  2 1 -1   1.250  norm:     0.99  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+   basis( 11):  2 1  0   1.250  norm:     0.99  (XYZ:  0.00000  0.00000  0.70050 Z: 1.00) 
+  found  8 auxiliary basis functions 
+   basis_aux(  0):  1 0  0   3.160  norm:    3.17  (XYZ:  0.00000  0.00000 -0.70050) 
+   basis_aux(  1):  1 0  0   2.397  norm:    2.09  (XYZ:  0.00000  0.00000 -0.70050) 
+   basis_aux(  2):  1 0  0   1.819  norm:    1.38  (XYZ:  0.00000  0.00000 -0.70050) 
+   basis_aux(  3):  1 0  0   1.380  norm:    0.91  (XYZ:  0.00000  0.00000 -0.70050) 
+   basis_aux(  4):  1 0  0   3.160  norm:    3.17  (XYZ:  0.00000  0.00000  0.70050) 
+   basis_aux(  5):  1 0  0   2.397  norm:    2.09  (XYZ:  0.00000  0.00000  0.70050) 
+   basis_aux(  6):  1 0  0   1.819  norm:    1.38  (XYZ:  0.00000  0.00000  0.70050) 
+   basis_aux(  7):  1 0  0   1.380  norm:    0.91  (XYZ:  0.00000  0.00000  0.70050) 
+ There are 1 occupied orbitals (0 core)
+ Na: 1 Nb: 1
+ nrad: 100 nang: 23 size_ang: 770
+ grid size: 77000
+1e ints: 144
+2c2e ints: 64
+3c3e ints: 1152
+4c4e ints: 20736
+Computing prolate spheroidal integrals:
+  PS grid size: 80 60 20 quad_order:  5  5  w/quad: 12000000 
+  beginning compute_STEn_ps 
+   gpu memory available: 16.762 GB 
+   after alloc, gpu memory available: 14.433 GB 
+  S diagonals accuracy:   -15.18 to -14.75 
+  beginning compute_pVp_ps 
+   gpu memory available: 23.115 GB 
+   after alloc, gpu memory available: 19.181 GB 
+  beginning compute_pVp_3c_ps 
+   gpu memory available: 16.742 GB 
+   after alloc, gpu memory available: 12.808 GB 
+  beginning compute_2c_ps (ngpu: 1  nbatch:  1) 
+   gpu memory available: 16.742 GB 
+   after alloc, gpu memory available: 15.043 GB 
+  beginning compute_3c_ps (ngpu: 1  nbatch:  1) 
+   gpu memory available: 16.742 GB 
+   after alloc, gpu memory available: 14.417 GB 
+Printing PS Integral Files:
+  writing S/En/T to file 
+  writing pVp to file 
+  writing A to file 
+  writing C to file 
+
+  Done!
