@@ -1,6 +1,8 @@
-pixi global install cmake
 pixi global install environment-modules
-pixi global install helix
+
+# Only used when troubleshooting github action
+# pixi global install cmake=4.0.3
+# pixi global install helix
 
 # Set environment variables
 export NVHPC_SILENT="true"

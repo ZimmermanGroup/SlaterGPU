@@ -5,7 +5,7 @@ preview = ["pixi-build"]
 
 [package]
 name = "slatergpu"
-version = "0.1.4"
+version = "0.1.6"
 
 [package.build]
 # backend = { name = "pixi-build-cmake", version = "*" }
@@ -48,8 +48,6 @@ linux = "3.10"
 libc = { family="glibc", version="2.17" }
 
 [dependencies]
-cmake = ">=3.21.0,<4"
-# libgcc = ">=12,<13"
 slatergpu = {path = "."}
 
 [package.host-dependencies]
