@@ -11,7 +11,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
-
+#include "becke.h"
 #include "read.h"
 //#include "vcf.h"
 
@@ -59,5 +59,6 @@ void write_Col(int Naux, int N2, double* C);
 
 void write_S_En_T(int N, float* S, float* En, float* T);
 void write_S_En_T(int N, double* S, double* En, double* T);
+void save_grid_rho(bool gbasis, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, vector<vector<double> >& basis);
 
 #endif

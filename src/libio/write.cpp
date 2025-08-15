@@ -2,6 +2,8 @@
 
 #include <sstream>
 
+#include "becke.h"
+
 #define A2B 1.8897261
 
 string get_iarray_name(short type1, short type2, short i1)
@@ -459,8 +461,8 @@ void write_molden_ss(int natoms, int* atno, double* coords, vector<vector<double
 
 void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname)
 {
-  if (basis[0].size()>10) return write_molden_ss(natoms,atno,coords,basis,jCA,No,fname);
   if (gbasis) return write_molden_g(natoms,atno,coords,basis,jCA,No,fname);
+  if (basis[0].size()>10) return write_molden_ss(natoms,atno,coords,basis,jCA,No,fname);
 
   int N = basis.size();
 
@@ -1502,3 +1504,69 @@ void write_S_En_T(int N, double* S, double* En, double* T)
   return;
 }
 
+void save_grid_rho(bool gbasis, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, vector<vector<double> >& basis)
+{
+  int gs = nrad*nang;
+  int gsa = natoms*gs;
+  int gsa6 = gsa*6;
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double* Pao = new double[N2];
+  bool found = read_square(N,Pao,"Pao_ci");
+  if (!found) { printf("  couldn't find Pao_ci file \n"); return; }
+
+  double* rho = new double[gsa];
+  double* grid = new double[gsa6];
+  float* gridf = new float[gsa6];
+  double* wt = new double[gsa];
+
+  printf("\n gbasis: %i natoms: %i nrad: %3i nang: %4i gsa: %4i \n",(int)gbasis,natoms,nrad,nang,gsa);
+
+  #pragma acc enter data create(rho[0:gsa])
+  #pragma acc enter data create(grid[0:gsa6],wt[0:gsa],gridf[0:gsa6])
+  #pragma acc enter data copyin(coords[0:3*natoms],ang_g[0:3*nang],ang_w[0:nang])
+
+  get_becke_grid_full(natoms,atno,coords,nrad,nang,ang_g,ang_w,6,grid,wt);
+  if (gbasis)
+  {
+    for (int j=0;j<gsa6;j++) gridf[j] = grid[j];
+    #pragma acc update device(gridf[0:gsa6])
+
+    compute_rho(1,natoms,atno,coords,basis,Pao,nrad,gsa,gridf,rho,NULL,1);
+  }
+  else
+    compute_rhod(natoms,atno,coords,basis,Pao,nrad,gsa,grid,rho,NULL,NULL,1);
+
+  #pragma acc update self(rho[0:gsa],grid[0:gsa6],wt[0:gsa])
+
+  if (natoms==1)
+  {
+    printf("       r        rho \n");
+    for (int j=0;j<nrad;j++)
+      printf("  %8.5f  %8.5f \n",grid[6*j*nang+3],rho[j*nang]);
+    printf("\n");
+  }
+
+  double dent = 0.;
+ #pragma acc parallel loop present(rho[0:gsa],wt[0:gsa])
+  for (int j=0;j<gsa;j++)
+    dent += rho[j]*wt[j];
+  printf("\n total e-s: %8.5f \n",dent);
+
+  printf("\n  writing RHO_WF to disk \n");
+  write_vector(gsa,rho,"RHO_WF");
+  printf("\n  writing GRID_WTS to disk \n");
+  write_grid(natoms,nrad,nang,grid,wt);
+
+  #pragma acc exit data delete(rho[0:gsa],grid[0:gsa6],wt[0:gsa],gridf[0:gsa],coords[0:3*natoms],ang_g[0:3*nang],ang_w[0:nang])
+
+  delete [] rho;
+  delete [] grid;
+  delete [] gridf;
+  delete [] wt;
+  delete [] Pao;
+
+  return;
+}

@@ -54,6 +54,7 @@ int read_vnuc();
 int read_hfx();
 int read_cusp();
 int read_esci();
+int read_lmax();
 int read_mbe();
 int read_hf();
 int read_lag();

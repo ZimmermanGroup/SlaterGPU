@@ -401,6 +401,28 @@ int read_esci()
   return do_esci;
 }
 
+int read_lmax()
+{
+  string filename = "RI_LMAX";
+
+  ifstream infile;
+  infile.open(filename.c_str());
+
+  int lmax = LMAX_AUX;
+  if (!infile)
+    return lmax;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+    lmax = atoi(line.c_str());
+
+  infile.close();
+
+  return lmax;
+}
+
 int read_cusp()
 {
   string filename = "CUSP";
@@ -2564,7 +2586,7 @@ void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<doubl
   }
   else //if (natoms==1)
   {
-    int lmax = LMAX_AUX+1;
+    int lmax = read_lmax()+1;
     for (int n=0;n<natoms;n++)
     for (int l=0;l<lmax;l++)
     {
@@ -2592,7 +2614,7 @@ bool check_valid_basis(int n1, int l1)
   if (l1==7 && n1>8) return 0;
   if (l1>=8) return 0;
 
-  if (l1>LMAX_AUX) return 0;
+  if (l1>read_lmax()) return 0;
 
   return 1;
 }
