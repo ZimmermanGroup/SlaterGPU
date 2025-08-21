@@ -12,7 +12,7 @@
 #include "lebedev2.h"
 #include "integrals.h"
 #include "grid_util.h"
-
+#include "scf_util.h"
 #include "prosph.h"
 #include "quad.h"
 

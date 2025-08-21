@@ -20,6 +20,7 @@ set(INTEGRALS_SOURCES
     cusp.cpp
     cpu_util.cpp
     gpu_util.cpp
+    grid_util.cpp
     cuda_util.cpp
     scf_util.cpp
     symm.cpp
