@@ -9,7 +9,7 @@
 #include "cuda_util.h"
 
 void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1, const float zeta1);
-void eval_gh(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1);
+void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1);
 void eval_gh_ke(int gs, float* grid, float* val1, int n1, int l1, const float norm1, const float zeta1);
 void eval_gh_ke(int gs, double* grid, double* val1, int n1, int l1, const double norm1, const double zeta1);
 //void eval_pdke_gh(int gs, double* grid, double* val1, int n1, int l1, int m1, double norm1, double zeta1);

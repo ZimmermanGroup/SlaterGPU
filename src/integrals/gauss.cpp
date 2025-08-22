@@ -11,7 +11,7 @@
 
 
 
-void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int No, int M, int natoms, int* atno, double* coords, int gs, int gsb, vector<vector<double> >& basis, 
+void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int No, int M, int natoms, int* atno, double* coords, int gs, int gsb, vector<vector<double> >& basis,
                     double* Pao, double* Pmo, double* jCA, float* grid, float* gridb, float* wt, float* wtb, float* rho, float* vxch, int prl)
 {
   #define OUTER_DIVIDE 1
@@ -124,7 +124,7 @@ void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int
 
     #pragma acc parallel loop present(vxcht[0:gsa])
     for (int j=0;j<gsa;j++)
-      vxcht[j] = 0.f;
+      vxcht[j] = 0.;
   }
   acc_set_device_num(0,acc_device_nvidia);
 
@@ -1742,7 +1742,7 @@ void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1
       {
         float x = grid[6*i+0];
         float y = grid[6*i+1];
-        float z = grid[6*i+1];
+        float z = grid[6*i+2];
         val1[i] *= x*y*z;
       }
     }
@@ -2296,7 +2296,7 @@ void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1
   return;
 }
 
-void eval_gh(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1)
+void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1)
 {
   #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
   for (int i=0;i<gs;i++)
@@ -2306,9 +2306,667 @@ void eval_gh(int gs, double* grid, double* val1, int l1, int m1, const double no
     val1[i] = norm1*g1;
   }
 
+ //most l1 values are untested
+ //especially l1>=3
+
   if (l1==0) return;
 
-  printf("\n ERROR: eval_gh for double not available \n");
+  if (l1==1)
+  {
+   //this ordering differs from the Slater basis
+   // and instead follow that of doi: 10.1063/5.0200293
+    if (m1==-1)      //px
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        val1[i] *= x;
+      }
+    }
+    else if (m1==0) //py
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double y = grid[6*i+1];
+        val1[i] *= y;
+      }
+    }
+    else           //pz
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double z = grid[6*i+2];
+        val1[i] *= z;
+      }
+    }
+  }
+
+  else if (l1==2)
+  {
+    if (m1==-2)      //dxy
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        val1[i] *= x*y;
+      }
+    }
+    else if (m1==-1)      //dyz
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= y*z;
+      }
+    }
+    else if (m1==0)      //dz2
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        val1[i] *= 3.*z*z-r*r;
+      }
+    }
+    else if (m1==1)      //dxz
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double z = grid[6*i+2];
+        val1[i] *= x*z;
+      }
+    }
+    else if (m1==2)      //dx2-y2
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        val1[i] *= x*x-y*y;
+      }
+    }
+  }
+
+  else if (l1==3)
+  {
+    if (m1==-3)      //fy(3x2-y2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        val1[i] *= y*(3.*x*x-y*y);
+      }
+    }
+    else if (m1==-2)      //fxyz
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= x*y*z;
+      }
+    }
+    else if (m1==-1)      //fy(5z2-r2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        val1[i] *= y*(5.*z*z-r*r);
+      }
+    }
+    else if (m1==0)      //f5z3-3zr2
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        val1[i] *= z*(5.*z*z-3.*r*r);
+      }
+    }
+    else if (m1==1)      //fx(5z2-r2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        val1[i] *= x*(5.*z*z-r*r);
+      }
+    }
+    else if (m1==2)      //f(x2-y2)z
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= (x*x-y*y)*z;
+      }
+    }
+    else if (m1==3)      //fx(x2-3y2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        val1[i] *= x*(x*x-3.*y*y);
+      }
+    }
+  }
+
+ //not tested
+  else if (l1==4)
+  {
+    if (m1==-4)      //g x*y * (x*x - y*y)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        val1[i] *= x*y * (x*x - y*y);
+      }
+    }
+    else if (m1==-3)      //g y*z * (3.*x*x - y*y)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= y*z * (3.*x*x - y*y);
+      }
+    }
+    else if (m1==-2)      //g x*y * (6.*z*z - x*x - y*y)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= x*y * (6.*z*z - x*x - y*y);
+      }
+    }
+    else if (m1==-1)      //g y*z * (4.*z*z - 3.*x*x - 3.*y*y)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= y*z * (4.*z*z - 3.*x*x - 3.*y*y);
+      }
+    }
+    else if (m1==0)       //g (35.*z2*z2 - 30.*z2*r2 + 3.*r2*r2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= (35.*z2*z2 - 30.*z2*r2 + 3.*r2*r2);
+      }
+    }
+    else if (m1==1)       //g x*z * (4.*z*z - 3.*x*x - 3.*y*y)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= x*z * (4.*z*z - 3.*x*x - 3.*y*y);
+      }
+    }
+    else if (m1==2)       //g (x2 - y2) * (6.*z*z - x2 - y2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double x2 = x*x;
+        double y2 = y*y;
+        val1[i] *= (x2 - y2) * (6.*z*z - x2 - y2);
+      }
+    }
+    else if (m1==3)       //g x*z * (x*x - 3.*y*y)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        val1[i] *= x*z * (x*x - 3.*y*y);
+      }
+    }
+    else if (m1==4)       //g (x2 * (x2 - 3.*y2) - y2 * (3.*x2 - y2))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double x2 = x*x;
+        double y2 = y*y;
+        val1[i] *= (x2 * (x2 - 3.*y2) - y2 * (3.*x2 - y2));
+      }
+    }
+  }
+
+ //should have same order as libcint now
+  else if (l1==5)
+  {
+    if (m1==-5)      //h (5.*x2*x2 - 10.*x2*y2 + y2*y2)*y
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double x2 = x*x;
+        double y2 = y*y;
+        val1[i] *= -(5.*x2*x2 - 10.*x2*y2 + y2*y2)*y;
+      }
+    }
+    else if (m1==-4)      //h (y2 - x2)*x*y*z
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double x2 = x*x;
+        double y2 = y*y;
+        val1[i] *= (y2 - x2)*x*y*z;
+      }
+    }
+   //ordering differed (lower should be +5)
+    else if (m1==-3)      //h (x2*x2 - 10.*x2*y2 + 5.*y2*y2)*x
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= y * (r2*(3.*x2-y2) + 9.*z2*(y2-3.*x2));
+        //val1[i] *= (x2*x2 - 10.*x2*y2 + 5.*y2*y2)*x;
+      }
+    }
+   //ordering differed (lower should be +2)
+    else if (m1==-2)      //h y * (y2-3.*x2)*(x2 + y2 - 8.*z2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= x*y*z*(3.*z2-r2);
+        //val1[i] *= y * (y2-3.*x2)*(x2 + y2 - 8.*z2);
+      }
+    }
+   //ordering differed (lower should be +4)
+    else if (m1==-1)      //h z * (x2*x2 - 6.*x2*y2 + y2*y2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= y * (14.*r2*z2 - 21.*z2*z2 - r2*r2);
+        //val1[i] *= z * (x2*x2 - 6.*x2*y2 + y2*y2);
+      }
+    }
+   //ordering differed (lower should be -2)
+    else if (m1==0)      //h (x2 + y2 - 2.*z2)*x*y*z
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= z*(15.*r2*r2 - 70.*r2*z2 + 63.*z2*z2);
+        //val1[i] *= (x2 + y2 - 2.*z2)*x*y*z;
+      }
+    }
+   //ordering differed (lower should be +3??)
+    else if (m1==1)      //h x * (x2-3.*y2)*(x2 + y2 - 8.*z2)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= x*(-r2*r2 + 14.*r2*z2 - 21.*z2*z2);
+        //val1[i] *= x * (x2-3.*y2)*(x2 + y2 - 8.*z2);
+      }
+    }
+   //ordering differed (lower should be ??)
+    else if (m1==2)      //h y * (x2*x2 + y2*y2 - 12.*y2*z2 + 8.*z2*z2 + 2.*x2 * (y2-6.*z2))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= z * (r2 - 3.*z2)*(x-y)*(x+y);
+        //val1[i] *= y * (x2*x2 + y2*y2 - 12.*y2*z2 + 8.*z2*z2 + 2.*x2 * (y2-6.*z2));
+      }
+    }
+   //ordering differed (lower should be +2)
+    else if (m1==3)      //h (x2 - y2) * (x2 + y2 - 2.*z2) * z
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+        val1[i] *= x * (r2*(x2-3.*y2) + 9.*z2*(3.*y2-x2));
+        //val1[i] *= (x2 - y2) * (x2 + y2 - 2.*z2) * z;
+      }
+    }
+   //ordering differ (lower should be ??)
+    else if (m1==4)      //h z * (15.*x2*x2 + 15.*y2*y2 - 40.*y2*z2 + 8.*z2*z2 + 10.*x2 * (3.*y2 - 4.*z2))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double x2 = x*x;
+        double y2 = y*y;
+        val1[i] *= z * (x2*x2 - 6.*x2*y2 + y2*y2);
+        //val1[i] *= z * (15.*x2*x2 + 15.*y2*y2 - 40.*y2*z2 + 8.*z2*z2 + 10.*x2 * (3.*y2 - 4.*z2));
+      }
+    }
+   //ordering differed (lower should be ??)
+    else if (m1==5)      //h x * (x2*x2 + y2*y2 - 12.*y2*z2 + 8.*z2*z2 + 2.*x2* (y2 - 6.*z2))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double x2 = x*x;
+        double y2 = y*y;
+        val1[i] *= x * (10.*x2*y2 - x2*x2 - 5.*y2*y2);
+        //val1[i] *= x * (x2*x2 + y2*y2 - 12.*y2*z2 + 8.*z2*z2 + 2.*x2* (y2 - 6.*z2));
+      }
+    }
+  }
+
+  else if (l1==6) //i functions
+  {
+    if (m1==-6)      //i xy (-3x4 + 10x2y2 - 3y4)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double x2 = x*x;
+        double y2 = y*y;
+
+        val1[i] *= x*y*(10.*x2*y2 - 3.*x2*x2 - 3.*y2*y2);
+      }
+    }
+    else if (m1==-5)      //i yz (-5x4 + 10x2y2-y4)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double x2 = x*x;
+        double y2 = y*y;
+
+        val1[i] *= y*z * (10.*x2*y2 - 5.*x2*x2 - y2*y2);
+      }
+    }
+    else if (m1==-4)      //i xy (r2(x2-y2) + 11z2(y2-x2))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+3];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= x*y * (r2-11.*z2)*(x2-y2);
+      }
+    }
+    else if (m1==-3)      //i yz (3r2(3x2-y2) + 11z2(y2-3x2))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= y*z * (3.*r2-11.*z2)*(3.*x2-y2);
+      }
+    }
+    else if (m1==-2)      //i y (-r4 + 18r2z2 - 33z4)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= y * (18.*r2*z2 - r2*r2 - 33.*z2*z2);
+      }
+    }
+    else if (m1==-1)      //i yz (-5r4 + 30r2z2 - 33z4)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= y*z * (30.*r2*z2 - 5.*r2*r2 - 33.*z2*z2);
+      }
+    }
+    else if (m1==0)      //i (-5r6 + 105r4z2 - 315r2z4 + 231z6)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z; double z4 = z2*z2;
+        double r2 = r*r; double r4 = r2*r2;
+
+        val1[i] *= 105.*r4*z2 - 5.*r2*r4 - 315.*r2*z4 + 231.*z4*z2;
+      }
+    }
+    else if (m1==1)      //i xz (-5r4 + 30r2z2 - 33z4)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= x*z * (30.*r2*z2 - 5.*r2*r2 - 33.*z2*z2);
+      }
+    }
+    else if (m1==2)      //i x (r4 - 18r2z2 + 33z4)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= x * (r2*r2 - 18.*r2*z2 + 33.*z2*z2);
+      }
+    }
+    else if (m1==3)      //i xz (3r2(x2-3y2) + 11z2(-x2+3y2))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= x*z * (3.*r2-11.*z2)*(x2-3.*y2);
+      }
+    }
+    else if (m1==4)      //i (r2(6x2y2-x4-y4) + 11z2(x4-6x2y2+y4))
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= (r2-11.*z2)*(6.*x2*y2-x2*x2-y2*y2);
+      }
+    }
+    else if (m1==5)      //i xz (10x2y2-x4-5y4)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x;
+        double y2 = y*y;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= x*z * (10.*x2*y2-x2*x2-5.*y2*y2);
+      }
+    }
+    else if (m1==6)      //i (x6 -15x4y2 + 15x2y4 - y6)
+    {
+     #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+      for (int i=0;i<gs;i++)
+      {
+        double x = grid[6*i+0];
+        double y = grid[6*i+1];
+        double z = grid[6*i+2];
+        double r = grid[6*i+3];
+        double x2 = x*x; double x4 = x2*x2;
+        double y2 = y*y; double y4 = y2*y2;
+        double z2 = z*z;
+        double r2 = r*r;
+
+        val1[i] *= x4*x2 + 15.*x2*(y4-x2*y2) - y4*y2;
+      }
+    }
+  }
 
   return;
 }
