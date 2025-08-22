@@ -41,5 +41,5 @@ jobs:
         source ~/.pixi/envs/environment-modules/init/bash
         module load ~/work/modulefiles/nvhpc/25.1
         module list
-        pixi install
-        pixi run test-in-gh-action
+        pixi -vv install
+        pixi -vv run test-in-gh-action
