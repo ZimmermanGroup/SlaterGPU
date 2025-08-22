@@ -1742,7 +1742,7 @@ void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1
       {
         float x = grid[6*i+0];
         float y = grid[6*i+1];
-        float z = grid[6*i+1];
+        float z = grid[6*i+2];
         val1[i] *= x*y*z;
       }
     }
@@ -2417,7 +2417,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
       {
         double x = grid[6*i+0];
         double y = grid[6*i+1];
-        double z = grid[6*i+1];
+        double z = grid[6*i+2];
         val1[i] *= x*y*z;
       }
     }
