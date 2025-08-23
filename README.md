@@ -77,6 +77,9 @@ Please see LICENSE file for licensing information.
 - Install dependencies and build SlaterGPU with `pixi -v install` (`-v` to see output from pixi and cmake build)
 - If the install has succeeded, activate the pixi environment with `pixi shell` inside the folder where this repository is cloned
 - Run the executable using `sgpu.exe` in a directory with the appropriate input files
-
-Configuration of can be found in the `pixi.toml` file.
+- Experimental global installation to streamline routine usage when not modifying the code and remove the need for pixi shell:
+  `pixi -v global install --path .`
+  Requires Aug 2025 pixi update: `pixi self-update`
+  
+Configuration of pixi can be found in the `pixi.toml` file.
 
