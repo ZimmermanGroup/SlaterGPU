@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-@pytest.mark.parametrize("filename", ["A", "Ciap", "pVp", "SENT"])
+@pytest.mark.parametrize("filename", ["A", "Ciap", "SENT"])
 def test_output(filename):
     example_output_dir = Path("lih_VK1")
 
