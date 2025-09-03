@@ -831,9 +831,9 @@ packages:
   depends:
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: 9bcf18620a7db44b229631b01c97b79370754a3a29054f474d962d74812ebd53
+    hash: 3b179f0201bd8622be298368f021c9de37ae9be316bd7cff3f54175f22b0e4f0
     globs:
-    - recipe.yaml
+    - variants.yaml
 - conda: .
   name: slatergpu
   version: 0.1.7
@@ -842,9 +842,9 @@ packages:
   depends:
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: 9bcf18620a7db44b229631b01c97b79370754a3a29054f474d962d74812ebd53
+    hash: 3b179f0201bd8622be298368f021c9de37ae9be316bd7cff3f54175f22b0e4f0
     globs:
-    - recipe.yaml
+    - variants.yaml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h4845f30_101.conda
   sha256: e0569c9caa68bf476bead1bed3d79650bb080b532c64a4af7d8ca286c08dea4e
   md5: d453b98d9c83e71da0741bb0ff4d76bc
