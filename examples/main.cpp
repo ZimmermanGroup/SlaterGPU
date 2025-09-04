@@ -181,15 +181,18 @@ int main(int argc, char* argv[]) {
 
     double* V = new double[nc];
     double* dV = new double[3*nc];
-
-    double* g = new double[N2*N2]();
-
+   
     int prl = 1;
     int c4 = 0;
+    double* g = nullptr;
+     
+    if(c4 > 0)
+      double* g = new double[N2*N2]();
 
     #pragma acc enter data create(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
     #pragma acc enter data create(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc])
-    #pragma acc enter data create(g[0:N2*N2])
+    if(c4 > 0)
+      #pragma acc enter data create(g[0:N2*N2])
     printf("1e ints: %d\n2c2e ints: %d\n3c3e ints: %d\n4c4e ints: %d\n",N2, Naux2, N2a, N2*N2);
 
     if (gbasis)
@@ -286,20 +289,22 @@ int main(int argc, char* argv[]) {
       printf("-------------------------------\n");
 
       #pragma acc exit data copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
-      #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc],g[0:N2*N2])
-
+      #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc])
+      if(c4 > 0)
+        #pragma acc exit data copyout(g[0:N2*N2])
       if (prl > 0) printf("Printing Standard Integral Files:\n");
       write_S_En_T(N,S,En,T);
       write_square(Naux,A,"A",2);
       write_square(N,pVp,"pVp",2);
       write_C(Naux, N2, C);
-      write_square(N2,g,"g",2);
+      if(c4 > 0)
+        write_square(N2,g,"g",2);
     }
 
     delete [] A, Anorm, C, S, En, T, pVp;
     delete [] V, dV, Pao, coordsc;
-
-    delete [] g;
+    if(c4 > 0)  
+      delete [] g;
   }
 
   delete [] ang_g, ang_w;
