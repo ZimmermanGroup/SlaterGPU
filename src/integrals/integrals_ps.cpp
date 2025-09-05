@@ -1144,7 +1144,7 @@ void give_me_an_error(bool do_overlap, bool do_yukawa, double gamma, int natoms,
   return;
 }
 
-void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl)
+void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl)
 {
   if (do_overlap && prl>1) { printf("\n WARNING: testing do_overlap in compute_2c_ps \n"); }
 
@@ -1197,9 +1197,13 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, in
   if (prl>1) printf("   imaxN: %2i \n",imaxN);
 
   int nbatch = 1;
+  //sets a minimum amount of batching
+  //int nbatch_read = read_int("NBATCH");
+  if (nbatch_min>1) nbatch = nbatch_min;
+
   int nbatch_max = 24;
   bool passed_mem_check = 0;
-  for (int nb=1;nb<nbatch_max;nb++)
+  for (int nb=nbatch;nb<nbatch_max;nb++)
   if (nmu%nb==0)
   {
     gs = nmu*nnu*nphi*qos/nb;

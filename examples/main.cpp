@@ -68,14 +68,14 @@ void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<
   for (int j=0;j<N2;j++) Ssp[j] = Tsp[j] = Ensp[j] = pVpsp[j] = 0.;
 
   compute_STEn_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,Ssp,Tsp,Ensp,prl);
-  compute_pVp_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,pVpsp,prl);
-  compute_pVp_3c_ps(natoms,atno,coords,basis,nquad,nquad2,nsplit,nmu,nnu,nphi,pVpsp,prl);
-  compute_2c_ps(0,0,gamma,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
+  //compute_pVp_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,pVpsp,prl);
+  //compute_pVp_3c_ps(natoms,atno,coords,basis,nquad,nquad2,nsplit,nmu,nnu,nphi,pVpsp,prl);
+  compute_2c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
   compute_3c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
 
   if (prl > 0) printf("Printing PS Integral Files:\n");
   write_S_En_T(N,Ssp,Ensp,Tsp);
-  write_square(N,pVpsp,"pVp",2);
+  //write_square(N,pVpsp,"pVp",2);
   write_square(Naux,Asp,"A",2);
   write_C(Naux,N2,Csp);
 
@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
   int Naux2 = Naux*Naux;
   int N2a = N2*Naux;
 
-  int size_ang = order_table(nang);
+  int size_ang = get_npts_from_order(nang);
   size_t gs = nrad * size_ang;
   printf(" nrad: %d nang: %d size_ang: %d\n",nrad,nang,size_ang);
   printf(" grid size: %u\n",gs);
@@ -252,8 +252,8 @@ int main(int argc, char* argv[]) {
       compute_VdV(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,nc,coordsc,Pao,V,dV,prl);
 
       auto t6 = chrono::high_resolution_clock::now();
-      if (c4 > 0)
-        compute_all_4c_v2(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,g,prl);
+      //if (c4 > 0)
+      //  compute_all_4c_v2(natoms,atno,coordsf,basis,nrad,size_ang,ang_g,ang_w,g,prl);
 
       auto t7 = chrono::high_resolution_clock::now();
 
@@ -281,8 +281,8 @@ int main(int argc, char* argv[]) {
       }
 
       printf("Integral VdV  time: %5.3e s\n",(double)elapsed56/1.e9);
-      if (c4 > 0)
-        printf("Integral 4c (v2)    time: %5.3e s\n",(double)elapsed67/1.e9);
+      //if (c4 > 0)
+      //  printf("Integral 4c (v2)    time: %5.3e s\n",(double)elapsed67/1.e9);
 
       printf("-------------------------------\n");
       printf("Integral tot  time: %5.3e s\n",(double)elapsed17/1.e9);
@@ -290,13 +290,16 @@ int main(int argc, char* argv[]) {
 
       #pragma acc exit data copyout(A[0:Naux2],C[0:N2a],S[0:N2],En[0:N2],T[0:N2],pVp[0:N2])
       #pragma acc exit data copyout(V[0:nc],dV[0:3*nc],Pao[0:N2],coordsc[0:3*nc])
+
       if(c4 > 0)
         #pragma acc exit data copyout(g[0:N2*N2])
+
       if (prl > 0) printf("Printing Standard Integral Files:\n");
       write_S_En_T(N,S,En,T);
       write_square(Naux,A,"A",2);
       write_square(N,pVp,"pVp",2);
       write_C(Naux, N2, C);
+
       if(c4 > 0)
         write_square(N2,g,"g",2);
     }
@@ -305,7 +308,7 @@ int main(int argc, char* argv[]) {
     delete [] V, dV, Pao, coordsc;
     if(c4 > 0)  
       delete [] g;
-  }
+
 
   delete [] ang_g, ang_w;
 
