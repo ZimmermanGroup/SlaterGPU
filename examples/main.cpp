@@ -308,7 +308,7 @@ int main(int argc, char* argv[]) {
     delete [] V, dV, Pao, coordsc;
     if(c4 > 0)  
       delete [] g;
-
+  }
 
   delete [] ang_g, ang_w;
 
