@@ -831,7 +831,7 @@ packages:
   depends:
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: e3c8e20f71ad0df59346d3d56048486399ade734e7001c11ac5464473c0ac682
+    hash: 685d98e86c351726c33fa9cc2bd50c46fe85319aaf6a048904019c64e1ec12db
     globs:
     - recipe.yaml
 - conda: .
@@ -842,7 +842,7 @@ packages:
   depends:
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: e3c8e20f71ad0df59346d3d56048486399ade734e7001c11ac5464473c0ac682
+    hash: 685d98e86c351726c33fa9cc2bd50c46fe85319aaf6a048904019c64e1ec12db
     globs:
     - recipe.yaml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h4845f30_101.conda
