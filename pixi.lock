@@ -824,23 +824,23 @@ packages:
   timestamp: 1740380591358
 - conda: .
   name: slatergpu
-  version: 0.1.7
+  version: 0.1.14
   build: hbf21a9e_0
   subdir: linux-64
   depends:
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: 44f9d6fb98df113ba99153478201aba099f269d5379774561abe5df0ad1f3032
+    hash: ef40a00d44a08fbdbb9ee6895ba045e1eda636e879e448de2c65be33e75fa429
     globs: []
 - conda: .
   name: slatergpu
-  version: 0.1.7
+  version: 0.1.14
   build: hbf21a9e_0
   subdir: linux-aarch64
   depends:
   - libcint >=5.3,<5.4.0a0
   input:
-    hash: 44f9d6fb98df113ba99153478201aba099f269d5379774561abe5df0ad1f3032
+    hash: ef40a00d44a08fbdbb9ee6895ba045e1eda636e879e448de2c65be33e75fa429
     globs: []
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_hd72426e_102.conda
   sha256: a84ff687119e6d8752346d1d408d5cf360dee0badd487a472aa8ddedfdc219e1

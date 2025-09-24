@@ -10,9 +10,9 @@ jobs:
       run:
         shell: bash
     steps:
-    - uses: prefix-dev/setup-pixi@v0.8.3
+    - uses: prefix-dev/setup-pixi@v0.9.1
       with:
-        pixi-version: v0.46.0
+        pixi-version: v0.54.0
         log-level: v
         run-install: false
         # cache: true
@@ -22,7 +22,7 @@ jobs:
     # Cache NVHPC installation
     - name: Cache NVHPC
       id: cache-nvhpc
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           /home/runner/work/Linux_x86_64
