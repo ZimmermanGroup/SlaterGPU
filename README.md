@@ -80,6 +80,8 @@ Please see LICENSE file for licensing information.
 - Experimental global installation to streamline routine usage when not modifying the code and remove the need for pixi shell:
   `pixi -v global install --path .`
   Requires Aug 2025 pixi update: `pixi self-update`
+- Running jobs interactively:
+  - `pixi -v run srun -p zimA10 -N1 -n2 --gpus=1 --pty /bin/bash` on athena will obtain a slurm allocation and return an interactive bash terminal on a compute node inside of the pixi configured environment with sgpu.exe on PATH
   
 Configuration of pixi can be found in the `pixi.toml` file.
 
