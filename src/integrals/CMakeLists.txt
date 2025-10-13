@@ -1,4 +1,5 @@
-set(INTEGRALS_SOURCES
+# Common sources for both CPU and GPU builds
+set(INTEGRALS_COMMON_SOURCES
     integrals.cpp
     integrals_d.cpp
     integrals_aux.cpp
@@ -19,9 +20,7 @@ set(INTEGRALS_SOURCES
     ps_first_second_order.cpp
     cusp.cpp
     cpu_util.cpp
-    gpu_util.cpp
     grid_util.cpp
-    cuda_util.cpp
     scf_util.cpp
     symm.cpp
     gauss.cpp
@@ -29,6 +28,21 @@ set(INTEGRALS_SOURCES
     opt.cpp
     jellium_ints.cpp
     )
+
+# GPU-specific sources (only compiled when USE_ACC is ON)
+set(INTEGRALS_GPU_SOURCES
+    gpu_util.cpp
+    cuda_util.cpp
+    )
+
+# Combine sources based on USE_ACC flag
+if(USE_ACC)
+    set(INTEGRALS_SOURCES ${INTEGRALS_COMMON_SOURCES} ${INTEGRALS_GPU_SOURCES})
+    message(STATUS "Building SlaterGPU library with GPU support")
+else()
+    set(INTEGRALS_SOURCES ${INTEGRALS_COMMON_SOURCES})
+    message(STATUS "Building SlaterGPU library for CPU-only")
+endif()
 
 add_library(SlaterGPU STATIC "${INTEGRALS_SOURCES}")
 target_include_directories(SlaterGPU PUBLIC

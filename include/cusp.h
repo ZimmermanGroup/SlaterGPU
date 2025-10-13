@@ -4,7 +4,9 @@
 //#include "hartree.h"
 #include "read.h"
 #include "write.h"
+#if USE_ACC
 #include "cuda_util.h"
+#endif
 #include "cpu_util.h"
 #include "becke.h"
 #include "integrals.h"
@@ -23,6 +25,8 @@
 //#include "mpih.h"
 
 using namespace std;
+
+typedef void* cusolverDnHandle_t;  // Dummy type for CPU-only builds
 
 void compute_diatomic_symm(int natoms, int* atno, vector<vector<double> > basis, vector<double*>& pB_all, int prl);
 

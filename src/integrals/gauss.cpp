@@ -240,11 +240,13 @@ void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int
     val2b[i1][j] = v2;
   }
 
+  #if USE_ACC
   copy_to_all_gpu(ngpu,gsa6,grid,0);
   for (int i1=0;i1<N;i1++)
     copy_to_all_gpu(ngpu,gsa,val2[i1],0);
   for (int i1=0;i1<N;i1++)
     copy_to_all_gpu(ngpu,gsba,val2b[i1],0);
+  #endif
 
 
   int gdiv = gsba/ngpu+1;

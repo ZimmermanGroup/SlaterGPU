@@ -1,6 +1,8 @@
 #ifndef CUDA_UTILH
 #define CUDA_UTILH
 
+#if USE_ACC
+
 //#include <cublas.h>
 #include <cublas_v2.h>
 #include <cusolverDn.h>
@@ -41,4 +43,6 @@ void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first);
 void copy_to_all_gpu(int ngpu, int s1, float* A, int include_first);
 void copy_to_all_gpu(int ngpu, int s1, int s2, double** A, int include_first);
 
-#endif
+#endif // USE_ACC
+
+#endif // CUDA_UTILH

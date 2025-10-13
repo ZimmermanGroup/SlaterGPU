@@ -9,7 +9,9 @@
 #include <math.h>
 
 #include "cpu_util.h"
+#if USE_ACC
 #include "cuda_util.h"
+#endif
 
 int count_zero_mo(int N, double* jCA);
 int core_count(int natoms, int* atno);

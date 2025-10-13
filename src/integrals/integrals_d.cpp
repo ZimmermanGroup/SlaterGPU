@@ -8,7 +8,9 @@
 #include <string>
 void auto_crash();
 void print_duration(chrono::high_resolution_clock::time_point t1, chrono::high_resolution_clock::time_point t2, string name);
-void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first);
+#if USE_ACC
+  void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first);
+#endif
 
 void gather_12_d_En_0(int s1, int s2, int gs, int iN, float** valtx1, float** valtx2, float** valS1x, float** valS2x, float* wtt1, float* wtt2)
 {
@@ -292,7 +294,9 @@ void compute_d_3c_para(int npgu, int natoms, int* atno, float* coords, vector<ve
   }
 
  //distribute dC to all gpus
+ #if USE_ACC
   copy_to_all_gpu(nomp,N2a,dC,0);
+ #endif
 
 #if USE_ACC
  #pragma omp parallel for num_threads(nomp)
