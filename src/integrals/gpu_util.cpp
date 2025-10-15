@@ -3,6 +3,8 @@
 
 void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first)
 {
+ #if USE_ACC
+
   if (ngpu<1) return;
   if (include_first==0)
   {
@@ -21,11 +23,16 @@ void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first)
   }
 
   acc_set_device_num(0,acc_device_nvidia);
+
+ #endif
+
   return;
 }
 
 void copy_to_all_gpu(int ngpu, int s1, float* A, int include_first)
 {
+ #if USE_ACC
+
   if (ngpu<1) return;
   if (include_first==0)
   {
@@ -44,11 +51,16 @@ void copy_to_all_gpu(int ngpu, int s1, float* A, int include_first)
   }
 
   acc_set_device_num(0,acc_device_nvidia);
+
+ #endif
+
   return;
 }
 
 void copy_to_all_gpu(int ngpu, int s1, int s2, double** A, int include_first)
 {
+ #if USE_ACC
+
   if (ngpu<1) return;
   if (include_first==0)
   {
@@ -67,5 +79,8 @@ void copy_to_all_gpu(int ngpu, int s1, int s2, double** A, int include_first)
   }
 
   acc_set_device_num(0,acc_device_nvidia);
+
+ #endif
+  
   return;
 }

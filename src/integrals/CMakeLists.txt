@@ -27,17 +27,14 @@ set(INTEGRALS_COMMON_SOURCES
     hess.cpp
     opt.cpp
     jellium_ints.cpp
-    )
-
-# GPU-specific sources (only compiled when USE_ACC is ON)
-set(INTEGRALS_GPU_SOURCES
     gpu_util.cpp
     cuda_util.cpp
     )
 
+
 # Combine sources based on USE_ACC flag
 if(USE_ACC)
-    set(INTEGRALS_SOURCES ${INTEGRALS_COMMON_SOURCES} ${INTEGRALS_GPU_SOURCES})
+    set(INTEGRALS_SOURCES ${INTEGRALS_COMMON_SOURCES})
     message(STATUS "Building SlaterGPU library with GPU support")
 else()
     set(INTEGRALS_SOURCES ${INTEGRALS_COMMON_SOURCES})

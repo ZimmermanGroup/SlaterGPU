@@ -4,9 +4,7 @@
 //#include "hartree.h"
 #include "read.h"
 #include "write.h"
-#if USE_ACC
 #include "cuda_util.h"
-#endif
 #include "cpu_util.h"
 #include "integrals.h"
 #include "becke.h"

@@ -6,9 +6,7 @@
 #include "read.h"
 #include "gto_grid.h"
 #include "print.h"
-#if USE_ACC
 #include "cuda_util.h"
-#endif
 
 void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1, const float zeta1);
 void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1);
