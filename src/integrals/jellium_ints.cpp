@@ -1375,3 +1375,233 @@ void print_murak_rmax(double Rc, int nrad, vector<vector<double> > basis)
   delete [] rwt;
   return;
 }
+
+void compute_Exyz_jellium(bool use_slater, double Rc,
+                          vector<vector<double> >& basis,
+                          int nrad, int nang, double* ang_g, double* ang_w,
+                          double* E, int prl)
+{
+  // Step 1: Setup and memory allocation
+
+  // 1.1 Basic parameters
+  bool sgs_basis = 0;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  if (prl > 0)
+    printf("  compute_Exyz_jellium. Rc: %8.5f  N: %2i  gs: %6i\n",
+           Rc, N, gs);
+
+  // 1.2 GPU data preparation
+  #pragma acc enter data copyin(ang_g[0:3*nang], ang_w[0:nang])
+
+  // 1.3 Generate grid (consistent with other Jellium functions)
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6], wt[0:gs])
+
+  int m_murak = MMURAK;    // = 2
+  double Z1 = Z1J;          // = 0.2
+  generate_central_grid_3d(m_murak, grid, wt, Z1, nrad, nang, ang_g, ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  // 1.4 Determine grid partitioning
+  int gs1 = get_gs1(nrad, nang, grid, Rc);
+  int gs2 = gs;
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+
+  #pragma acc parallel loop present(E[0:3*N2])
+  for (int j=0;j<3*N2;j++)
+    E[j] = 0.;
+
+  {
+    //multi-GPU not ready
+    int tid = -1;
+
+    int gs3 = 3*gs;
+
+    if (use_slater) {
+      if (prl > 0) printf("  Using pure Slater basis\n");
+      gs1 = 0;
+    }
+
+    // Step 2: Basis function evaluation
+    // 2.1 Allocate basis function value arrays
+    int igs = N*gs;
+    double* valS1 = new double[igs];  // basis function i
+    double* valS2 = new double[igs];  // basis function j (with weight)
+    #pragma acc enter data create(valS1[0:igs], valS2[0:igs])
+
+    // 2.2 Initialize
+    #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+    for (int i1 = 0; i1 < N; i1++)
+    for (int j = 0; j < gs; j++)
+      valS1[i1*gs+j] = 1.;
+
+    #pragma acc parallel loop collapse(2) present(valS2[0:igs], wt[0:gs])
+    for (int i2 = 0; i2 < N; i2++)
+    for (int j = 0; j < gs; j++)
+      valS2[i2*gs+j] = wt[j];
+
+    // 2.3 Evaluate all basis functions
+    for (int i1 = 0; i1 < N; i1++)
+    {
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0];
+      int l1 = basis1[1];
+      int m1 = basis1[2];
+      double zeta1 = basis1[3];
+
+      // Select evaluation function based on basis type
+      if (use_slater)
+      {
+        eval_shd(i1, gs2, grid, &valS1[i1*gs], n1, l1, m1, zeta1);
+        eval_shd(i1, gs2, grid, &valS2[i1*gs], n1, l1, m1, zeta1);
+      }
+      else if (sgs_basis)
+      {
+        eval_sgsd(i1, gs1, gs2, grid, &valS1[i1*gs], n1, l1, m1, zeta1, Rc);
+        eval_sgsd(i1, gs1, gs2, grid, &valS2[i1*gs], n1, l1, m1, zeta1, Rc);
+      }
+      else  // SS basis
+      {
+        eval_ssd(i1, gs, grid, &valS1[i1*gs], n1, l1, m1, zeta1, Rc);
+        eval_ssd(i1, gs, grid, &valS2[i1*gs], n1, l1, m1, zeta1, Rc);
+      }
+    }
+
+    // Step 3: Dipole moment integral calculation
+
+    // 3.1 Compute <i|x|j>, <i|y|j>, <i|z|j>
+    // Note: Assumes origin at Jellium center (typically 0,0,0)
+
+    #pragma acc parallel loop collapse(2) present(valS1[0:igs], valS2[0:igs], \
+                                                  grid[0:gs6], E[0:3*N2])
+    for (int i1 = 0; i1 < N; i1++)
+    for (int i2 = 0; i2 < N; i2++)
+    {
+      double* valm = &valS1[i1*gs];
+      double* valn = &valS2[i2*gs];
+
+      double vx = 0., vy = 0., vz = 0.;
+
+      #pragma acc loop reduction(+:vx,vy,vz)
+      for (int j = 0; j < gs; j++)
+      {
+        // Extract coordinates
+        double x = grid[6*j+0];
+        double y = grid[6*j+1];
+        double z = grid[6*j+2];
+
+        // Integrate: ∫ φᵢ(r) × r × φⱼ(r) dr
+        // valm contains φᵢ, valn contains φⱼ × wt
+        vx += valm[j] * valn[j] * x;
+        vy += valm[j] * valn[j] * y;
+        vz += valm[j] * valn[j] * z;
+      }
+
+      // Store results
+      E[i1*N+i2]        = vx;  // Ex matrix
+      E[N2+i1*N+i2]     = vy;  // Ey matrix
+      E[2*N2+i1*N+i2]   = vz;  // Ez matrix
+    }
+
+    #pragma acc update self(E[0:3*N2])
+  }
+  // Step 4: Normalization and symmetry
+
+  // 4.1 Apply normalization constants
+  // Assume norm is already computed in compute_STEn_jellium
+  double norm[N];
+  for (int i = 0; i < N; i++)
+    norm[i] = basis[i][4];
+
+  for (int i = 0; i < N; i++)
+  for (int j = 0; j < N; j++)
+  {
+    double n12 = norm[i] * norm[j];
+    E[i*N+j]        *= n12;
+    E[N2+i*N+j]     *= n12;
+    E[2*N2+i*N+j]   *= n12;
+  }
+
+  // 4.2 Clear small values
+  double thresh = 1.e-12;
+  for (int i = 0; i < 3*N2; i++)
+  if (fabs(E[i]) < thresh)
+    E[i] = 0.;
+
+  // 4.3 Debug output
+  if (prl>1 || (prl>0 && N<10))
+  {
+    printf("\n Exyz (Jellium): \n");
+    printf(" Ex matrix:\n");
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++)
+        printf(" %12.8f", E[i*N+j]);
+      printf("\n");
+    }
+    printf("\n Ey matrix:\n");
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++)
+        printf(" %12.8f", E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf("\n Ez matrix:\n");
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++)
+        printf(" %12.8f", E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  // Step 5: Cleanup
+  #pragma acc exit data delete(valS1[0:igs], valS2[0:igs])
+  delete[] valS1;
+  delete[] valS2;
+
+  #pragma acc exit data delete(ang_g[0:3*nang], ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6], wt[0:gs])
+  delete[] grid;
+  delete[] wt;
+
+  return;
+}
+
+
+void add_efield_jellium(bool use_slater, double Rc, vector<vector<double> >& basis,
+  int nrad, int nang, double* ang_g, double* ang_w, double* En, int prl)
+{
+  double Ex = read_float("Ex");
+  double Ey = read_float("Ey");
+  double Ez = read_float("Ez");
+
+  if (Ex!=0. || Ey!=0. || Ez!=0.)
+  {
+    if (prl>0)
+    {
+      printf("  adding e-field in compute_integrals \n");
+      printf("   Ex: %9.6f  Ey: %9.6f  Ez: %9.6f \n",Ex,Ey,Ez);
+    }
+
+    int N = basis.size();
+    int N2 = N*N;
+
+    double E[3*N2];
+    #pragma acc enter data create(E[0:3*N2])
+
+    compute_Exyz_jellium(use_slater, Rc, basis, nrad, nang, ang_g, ang_w, E, prl);
+
+    #pragma acc parallel loop present(En[0:N2],E[0:3*N2])
+    for (int j=0;j<N2;j++)
+       En[j] += Ex*E[j] + Ey*E[N2+j] + Ez*E[2*N2+j];
+
+    #pragma acc exit data delete(E[0:3*N2])
+  }
+
+  return;
+}

@@ -42,6 +42,10 @@ void compute_C_jellium(bool slater, double Rc, vector<vector<double> > basis, ve
 void compute_4c_ol_jellium(bool slater, double Rc, vector<vector<double> > basis,
          int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl);
 
+void compute_Exyz_jellium(bool use_slater, double Rc, vector<vector<double> >& basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl);
+
+void add_efield_jellium(bool use_slater, double Rc, vector<vector<double> >& basis, int nrad, int nang, double* ang_g, double* ang_w, double* En, int prl);
+
 //overlap.cpp:
 void orthonormalize_mos(int Nn, int N, double* S, double* jCA);
 //soicas.cpp:
