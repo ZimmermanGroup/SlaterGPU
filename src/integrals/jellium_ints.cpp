@@ -1375,3 +1375,264 @@ void print_murak_rmax(double Rc, int nrad, vector<vector<double> > basis)
   delete [] rwt;
   return;
 }
+
+void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
+{
+  if (prl>1) printf(" beginning compute_E_slaussian (double precision) \n");
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  printf("  compute_E. nrad/ang: %3i %3i \n",nrad,nang);
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  int estart = find_center_of_grid(1,nrad)*nang;
+
+  double* grid1m = new double[gs6];
+  double* grid1n = new double[gs6];
+  double* wt1 = new double[gs];
+
+  double* grid2m = new double[gs6];
+  double* grid2n = new double[gs6];
+  double* wt2 = new double[gs];
+
+  double* val1m = new double[gs];
+  double* val1n = new double[gs];
+  double* val2m = new double[gs];
+  double* val2n = new double[gs];
+
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+  //printf("  iN: %i \n",imaxN);
+
+ #if USE_ACC
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(n2i[0:natoms])
+  #pragma acc enter data copyin(coords[0:3*natoms],atno[0:natoms])
+
+  #pragma acc enter data create(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs])
+  #pragma acc enter data create(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+ #endif
+  acc_assign(3*N2,E,0.);
+
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+
+    float Z1 = (float)atno[m];
+    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+
+    for (int i1=s1;i1<s2;i1++)
+    for (int i2=s1;i2<=i1;i2++)
+    {
+      int ii1 = i1-s1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+      vector<double> basis2 = basis[i2];
+      int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+      float z12 = zeta1 + zeta2;
+     //new grid with zeta dependence
+      generate_central_grid_2d(-1,0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
+
+      #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
+      for (int j=0;j<gs;j++)
+        val1m[j] = wt1[j];
+      #pragma acc parallel loop present(val2m[0:gs])
+      for (int j=0;j<gs;j++)
+        val2m[j] = 1.;
+
+     //S
+      eval_ssd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1,Rc); //basis 1
+      eval_ssd(ii1,gs,grid1m,val2m,n2,l2,m2,zeta2,Rc); //basis 2
+
+      double valx = 0.; double valy = 0.; double valz = 0.;
+     #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs],grid1m[0:gs6]) reduction(+:valx,valy,valz)
+      for (int j=0;j<gs;j++)
+      {
+       //assumes common 0,0,0 origin
+        double x = grid1m[6*j+0]+A1;
+        double y = grid1m[6*j+1]+B1;
+        double z = grid1m[6*j+2]+C1;
+
+        valx += val1m[j]*val2m[j]*x;
+        valy += val1m[j]*val2m[j]*y;
+        valz += val1m[j]*val2m[j]*z;
+      }
+
+     #pragma acc serial present(E[0:3*N2])
+      {
+        E[i1*N+i2]      = E[i2*N+i1] = valx;
+        E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
+        E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
+      }
+
+    } //pairs of basis on single atoms
+
+
+   if (natoms>1) { printf("\n WARNING: can only do 1 atom in compute_Exyz \n"); exit(-1); }
+   //complete but needs testing
+   #if 0
+    for (int n=m+1;n<natoms;n++)
+    {
+      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
+      //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
+
+      float Z2 = (float)atno[n];
+      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
+      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+
+      for (int i1=s1;i1<s2;i1++)
+      for (int i2=s3;i2<s4;i2++)
+      {
+        int ii1 = i1-s1;
+
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
+
+       //new grid with zeta dependence
+        generate_central_grid_2d(-1,0,grid1m,wt1,zeta1,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2d(-1,0,grid2m,wt2,zeta2,nrad,nang,ang_g,ang_w);
+
+       //grid1 at 0,0,0 now has r1 at 3, r2 at 4
+        add_r2_to_grid(gs,grid1m,A12,B12,C12);
+        recenter_grid(gs,grid2m,A12,B12,C12);
+
+       //optimize this
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
+        //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
+
+        copy_grid(gs,grid2n,grid2m);                                 ed on atom 1
+        recenter_grid(gs,grid2n,-A12,-B12,-C12);      //grid 2 center
+        copy_grid(gs,grid1n,grid1m);
+        recenter_grid_zero(gs,grid1n,-A12,-B12,-C12); //grid 1 centered on atom 2
+
+       //needs to happen after becke weighting
+        add_r1_to_grid(gs,grid2m,0.,0.,0.);
+
+        #pragma acc parallel loop present(val1n[0:gs],val2m[0:gs])
+        for (int j=0;j<gs;j++)
+          val2m[j] = val2n[j] = 1.;
+        #pragma acc parallel loop present(val1m[0:gs],val2n[0:gs],wt1[0:gs],wt2[0:gs])
+        for (int j=0;j<gs;j++)
+        {
+          val1m[j] = wt1[j];
+          val1n[j] = wt2[j];
+        }
+
+       //S
+        eval_ssd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1,Rc); //basis 1 on center 1
+        eval_ssd(ii1,gs,grid2m,val1n,n1,l1,m1,zeta1,Rc); //basis 1 on center 2
+        eval_ssd(ii1,gs,grid1n,val2m,n2,l2,m2,zeta2,Rc); //basis 2 on center 1
+        eval_ssd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2,Rc); //basis 2 on center 2
+
+        double valx = 0.; double valy = 0.; double valz = 0.;
+       #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid1n[0:gs6]) reduction(+:valx,valy,valz)
+        for (int j=0;j<gs;j++)
+        {
+          double x1 = grid1m[6*j+0]+A1;
+          double y1 = grid1m[6*j+1]+B1;
+          double z1 = grid1m[6*j+2]+C1;
+          double x2 = grid2n[6*j+0]+A2;
+          double y2 = grid2n[6*j+1]+B2;
+          double z2 = grid2n[6*j+2]+C2;
+          valx += val1m[j]*val2m[j]*x1 + val1n[j]*val2n[j]*x2;
+          valy += val1m[j]*val2m[j]*y1 + val1n[j]*val2n[j]*y2;
+          valz += val1m[j]*val2m[j]*z1 + val1n[j]*val2n[j]*z2;
+        }
+
+       #pragma acc serial present(E[0:N2])
+        {
+          E[i1*N+i2]      = E[i2*N+i1] = valx;
+          E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
+          E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
+        }
+      }
+
+    } //loop n>m
+   #endif
+
+  } //loop m over natoms
+
+
+  double* norm = new double[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+  #pragma acc enter data copyin(norm[0:N])
+
+  #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norm[i]*norm[j];
+    E[i*N+j]      *= n12;
+    E[N2+i*N+j]   *= n12;
+    E[2*N2+i*N+j] *= n12;
+  }
+
+ #if 0
+ #pragma acc parallel loop independent present(S[0:N2])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<i;j++)
+  {
+    E[j*N+i] = S[i*N+j];
+  }
+ #endif
+
+  #pragma acc exit data delete(norm[0:N])
+  delete [] norm;
+
+  //clean_small_values(N,E);
+
+
+ #if USE_ACC
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc update self(E[0:3*N2])
+ #endif
+
+
+  if (prl>1 || prl==-1)
+  {
+    printf("\n Exyz: \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+  }
+
+#if USE_ACC
+  #pragma acc exit data delete(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
+  #pragma acc exit data delete(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs])
+  #pragma acc exit data delete(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+  #pragma acc exit data delete(n2i[0:natoms])
+  #pragma acc exit data delete(coords[0:3*natoms],atno[0:natoms])
+#endif
+
+  delete [] n2i;
+
+  delete [] val1m;
+  delete [] val1n;
+  delete [] val2m;
+  delete [] val2n;
+  delete [] grid1m;
+  delete [] grid1n;
+  delete [] grid2m;
+  delete [] grid2n;
+  delete [] wt1;
+  delete [] wt2;
+
+  return;
+}
