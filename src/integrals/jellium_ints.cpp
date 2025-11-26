@@ -1383,7 +1383,10 @@ void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<
   int N = basis.size();
   int N2 = N*N;
 
-  printf("  compute_E. nrad/ang: %3i %3i \n",nrad,nang);
+  double norms[N];
+  bool found = read_array(N,norms,"NGS");
+
+  if (found) printf("  compute_E_slaussian nrad/ang: %3i %3i \n",nrad,nang);
 
   int gs = nrad*nang;
   int gs6 = 6*gs;
@@ -1566,7 +1569,10 @@ void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<
 
   double* norm = new double[N];
   for (int i=0;i<N;i++)
-    norm[i] = basis[i][4];
+  {
+    norm[i] = norms[i];
+    //norm[i] = basis[i][4];
+  }
   #pragma acc enter data copyin(norm[0:N])
 
   #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
