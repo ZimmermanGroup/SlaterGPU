@@ -1608,7 +1608,7 @@ void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<
  #endif
 
 
-  if (prl>1 || prl==-1)
+  if (1) //(prl>1 || prl==-1)
   {
     printf("\n Exyz: \n");
     for (int i=0;i<N;i++)
