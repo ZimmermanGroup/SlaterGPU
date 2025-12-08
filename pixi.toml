@@ -10,13 +10,7 @@ version = "0.1.14"
 
 [package.build.backend]
 name = "pixi-build-cmake"
-version = "==0.3.3"
-# name = "pixi-build-rattler-build"
-# version = "==0.3.2.20250902.876f67a"
-channels = [
-  "https://prefix.dev/pixi-build-backends",
-  "https://prefix.dev/conda-forge",
-]
+version = "==0.3.4"
 
 [package.build.config]
 compilers = []
