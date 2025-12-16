@@ -32,6 +32,12 @@ extern "C" {
                      int *atm, int natm, int *bas, int nbas, double *env, CINTOpt *no_opt);
   
   // gradient integrals
+  // < -ih∇ | Vnuc | -ih∇ >
+  int cint1e_ipnucip_cart(double *buf, int *shls,
+                     int *atm, int natm, int *bas, int nbas, double *env);
+  int cint1e_ipnucip_sph(double *buf, int *shls,
+                         int *atm, int natm, int *bas, int nbas, double *env);
+  //
   int cint1e_ipnuc_sph(double *buf, int *shls,
                        int *atm, int natm, int *bas, int nbas, double *env);
   // < i | d 1 / R_1A | j >
@@ -98,6 +104,10 @@ void get_hcore(double *hcore, int N,
                int *atm, int *bas, double *env);
 
 void get_tcore(double *tcore, int N,
+               int natm, int nbas, int nenv,
+               int *atm, int *bas, double *env);
+
+void gen_pvp(double *pvp, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
 
