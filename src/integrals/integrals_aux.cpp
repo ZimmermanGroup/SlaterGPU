@@ -1617,15 +1617,13 @@ vector<vector<double> > setup_integrals_gsgpu(vector<vector<double> >& basis_aux
   return basis;
 }
 
-void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas_ri, int* atm, int* bas, double* env, double* S, double* T, double* jH1, double* A, double* C, double* pvp, int prl)
+void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas_ri, int* atm, int* bas, double* env, double* S, double* En, double* T, double* jH1, double* A, double* C, double* pvp, int prl)
 {
   get_overlap(S, N, natm, nbas, nenv, atm, bas, env);
-  get_hcore(jH1, N, natm, nbas, nenv, atm, bas, env);
-  if (T!=NULL)
-    get_tcore(T, N, natm, nbas, nenv, atm, bas, env);
-  printf("before gen_pvp\n");
+  get_hcore(jH1, En, T, N, natm, nbas, nenv, atm, bas, env);
+  //if (T!=NULL)
+  //  get_tcore(T, N, natm, nbas, nenv, atm, bas, env);
   gen_pvp(pvp, N, natm, nbas, nenv, atm, bas, env);
-  printf("after gen_pvp\n");
 
   if (prl>1)
   {
@@ -1676,16 +1674,14 @@ void compute_gaussian_integrals_to_disk(int N, int Naux, int natoms, int nbas, i
   double* S = new double[N2]; double* jH1 = new double[N2]; double* A = new double[Na2]; double* C = new double[N2a];
   double* T = new double[N2]; double* En = new double[N2];
   double* pvp = new double[N2];
-  for (int m=0;m<N2;m++) En[m] = 0.;
+  //for (int m=0;m<N2;m++) En[m] = 0.;
   
-  printf("before compute_integrals_g\n");
-  compute_integrals_g(natoms,nbas,nenv,N,Naux,nbas_ri,atm,bas,env,S,NULL,jH1,A,C,pvp,1);
-  printf("after compute_integrals_g\n");
+  compute_integrals_g(natoms,nbas,nenv,N,Naux,nbas_ri,atm,bas,env,S,En,T,jH1,A,C,pvp,1);
 
  //note we don't have separate En and T, so using sum of the two
-  for (int m=0;m<N2;m++) T[m] = jH1[m];
+  //for (int m=0;m<N2;m++) T[m] = jH1[m];
   write_S_En_T(N,S,En,T);
-  write_square(N,pvp,"pvp",2);
+  write_square(N,pvp,"pVp",2);
   write_square(Naux,A,"A",2);
   write_C(Naux,N2,C);
 

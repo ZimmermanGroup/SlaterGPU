@@ -157,7 +157,7 @@ void get_overlap_ri(double * overlap, int Naux,
   } // else
 }
 
-void get_hcore(double *hcore, int N,
+void get_hcore(double *hcore, double *En, double *T, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env) {
   int idx_i = 0;
@@ -243,6 +243,9 @@ void get_hcore(double *hcore, int N,
     }// for i
 
     for (int i = 0; i < N * N; i++) {
+      En[i] = tmp[i];
+    }
+    for (int i = 0; i < N * N; i++) {
       hcore[i] = tmp[i];
     }
 
@@ -271,6 +274,9 @@ void get_hcore(double *hcore, int N,
     }// for i
   }  
 
+  for (int i = 0; i < N * N; i++) {
+    T[i] = tmp[i];
+  }
   for (int i = 0; i < N * N; i++) {
     hcore[i] += tmp[i];
   }
@@ -351,7 +357,6 @@ void get_tcore(double *tcore, int N,
 void gen_pvp(double *pvp, int N,
              int natm, int nbas, int nenv,
              int *atm, int *bas, double *env) {
-  printf("Starting gen_pvp\n");
   int N2 = N*N;
   double *tmp = new double[N2];
   int idx_i = 0;
@@ -369,14 +374,8 @@ void gen_pvp(double *pvp, int N,
       for (int j = 0; j < nbas; j++) {
         dj = CINTcgto_cart(j,bas);
         shls[1] = j;
-        printf("di: %i dj: %i \n",di,dj);
         double *buf = new double[di * dj * 9];
         cint1e_ipnucip_cart(buf, shls, atm, natm, bas, nbas, env);
-        printf("buf:\n");
-        for (int g1 = 0; g1 < di*dj*9; g1++)
-          {
-            printf("%6.8f",buf[g1]);
-          }
         for (int i1 = 0; i1 < di; i++) {
           for (int j1 = 0; j1 < dj; j++) {
             int oi = i1 + idx_i;
@@ -399,17 +398,21 @@ void gen_pvp(double *pvp, int N,
       for (int j = 0; j < nbas; j++) {
         dj = CINTcgto_spheric(j,bas);
         shls[1] = j; 
+        #if 0  
         printf("di: %i dj: %i \n",di,dj);
+        #endif
         double *buf = new double[di * dj * 9];
         cint1e_ipnucip_sph(buf, shls, atm, natm, bas, nbas, env);
+        #if 0
         printf("buf:\n");
         for (int g1 = 0; g1 < di*dj*9; g1++)
         {    
           printf("%6.8f ",buf[g1]);
         }
-        printf("\n");    
-        for (int i1 = 0; i1 < di; i++) {
-          for (int j1 = 0; j1 < dj; j++) {
+        printf("\n");
+        #endif   
+        for (int i1 = 0; i1 < di; i1++) {
+          for (int j1 = 0; j1 < dj; j1++) {
             int oi = i1 + idx_i;
             int oj = j1 + idx_j;
             tmp[oi * N + oj] = tmp[oj * N + oi] = -(buf[0*di*dj + j1*di + i1]+buf[4*di*dj + j1*di + i1]+buf[8*di*dj + j1*di + i1]);
