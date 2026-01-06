@@ -1376,6 +1376,7 @@ void print_murak_rmax(double Rc, int nrad, vector<vector<double> > basis)
   return;
 }
 
+/*
 void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
 {
   if (prl>1) printf(" beginning compute_E_slaussian (double precision) \n");
@@ -1437,12 +1438,25 @@ void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<
       vector<double> basis1 = basis[i1];
       int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
 
+      printf("  compute_Exyz_slaussian atom/basis: %2i %2i  nlmz: %2i %2i %2i  zeta: %8.5f \n",m,i1,n1,l1,m1,zeta1);
+
       vector<double> basis2 = basis[i2];
       int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
+      printf("  compute_Exyz_slaussian atom/basis: %2i %2i  nlmz: %2i %2i %2i  zeta: %8.5f \n",m,i2,n2,l2,m2,zeta2);
+
       float z12 = zeta1 + zeta2;
-     //new grid with zeta dependence
-      generate_central_grid_2d(-1,0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
+      //new grid with zeta dependence
+      //generate_central_grid_2d(-1,0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
+      int m_murak = MMURAK;
+      double Z1 = Z1J;
+      //bool murak_zeta = 1;
+      //generate_central_grid_2d(-1,!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+      generate_central_grid_3d(m_murak,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
+
+      // Debug: pull data from device to check what's there
+      #pragma acc update self(grid1m[0:gs6],wt1[0:gs])
+      printf("  grid1m[0]:  %8.5f  wt1[0]: %8.5f\n", grid1m[0], wt1[0]);
 
       #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
       for (int j=0;j<gs;j++)
@@ -1604,7 +1618,7 @@ void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<
 
  #if USE_ACC
   #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
-  #pragma acc update self(E[0:3*N2])
+  #pragma acc update self(E[0:3*N2],val1m[0:gs],val2m[0:gs])
  #endif
 
 
@@ -1617,6 +1631,19 @@ void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<
         printf(" %15.12f",E[i*N+j]);
       printf("\n");
     }
+  }
+
+  if (1)
+  {
+    printf("\n val1m: \n");
+    for (int j=0;j<gs;j++)
+      printf(" %8.5f",val1m[j]);
+    printf("\n");
+
+    printf("\n val2m: \n");
+    for (int j=0;j<gs;j++)
+      printf(" %8.5f",val2m[j]);
+    printf("\n");
   }
 
 #if USE_ACC
@@ -1639,6 +1666,1335 @@ void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<
   delete [] grid2n;
   delete [] wt1;
   delete [] wt2;
+
+  return;
+}
+*/
+
+/*
+void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
+{
+  if (prl>1) printf(" beginning compute_Exyz_slaussian (double precision) \n");
+
+  bool use_slater = 0;
+  bool sgs_basis = 0;
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double norms[N];
+  bool found = read_array(N,norms,"NGS");
+
+  if (found)
+    printf("  compute_Exyz_slaussian nrad/ang: %3i %3i \n",nrad,nang);
+  else
+  {
+    printf(" ERROR: NGS norms not found in compute_Exyz_slaussian\n");
+    for (int i=0;i<N;i++)
+      norms[i] = basis[i][4];
+  }
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+
+  // Generate grid similar to compute_STEn_jellium
+  int m_murak = MMURAK;
+  double Z1 = Z1J;
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs2 = gs;
+
+  if (use_slater)
+  {
+    printf("  DEBUG:  Slater only \n");
+    gs1 = 0;
+  }
+ #if USE_GAUSS
+  printf("  DEBUG: Gaussian only \n");
+  gs1 = nrad*nang;
+ #endif
+
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+  // Allocate basis function storage
+  int igs = N*gs;
+  int igs3 = 3*N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  double* valS1x = new double[igs3];  // For x, y, z weighted values
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs],valS1x[0:igs3])
+
+  // Initialize valS1 and valS2
+  #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+    valS1[i1*gs+j] = 1.;
+
+  #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])
+  for (int i2=0;i2<N;i2++)
+  for (int j=0;j<gs;j++)
+    valS2[i2*gs+j] = wt[j];
+
+  // Evaluate all basis functions once
+  for (int i1=0;i1<N;i1++)
+  {
+    vector<double> basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    if (use_slater)
+    {
+      eval_shd(i1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
+    }
+    else if (sgs_basis)
+    {
+      eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+    else
+    {
+      eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+  }
+
+  // Get atomic coordinates (assuming single atom for now)
+  if (natoms > 1)
+  {
+    printf("\n WARNING: can only do 1 atom in compute_Exyz_slaussian \n");
+    exit(-1);
+  }
+
+  float A1 = coords[0];
+  float B1 = coords[1];
+  float C1 = coords[2];
+
+  // Create coordinate-weighted basis functions (valS1 * x, valS1 * y, valS1 * z)
+  #pragma acc parallel loop collapse(2) present(valS1x[0:igs3],valS1[0:igs],grid[0:gs6])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+  {
+    double x = grid[6*j+0] + A1;
+    double y = grid[6*j+1] + B1;
+    double z = grid[6*j+2] + C1;
+    double val = valS1[i1*gs+j];
+
+    valS1x[i1*3*gs+3*j+0] = val * x;
+    valS1x[i1*3*gs+3*j+1] = val * y;
+    valS1x[i1*3*gs+3*j+2] = val * z;
+  }
+
+  // Compute E matrix (Ex, Ey, Ez)
+    // Compute E matrix (Ex, Ey, Ez)
+  // Can't use collapse(2) because inner loop depends on outer loop variable
+  #pragma acc parallel loop present(valS1x[0:igs3],valS2[0:igs],E[0:3*N2])
+  for (int i1=0;i1<N;i1++)
+  {
+    #pragma acc loop
+    for (int i2=0;i2<=i1;i2++)
+    {
+      double* valm_x = &valS1x[i1*3*gs];
+      double* valn = &valS2[i2*gs];
+
+      double vx = 0., vy = 0., vz = 0.;
+      #pragma acc loop reduction(+: vx,vy,vz)
+      for (int j=0;j<gs;j++)
+      {
+        vx += valm_x[3*j+0] * valn[j];
+        vy += valm_x[3*j+1] * valn[j];
+        vz += valm_x[3*j+2] * valn[j];
+      }
+
+      E[i1*N+i2]        = vx;
+      E[N2+i1*N+i2]     = vy;
+      E[2*N2+i1*N+i2]   = vz;
+      
+      // Symmetrize
+      if (i1 != i2)
+      {
+        E[i2*N+i1]      = vx;
+        E[N2+i2*N+i1]   = vy;
+        E[2*N2+i2*N+i1] = vz;
+      }
+    }
+  }
+  ////////////////
+  #pragma acc update self(E[0:3*N2])
+
+  // Apply normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norms[i]*norms[j];
+    E[i*N+j]        *= n12;
+    E[N2+i*N+j]     *= n12;
+    E[2*N2+i*N+j]   *= n12;
+  }
+
+  double thresh = 1.e-12;
+  for (int i=0;i<3*N2;i++)
+    if (fabs(E[i])<thresh)
+      E[i] = 0.;
+
+  if (prl>0)
+  {
+    printf("\n Exyz (slaussian): \n");
+    printf(" Ex:\n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+    printf(" Ey:\n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf(" Ez:\n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  // Cleanup
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs],valS1x[0:igs3])
+  delete [] valS1;
+  delete [] valS2;
+  delete [] valS1x;
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
+  delete [] grid;
+  delete [] wt;
+
+  return;
+}
+*/
+
+/*
+void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
+{
+  if (prl>1) printf(" beginning compute_Exyz_slaussian (double precision) \n");
+
+  bool use_slater = 0;
+  bool sgs_basis = 0;
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double norms[N];
+  bool found = read_array(N,norms,"NGS");
+
+  if (found)
+    printf("  compute_Exyz_slaussian nrad/ang:  %3i %3i \n",nrad,nang);
+  else
+  {
+    printf(" ERROR: NGS norms not found in compute_Exyz_slaussian\n");
+    for (int i=0;i<N;i++)
+      norms[i] = basis[i][4];
+  }
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+
+  // Generate grid similar to compute_STEn_jellium
+  int m_murak = MMURAK;
+  double Z1 = Z1J;
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs2 = gs;
+
+  if (use_slater)
+  {
+    printf("  DEBUG:  Slater only \n");
+    gs1 = 0;
+  }
+ #if USE_GAUSS
+  printf("  DEBUG:  Gaussian only \n");
+  gs1 = nrad*nang;
+ #endif
+
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+  // Allocate basis function storage
+  int igs = N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs])
+
+  // Initialize valS1 and valS2 (no weights yet)
+  #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+    valS1[i1*gs+j] = 1.;
+
+  #pragma acc parallel loop collapse(2) present(valS2[0:igs])
+  for (int i2=0;i2<N;i2++)
+  for (int j=0;j<gs;j++)
+    valS2[i2*gs+j] = 1.;
+
+  // Evaluate all basis functions once
+  for (int i1=0;i1<N;i1++)
+  {
+    vector<double> basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    if (use_slater)
+    {
+      eval_shd(i1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
+    }
+    else if (sgs_basis)
+    {
+      eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+    else
+    {
+      eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+  }
+
+  // DEBUG: Print valS1 and valS2 after evaluation
+  #pragma acc update self(valS1[0:igs],valS2[0:igs],wt[0:gs])
+
+  printf("\n DEBUG: valS1 and valS2 after eval_ssd \n");
+  printf(" Printing first 3 basis functions, first 20 grid points:\n");
+  for (int i=0; i<min(N,3); i++)
+  {
+    printf("\n Basis %i (n=%i l=%i m=%i zeta=%8.5f):\n",
+           i, (int)basis[i][0], (int)basis[i][1], (int)basis[i][2], basis[i][3]);
+    printf("   j        r          valS1         valS2         wt\n");
+    for (int j=0; j<min(gs,20); j++)
+    {
+      double r = grid[6*j+3];
+      printf(" %3i  %8.5f  %12.6e  %12.6e  %12.6e\n",
+             j, r, valS1[i*gs+j], valS2[i*gs+j], wt[j]);
+    }
+  }
+  printf("\n");
+
+  // Get atomic coordinates (assuming single atom for now)
+  if (natoms > 1)
+  {
+    printf("\n WARNING:  can only do 1 atom in compute_Exyz_slaussian \n");
+    exit(-1);
+  }
+
+  float A1 = coords[0];
+  float B1 = coords[1];
+  float C1 = coords[2];
+
+  // Compute E matrix (Ex, Ey, Ez) with weights applied during reduction
+  #pragma acc parallel loop present(valS1[0:igs],valS2[0:igs],E[0:3*N2],grid[0:gs6],wt[0:gs])
+  for (int i1=0;i1<N;i1++)
+  {
+    #pragma acc loop
+    for (int i2=0;i2<=i1;i2++)
+    {
+      double* valm = &valS1[i1*gs];
+      double* valn = &valS2[i2*gs];
+
+      double vx = 0., vy = 0., vz = 0.;
+      #pragma acc loop reduction(+: vx,vy,vz)
+      for (int j=0;j<gs;j++)
+      {
+        double x = grid[6*j+0] + A1;
+        double y = grid[6*j+1] + B1;
+        double z = grid[6*j+2] + C1;
+        double w = wt[j];
+
+        vx += valm[j] * valn[j] * x * w;
+        vy += valm[j] * valn[j] * y * w;
+        vz += valm[j] * valn[j] * z * w;
+      }
+
+      E[i1*N+i2]        = vx;
+      E[N2+i1*N+i2]     = vy;
+      E[2*N2+i1*N+i2]   = vz;
+
+      // Symmetrize
+      if (i1 != i2)
+      {
+        E[i2*N+i1]      = vx;
+        E[N2+i2*N+i1]   = vy;
+        E[2*N2+i2*N+i1] = vz;
+      }
+    }
+  }
+
+  #pragma acc update self(E[0:3*N2])
+
+  // Apply normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norms[i]*norms[j];
+    E[i*N+j]        *= n12;
+    E[N2+i*N+j]     *= n12;
+    E[2*N2+i*N+j]   *= n12;
+  }
+
+  double thresh = 1.e-12;
+  for (int i=0;i<3*N2;i++)
+    if (fabs(E[i])<thresh)
+      E[i] = 0.;
+
+  if (prl>0)
+  {
+    printf("\n Exyz (slaussian): \n");
+    printf(" Ex:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+    printf(" Ey:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf(" Ez:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  // Cleanup
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs])
+  delete [] valS1;
+  delete [] valS2;
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
+  delete [] grid;
+  delete [] wt;
+
+  return;
+}
+*/
+
+/*
+void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
+{
+  if (prl>1) printf(" beginning compute_Exyz_slaussian (double precision) \n");
+
+  bool use_slater = 0;
+  bool sgs_basis = 0;
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double norms[N];
+  bool found = read_array(N,norms,"NGS");
+
+  if (found)
+    printf("  compute_Exyz_slaussian nrad/ang:   %3i %3i \n",nrad,nang);
+  else
+  {
+    printf(" ERROR: NGS norms not found in compute_Exyz_slaussian\n");
+    for (int i=0;i<N;i++)
+      norms[i] = basis[i][4];
+  }
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+
+  // Generate grid similar to compute_STEn_jellium
+  int m_murak = MMURAK;
+  double Z1 = Z1J;
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs2 = gs;
+
+  if (use_slater)
+  {
+    printf("  DEBUG:   Slater only \n");
+    gs1 = 0;
+  }
+ #if USE_GAUSS
+  printf("  DEBUG:  Gaussian only \n");
+  gs1 = nrad*nang;
+ #endif
+
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+  // Allocate basis function storage
+  int igs = N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs])
+
+  // Initialize valS1 and valS2 (no weights yet)
+  #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+    valS1[i1*gs+j] = 1.;
+
+  #pragma acc parallel loop collapse(2) present(valS2[0:igs])
+  for (int i2=0;i2<N;i2++)
+  for (int j=0;j<gs;j++)
+    valS2[i2*gs+j] = 1.;
+
+  // Evaluate all basis functions once
+  for (int i1=0;i1<N;i1++)
+  {
+    vector<double> basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    if (use_slater)
+    {
+      eval_shd(i1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
+    }
+    else if (sgs_basis)
+    {
+      eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+    else
+    {
+      eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+  }
+
+  // Get atomic coordinates (assuming single atom for now)
+  if (natoms > 1)
+  {
+    printf("\n WARNING: can only do 1 atom in compute_Exyz_slaussian \n");
+    exit(-1);
+  }
+
+  float A1 = coords[0];
+  float B1 = coords[1];
+  float C1 = coords[2];
+
+  // DEBUG:  Print valS1 and valS2 after evaluation
+  #pragma acc update self(valS1[0:igs],valS2[0:igs],wt[0:gs])
+
+  printf("\n DEBUG:  Grid coordinates and basis values \n");
+  printf(" Atomic coordinates:  A1=%12.6e  B1=%12.6e  C1=%12.6e\n", A1, B1, C1);
+
+  printf("\n First 30 grid points:\n");
+  printf("   j        x            y            z            r        x+A1         y+B1         z+C1\n");
+  for (int j=0; j<min(gs,30); j++)
+  {
+    double x = grid[6*j+0];
+    double y = grid[6*j+1];
+    double z = grid[6*j+2];
+    double r = grid[6*j+3];
+    printf(" %3i  %12.6e  %12.6e  %12.6e  %8.5f  %12.6e  %12.6e  %12.6e\n",
+           j, x, y, z, r, x+A1, y+B1, z+C1);
+  }
+
+  printf("\n First 3 basis functions at first 10 grid points:\n");
+  for (int i=0; i<min(N,3); i++)
+  {
+    printf("\n Basis %i (n=%i l=%i m=%i zeta=%8.5f):\n",
+           i, (int)basis[i][0], (int)basis[i][1], (int)basis[i][2], basis[i][3]);
+    printf("   j        r          valS1         valS2         wt\n");
+    for (int j=0; j<min(gs,10); j++)
+    {
+      double r = grid[6*j+3];
+      printf(" %3i  %8.5f  %12.6e  %12.6e  %12.6e\n",
+             j, r, valS1[i*gs+j], valS2[i*gs+j], wt[j]);
+    }
+  }
+  printf("\n");
+
+  // Compute E matrix (Ex, Ey, Ez) with weights applied during reduction
+  #pragma acc parallel loop present(valS1[0:igs],valS2[0:igs],E[0:3*N2],grid[0:gs6],wt[0:gs])
+  for (int i1=0;i1<N;i1++)
+  {
+    #pragma acc loop
+    for (int i2=0;i2<=i1;i2++)
+    {
+      double* valm = &valS1[i1*gs];
+      double* valn = &valS2[i2*gs];
+
+      double vx = 0., vy = 0., vz = 0.;
+      #pragma acc loop reduction(+:vx,vy,vz)
+      for (int j=0;j<gs;j++)
+      {
+        double x = grid[6*j+0] + A1;
+        double y = grid[6*j+1] + B1;
+        double z = grid[6*j+2] + C1;
+        double w = wt[j];
+
+        vx += valm[j] * valn[j] * x * w;
+        vy += valm[j] * valn[j] * y * w;
+        vz += valm[j] * valn[j] * z * w;
+      }
+
+      E[i1*N+i2]        = vx;
+      E[N2+i1*N+i2]     = vy;
+      E[2*N2+i1*N+i2]   = vz;
+
+      // Symmetrize
+      if (i1 != i2)
+      {
+        E[i2*N+i1]      = vx;
+        E[N2+i2*N+i1]   = vy;
+        E[2*N2+i2*N+i1] = vz;
+      }
+    }
+  }
+
+  #pragma acc update self(E[0:3*N2])
+
+  // Apply normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norms[i]*norms[j];
+    E[i*N+j]        *= n12;
+    E[N2+i*N+j]     *= n12;
+    E[2*N2+i*N+j]   *= n12;
+  }
+
+  double thresh = 1.e-12;
+  for (int i=0;i<3*N2;i++)
+    if (fabs(E[i])<thresh)
+      E[i] = 0.;
+
+  if (prl>0)
+  {
+    printf("\n Exyz (slaussian): \n");
+    printf(" Ex:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+    printf(" Ey:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf(" Ez:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  // Cleanup
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs])
+  delete [] valS1;
+  delete [] valS2;
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
+  delete [] grid;
+  delete [] wt;
+
+  return;
+}
+*/
+
+/*
+void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
+{
+  if (prl>1) printf(" beginning compute_Exyz_slaussian (double precision) \n");
+
+  bool use_slater = 0;
+  bool sgs_basis = 0;
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double norms[N];
+  bool found = read_array(N,norms,"NGS");
+
+  if (found)
+    printf("  compute_Exyz_slaussian nrad/ang:    %3i %3i \n",nrad,nang);
+  else
+  {
+    printf(" ERROR: NGS norms not found in compute_Exyz_slaussian\n");
+    for (int i=0;i<N;i++)
+      norms[i] = basis[i][4];
+  }
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+
+  // Generate grid similar to compute_STEn_jellium
+  int m_murak = MMURAK;
+  double Z1 = Z1J;
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs2 = gs;
+
+  if (use_slater)
+  {
+    printf("  DEBUG:    Slater only \n");
+    gs1 = 0;
+  }
+ #if USE_GAUSS
+  printf("  DEBUG:  Gaussian only \n");
+  gs1 = nrad*nang;
+ #endif
+
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+  // Allocate basis function storage
+  int igs = N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs])
+
+  // Initialize valS1 WITHOUT weights, valS2 WITH weights (matches STEn pattern)
+  // eval_ssd MULTIPLIES the input array, so we pre-load weights into valS2
+  #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+    valS1[i1*gs+j] = 1.;
+
+  #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])
+  for (int i2=0;i2<N;i2++)
+  for (int j=0;j<gs;j++)
+    valS2[i2*gs+j] = wt[j];  // WITH weights - eval_ssd will multiply by basis function
+
+  // Evaluate all basis functions once
+  for (int i1=0;i1<N;i1++)
+  {
+    vector<double> basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    if (use_slater)
+    {
+      eval_shd(i1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
+    }
+    else if (sgs_basis)
+    {
+      eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+    else
+    {
+      eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+  }
+
+  // Get atomic coordinates (assuming single atom for now)
+  if (natoms > 1)
+  {
+    printf("\n WARNING: can only do 1 atom in compute_Exyz_slaussian \n");
+    exit(-1);
+  }
+
+  float A1 = coords[0];
+  float B1 = coords[1];
+  float C1 = coords[2];
+
+  // Compute E matrix (Ex, Ey, Ez) - weights already in valS2
+  #pragma acc parallel loop present(valS1[0:igs],valS2[0:igs],E[0:3*N2],grid[0:gs6])
+  for (int i1=0;i1<N;i1++)
+  {
+    #pragma acc loop
+    for (int i2=0;i2<=i1;i2++)
+    {
+      double* valm = &valS1[i1*gs];
+      double* valn = &valS2[i2*gs];
+
+      double vx = 0., vy = 0., vz = 0.;
+      #pragma acc loop reduction(+:vx,vy,vz)
+      for (int j=0;j<gs;j++)
+      {
+        double x = grid[6*j+0] + A1;
+        double y = grid[6*j+1] + B1;
+        double z = grid[6*j+2] + C1;
+        // Don't multiply by wt - weights already in valn from initialization
+
+        vx += valm[j] * valn[j] * x;
+        vy += valm[j] * valn[j] * y;
+        vz += valm[j] * valn[j] * z;
+      }
+
+      E[i1*N+i2]        = vx;
+      E[N2+i1*N+i2]     = vy;
+      E[2*N2+i1*N+i2]   = vz;
+
+      // Symmetrize
+      if (i1 != i2)
+      {
+        E[i2*N+i1]      = vx;
+        E[N2+i2*N+i1]   = vy;
+        E[2*N2+i2*N+i1] = vz;
+      }
+    }
+  }
+
+  #pragma acc update self(E[0:3*N2])
+
+  // Apply normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norms[i]*norms[j];
+    E[i*N+j]        *= n12;
+    E[N2+i*N+j]     *= n12;
+    E[2*N2+i*N+j]   *= n12;
+  }
+
+  double thresh = 1.e-12;
+  for (int i=0;i<3*N2;i++)
+    if (fabs(E[i])<thresh)
+      E[i] = 0.;
+
+  if (prl>0)
+  {
+    printf("\n Exyz (slaussian): \n");
+    printf(" Ex:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+    printf(" Ey:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf(" Ez:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  // Cleanup
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs])
+  delete [] valS1;
+  delete [] valS2;
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
+  delete [] grid;
+  delete [] wt;
+
+  return;
+}
+*/
+
+/*
+void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
+{
+  if (prl>1) printf(" beginning compute_Exyz_slaussian (double precision) \n");
+
+  bool use_slater = 0;
+  bool sgs_basis = 0;
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double norms[N];
+  bool found = read_array(N,norms,"NGS");
+
+  if (found)
+    printf("  compute_Exyz_slaussian nrad/ang:     %3i %3i \n",nrad,nang);
+  else
+  {
+    printf(" ERROR: NGS norms not found in compute_Exyz_slaussian\n");
+    for (int i=0;i<N;i++)
+      norms[i] = basis[i][4];
+  }
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+
+  // Generate grid similar to compute_STEn_jellium
+  int m_murak = MMURAK;
+  double Z1 = Z1J;
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs2 = gs;
+
+  if (use_slater)
+  {
+    printf("  DEBUG:     Slater only \n");
+    gs1 = 0;
+  }
+ #if USE_GAUSS
+  printf("  DEBUG:  Gaussian only \n");
+  gs1 = nrad*nang;
+ #endif
+
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+  // Allocate basis function storage
+  int igs = N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs])
+
+  // Initialize valS1 WITHOUT weights, valS2 WITH weights (matches STEn pattern)
+  // eval_ssd MULTIPLIES the input array, so we pre-load weights into valS2
+  #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+    valS1[i1*gs+j] = 1.;
+
+  #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])
+  for (int i2=0;i2<N;i2++)
+  for (int j=0;j<gs;j++)
+    valS2[i2*gs+j] = wt[j];  // WITH weights - eval_ssd will multiply by basis function
+
+  // Evaluate all basis functions once
+  for (int i1=0;i1<N;i1++)
+  {
+    vector<double> basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    if (use_slater)
+    {
+      eval_shd(i1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
+    }
+    else if (sgs_basis)
+    {
+      eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+    else
+    {
+      eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+  }
+
+  // Get atomic coordinates (assuming single atom for now)
+  if (natoms > 1)
+  {
+    printf("\n WARNING: can only do 1 atom in compute_Exyz_slaussian \n");
+    exit(-1);
+  }
+
+  float A1 = coords[0];
+  float B1 = coords[1];
+  float C1 = coords[2];
+
+  // DEBUG: Check a few values before reduction
+  #pragma acc update self(valS1[0:igs],valS2[0:igs])
+  printf("\n DEBUG:  Check valS1 and valS2 after eval_ssd:\n");
+  printf(" valS1[0] (basis 0, first 5 points): ");
+  for (int j=0; j<5; j++)
+    printf("%12.6e ", valS1[0*gs+j]);
+  printf("\n");
+  printf(" valS2[0] (basis 0, first 5 points): ");
+  for (int j=0; j<5; j++)
+    printf("%12.6e ", valS2[0*gs+j]);
+  printf("\n");
+
+  // Look for a p-orbital
+  int p_idx = -1;
+  for (int i=0; i<N; i++)
+    if ((int)basis[i][1] == 1) { p_idx = i; break; }
+
+  if (p_idx >= 0)
+  {
+    printf(" valS1[%i] (p-orbital n=%i l=%i m=%i, first 5 points): ",
+           p_idx, (int)basis[p_idx][0], (int)basis[p_idx][1], (int)basis[p_idx][2]);
+    for (int j=0; j<5; j++)
+      printf("%12.6e ", valS1[p_idx*gs+j]);
+    printf("\n");
+    printf(" valS2[%i] (p-orbital n=%i l=%i m=%i, first 5 points): ",
+           p_idx, (int)basis[p_idx][0], (int)basis[p_idx][1], (int)basis[p_idx][2]);
+    for (int j=0; j<5; j++)
+      printf("%12.6e ", valS2[p_idx*gs+j]);
+    printf("\n");
+  }
+
+  // Manually compute one integral
+  printf("\n DEBUG: Manual computation of E[0,0] (s-s integral):\n");
+  double test_vx = 0., test_vy = 0., test_vz = 0.;
+  for (int j=0; j<gs; j++)
+  {
+    double x = grid[6*j+0] + A1;
+    double y = grid[6*j+1] + B1;
+    double z = grid[6*j+2] + C1;
+
+    test_vx += valS1[0*gs+j] * valS2[0*gs+j] * x;
+    test_vy += valS1[0*gs+j] * valS2[0*gs+j] * y;
+    test_vz += valS1[0*gs+j] * valS2[0*gs+j] * z;
+  }
+  printf(" Before normalization: vx=%12.6e  vy=%12.6e  vz=%12.6e\n", test_vx, test_vy, test_vz);
+  printf(" After normalization:  vx=%12.6e  vy=%12.6e  vz=%12.6e\n",
+         test_vx*norms[0]*norms[0], test_vy*norms[0]*norms[0], test_vz*norms[0]*norms[0]);
+
+  if (p_idx >= 0)
+  {
+    printf("\n DEBUG: Manual computation of E[%i,%i] (p-p integral):\n", p_idx, p_idx);
+    test_vx = test_vy = test_vz = 0.;
+    for (int j=0; j<gs; j++)
+    {
+      double x = grid[6*j+0] + A1;
+      double y = grid[6*j+1] + B1;
+      double z = grid[6*j+2] + C1;
+
+      test_vx += valS1[p_idx*gs+j] * valS2[p_idx*gs+j] * x;
+      test_vy += valS1[p_idx*gs+j] * valS2[p_idx*gs+j] * y;
+      test_vz += valS1[p_idx*gs+j] * valS2[p_idx*gs+j] * z;
+    }
+    printf(" Before normalization:  vx=%12.6e  vy=%12.6e  vz=%12.6e\n", test_vx, test_vy, test_vz);
+    printf(" After normalization:  vx=%12.6e  vy=%12.6e  vz=%12.6e\n",
+           test_vx*norms[p_idx]*norms[p_idx], test_vy*norms[p_idx]*norms[p_idx],
+           test_vz*norms[p_idx]*norms[p_idx]);
+  }
+  printf("\n");
+
+  // Compute E matrix (Ex, Ey, Ez) - weights already in valS2
+  #pragma acc parallel loop present(valS1[0:igs],valS2[0:igs],E[0:3*N2],grid[0:gs6])
+  for (int i1=0;i1<N;i1++)
+  {
+    #pragma acc loop
+    for (int i2=0;i2<=i1;i2++)
+    {
+      double* valm = &valS1[i1*gs];
+      double* valn = &valS2[i2*gs];
+
+      double vx = 0., vy = 0., vz = 0.;
+      #pragma acc loop reduction(+:vx,vy,vz)
+      for (int j=0;j<gs;j++)
+      {
+        double x = grid[6*j+0] + A1;
+        double y = grid[6*j+1] + B1;
+        double z = grid[6*j+2] + C1;
+        // Don't multiply by wt - weights already in valn from initialization
+
+        vx += valm[j] * valn[j] * x;
+        vy += valm[j] * valn[j] * y;
+        vz += valm[j] * valn[j] * z;
+      }
+
+      E[i1*N+i2]        = vx;
+      E[N2+i1*N+i2]     = vy;
+      E[2*N2+i1*N+i2]   = vz;
+
+      // Symmetrize
+      if (i1 != i2)
+      {
+        E[i2*N+i1]      = vx;
+        E[N2+i2*N+i1]   = vy;
+        E[2*N2+i2*N+i1] = vz;
+      }
+    }
+  }
+
+  #pragma acc update self(E[0:3*N2])
+
+  // Apply normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norms[i]*norms[j];
+    E[i*N+j]        *= n12;
+    E[N2+i*N+j]     *= n12;
+    E[2*N2+i*N+j]   *= n12;
+  }
+
+  double thresh = 1.e-12;
+  for (int i=0;i<3*N2;i++)
+    if (fabs(E[i])<thresh)
+      E[i] = 0.;
+
+  if (prl>0)
+  {
+    printf("\n Exyz (slaussian): \n");
+    printf(" Ex:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+    printf(" Ey:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf(" Ez:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  // Cleanup
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs])
+  delete [] valS1;
+  delete [] valS2;
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
+  delete [] grid;
+  delete [] wt;
+
+  return;
+}
+*/
+
+void compute_Exyz_slaussian(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl, double Rc)
+{
+  if (prl>1) printf(" beginning compute_Exyz_slaussian (double precision) \n");
+
+  bool use_slater = 0;
+  bool sgs_basis = 0;
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  double norms[N];
+  bool found = read_array(N,norms,"NGS");
+
+  if (found) 
+    printf("  compute_Exyz_slaussian nrad/ang:       %3i %3i \n",nrad,nang);
+  else
+  {
+    printf(" ERROR: NGS norms not found in compute_Exyz_slaussian\n");
+    for (int i=0;i<N;i++)
+      norms[i] = basis[i][4];
+  }
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+
+  // Generate grid - same as STEn
+  int m_murak = MMURAK;
+  double Z1 = Z1J;
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs2 = gs;
+
+  if (use_slater)
+  {
+    printf("  DEBUG:       Slater only \n");
+    gs1 = 0;
+  }
+ #if USE_GAUSS
+  printf("  DEBUG:  Gaussian only \n");
+  gs1 = nrad*nang;
+ #endif
+
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+  // Get atomic coordinates
+  if (natoms > 1)
+  {
+    printf("\n WARNING: can only do 1 atom in compute_Exyz_slaussian \n");
+    exit(-1);
+  }
+
+  float A1 = coords[0];
+  float B1 = coords[1];
+  float C1 = coords[2];
+
+  // Allocate basis function storage - SAME AS STEn
+  int igs = N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs])
+
+  // Initialize - EXACTLY AS STEn
+  #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+    valS1[i1*gs+j] = 1.;
+
+  #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])
+  for (int i2=0;i2<N;i2++)
+  for (int j=0;j<gs;j++)
+    valS2[i2*gs+j] = wt[j];
+
+  // Evaluate all basis functions - EXACTLY AS STEn
+  for (int i1=0;i1<N;i1++)
+  {
+    vector<double> basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zeta1 = basis1[3];
+
+    if (use_slater)
+    {
+      eval_shd(i1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
+    }
+    else if (sgs_basis)
+    {
+      eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+    else
+    {
+      eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+    }
+  }
+
+  // NOW compute Ex, Ey, Ez by multiplying valS1 by coordinates (like STEn multiplies by Vr)
+  // Need 3 copies of valS1 for x, y, z
+  double* valS1x = new double[igs];
+  double* valS1y = new double[igs];
+  double* valS1z = new double[igs];
+  #pragma acc enter data create(valS1x[0:igs],valS1y[0:igs],valS1z[0:igs])
+
+  // Multiply by x, y, z coordinates (analogous to multiplying by Vr in STEn)
+  #pragma acc parallel loop collapse(2) present(valS1[0:igs],valS1x[0:igs],valS1y[0:igs],valS1z[0:igs],grid[0:gs6])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+  {
+    double x = grid[6*j+0] + A1;
+    double y = grid[6*j+1] + B1;
+    double z = grid[6*j+2] + C1;
+    
+    valS1x[i1*gs+j] = valS1[i1*gs+j] * x;
+    valS1y[i1*gs+j] = valS1[i1*gs+j] * y;
+    valS1z[i1*gs+j] = valS1[i1*gs+j] * z;
+  }
+
+  // Contract - EXACTLY LIKE STEn
+  int tid = -1;
+  double* Ex = &E[0];
+  double* Ey = &E[N2];
+  double* Ez = &E[2*N2];
+  
+  reduce_2c1(tid,0,N,gs,valS1x,valS2,N,N,Ex);
+  reduce_2c1(tid,0,N,gs,valS1y,valS2,N,N,Ey);
+  reduce_2c1(tid,0,N,gs,valS1z,valS2,N,N,Ez);
+
+  #pragma acc update self(E[0:3*N2])
+
+  // Apply normalization
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norms[i]*norms[j];
+    E[i*N+j]        *= n12;
+    E[N2+i*N+j]     *= n12;
+    E[2*N2+i*N+j]   *= n12;
+  }
+
+  double thresh = 1.e-12;
+  for (int i=0;i<3*N2;i++)
+    if (fabs(E[i])<thresh)
+      E[i] = 0.;
+
+  if (prl>0)
+  {
+    printf("\n Exyz (slaussian): \n");
+    printf(" Ex:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+    printf(" Ey:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf(" Ez:\n");
+    for (int i=0;i<min(N,4);i++)
+    {
+      for (int j=0;j<min(N,4);j++)
+        printf(" %15.12f",E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  // Cleanup
+  #pragma acc exit data delete(valS1x[0:igs],valS1y[0:igs],valS1z[0:igs])
+  delete [] valS1x;
+  delete [] valS1y;
+  delete [] valS1z;
+
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs])
+  delete [] valS1;
+  delete [] valS2;
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
+  delete [] grid;
+  delete [] wt;
 
   return;
 }
