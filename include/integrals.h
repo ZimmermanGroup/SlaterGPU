@@ -228,7 +228,7 @@ void copy_symm_4c_ps_cpu(int natoms, int* n2i, int N, double* olp);
 int get_natoms_with_basis(int natoms, int* atno, vector<vector<double> >& basis);
 
 vector<vector<double> > setup_integrals_gsgpu(vector<vector<double> >& basis_aux, int natoms, int* atno, double* coords, int& nbas, int& nenv, int& N, int& Naux, int& nbas_ri, int* &atm, int* &bas, double* &env, int prl);
-void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas_ri, int* atm, int* bas, double* env, double* S, double* T, double* jH1, double* A, double* C, int prl);
+void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas_ri, int* atm, int* bas, double* env, double* S, double* En, double* T, double* jH1, double* A, double* C, double* pvp, int prl);
 void compute_gaussian_integrals_to_disk(int N, int Naux, int natoms, int nbas, int nenv, int nbas_ri, int* atm, int* bas, double* env);
 
 
