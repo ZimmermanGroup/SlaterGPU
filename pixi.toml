@@ -2,18 +2,18 @@
 channels = ["nvidia", "conda-forge"]
 platforms = ["linux-64", "linux-aarch64"]
 preview = ["pixi-build"]
+requires-pixi = ">=0.54"
 
 [package]
 name = "slatergpu"
-version = "0.1.7"
+version = "0.1.14"
 
-[package.build]
-# backend = { name = "pixi-build-cmake", version = "*" }
-backend = { name = "pixi-build-rattler-build", version = "==0.1.15" }
-channels = [
-  "https://prefix.dev/pixi-build-backends",
-  "https://prefix.dev/conda-forge",
-]
+[package.build.backend]
+name = "pixi-build-cmake"
+version = "==0.3.4"
+
+[package.build.config]
+compilers = []
 
 [tasks]
 slurm-job = "/export/SLURM/default/bin/srun -p zimA10 -N1 -n16 --gpus=1 --pty /bin/bash"
@@ -49,6 +49,10 @@ libc = { family="glibc", version="2.17" }
 
 [dependencies]
 slatergpu = {path = "."}
+
+[package.build-dependencies]
+cmake = "4.0.3.*"
+ninja = "1.13.*"
 
 [package.host-dependencies]
 libcint = "5.3.0.*"
