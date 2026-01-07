@@ -103,6 +103,10 @@ void get_hcore(double *hcore, double *En, double *T, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
 
+void get_hcore(double *hcore, int N,
+               int natm, int nbas, int nenv,
+               int *atm, int *bas, double *env);
+
 void get_tcore(double *tcore, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
@@ -111,7 +115,7 @@ void gen_pvp(double *pvp, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
 
-void gen_eri(double **eri, int N, 
+void gen_eri(double **eri, int N,
              int natm, int nbas, int nenv,
              int *atm, int *bas, double *env);
 
