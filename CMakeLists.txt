@@ -1,4 +1,18 @@
 cmake_minimum_required(VERSION 3.15)
+
+# Warning for potentially problematic CMake versions
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.1.0")
+    message(WARNING 
+        "CMake version 4.1.0 seemed to break CUDA library detection. "
+        "If you encounter CUDART_LIBRARY errors, please downgrade to CMake <4.1.0. "
+        "See: https://github.com/ZimmermanGroup/SlaterGPU/pull/50")
+endif()
+
+# Set the C and C++ compilers to NVIDIA HPC SDK compilers
+# Ensure that the nvc and nvc++ compilers are available in the PATH
+set(CMAKE_C_COMPILER nvc)
+set(CMAKE_CXX_COMPILER nvc++)
+
 project(SlaterGPU VERSION 0.1 
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
                   LANGUAGES C CXX)
@@ -40,9 +54,44 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+# Install directories
+include(GNUInstallDirs)
+# Force lib directory instead of lib64 to match conda expectations
+set(CMAKE_INSTALL_LIBDIR lib)
+
 add_subdirectory(src)
 add_subdirectory(examples)
+
+# Install header files
+install(DIRECTORY include/ 
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h")
 
 add_definitions("-w")
 message(STATUS "${CMAKE_CXX_FLAGS}")
 message(STATUS "DO_GTO: ${DO_GTO}")
+
+# Generate package configuration files
+include(CMakePackageConfigHelpers)
+
+# Configure the config file
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/SlaterGPUConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SlaterGPU
+    PATH_VARS CMAKE_INSTALL_INCLUDEDIR
+)
+
+# Configure the version file
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+# Install the config files
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/SlaterGPUConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SlaterGPU
+)

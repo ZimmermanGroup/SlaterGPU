@@ -1,0 +1,7 @@
+name: CI
+
+on: [push]
+
+jobs:
+  run-slater-gpu:
+    uses: ./.github/workflows/slater-gpu-base.yml

@@ -22,6 +22,9 @@ using namespace std;
 
 //#define A2B 1.8897261
 
+string SSTRF(float x);
+string SSTRF2(double x);
+
 vector<string> split1(const string &s, char delim);
 
 int check_file(string filename);
@@ -52,6 +55,7 @@ int read_vnuc();
 int read_hfx();
 int read_cusp();
 int read_esci();
+int read_lmax();
 int read_mbe();
 int read_hf();
 int read_lag();

@@ -22,6 +22,8 @@ Note: This repository is an experimental research project, and functionality rel
 
 Source the script that automatically loads modules and adds dependencies to PATH:
 
+- Note: Paul's nvhpc install seems to have the math libraries in a different location which requires a cmake modification
+
 ```
 source env.set.local0
 ```
@@ -39,7 +41,7 @@ The executable will be generated at `build/examples/sgpu.exe`
 ### Testing:
 Go into one of the example directories inside the build directory.
 ```
-cd build/examples/geom_1
+cd build/examples/lih_VK1
 ```
 
 Then execute SlaterGPU within this directory to run the test.
@@ -61,15 +63,25 @@ There are example calculations in `SlaterGPU/examples/` with integral files deno
 
 Please see LICENSE file for licensing information.
 
-## Experimental pixi build for athena:
-Run tasks with `pixi run <TASK>` where \<TASK\> is one of the following:
-```
- - build           Invoke cmake to compile and link the executable
- - clean           Delete build directory
- - configure-athena Invoke cmake to create build directory with build configuration
- - start-athena    Configure, build, and test on the Zimmerman group cluster
- - test            Test SlaterGPU executable on a small molecular system
-```
-Above list generated with `pixi task list`
+## Experimental pixi build:
+- Clone this repository
+- Install [pixi](https://pixi.sh/latest/installation/) if you don't already have it (`curl -fsSL https://pixi.sh/install.sh | sh`)
+- Ensure NVIDIA HPC SDK is available on the path
+  - On athena: `module load nvidia-sdk/25.5`
+  - On perlmutter:
+    ```
+    module use /global/cfs/cdirs/m4957/joshkamm/hpc_sdk/modulefiles
+    module unload cudatoolkit
+    module load nvhpc/25.5
+    ```
+- Install dependencies and build SlaterGPU with `pixi -v install` (`-v` to see output from pixi and cmake build)
+- If the install has succeeded, activate the pixi environment with `pixi shell` inside the folder where this repository is cloned
+- Run the executable using `sgpu.exe` in a directory with the appropriate input files
+- Experimental global installation to streamline routine usage when not modifying the code and remove the need for pixi shell:
+  `pixi -v global install --path .`
+  Requires Aug 2025 pixi update: `pixi self-update`
+- Running jobs interactively:
+  - `pixi -v run srun -p zimA10 -N1 -n2 --gpus=1 --pty /bin/bash` on athena will obtain a slurm allocation and return an interactive bash terminal on a compute node inside of the pixi configured environment with sgpu.exe on PATH
+  
+Configuration of pixi can be found in the `pixi.toml` file.
 
-Configuration of tasks and dependencies can be found in the `pixi.toml` file.

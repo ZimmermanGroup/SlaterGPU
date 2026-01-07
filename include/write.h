@@ -11,7 +11,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
-
+#include "becke.h"
 #include "read.h"
 //#include "vcf.h"
 //#include "becke.h"
