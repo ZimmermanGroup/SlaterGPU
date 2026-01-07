@@ -7,7 +7,7 @@
 
 //GPU:
 // 1. accelerate half_split_ps?
-// 2. asynchronous?
+// 2. //asynchronous?
 
 // get_cfn turned off
 

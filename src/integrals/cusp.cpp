@@ -282,12 +282,37 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
 
+  printf("  atomic charges in compute_cusp \n");
+  float atchg[natoms];
+  for (int n=0;n<natoms;n++)
+  if (not_X[n])
+  {
+    int j1 = -1;
+    for (int j=0;j<N;j++)
+    if ((int)basis[j][9]==n)
+    { j1 = j; break; }
+
+    float Zeff = basis[j1][8];
+    printf("   %i %8.5f \n",n,Zeff);
+    atchg[n] = Zeff;
+
+   //don't apply cusp correction to small charge
+    if (Zeff<0.1)
+    {
+      not_X[n] = 0;
+      atchg[n] = 0.;
+    }
+  }
+  else atchg[n] = 0.;
+
+
   for (int n=0;n<natoms;n++)
   if (not_X[n])
   {
     int s1 = 0; if (n>0) s1 = n2i[n-1]; int s2 = n2i[n];
 
-    double Z1 = (double)atno[n];
+    double Z1 = atchg[n];
+    //double Z1 = (double)atno[n];
     double A1 = coords[3*n+0]; double B1 = coords[3*n+1]; double C1 = coords[3*n+2];
 
    //basis functions on all atoms, evaluated at atom n
@@ -317,6 +342,8 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
      #else
       eval_sh(i1,1,grid1,tmp1,n1,l1,m1,zeta1);
      #endif
+     //needed for async in eval_shd
+      acc_wait_all();
       #pragma acc update self(tmp1[0:1])
 
       pb2[ind1] = Z1*norm[i1]*tmp1[0];
@@ -588,11 +615,11 @@ void project_S(int N, double* S, vector<double*> Pc_all, double* X)
   return;
 }
 
-int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+int prepare_PSP(double thresh, int natoms, int N, double* S, vector<double*> Pc_all, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
 {
  //CPMZ need to clean this up
   int N2 = N*N;
-  double thresh = PSP_THRESH;
+  //double thresh = PSP_THRESH;
   double threshw = PSP_THRESH_WARNING;
   double INF = 1.e300; //numeric_limits<double>::infinity();
 
@@ -606,8 +633,11 @@ int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp
 
   int nPc = Pc_all.size();
   int nlowexpected = nPc + natoms-1;
-  //printf(" X: \n");
-  //print_square(N,X);
+  if (prl>2)
+  {
+    printf(" X: \n");
+    print_square(N,X);
+  }
 
   for (int i=0;i<N2;i++)
     X[i] *= -1;
@@ -631,17 +661,17 @@ int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp
     exit(1);
   }
 
-  if (prl>-3)
+  if (prl>0)
   {
     int nprint1 = 5; if (nprint1>N) nprint1 = N;
     int nprint = nlowexpected+2; if (prl>1) nprint = N;
     printf("  PSP eigenvalues:");
     int N1 = N; if (N1>nprint1) N1 = nprint1;
     for (int i=0;i<N1;i++)
-      printf(" %4.1e",Xe[i]);
+      printf(" %5.2e",Xe[i]);
     if (N1!=N) printf(" ...");
     for (int i=max(N1,N-nprint);i<N;i++)
-      printf(" %4.1e",Xe[i]);
+      printf(" %5.2e",Xe[i]);
     printf("\n");
 
     int nlow = 0;
@@ -821,9 +851,21 @@ int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp
   return nsmall1;
 }
 
-int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+int prepare_PSP(double thresh, int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
 {
   vector<double*> Pc_all;
   Pc_all.push_back(Pc);
-  return prepare_PSP(natoms,N,S,Pc_all,Xp,cu_hdl,prl);
+  return prepare_PSP(thresh,natoms,N,S,Pc_all,Xp,cu_hdl,prl);
+}
+
+int prepare_PSP(int natoms, int N, double* S, double* Pc, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+{
+  double thresh = PSP_THRESH;
+  return prepare_PSP(thresh,natoms,N,S,Pc,Xp,cu_hdl,prl);
+}
+
+int prepare_PSP(int natoms, int N, double* S, vector<double*> Pc_all, double* Xp, cusolverDnHandle_t cu_hdl, int prl)
+{
+  double thresh = PSP_THRESH;
+  return prepare_PSP(thresh,natoms,N,S,Pc_all,Xp,cu_hdl,prl);
 }

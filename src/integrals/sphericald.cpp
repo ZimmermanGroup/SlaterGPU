@@ -27,7 +27,7 @@ int facto(int N)
 
 void get_1s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -39,7 +39,7 @@ void get_1s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_2s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -51,7 +51,7 @@ void get_2s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_3s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -63,7 +63,7 @@ void get_3s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_4s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -76,7 +76,7 @@ void get_4s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_5s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -89,7 +89,7 @@ void get_5s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_6s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -102,7 +102,7 @@ void get_6s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_7s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -115,7 +115,7 @@ void get_7s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_8s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -128,7 +128,7 @@ void get_8s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_9s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -141,7 +141,7 @@ void get_9s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_10s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -154,7 +154,7 @@ void get_10s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_11s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -167,7 +167,7 @@ void get_11s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_12s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double r = grid[6*i+3];
@@ -180,7 +180,7 @@ void get_12s_expd(int tid, int gs, double* grid, double* val, double zeta1)
 
 void get_2pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -192,7 +192,7 @@ void get_2pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_2pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -204,7 +204,7 @@ void get_2pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_2pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -216,7 +216,7 @@ void get_2pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -228,7 +228,7 @@ void get_3pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -240,7 +240,7 @@ void get_3pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -252,7 +252,7 @@ void get_3pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -264,7 +264,7 @@ void get_4pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -276,7 +276,7 @@ void get_4pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -288,7 +288,7 @@ void get_4pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -300,7 +300,7 @@ void get_5pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -312,7 +312,7 @@ void get_5pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -324,7 +324,7 @@ void get_5pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -337,7 +337,7 @@ void get_6pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -350,7 +350,7 @@ void get_6pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -363,7 +363,7 @@ void get_6pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -376,7 +376,7 @@ void get_7pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -389,7 +389,7 @@ void get_7pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -402,7 +402,7 @@ void get_7pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -415,7 +415,7 @@ void get_8pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -428,7 +428,7 @@ void get_8pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -441,7 +441,7 @@ void get_8pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_9pxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -454,7 +454,7 @@ void get_9pxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_9pyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -467,7 +467,7 @@ void get_9pyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_9pzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -480,7 +480,7 @@ void get_9pzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3dxyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -493,7 +493,7 @@ void get_3dxyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3dyzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -506,7 +506,7 @@ void get_3dyzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3dz2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -523,7 +523,7 @@ void get_3dz2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3dxzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -536,7 +536,7 @@ void get_3dxzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -550,7 +550,7 @@ void get_3dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 //for Cartesian expansion of d functions
 void get_3dxxd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -562,7 +562,7 @@ void get_3dxxd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3dyyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -574,7 +574,7 @@ void get_3dyyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_3dzzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -586,7 +586,7 @@ void get_3dzzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4dxyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -599,7 +599,7 @@ void get_4dxyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4dyzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -612,7 +612,7 @@ void get_4dyzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4dz2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -629,7 +629,7 @@ void get_4dz2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4dxzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -642,7 +642,7 @@ void get_4dxzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -655,7 +655,7 @@ void get_4dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5dxyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -668,7 +668,7 @@ void get_5dxyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5dyzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -681,7 +681,7 @@ void get_5dyzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5dz2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -698,7 +698,7 @@ void get_5dz2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5dxzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -711,7 +711,7 @@ void get_5dxzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -724,7 +724,7 @@ void get_5dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6dxyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -738,7 +738,7 @@ void get_6dxyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6dyzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -752,7 +752,7 @@ void get_6dyzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6dz2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -770,7 +770,7 @@ void get_6dz2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6dxzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -784,7 +784,7 @@ void get_6dxzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -798,7 +798,7 @@ void get_6dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7dxyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -812,7 +812,7 @@ void get_7dxyd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7dyzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -826,7 +826,7 @@ void get_7dyzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7dz2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -844,7 +844,7 @@ void get_7dz2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7dxzd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -858,7 +858,7 @@ void get_7dxzd(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -872,7 +872,7 @@ void get_7dx2y2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4fm3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -885,7 +885,7 @@ void get_4fm3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4fm2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -899,7 +899,7 @@ void get_4fm2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4fm1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -913,7 +913,7 @@ void get_4fm1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4f0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -927,7 +927,7 @@ void get_4f0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4fp1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -941,7 +941,7 @@ void get_4fp1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4fp2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -955,7 +955,7 @@ void get_4fp2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_4fp3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -968,7 +968,7 @@ void get_4fp3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5fm3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -981,7 +981,7 @@ void get_5fm3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5fm2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -995,7 +995,7 @@ void get_5fm2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5fm1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1009,7 +1009,7 @@ void get_5fm1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5f0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1023,7 +1023,7 @@ void get_5f0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5fp1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1037,7 +1037,7 @@ void get_5fp1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5fp2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1051,7 +1051,7 @@ void get_5fp2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5fp3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1064,7 +1064,7 @@ void get_5fp3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6fm3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1077,7 +1077,7 @@ void get_6fm3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6fm2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1091,7 +1091,7 @@ void get_6fm2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6fm1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1105,7 +1105,7 @@ void get_6fm1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6f0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1119,7 +1119,7 @@ void get_6f0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6fp1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1133,7 +1133,7 @@ void get_6fp1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6fp2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1147,7 +1147,7 @@ void get_6fp2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6fp3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1160,7 +1160,7 @@ void get_6fp3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7fm3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1173,7 +1173,7 @@ void get_7fm3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7fm2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1187,7 +1187,7 @@ void get_7fm2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7fm1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1201,7 +1201,7 @@ void get_7fm1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7f0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1215,7 +1215,7 @@ void get_7f0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7fp1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1229,7 +1229,7 @@ void get_7fp1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7fp2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1243,7 +1243,7 @@ void get_7fp2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7fp3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1256,7 +1256,7 @@ void get_7fp3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gm4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1270,7 +1270,7 @@ void get_5gm4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gm3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1284,7 +1284,7 @@ void get_5gm3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gm2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1298,7 +1298,7 @@ void get_5gm2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gm1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1312,7 +1312,7 @@ void get_5gm1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5g0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1331,7 +1331,7 @@ void get_5g0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gp1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1345,7 +1345,7 @@ void get_5gp1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gp2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1361,7 +1361,7 @@ void get_5gp2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gp3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1375,7 +1375,7 @@ void get_5gp3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_5gp4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1392,7 +1392,7 @@ void get_5gp4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hm5d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1410,7 +1410,7 @@ void get_6hm5d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hm4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1428,7 +1428,7 @@ void get_6hm4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hm3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1448,7 +1448,7 @@ void get_6hm3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hm2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1468,7 +1468,7 @@ void get_6hm2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hm1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1488,7 +1488,7 @@ void get_6hm1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6h0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1508,7 +1508,7 @@ void get_6h0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hp1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1528,7 +1528,7 @@ void get_6hp1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hp2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1548,7 +1548,7 @@ void get_6hp2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hp3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1568,7 +1568,7 @@ void get_6hp3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hp4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1587,7 +1587,7 @@ void get_6hp4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_6hp5d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1606,7 +1606,7 @@ void get_6hp5d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7im6d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1623,7 +1623,7 @@ void get_7im6d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7im5d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1641,7 +1641,7 @@ void get_7im5d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7im4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1658,7 +1658,7 @@ void get_7im4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7im3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1677,7 +1677,7 @@ void get_7im3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7im2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1694,7 +1694,7 @@ void get_7im2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7im1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1710,7 +1710,7 @@ void get_7im1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7i0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -1725,7 +1725,7 @@ void get_7i0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7ip1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -1741,7 +1741,7 @@ void get_7ip1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7ip2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1758,7 +1758,7 @@ void get_7ip2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7ip3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1777,7 +1777,7 @@ void get_7ip3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7ip4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1796,7 +1796,7 @@ void get_7ip4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7ip5d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1814,7 +1814,7 @@ void get_7ip5d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_7ip6d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1830,7 +1830,7 @@ void get_7ip6d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jm7d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1846,7 +1846,7 @@ void get_8jm7d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jm6d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1864,7 +1864,7 @@ void get_8jm6d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jm5d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1883,7 +1883,7 @@ void get_8jm5d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jm4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1900,7 +1900,7 @@ void get_8jm4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jm3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1919,7 +1919,7 @@ void get_8jm3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jm2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1936,7 +1936,7 @@ void get_8jm2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jm1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -1952,7 +1952,7 @@ void get_8jm1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8j0d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -1967,7 +1967,7 @@ void get_8j0d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jp1d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -1983,7 +1983,7 @@ void get_8jp1d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jp2d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2000,7 +2000,7 @@ void get_8jp2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jp3d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2019,7 +2019,7 @@ void get_8jp3d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jp4d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2038,7 +2038,7 @@ void get_8jp4d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jp5d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2057,7 +2057,7 @@ void get_8jp5d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jp6d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2074,7 +2074,7 @@ void get_8jp6d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_8jp7d(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2095,7 +2095,7 @@ void get_8jp7d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_px_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2106,7 +2106,7 @@ void get_px_3rd(int tid, int gs, double* grid, double* val)
 
 void get_py_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -2117,7 +2117,7 @@ void get_py_3rd(int tid, int gs, double* grid, double* val)
 
 void get_pz_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -2128,7 +2128,7 @@ void get_pz_3rd(int tid, int gs, double* grid, double* val)
 
 void get_dxy_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2140,7 +2140,7 @@ void get_dxy_3rd(int tid, int gs, double* grid, double* val)
 
 void get_dyz_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -2152,7 +2152,7 @@ void get_dyz_3rd(int tid, int gs, double* grid, double* val)
 
 void get_dz2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -2163,7 +2163,7 @@ void get_dz2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_dxz_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2175,7 +2175,7 @@ void get_dxz_3rd(int tid, int gs, double* grid, double* val)
 
 void get_dx2y2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2188,7 +2188,7 @@ void get_dx2y2_3rd(int tid, int gs, double* grid, double* val)
 //Cartesian d functions
 void get_dxx_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2199,7 +2199,7 @@ void get_dxx_3rd(int tid, int gs, double* grid, double* val)
 
 void get_dyy_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -2210,7 +2210,7 @@ void get_dyy_3rd(int tid, int gs, double* grid, double* val)
 
 void get_dzz_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -2221,7 +2221,7 @@ void get_dzz_3rd(int tid, int gs, double* grid, double* val)
 
 void get_fm3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2235,7 +2235,7 @@ void get_fm3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_fm2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2249,7 +2249,7 @@ void get_fm2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_fm1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2263,7 +2263,7 @@ void get_fm1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_f0_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2277,7 +2277,7 @@ void get_f0_3rd(int tid, int gs, double* grid, double* val)
 
 void get_fp1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2291,7 +2291,7 @@ void get_fp1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_fp2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2305,7 +2305,7 @@ void get_fp2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_fp3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2318,7 +2318,7 @@ void get_fp3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gm4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2331,7 +2331,7 @@ void get_gm4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gm3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2345,7 +2345,7 @@ void get_gm3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gm2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2359,7 +2359,7 @@ void get_gm2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gm1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2373,7 +2373,7 @@ void get_gm1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_g0_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2390,7 +2390,7 @@ void get_g0_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gp1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2404,7 +2404,7 @@ void get_gp1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gp2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2420,7 +2420,7 @@ void get_gp2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gp3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2434,7 +2434,7 @@ void get_gp3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_gp4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2450,7 +2450,7 @@ void get_gp4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hm5_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2467,7 +2467,7 @@ void get_hm5_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hm4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2484,7 +2484,7 @@ void get_hm4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hm3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2503,7 +2503,7 @@ void get_hm3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hm2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2522,7 +2522,7 @@ void get_hm2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hm1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     //double x = grid[6*i];
@@ -2541,7 +2541,7 @@ void get_hm1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_h0_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2560,7 +2560,7 @@ void get_h0_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hp1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2579,7 +2579,7 @@ void get_hp1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hp2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2596,7 +2596,7 @@ void get_hp2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hp3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2615,7 +2615,7 @@ void get_hp3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hp4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2633,7 +2633,7 @@ void get_hp4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_hp5_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2651,7 +2651,7 @@ void get_hp5_3rd(int tid, int gs, double* grid, double* val)
 
 void get_im6_3rd(int tid, int gs, double* grid, double* val) 
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2668,7 +2668,7 @@ void get_im6_3rd(int tid, int gs, double* grid, double* val)
 
 void get_im5_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2686,7 +2686,7 @@ void get_im5_3rd(int tid, int gs, double* grid, double* val)
 
 void get_im4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2703,7 +2703,7 @@ void get_im4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_im3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2722,7 +2722,7 @@ void get_im3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_im2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2739,7 +2739,7 @@ void get_im2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_im1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2755,7 +2755,7 @@ void get_im1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_i0_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -2770,7 +2770,7 @@ void get_i0_3rd(int tid, int gs, double* grid, double* val)
 
 void get_ip1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -2786,7 +2786,7 @@ void get_ip1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_ip2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2803,7 +2803,7 @@ void get_ip2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_ip3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2823,7 +2823,7 @@ void get_ip3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_ip4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2842,7 +2842,7 @@ void get_ip4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_ip5_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2860,7 +2860,7 @@ void get_ip5_3rd(int tid, int gs, double* grid, double* val)
 
 void get_ip6_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2876,7 +2876,7 @@ void get_ip6_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jm7_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2892,7 +2892,7 @@ void get_jm7_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jm6_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2910,7 +2910,7 @@ void get_jm6_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jm5_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2930,7 +2930,7 @@ void get_jm5_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jm4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2947,7 +2947,7 @@ void get_jm4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jm3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2966,7 +2966,7 @@ void get_jm3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jm2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2983,7 +2983,7 @@ void get_jm2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jm1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -2999,7 +2999,7 @@ void get_jm1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_j0_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double z = grid[6*i+2];
@@ -3014,7 +3014,7 @@ void get_j0_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jp1_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double y = grid[6*i+1];
@@ -3030,7 +3030,7 @@ void get_jp1_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jp2_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -3047,7 +3047,7 @@ void get_jp2_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jp3_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -3066,7 +3066,7 @@ void get_jp3_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jp4_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -3085,7 +3085,7 @@ void get_jp4_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jp5_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -3104,7 +3104,7 @@ void get_jp5_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jp6_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -3121,7 +3121,7 @@ void get_jp6_3rd(int tid, int gs, double* grid, double* val)
 
 void get_jp7_3rd(int tid, int gs, double* grid, double* val)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) async(tid)
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:gs]) //async(tid+1)
   for (int i=0;i<gs;i++)
   {
     double x = grid[6*i];
@@ -3307,7 +3307,11 @@ void eval_sh_3rd(int tid, int gs, double* grid, double* val, int n1, int l1, int
       return get_jp7_3rd(tid,gs,grid,val);
   }
 
-  if (tid<0)
+  if (tid>=0)
+  {
+    #pragma acc wait(tid+1)
+  }
+  else
   {
     #pragma acc wait
   }
@@ -3705,7 +3709,11 @@ void eval_shd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1
 
   } //if l1>0
 
-  if (tid<0)
+  if (tid>=0)
+  {
+    #pragma acc wait(tid+1)
+  }
+  else
   {
     #pragma acc wait
   }

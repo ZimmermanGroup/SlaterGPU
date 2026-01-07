@@ -35,6 +35,11 @@ extern void dsyevx_(
     int* info );
 }
 
+extern "C" {
+    void dgesv_(int* n, int* nrhs, double* a, int* lda, int* ipiv,
+                double* b, int* ldb, int* info);
+}
+
 void print_square(int N, double* A);
 void print_square_sm(int N, double* A);
 
@@ -49,7 +54,17 @@ double randomf(double a, double b)
   return randn;
 }
 
-void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta) 
+void solve_axeb(int dim, double* A, double* b)
+{
+  int info;
+  int one = 1;
+  int z[dim];
+  dgesv_(&dim,&one,A,&dim,z,b,&dim,&info);
+
+  return;
+}
+
+void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta)
 {
   printf("\n ERROR expmat_complex_cpu broken by new compiler \n"); exit(-1);
 
@@ -129,11 +144,13 @@ void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta)
   return;
 }
 
-void expmat_cpu(int N, double *theta, double *etheta) 
+void expmat_cpu(int N, double *theta, double *etheta)
 {
-  printf("\n ERROR expmat_cpu broken by new compiler \n"); exit(-1);
+ //computes exp(-i theta)
 
- #if 0
+  printf("\n WARNING: expmat_cpu broken by new compiler \n");
+
+ #if 1
   int N2 = N*N;
   char JOBZ = 'V';
   char UPLO = 'U';
@@ -350,7 +367,7 @@ void test_diag()
 int invert_stable_cpu_3(double* A, int size, double delta, bool root)
 {
   if (A==NULL) return -1;
-  if (delta>0.) printf(" using Invert with %12.10f shift factor \n",delta);
+  //if (delta>0.) printf(" using Invert with %12.10f shift factor \n",delta);
 
   double* B = new double[size*size];
   for (int i=0;i<size*size;i++) B[i] = A[i];
@@ -383,7 +400,7 @@ int invert_stable_cpu_3(double* A, int size, double delta, bool root)
     else if (root)
       Beigen[i] = sqrt(Beigen[i]);
   }
-  printf(" found %2i small eigenvalues. lowest: %4.2g \n",nf,mineig);
+  //printf(" found %2i small eigenvalues. lowest: %4.2g \n",nf,mineig);
 
 
 #if 0
@@ -596,7 +613,7 @@ int invert_cpu(double* A, int size, int mode)
     }
     delete [] A2;
     delete [] A2e;
-  
+
     if (nzf>2) print_inverse = 1;
 
     if (nzf>0)
@@ -622,7 +639,7 @@ int invert_cpu(double* A, int size, int mode)
     for (int i=0;i<size*size;i++) A[i] = 0.;
     for (int i=0;i<size;i++)
        A[i*size+i] = 1.;
- 
+
     exit(1);
     return 1;
   }
@@ -650,7 +667,7 @@ int invert_cpu(double* A, int size, int mode)
 int mat_root_cpu(double* A, int size)
 {
   double* B = new double[size*size];
-  for (int i=0;i<size*size;i++) B[i] = A[i]; 
+  for (int i=0;i<size*size;i++) B[i] = A[i];
   double* Beigen = new double[size];
   for (int i=0;i<size;i++) Beigen[i] = 0.;
 
@@ -663,7 +680,7 @@ int mat_root_cpu(double* A, int size)
 
   double* tmp = new double[size*size];
   for (int i=0;i<size*size;i++) tmp[i] = 0.;
-  for (int i=0;i<size*size;i++) A[i] = 0.; 
+  for (int i=0;i<size*size;i++) A[i] = 0.;
 
   for (int i=0;i<size;i++)
   for (int j=0;j<size;j++)
@@ -684,26 +701,28 @@ int mat_root_cpu(double* A, int size)
 
 int mat_root_inv_cpu(double* A, int size)
 {
-  double* B = new double[size*size];
-  for (int i=0;i<size*size;i++) B[i] = A[i];
+  int size2 = size*size;
+
+  double* B = new double[size2];
+  for (int i=0;i<size2;i++) B[i] = A[i];
   double* Beigen = new double[size];
   for (int i=0;i<size;i++) Beigen[i] = 0.;
 
   la_diag(size,size,B,Beigen);
 
-  double* Bi = new double[size*size];
-  //for (int i=0;i<size*size;i++) Bi[i] = B[i];
+  double* Bi = new double[size2];
+  //for (int i=0;i<size2;i++) Bi[i] = B[i];
 
   trans_cpu(Bi,B,size,size);
 
-  double* tmp = new double[size*size]();
-  for (int i=0;i<size*size;i++) A[i] = 0.;
+  double* tmp = new double[size2]();
+  for (int i=0;i<size2;i++) A[i] = 0.;
 
-#if 0
+ #if 0
   printf("  eigenvalues for mat_root_inv:");
   for (int i=0;i<min(size,8);i++) printf(" %5g",Beigen[i]);
   printf("\n");
-#endif
+ #endif
 
   int nsmall = 0;
   for (int i=0;i<size;i++)
@@ -729,20 +748,18 @@ int mat_root_inv_cpu(double* A, int size)
 
 int mat_root_inv_stable_cpu(double* A, int size, double inv_cutoff, int prl)
 {
-  double* B = new double[size*size];
-  for (int i=0;i<size*size;i++) B[i] = A[i];
+  int size2 = size*size;
+
+  double* B = new double[size2];
+  for (int i=0;i<size2;i++) B[i] = A[i];
   double* Beigen = new double[size];
   for (int i=0;i<size;i++) Beigen[i] = 0.;
 
   la_diag(size,size,B,Beigen);
 
-  double* Bi = new double[size*size];
-  //for (int i=0;i<size*size;i++) Bi[i] = B[i];
-
+  double* Bi = new double[size2];
+  //for (int j=0;j<size2;j++) Bi[j] = B[j];
   trans_cpu(Bi,B,size,size);
-
-  double* tmp = new double[size*size]();
-  for (int i=0;i<size*size;i++) A[i] = 0.;
 
   if (prl>1)
   {
@@ -761,9 +778,12 @@ int mat_root_inv_stable_cpu(double* A, int size, double inv_cutoff, int prl)
   if (prl>0)
     printf("  found %i low eigenvalues \n",nlow);
 
+  double* tmp = new double[size2]();
   for (int i=0;i<size;i++)
   for (int j=0;j<size;j++)
-    tmp[i*size+j] += Bi[i*size+j] / sqrt(Beigen[j]);
+    tmp[i*size+j] = Bi[i*size+j] / sqrt(Beigen[j]);
+
+  for (int i=0;i<size2;i++) A[i] = 0.;
   for (int i=0;i<size;i++)
   for (int j=0;j<size;j++)
   for (int k=0;k<size;k++)
@@ -849,7 +869,7 @@ void mat_times_mat_ct_cpu(double* C, double* A, double* B, int M, int N, int K)
   }
  #endif
 
- #if 0 
+ #if 0
   for (int i=0;i<M*N;i++) C[i] = 0.;
 
   for (int i=0;i<M;i++)
@@ -903,10 +923,10 @@ void mat_times_mat_cpu(double* C, double* A, double* B, int N)
   int LDA = N;
   int LDB = N;
   int LDC = N;
-   
+
   double ALPHA = 1.0;
   double BETA = 0.0;
-  
+
  //LIBLAS version
  // note: funny order of A/B to get C ordered
   char TB = 'N';
@@ -942,14 +962,14 @@ void mat_times_mat_at_cpu(double* C, double* A, double* B, int N)
   int LDA = N;
   int LDB = N;
   int LDC = N;
-   
+
   double ALPHA = 1.0;
   double BETA = 0.0;
-  
+
  //C := alpha*op( A )*op( B ) + beta*C (op means A or B, possibly transposed)
  //CBlas version
   //cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasTrans,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC);
-  
+
  //LIBLAS version
  // note: funny order of A/B to get C ordered
   char TB = 'N';
@@ -1011,14 +1031,14 @@ void mat_times_mat_bt_cpu(double* C, double* A, double* B, int M, int N, int K, 
   int LDA = LDAB; //K
   int LDB = LDAB; //K
   int LDC = N;
-   
+
   double ALPHA = 1.0;
   double BETA = 0.0;
-  
+
  //C := alpha*op( A )*op( B ) + beta*C (op means A or B, possibly transposed)
  //CBlas version
   //cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasTrans,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC);
-  
+
  //LIBLAS version
  // note: funny order of A/B to get transpose right
   char TB = 'T';
@@ -1055,7 +1075,7 @@ void mat_times_mat_bt_cpu(double* C, double* A, double* B, int N)
  //C := alpha*op( A )*op( B ) + beta*C (op means A or B, possibly transposed)
  //CBlas version
   //cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasTrans,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC);
-  
+
  //LIBLAS version
  // note: funny order of A/B to get transpose right
   char TB = 'T';
@@ -1105,10 +1125,10 @@ void mat_times_mat_bt_cpu(float* C, float* A, float* B, int N)
 }
 
 int sign(double x)
-{    
+{
   if (x>0) return 1;
   else if (x<=0) return -1;
- 
+
   return 0;
 }
 

@@ -458,13 +458,18 @@ void compute_C_jellium(bool use_slater, double Rc, vector<vector<double> > basis
   gs1 = nrad*nang;
  #endif
 
-  double** valS = new double*[N];
-  double** valV = new double*[Naux];
-  for (int i=0;i<N;i++)
-    valS[i] = new double[gs];
-  for (int i=0;i<Naux;i++)
-    valV[i] = new double[gs];
-  #pragma acc enter data create(valS[0:N][0:gs],valV[0:Naux][0:gs])
+  int igs = N*gs;
+  int iags = Naux*gs;
+  double* valS = new double[igs];
+  double* valV = new double[iags];
+  //double** valS = new double*[N];
+  //double** valV = new double*[Naux];
+  //for (int i=0;i<N;i++)
+  //  valS[i] = new double[gs];
+  //for (int i=0;i<Naux;i++)
+  //  valV[i] = new double[gs];
+  //#pragma acc enter data create(valS[0:N][0:gs],valV[0:Naux][0:gs])
+  #pragma acc enter data create(valS[0:igs],valV[0:iags])
 
   //instead of this, using Slater basis for potential
   //compute_V_jellium(basis_aux,gsr,rgrid,V);
@@ -476,12 +481,12 @@ void compute_C_jellium(bool use_slater, double Rc, vector<vector<double> > basis
     int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; double zt1 = basis1[3];
     //double zt1s = 2.*Rc*zt1;
 
-    #pragma acc parallel loop present(valV[0:Naux][0:gs],wt[0:gs])
+    #pragma acc parallel loop present(valV[0:iags],wt[0:gs])
     for (int j=0;j<gs;j++)
-      valV[i1][j] = wt[j];
+      valV[i1*gs+j] = wt[j];
 
-    eval_inr_r12(-1,gs,grid,valV[i1],n1,l1,zt1);
-    eval_sh_3rd(gs,grid,valV[i1],n1,l1,m1);
+    eval_inr_r12(-1,gs,grid,&valV[i1*gs],n1,l1,zt1);
+    eval_sh_3rd(gs,grid,&valV[i1*gs],n1,l1,m1);
   }
 
  //SGS or SS basis
@@ -490,29 +495,29 @@ void compute_C_jellium(bool use_slater, double Rc, vector<vector<double> > basis
     vector<double> basis2 = basis[i2];
     int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zt2 = basis2[3];
 
-    #pragma acc parallel loop present(valS[0:N][0:gs])
+    #pragma acc parallel loop present(valS[0:igs])
     for (int j=0;j<gs;j++)
-      valS[i2][j] = 1.;
+      valS[i2*gs+j] = 1.;
 
     if (use_slater)
-      eval_shd(i2,gs2,grid,valS[i2],n2,l2,m2,zt2);
+      eval_shd(i2,gs2,grid,&valS[i2*gs],n2,l2,m2,zt2);
     else if (sgs_basis)
-      eval_sgsd(i2,gs1,gs2,grid,valS[i2],n2,l2,m2,zt2,Rc);
+      eval_sgsd(i2,gs1,gs2,grid,&valS[i2*gs],n2,l2,m2,zt2,Rc);
     else
-      eval_ssd(i2,gs,grid,valS[i2],n2,l2,m2,zt2,Rc);
+      eval_ssd(i2,gs,grid,&valS[i2*gs],n2,l2,m2,zt2,Rc);
   }
 
  //need to rearrange and eliminate redundancy
   for (int i1=0;i1<Naux;i1++)
   {
-    double* valv = valV[i1];
+    double* valv = &valV[i1*gs];
 
-   #pragma acc parallel loop collapse(2) present(valv[0:gs],valS[0:N][0:gs],C[0:N2a])
+   #pragma acc parallel loop collapse(2) present(valv[0:gs],valS[0:igs],C[0:N2a])
     for (int i2=0;i2<N;i2++)
     for (int i3=0;i3<N;i3++)
     {
-      double* valm = valS[i2];
-      double* valn = valS[i3];
+      double* valm = &valS[i2*gs];
+      double* valn = &valS[i3*gs];
 
       double v1 = 0.;
      #pragma acc loop reduction(+:v1)
@@ -558,12 +563,13 @@ void compute_C_jellium(bool use_slater, double Rc, vector<vector<double> > basis
   #pragma acc update device(C[0:N2a])
 
  //cleanup
-  #pragma acc exit data delete(valS[0:N][0:gs],valV[0:Naux][0:gs])
-  for (int i=0;i<N;i++)
-    delete [] valS[i];
+  #pragma acc exit data delete(valS[0:igs],valV[0:iags])
+  //#pragma acc exit data delete(valS[0:N][0:gs],valV[0:Naux][0:gs])
+  //for (int i=0;i<N;i++)
+  //  delete [] valS[i];
   delete [] valS;
-  for (int i=0;i<Naux;i++)
-    delete [] valV[i];
+  //for (int i=0;i<Naux;i++)
+  //  delete [] valV[i];
   delete [] valV;
 
   #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
@@ -914,21 +920,25 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   gs1 = nrad*nang;
  #endif
 
-  double** valS1 = new double*[N];
-  double** valS2 = new double*[N];
-  for (int i=0;i<N;i++) valS1[i] = new double[gs];
-  for (int i=0;i<N;i++) valS2[i] = new double[gs];
-  #pragma acc enter data create(valS1[0:N][0:gs],valS2[0:N][0:gs])
+  int igs = N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  //double** valS1 = new double*[N];
+  //double** valS2 = new double*[N];
+  //for (int i=0;i<N;i++) valS1[i] = new double[gs];
+  //for (int i=0;i<N;i++) valS2[i] = new double[gs];
+  //#pragma acc enter data create(valS1[0:N][0:gs],valS2[0:N][0:gs])
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs])
 
- #pragma acc parallel loop collapse(2) present(valS1[0:N][0:gs])
+ #pragma acc parallel loop collapse(2) present(valS1[0:igs])
   for (int i1=0;i1<N;i1++)
   for (int j=0;j<gs;j++)
-    valS1[i1][j] = 1.;
+    valS1[i1*gs+j] = 1.;
 
- #pragma acc parallel loop collapse(2) present(valS2[0:N][0:gs],wt[0:gs])
+ #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])
   for (int i2=0;i2<N;i2++)
   for (int j=0;j<gs;j++)
-    valS2[i2][j] = wt[j];
+    valS2[i2*gs+j] = wt[j];
 
   for (int i1=0;i1<N;i1++)
   {
@@ -939,18 +949,18 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
 
     if (use_slater)
     {
-      eval_shd(i1,gs2,grid,valS1[i1],n1,l1,m1,zeta1);
-      eval_shd(i1,gs2,grid,valS2[i1],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+      eval_shd(i1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
     }
     else if (sgs_basis)
     {
-      eval_sgsd(i1,gs1,gs2,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
-      eval_sgsd(i1,gs1,gs2,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
     }
     else
     {
-      eval_ssd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
-      eval_ssd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+      eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
     }
   }
 
@@ -960,10 +970,10 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   for (int i3=0;i3<=i2;i3++)
   for (int i4=0;i4<=i3;i4++)
   {
-    double* valm = valS1[i1];
-    double* valn = valS1[i2];
-    double* valp = valS1[i3];
-    double* valq = valS2[i4];
+    double* valm = &valS1[i1*gs];
+    double* valn = &valS1[i2*gs];
+    double* valp = &valS1[i3*gs];
+    double* valq = &valS2[i4*gs];
 
     double v1 = 0.;
    #pragma acc parallel loop present(valm[0:gs],valn[0:gs],valp[0:gs],valq[0:gs]) reduction(+:v1)
@@ -978,11 +988,12 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
  //symmetrize
   fill_permute_ol4(N,ol);
 
-  #pragma acc exit data delete(valS1[0:N][0:gs],valS2[0:N][0:gs])
-  for (int i=0;i<N;i++)
-    delete [] valS1[i];
-  for (int i=0;i<N;i++)
-    delete [] valS2[i];
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs])
+  //#pragma acc exit data delete(valS1[0:N][0:gs],valS2[0:N][0:gs])
+  //for (int i=0;i<N;i++)
+  //  delete [] valS1[i];
+  //for (int i=0;i<N;i++)
+  //  delete [] valS2[i];
   delete [] valS1;
   delete [] valS2;
 
@@ -994,7 +1005,7 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   return;
 }
 
-void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, double rs, double Rc, int No, bool update_norm, vector<vector<double> >& basis,
+void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, double rs, double Rc, int Ne, bool update_norm, vector<vector<double> >& basis,
          int nrad, int nang, double* ang_g, double* ang_w, double* S, double* T, double* En, int prl)
 {
  //in this ftn, rs isn't used. instead, compute_Vr is already analytically evaluated.
@@ -1004,7 +1015,7 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
   int N = basis.size();
   int N2 = N*N;
 
-  int Ne = 2*No;
+  //int Ne = 2*No;
 
   int gs = nrad*nang;
   int gs6 = 6*gs;
@@ -1070,31 +1081,38 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
     }
 
    //evaluate basis ftns
-    double** valS1 = new double*[N];
-    double** valS2 = new double*[N];
-    double** valp1 = new double*[N];
-    double** valL1 = new double*[N];
-    for (int i=0;i<N;i++) valS1[i] = new double[gs];
-    for (int i=0;i<N;i++) valS2[i] = new double[gs];
-    for (int i=0;i<N;i++) valp1[i] = new double[gs3];
-    for (int i=0;i<N;i++) valL1[i] = new double[gs];
+    int igs = N*gs;
+    int igs3 = N*gs3;
+    double* valS1 = new double[igs];
+    double* valS2 = new double[igs];
+    double* valp1 = new double[igs3];
+    double* valL1 = new double[igs];
+    //double** valS1 = new double*[N];
+    //double** valS2 = new double*[N];
+    //double** valp1 = new double*[N];
+    //double** valL1 = new double*[N];
+    //for (int i=0;i<N;i++) valS1[i] = new double[gs];
+    //for (int i=0;i<N;i++) valS2[i] = new double[gs];
+    //for (int i=0;i<N;i++) valp1[i] = new double[gs3];
+    //for (int i=0;i<N;i++) valL1[i] = new double[gs];
     double* tmp = new double[gs3];
-    #pragma acc enter data create(valS1[0:N][0:gs],valS2[0:N][0:gs],valp1[0:N][0:gs3],valL1[0:N][0:gs],tmp[0:gs3])
+    //#pragma acc enter data create(valS1[0:N][0:gs],valS2[0:N][0:gs],valp1[0:N][0:gs3],valL1[0:N][0:gs],tmp[0:gs3])
+    #pragma acc enter data create(valS1[0:igs],valS2[0:igs],valp1[0:igs3],valL1[0:igs],tmp[0:gs3])
 
-   #pragma acc parallel loop collapse(2) present(valS1[0:N][0:gs])
+   #pragma acc parallel loop collapse(2) present(valS1[0:igs])
     for (int i1=0;i1<N;i1++)
     for (int j=0;j<gs;j++)
-      valS1[i1][j] = 1.;
+      valS1[i1*gs+j] = 1.;
 
-   #pragma acc parallel loop collapse(2) present(valS2[0:N][0:gs],wt[0:gs])
+   #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])
     for (int i2=0;i2<N;i2++)
     for (int j=0;j<gs;j++)
-      valS2[i2][j] = wt[j];
+      valS2[i2*gs+j] = wt[j];
 
-   #pragma acc parallel loop collapse(2) present(valL1[0:N][0:gs])
+   #pragma acc parallel loop collapse(2) present(valL1[0:igs])
     for (int i1=0;i1<N;i1++)
     for (int j=0;j<gs;j++)
-      valL1[i1][j] = 1.;
+      valL1[i1*gs+j] = 1.;
 
     for (int i1=0;i1<N;i1++)
     {
@@ -1109,18 +1127,18 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
 
       if (use_slater)
       {
-        eval_shd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1);
-        eval_shd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1);
+        eval_shd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1);
+        eval_shd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1);
       }
       else if (sgs_basis)
       {
-        eval_sgsd(i1,gs1,gs2,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
-        eval_sgsd(i1,gs1,gs2,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
+        eval_sgsd(i1,gs1,gs2,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+        eval_sgsd(i1,gs1,gs2,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
       }
       else
       {
-        eval_ssd(i1,gs,grid,valS1[i1],n1,l1,m1,zeta1,Rc);
-        eval_ssd(i1,gs,grid,valS2[i1],n1,l1,m1,zeta1,Rc);
+        eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+        eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
       }
 
      //KE
@@ -1132,26 +1150,27 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
 
        //Gaussian portion of KE
         //eval_gh_ke(gs1,grid,valKg[i1],n1,l1,1.,zeta1);
-        eval_pd_gh(gs1,grid,tmp,n1,l1,m1,1.,zeta1);
+        eval_pd_gh(gs1,grid,tmp,n1,l1,m1,1.,zeta1); //should norm be included?
 
-        #pragma acc parallel loop present(valp1[0:N][0:gs3],tmp[0:N][0:gs3])
+        #pragma acc parallel loop present(valp1[0:igs3],tmp[0:gs3])
         for (int j=0;j<3*gs1;j++)
-          valp1[i1][j] = tmp[j];
+          valp1[i1*3*gs+j] = tmp[j];
 
         eval_pd(tid,gs2,grid,tmp,n1,l1,m1,zeta2);
 
-        #pragma acc parallel loop present(valp1[0:N][0:gs3],tmp[0:N][0:gs3])
+        #pragma acc parallel loop present(valp1[0:igs3],tmp[0:gs3])
         for (int j=3*gs1;j<3*gs2;j++)
-          valp1[i1][j] = norm2*tmp[j];
+          valp1[i1*gs3+j] = norm2*tmp[j];
       }
       else
       {
        //evaluates ftn and L
-        eval_ss_ked(i1,gs,grid,valL1[i1],n1,l1,m1,zeta1,Rc);
+        eval_ss_ked(i1,gs,grid,&valL1[i1*gs],n1,l1,m1,zeta1,Rc);
       }
     }
 
    //contraction
+    //printf("\n TESTING: ** -> * in jellium_ints! \n");
     reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,S);
 
     if (sgs_basis)
@@ -1159,8 +1178,8 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
     for (int i1=0;i1<N;i1++)
     for (int i2=0;i2<N;i2++)
     {
-      double* valm = valp1[i1];
-      double* valn = valp1[i2];
+      double* valm = &valp1[i1*gs3];
+      double* valn = &valp1[i2*gs3];
 
       double vt = 0.;
      #pragma acc parallel loop present(valm[0:gs3],valn[0:gs3],wt[0:gs]) reduction(+:vt)
@@ -1178,15 +1197,19 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
       T[i1*N+i2] = -vt;
     }
     else
+    {
+      //printf("\n WARNING: testing fix for ** in jellium_ints! \n");
      //Laplacian KE contraction
       reduce_2c1(tid,0,N,gs,valL1,valS2,N,N,T);
+    }
 
-   #pragma acc parallel loop collapse(2) present(valS1[0:N][0:gs],Vr[0:gs])
+   #pragma acc parallel loop collapse(2) present(valS1[0:igs],Vr[0:gs])
     for (int i1=0;i1<N;i1++)
     for (int j=0;j<gs;j++)
-      valS1[i1][j] *= Vr[j];
+      valS1[i1*gs+j] *= Vr[j];
 
    //contraction
+    //printf("\n TESTING: ** -> * in jellium_ints! \n");
     reduce_2c1(tid,0,N,gs,valS1,valS2,N,N,En);
 
     if (prl>0) printf("  done integrating <B|O|B> \n\n");
@@ -1196,15 +1219,16 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
     #pragma acc exit data delete(Vr[0:gs])
     delete [] Vr;
 
-    #pragma acc exit data delete(valS1[0:N][0:gs],valS2[0:N][0:gs],valp1[0:N][0:gs3],valL1[0:N][0:gs],tmp[0:gs3])
-    for (int i=0;i<N;i++)
-      delete [] valS1[i];
-    for (int i=0;i<N;i++)
-      delete [] valS2[i];
-    for (int i=0;i<N;i++)
-      delete [] valp1[i];
-    for (int i=0;i<N;i++)
-      delete [] valL1[i];
+    //#pragma acc exit data delete(valS1[0:N][0:gs],valS2[0:N][0:gs],valp1[0:N][0:gs3],valL1[0:N][0:gs],tmp[0:gs3])
+    #pragma acc exit data delete(valS1[0:igs],valS2[0:igs],valp1[0:igs3],valL1[0:igs],tmp[0:gs3])
+    //for (int i=0;i<N;i++)
+    //  delete [] valS1[i];
+    //for (int i=0;i<N;i++)
+    //  delete [] valS2[i];
+    //for (int i=0;i<N;i++)
+    //  delete [] valp1[i];
+    //for (int i=0;i<N;i++)
+    //  delete [] valL1[i];
     delete [] valS1;
     delete [] valS2;
     delete [] valp1;

@@ -5,6 +5,7 @@ set(INTEGRALS_SOURCES
     integrals_ps.cpp
     spherical.cpp
     sphericald.cpp
+    grid_util.cpp
     pVp.cpp
     pVpd.cpp
     becke.cpp
