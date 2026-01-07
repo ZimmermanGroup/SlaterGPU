@@ -14,6 +14,9 @@
 
 #include "read.h"
 //#include "vcf.h"
+//#include "becke.h"
+
+//#include "accel.h"
 
 using namespace std;
 
@@ -25,7 +28,10 @@ void save_xyzv(int size1, int size2, double* vals, string filename); //to csv
 void save_xyzv(vector<vector<double> >& vals, string filename); //to csv
 void save_dft_exc(bool save_radial, int natoms, int nrad, int nang, double* grid, double* exc, string filename);
 void save_dft_exc(int save_type, double thresh, int natoms, int nrad, int nang, double* grid, double* rho, double* exc, string filename);
-void save_dft_vals(int save_type, double thresh, int natoms, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, double* epsi,  double* vc, int zpos, string filename);
+void save_dft_vals(int save_type, double thresh, int natoms, int* atno, double* coords, int nrad, int nang, double* grid, double* wt,
+                   double* rho, double* drho, double* Td, double* lapl, double* hessw, double* hessp, double* epsi,  double* vc, double* ec, int zpos, string filename);
+void save_dft_vals_rh(double rthresh, int natoms, int* atno, double* coords, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, string filename);
+vector<vector<double> > process_rdtve(vector<vector<double> >& rdtve1, int type, const double rthresh, const double dthresh);
 
 void write_grid(int natoms, int nrad, int nang, double* grid, double* wt);
 void write_gridpts(int s1, int s2, float* A, string filename);
@@ -44,7 +50,7 @@ void write_square_clean(int N, double* A, string fname, double thresh, int prl);
 
 void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname);
 void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname);
-void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname);
+void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname);
 //void write_molden_vcf(int natoms, int* atno, double* coords, vector<vector<vcf> > &vcfs, string fname);
 void write_molden_ss(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname);
 
@@ -59,5 +65,8 @@ void write_Col(int Naux, int N2, double* C);
 
 void write_S_En_T(int N, float* S, float* En, float* T);
 void write_S_En_T(int N, double* S, double* En, double* T);
+
+//void save_grid_rho(bool gbasis, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, vector<vector<double> >& basis);
+//void save_grid_ao_basis(bool gbasis, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, vector<vector<double> >& basis);
 
 #endif

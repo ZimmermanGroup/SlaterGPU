@@ -6,9 +6,10 @@
 //KE is slightly sensitive to this cutoff
 
 //was 1.e-10
-#define WT_THRESH 1.e-10
-#define WT_THRESH_D 1.e-10
-#define CL_THRESH 1.e-7
+#define WT_THRESH 1.e-30
+#define WT_THRESH_D 1.e-30
+//#define CL_THRESH 1.e-7
+#define CL_THRESH 1.e-30
 #define REDUCEV 0
 
 
@@ -73,7 +74,7 @@ void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vec
 void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* En, float* pVp, int prl);
 
 //electric fields in x,y,z (centered at origin)
-void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl);
+void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl);
 
 void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* S, double* T, int prl);
 void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* S, float* T, int prl);
@@ -118,14 +119,16 @@ double compute_2c(int Z1, int Z2, float zeta10, float zeta20, float A20, float B
 double compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
 //float compute_1s_1s(int Z1, double zeta1, double zeta2, double A2, double B2, double C2, int nrad, int nang, double* ang_g, double* ang_w);
 
+//debug function
+void give_me_an_error(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl);
 
 ///// Prolate spheroidal coordinates /////
 void compute_STEn_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* S, double* T, double* En, int prl);
 void compute_pVp_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* pVp, int prl);
 void compute_pVp_3c_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* pVp, int prl);
 void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int nmu, int nnu, int nphi, double* A, int prl);
-void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> >& basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl);
-void compute_4c_ol_ps(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl);
+void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, vector<vector<double> >& basis_aux, int quad_order, int quad_r_order, int nsplit, int nmu, int nnu, int nphi, double* En, double* C, int prl);
+void compute_4c_ol_ps(int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl);
 /////////////////////////////////////////
 
 void get_inr_1s(int nrad, double zeta, double* r, double* inr);
@@ -145,6 +148,7 @@ int find_center_of_grid(float Z1, int nrad);
 void get_angular_grid(int size_ang, double* ang_g, double* ang_w);
 void acc_assign(int size, float* vec, float v1);
 void acc_assign(int size, double* vec, double v1);
+void acc_assign(int tid, int size, double* vec, double v1);
 void acc_copy(int size, double* v1, double* v2);
 void acc_copyf(int size, float* v1, float* v2);
 void acc_copyf(int size, float* v1, float* v2, float* v3, float* v4);

@@ -9,9 +9,11 @@
 #include "cuda_util.h"
 
 void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1, const float zeta1);
+void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1);
 void eval_gh_ke(int gs, float* grid, float* val1, int n1, int l1, const float norm1, const float zeta1);
-void eval_gh_ke(int gs, double* grid, double* val1, int n1, int l1, const double norm1, const double zeta1);
+void eval_ghd_ke(int gs, double* grid, double* val1, int n1, int l1, const double norm1, const double zeta1);
 //void eval_pdke_gh(int gs, double* grid, double* val1, int n1, int l1, int m1, double norm1, double zeta1);
+void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float norm1, float zeta1);
 void eval_pd_gh(int gs, double* grid, double* val, int n1, int l1, int m1, double norm1, double zeta1);
 int eval_gh_full(int gs, float* grid, float** val1, int i1, int natoms, int nbas, int nenv, int N, int* atm, int* bas, double* env);
 void wf_to_grid_gh_ke(int natoms, int* atno, double* coords, vector<vector<double> > basis, double* jCA, int gs, float* grid, float* wt, double* TL, int prl);
