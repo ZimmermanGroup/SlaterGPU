@@ -1,4 +1,6 @@
 #include "write.h"
+#include "qr.h"
+
 
 #include <sstream>
 #define SSTRF( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(8) << scientific << x ) ).str()
@@ -7,6 +9,7 @@
 //#define SSTRF2( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << fixed << setprecision(14) << x ) ).str()
 
 #define A2B 1.8897261
+
 
 string get_iarray_name(short type1, short type2, short i1)
 {
@@ -207,7 +210,7 @@ void get_nxyzr(int n1, int l1, int m1, int& nx, int& ny, int& nz, int& nr)
   return;
 }
 
-void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname)
+void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname)
 {
   int N = basis.size();
 
@@ -228,7 +231,7 @@ void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double>
     outfile << " " << aname << "     " << i+1 << "   " << atno[i] << "   ";
     outfile << x1 << "   " << y1 << "   " << z1 << endl;
   }
-  
+
 
   outfile << "[GTO]" << endl;
 
@@ -249,7 +252,7 @@ void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double>
     int occ = 0; if (i<No) occ = 1;
 
     outfile << "Sym=X" << endl;
-    outfile << "Ene=0.0" << endl;
+    outfile << "Ene=" << eig[i] << endl;
     outfile << "Spin=Alpha" << endl;
     outfile << "Occup=" << occ << endl;
 
@@ -463,8 +466,8 @@ void write_molden_ss(int natoms, int* atno, double* coords, vector<vector<double
 
 void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname)
 {
+  if (gbasis) return write_molden_g(natoms,atno,coords,basis,jCA,No,eig,fname);
   if (basis[0].size()>10) return write_molden_ss(natoms,atno,coords,basis,jCA,No,fname);
-  if (gbasis) return write_molden_g(natoms,atno,coords,basis,jCA,No,fname);
 
   int N = basis.size();
 
@@ -812,6 +815,30 @@ void write_graph(int size, double* h, string filename)
   return;
 }
 
+#if 0
+//use save_xyzv instead
+void write_vecvec_csv(vector<vector<double> >& vec, string filename)
+{
+  ofstream outfile;
+  outfile.open(filename.c_str());
+  outfile << fixed << setprecision(14);
+
+  int s1 = vec.size();
+  for (int j=0;j<s1;j++)
+  {
+    vector<double>& v1 = vec[j];
+
+    int v1s = v1.size();
+    for (int k=0;k<v1s-1;v1++)
+      line += SSTRF2(v1[k]) + ",";
+    line += SSTRF2(v1[v1s-1]);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+  return;
+}
+#endif
 
 void write_vector(int size, double* vals, string filename)
 {
@@ -1014,12 +1041,267 @@ void save_dft_exc(bool save_type, int natoms, int nrad, int nang, double* grid, 
   return save_dft_exc(save_type,natoms,nrad,nang,grid,exc,filename);
 }
 
-void save_dft_vals(int save_type, double thresh, int natoms, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, double* epsi, double* vc, int zpos, string filename)
+void get_atom_neighbors(int natoms, int* atno, double* coords, int* atneighbors, double* atnqr)
 {
-  //if (!save_radial) { printf(" ERROR: save_dft_vals not ready for angular component \n"); return; }
+  for (int n=0;n<natoms;n++)
+  {
+    double xa1 = coords[3*n+0]; double ya1 = coords[3*n+1]; double za1 = coords[3*n+2];
 
+    double d12min = 1000.;
+    int i1 = 0;
+    for (int m=0;m<natoms;m++)
+    if (n!=m)
+    {
+      double xa2 = coords[3*m+0]; double ya2 = coords[3*m+1]; double za2 = coords[3*m+2];
+      double x12 = xa2-xa1; double y12 = ya2-ya1; double z12 = za2-za1;
+      double d12 = x12*x12 + y12*y12 + z12*z12;
+
+      if (d12<d12min) { d12min = d12; i1 = m; }
+    }
+    atneighbors[n] = i1;
+    atnqr[n] = QR[atno[i1]-1];
+  }
+
+  return;
+}
+
+void dist_to_atom_pair(int natoms, int* atno, double* coords, const double x1, const double y1, const double z1, double& ra1, double& ra2)
+{
+  for (int n=0;n<natoms;n++) if (atno[n]>18) { printf("\n ERROR: quantum radii not defined for Z>18 \n"); exit(-1); }
+
+  int nmin = 0;
+  double r2min = 10000.;
+  for (int n=0;n<natoms;n++)
+  {
+    //double qrn = QR[atno[n]];
+    double qrn = 1./atno[n]; //r -> Zr
+
+    double x10 = x1-coords[3*n+0];
+    double y10 = y1-coords[3*n+1];
+    double z10 = z1-coords[3*n+2];
+
+    double r2 = x10*x10+y10*y10+z10*z10;
+    r2 /= qrn*qrn;
+    if (r2<r2min)
+    {
+      r2min = r2;
+      nmin = n;
+    }
+  }
+  ra1 = sqrt(r2min);
+
+  r2min = 10000.;
+  for (int n=0;n<natoms;n++)
+  if (n!=nmin)
+  {
+    //double qrn = QR[atno[n]];
+    double qrn = 1./atno[n]; //r -> Zr
+
+    double x10 = x1-coords[3*n+0];
+    double y10 = y1-coords[3*n+1];
+    double z10 = z1-coords[3*n+2];
+
+    double r2 = x10*x10+y10*y10+z10*z10;
+    r2 /= qrn*qrn;
+    if (r2<r2min)
+      r2min = r2;
+  }
+  ra2 = sqrt(r2min);
+  if (natoms==1) ra2 = ra1;
+
+  return;
+}
+
+double dist_to_hz(int natoms, int* atno, double* coords, const double x1, const double y1, const double z1)
+{
+ //returns distance to closest H atom
+ // or -distance to closest non-H atom
+ // distances are scaled by approximate quantum radii
+
+  for (int n=0;n<natoms;n++) if (atno[n]>18) { printf("\n ERROR: quantum radii not defined for Z>18 \n"); exit(-1); }
+
+  int* atneighbors = new int[natoms];
+  double* atnqr = new double[natoms];
+  get_atom_neighbors(natoms,atno,coords,atneighbors,atnqr);
+
+ //dist to H rescaled by radius of its neighboring atom
+  double rh2min = 10000.;
+  for (int n=0;n<natoms;n++)
+  if (atno[n]==1)
+  {
+    double qrn = atnqr[n];
+
+    double x10 = x1-coords[3*n+0];
+    double y10 = y1-coords[3*n+1];
+    double z10 = z1-coords[3*n+2];
+
+    double r2 = x10*x10+y10*y10+z10*z10;
+    r2 /= qrn*qrn;
+    if (r2<rh2min) rh2min = r2;
+  }
+
+  double rz2min = 10000.;
+  for (int n=0;n<natoms;n++)
+  if (atno[n]>1)
+  {
+    int Z = atno[n];
+    double qr1 = QR[Z-1];
+
+    double x10 = x1-coords[3*n+0];
+    double y10 = y1-coords[3*n+1];
+    double z10 = z1-coords[3*n+2];
+
+    double r2 = x10*x10+y10*y10+z10*z10;
+    r2 /= qr1*qr1;
+    if (r2<rz2min) rz2min = r2;
+  }
+
+  double rh = sqrt(rh2min);
+  double rz = sqrt(rz2min);
+
+  double r = -rz;
+  if (rh<fabs(rz)) r = rh;
+
+  delete [] atneighbors;
+  delete [] atnqr;
+
+  return r;
+}
+
+vector<vector<double> > process_rdtve(vector<vector<double> >& rdtve1, int type, const double rthresh, const double dthresh)
+{
+  int offset = 0;
+  if (type==2) offset = 6; //if this changes also change the sort command below
+
+  vector<vector<double> > rdtve2;
+  if (type==1)
+    sort(rdtve1.begin(),rdtve1.end());
+  else if (type==2)
+    sort(rdtve1.begin(),rdtve1.end(),
+        [](const vector<double>& a, const vector<double>& b)
+         { return a[6] < b[6]; });
+  else
+  {
+    printf("\n ERROR: cannot sort due to incorrect type \n");
+  }
+
+ //sorted list with rho>rthresh
+  vector<vector<double> > tmpr;
+  for (int j=0;j<rdtve1.size();j++)
+  if (rdtve1[j][offset+0]>rthresh)
+    tmpr.push_back(rdtve1[j]);
+
+ //delete similar cases
+  double den = 1.e-8;
+  for (int j=0;j<tmpr.size()-1;j++)
+  {
+    double rho1 = tmpr[j][offset+0];
+    double drho1 = tmpr[j][offset+1];
+    double Td1 = tmpr[j][offset+2];
+
+    bool keep = 0;
+    for (int k=j+1;k<tmpr.size();k++)
+    {
+      double rho2 = tmpr[k][offset+0];
+      double rf = (rho2-rho1)/rho1;
+
+      if (rf>dthresh) //unique
+      {
+        keep = 1;
+        break;
+      }
+
+      double drho2 = tmpr[k][offset+1];
+      double Td2 = tmpr[k][offset+2];
+      double df = fabs(drho1-drho2)/(drho1+den);
+      double tf = fabs(Td1-Td2)/(Td1+den);
+
+      if (df<dthresh && tf<dthresh) //duplicate
+      {
+        //printf("  rdt:  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f   rdtf:  %6.1e  %6.1e  %6.1e  \n",rho1,drho1,Td1,rho2,drho2,Td2,rf,df,tf);
+        break;
+      }
+    } //loop k over partial upper triangle
+
+    if (keep)
+    {
+      //printf("  rdt(%i):  %9.6f  %9.6f  %9.6f \n",1*keep,rho1,drho1,Td1);
+      rdtve2.push_back(tmpr[j]);
+    }
+  } //loop j over tmpr
+
+  return rdtve2;
+}
+
+void save_dft_vals_rh(double thresh, int natoms, int* atno, double* coords, int nrad, int nang, double* grid, double* rho, double* drho, double* Td, string filename)
+{
   int gs = nrad*nang;
   int gsa = gs*natoms;
+
+  ofstream outfile;
+  outfile.open(filename.c_str());
+
+  outfile << fixed << setprecision(8);
+
+  double rthresh = 1.e-8;
+
+  vector<vector<double> > rdtve;
+  for (int j=0;j<gsa;j++)
+  if (rho[j]>rthresh)
+  {
+    vector<double> rdt1;
+    // = { grid[6*j+0], grid[6*j+1], grid[6*j+2] };
+    rdt1.push_back(rho[j]);
+    rdt1.push_back(drho[j]);
+    rdt1.push_back(Td[j]);
+    rdt1.push_back(0.);
+    rdt1.push_back(0.);
+    rdt1.push_back(0.);
+    rdt1.push_back(grid[6*j+0]);
+    rdt1.push_back(grid[6*j+1]);
+    rdt1.push_back(grid[6*j+2]);
+
+    rdtve.push_back(rdt1);
+  }
+
+  rdtve = process_rdtve(rdtve,1,rthresh,thresh);
+
+  int npts = rdtve.size();
+  outfile << "DFT.  rho/|drho|/Td/rh" << endl;
+
+  for (int j=0;j<npts;j++)
+  {
+    double x1 = rdtve[j][6]; double y1 = rdtve[j][7]; double z1 = rdtve[j][8];
+    double rh = dist_to_hz(natoms,atno,coords,x1,y1,z1);
+
+    string line = SSTRF2(rdtve[j][0]) + "," + SSTRF2(rdtve[j][1]) + "," + SSTRF2(rdtve[j][2]) + "," + SSTRF2(rh);
+    outfile << line << endl;
+  }
+
+  outfile.close();
+
+  return;
+}
+
+
+void save_dft_vals(int save_type, double thresh, int natoms, int* atno, double* coords, int nrad, int nang, double* grid, double* wt,
+                   double* rho, double* drho, double* Td, double* lapl, double* hessw, double* hessp,
+                   double* epsi, double* vc, double* ec, int zpos, string filename)
+{
+  int gs = nrad*nang;
+  int gsa = gs*natoms;
+
+  if (natoms==1) printf("\n WARNING: save_dft_vals: atomic r is not rescaled \n");
+
+ //just print vc twice if ec is not available
+  if (ec==NULL) ec = vc;
+
+  if (epsi==NULL)
+  { printf(" ERROR: epsi now required in save_dft_vals \n"); exit(-1); }
+
+ //remove pts with small integration weight
+  const double wthresh = 1.e-6; //low weights away from nuclei -> Becke partitioned
+  int gscut = gs/4; //outside of core region
 
   ofstream outfile;
   outfile.open(filename.c_str());
@@ -1028,79 +1310,143 @@ void save_dft_vals(int save_type, double thresh, int natoms, int nrad, int nang,
 
   if (save_type==1)
   {
-    outfile << "DFT.  nrad: " << nrad << "  grid/rho/|drho|/Td/vc" << endl;
+    outfile << "DFT.  nrad: " << nrad << "  grid/rho/|drho|/Td/l/w/hp,eps/vc/ec" << endl;
+
+   //approximating density at nucleus by the nearest radial point
+    double atden = rho[0]*pow(atno[0],-3.);
 
    //radial component only (single atom)
-    if (epsi!=NULL)
     for (int j=0;j<nrad;j++)
     {
       int j1 = j*nang;
-      //if (rho[j1]>thresh)
+
+      double x1 = grid[6*j1+0]; double y1 = grid[6*j1+1]; double z1 = grid[6*j1+2];
+      double rh = dist_to_hz(natoms,atno,coords,x1,y1,z1);
+      double ra1,ra2; dist_to_atom_pair(natoms,atno,coords,x1,y1,z1,ra1,ra2);
+
       {
-        string line = SSTRF2(grid[6*j1+3]) + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1]) + "," + SSTRF2(Td[j1]) + "," + SSTRF2(epsi[j1]) + "," + SSTRF2(vc[j1]);
-        outfile << line << endl;
-      }
-    }
-    else
-    for (int j=0;j<nrad;j++)
-    {
-      int j1 = j*nang;
-      //if (rho[j1]>thresh)
-      {
-        string line = SSTRF2(grid[6*j1+3]) + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1]) + "," + SSTRF2(Td[j1]) + "," + SSTRF2(vc[j1]);
+        string line = SSTRF2(rh) + "," + SSTRF2(ra1) + "," + SSTRF2(ra2) + ",0.0," + SSTRF2(grid[6*j1+1]) + "," + SSTRF2(grid[6*j1+2])
+              + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1])
+              + "," + SSTRF2(Td[j1]) + "," + SSTRF2(lapl[j1]) + "," + SSTRF2(hessw[j1])
+              + "," + SSTRF2(hessp[3*j1+0]) + "," + SSTRF2(hessp[3*j1+1]) + "," + SSTRF2(hessp[3*j1+2])
+              + "," + SSTRF2(atden)
+              + "," + SSTRF2(epsi[j1]) + "," + SSTRF2(vc[j1]) + "," + SSTRF2(ec[j1]);
+      /*  string line = SSTRF2(grid[6*j1+3]) + ",0.0,0.0," + SSTRF2(grid[6*j1+3]) + "," + SSTRF2(rho[j1]) + "," + SSTRF2(drho[j1]) + "," + SSTRF2(Td[j1])
+         + "," + SSTRF2(lapl[j1]) + "," + SSTRF2(hessw[j1])
+         + "," + SSTRF2(hessp[3*j+0]) + "," + SSTRF2(hessp[3*j+1]) + "," + SSTRF2(hessp[3*j+2])
+         + "," + SSTRF2(epsi[j1]) + "," + SSTRF2(vc[j1]) + "," + SSTRF2(ec[j1]); */
         outfile << line << endl;
       }
     }
   }
   else if (save_type==2)
   {
-    outfile << "DFT.  yz: " << 2*nrad << " grid/rho/|drho|/Td/vc" << endl;
-   //within yz plane
-    if (epsi!=NULL)
-    for (int j=0;j<gsa;j++)
+    outfile << "DFT. rh/r1/r2/xyz: " << 2*nrad << " grid/rho/|drho|/Td/l/w/hp/eps/vc/ec" << endl;
+   //within yz plane (of diatomic)
+    for (int n=0;n<natoms;n++)
     {
-      if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
-      //if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0. && rho[j]>thresh)
+      double atden = rho[n*gs]*pow(atno[n],-3.); //approximating density at nucleus by the nearest radial point
+
+      for (int k=0;k<gs;k++)
       {
-        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]);
-        outfile << line << endl;
-      }
+        int j = n*gs+k;
+
+        if (k<gscut || wt[j]>wthresh)
+        if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
+        {
+          double x1 = grid[6*j+0]; double y1 = grid[6*j+1]; double z1 = grid[6*j+2];
+          double rh = dist_to_hz(natoms,atno,coords,x1,y1,z1);
+          double ra1,ra2; dist_to_atom_pair(natoms,atno,coords,x1,y1,z1,ra1,ra2);
+
+          string line = SSTRF2(rh) + "," + SSTRF2(ra1) + "," + SSTRF2(ra2) + ",0.0," + SSTRF2(grid[6*j+1]) + "," + SSTRF2(grid[6*j+2])
+                + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j])
+                + "," + SSTRF2(Td[j]) + "," + SSTRF2(lapl[j]) + "," + SSTRF2(hessw[j])
+                + "," + SSTRF2(hessp[3*j+0]) + "," + SSTRF2(hessp[3*j+1]) + "," + SSTRF2(hessp[3*j+2])
+                + "," + SSTRF2(atden)
+                + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]) + "," + SSTRF2(ec[j]);
+          outfile << line << endl;
+        }
+      } //loop k over atomic grid
+    } //loop n over natoms
+  }
+  else if (save_type==3)
+  {
+    vector<vector<double> > rdtve;
+    for (int n=0;n<natoms;n++)
+    {
+      double atden = rho[n*gs]*pow(atno[n],-3.); //approximating density at nucleus by the nearest radial point
+
+      for (int k=0;k<gs;k++)
+      {
+        int j = n*gs+k;
+        if (k<gscut || wt[j]>wthresh)
+        {
+          vector<double> rdt1;
+          rdt1.push_back(rho[j]);
+          rdt1.push_back(drho[j]);
+          rdt1.push_back(Td[j]);
+          rdt1.push_back(lapl[j]);
+          rdt1.push_back(hessw[j]); //5th item
+          for (int k=0;k<3;k++)
+            rdt1.push_back(hessp[3*j+k]);
+          rdt1.push_back(atden);
+          rdt1.push_back(epsi[j]); //10th item
+          rdt1.push_back(vc[j]);
+          rdt1.push_back(ec[j]);
+          rdt1.push_back(grid[6*j+0]); //13th item (index 12)
+          rdt1.push_back(grid[6*j+1]);
+          rdt1.push_back(grid[6*j+2]);
+
+          rdtve.push_back(rdt1);
+        }
+
+      } //loop over atomic grid
+    } //loop over natoms
+
+    double rthresh = 1.e-8;
+    rdtve = process_rdtve(rdtve,1,rthresh,thresh);
+
+    int npts = rdtve.size();
+    int ndata = rdtve[0].size();
+    int offset = ndata-3;
+    outfile << "DFT.  rh/r1/r2/xyz: " << npts << " grid/rho/|drho|/Td/l/w/hp,eps/vc/ec" << endl;
+
+    for (int j=0;j<npts;j++)
+    {
+      string line = "";
+
+      double x1 = rdtve[j][offset]; double y1 = rdtve[j][offset+1]; double z1 = rdtve[j][offset+2];
+      double rh = dist_to_hz(natoms,atno,coords,x1,y1,z1);
+      double ra1,ra2; dist_to_atom_pair(natoms,atno,coords,x1,y1,z1,ra1,ra2);
+      line += SSTRF2(rh) + "," + SSTRF2(ra1) + "," + SSTRF2(ra2) + ",";
+
+      for (int k=offset;k<ndata;k++) //XYZ
+        line += SSTRF2(rdtve[j][k]) + ",";
+      for (int k=0;k<offset-1;k++) //rho,drho,tau,lapl,hessw,atden,eps,vc
+        line += SSTRF2(rdtve[j][k]) + ",";
+      line += SSTRF2(rdtve[j][offset-1]); //ec
+
+      outfile << line << endl;
     }
-    else
+  }
+  else if (save_type==4)
+  {
+    printf("\n WARNING: type=4 save_dft_vals not up to date \n\n");
+    outfile << "DFT.  z: " << 2*nrad*natoms << " grid/rho/|drho|/Td/vc" << endl;
+   //along z axis
     for (int j=0;j<gsa;j++)
     {
-      if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0.)
-      //if (fabs(grid[6*j+0])<1.e-12 && grid[6*j+1]>=0. && rho[j]>thresh)
+      if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12)
       {
-        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(vc[j]);
+        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j])
+           + "," + SSTRF2(lapl[j]) + "," + SSTRF2(hessw[j]) + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]) + "," + SSTRF2(ec[j]);
         outfile << line << endl;
       }
     }
   }
-  else if (save_type==3)
+  else
   {
-    outfile << "DFT.  z: " << 2*nrad*natoms << " grid/rho/|drho|/Td/vc" << endl;
-   //along z axis
-    if (epsi!=NULL)
-    for (int j=0;j<gsa;j++)
-    {
-      if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12)
-      //if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12 && rho[j]>thresh)
-      {
-        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(epsi[j]) + "," + SSTRF2(vc[j]);
-        outfile << line << endl;
-      }
-    }
-    else
-    for (int j=0;j<gsa;j++)
-    {
-      if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12)
-      //if (fabs(grid[6*j+0])<1.e-12 && fabs(grid[6*j+1])<1.e-12 && rho[j]>thresh)
-      {
-        string line = SSTRF2(grid[6*j+2]) + "," + SSTRF2(rho[j]) + "," + SSTRF2(drho[j]) + "," + SSTRF2(Td[j]) + "," + SSTRF2(vc[j]);
-        outfile << line << endl;
-      }
-    }
+    printf(" ERROR: wtype %i not supported in save_dft_vals \n",save_type);
   }
 
   outfile.close();
@@ -1284,7 +1630,7 @@ void write_rect(int N2, int Naux, double* C, string filename)
   ofstream outfile;
   outfile.open(filename.c_str());
 
-  double thresh = 1.e-15;
+  //const double thresh = 1.e-15;
   outfile << fixed << setprecision(16);
 
   outfile << filename << endl;
@@ -1292,10 +1638,10 @@ void write_rect(int N2, int Naux, double* C, string filename)
   {
     string line = "";
     for (int j=0;j<Naux;j++)
-    if (fabs(C[i*Naux+j])>thresh)
+    //if (fabs(C[i*Naux+j])>thresh)
       line += " " + SSTRF2(C[i*Naux+j]);
-    else
-      line += " 0.0";
+    //else
+    //  line += " 0.0";
     outfile << line << endl;
   }
 

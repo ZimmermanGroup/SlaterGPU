@@ -14,15 +14,15 @@ target_include_directories(io PRIVATE
 target_link_libraries(io PRIVATE SlaterGPU)
 
 set(IO_COMP_FLAGS ${CMAKE_CXX_FLAGS} 
-    -O2 -g -D__GCC_ATOMIC_TEST_AND_SET_TRUEVAL=1
+    -O2 -Minfo=accel -g -D__GCC_ATOMIC_TEST_AND_SET_TRUEVAL=1
     )
 
 if(USE_ACC)
     target_compile_options(io PRIVATE
-        ${IO_COMP_FLAGS} -DUSE_ACC=1 -acc=gpu
+        ${IO_COMP_FLAGS} -DUSE_ACC=1 -acc=gpu -Minfo=accel
         )
 else()
     target_compile_options(io PRIVATE
-        ${IO_COMP_FLAGS} -DUSE_ACC=0
+        ${IO_COMP_FLAGS} -DUSE_ACC=0 -Minfo=accel
         )
 endif()

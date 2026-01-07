@@ -362,7 +362,11 @@ void print_dft_vals(int natoms, int gs, double* grid, double* rho, double* drho,
 
   if (ei!=NULL)
   {
-    printf("       z           rho        drho        tau          ei        vc \n");
+    if (scirep)
+      printf("       z               rho            drho2           tau              ei            vc \n");
+    else
+      printf("       z           rho        drho2       tau          ei        vc \n");
+
     if (scirep)
     for (int n=0;n<natoms;n++)
     for (int m=0;m<gs;m++)
@@ -388,7 +392,7 @@ void print_dft_vals(int natoms, int gs, double* grid, double* rho, double* drho,
   }
   else
   {
-    printf("       z           rho         drho        tau       vc \n");
+    printf("       z           rho         drho2       tau       vc \n");
     if (scirep)
     for (int n=0;n<natoms;n++)
     for (int m=0;m<gs;m++)

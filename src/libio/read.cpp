@@ -4,7 +4,8 @@
 #define CYLINDER_Z 8
 //#define CYLINDER_Z 10
 
-#define LMAX_AUX 5
+#define LMAX_AUX 7
+#define LMAX_AUX_DEFAULT 6
 
 #define GEOM_DEBUG 0
 #define PDEBUG 0
@@ -14,6 +15,9 @@
 #define HDEBUG 0
 #define IDEBUG 0
 #define JDEBUG 0
+
+//minimum ratio of aux basis exponents (RI v5 only)
+#define BLIMIT_DEFAULT 1.3
 
 #include "read.h"
 
@@ -207,6 +211,48 @@ void read_thresh(float& no_thresh, float& occ_thresh)
   }
 
   infile.close();
+
+  return;
+}
+
+void read_ci_state(int wr, int& nstates, int& spin, double& degen_thresh)
+{
+  string filename = "CI";
+  if (wr==2) filename = "CI_ION";
+
+  nstates = 1;
+  spin = -1; //don't target by default
+  degen_thresh = 0.;
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+  {
+    nstates = atoi(line.c_str());
+
+    success = (bool)getline(infile, line);
+    if (success)
+      spin = atoi(line.c_str());
+
+    success = (bool)getline(infile, line);
+    if (success)
+      degen_thresh = atof(line.c_str());
+  }
+
+  infile.close();
+
+  if (nstates<1)
+    nstates = 1;
+  if (spin<-1)
+    spin = -1;
+  if (degen_thresh<0.)
+    degen_thresh = 0.;
 
   return;
 }
@@ -760,6 +806,58 @@ vector<double> read_vector(string filename)
   return vec;
 }
 
+vector<int> read_vector_int(string filename)
+{
+  vector<int> vec;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return vec;
+
+  string line;
+  bool success = (bool)getline(infile, line);
+
+  if (success)
+  {
+    vector<string> tok_line = split1(line,' ');
+    for (int i=0;i<tok_line.size();i++)
+      vec.push_back(atoi(tok_line[i].c_str()));
+  }
+
+  infile.close();
+
+  return vec;
+}
+
+vector<vector<double> > read_vecvec_csv(string filename)
+{
+  vector<vector<double> > vecvec;
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return vecvec;
+
+  string line;
+
+  while (!infile.eof())
+  {
+    bool success = (bool)getline(infile, line);
+
+    if (success)
+    {
+      vector<string> tok_line = split1(line,',');
+      vector<double> vals;
+      for (int i=0;i<tok_line.size();i++)
+        vals.push_back(atof(tok_line[i].c_str()));
+      vecvec.push_back(vals);
+    }
+  }
+
+  infile.close();
+
+  return vecvec;
+}
+
 bool read_cas_act(int& N, int& M)
 {
   string filename = "CAS_ACT";
@@ -1071,11 +1169,13 @@ void read_nrad_nang(int& nrad, int& nang, int type)
 {
   string filename = "GRID";
   if (type==2) filename = "GRID2";
+  if (type==3) filename = "GRIDR";
 
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
   {
+    if (type==3) return;
     printf("  couldn't open GRID file. please provide GRID \n");
     exit(1);
   }
@@ -1319,7 +1419,7 @@ int read_square(int N, int M, double** A, string filename)
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
-      if (tok_line.size()<N) { printf(" ERROR: file (%s) size not square \n",filename.c_str()); exit(1); }
+      if (tok_line.size()<M) { printf(" ERROR: file (%s) size not square \n",filename.c_str()); exit(1); }
       for (int m=0;m<M;m++)
         A[wi][m] = atof(tok_line[m+1].c_str());
       wi++;
@@ -1392,7 +1492,7 @@ int read_rect(int N2, int Naux, double* C, string filename)
     vector<string> tok_line = split1(line,' ');
     if (tok_line.size()>0)
     {
-      if (tok_line.size()<Naux+1) { printf(" ERROR: file size wrong in Ciap (%2i vs %2i) \n",tok_line.size(),Naux); exit(1); }
+      if (tok_line.size()<Naux+1) { printf(" ERROR: file size wrong (%2i vs %2i) \n",tok_line.size(),Naux); exit(1); }
       for (int m=0;m<Naux;m++)
         C[wi*Naux+m] = atof(tok_line[m+1].c_str());
       wi++;
@@ -2492,7 +2592,7 @@ void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<doubl
 
 }
 
-bool check_valid_basis(int n1, int l1)
+bool check_valid_basis(int n1, int l1, int lmax)
 {
  //based on currently programmed AO types
   if (n1>12) return 0;
@@ -2505,7 +2605,7 @@ bool check_valid_basis(int n1, int l1)
   if (l1==7 && n1>8) return 0;
   if (l1>=8) return 0;
 
-  if (l1>LMAX_AUX) return 0;
+  if (l1>lmax) return 0;
 
   return 1;
 }
@@ -2590,26 +2690,35 @@ void screen_basis_aux(vector<vector<double> >& basis_aux, int prl)
   return;
 }
 
-int get_bsize_jellium(double ztr, int l1)
+int get_bsize_jellium(double ztr, int l1, int auto_ri)
 {
  //if small basis, this adds too many aux ftns
   int bmax = 1;
   if (l1==0)
   {
-    if (ztr>20.)
+    if (ztr>200. && auto_ri>4)
+      bmax = 33;
+    else if (ztr>20.)
       bmax = 21;
     else
       bmax = 17;
   }
   if (l1==1)
   {
-    if (ztr>20.)
+    if (ztr>200. && auto_ri>4)
+      bmax = 29;
+    else if (ztr>20.)
       bmax = 19;
     else
       bmax = 15;
   }
   if (l1==2)
-    bmax = 9;
+  {
+    if (ztr>10. && auto_ri>4)
+      bmax = 12;
+    else
+      bmax = 9;
+  }
   if (l1==3)
     bmax = 7;
   if (l1==4)
@@ -2673,7 +2782,7 @@ void get_nspdf(int& ns, int& np, int& nd, int& nf, int& ng, vector<vector<double
   return;
 }
 
-void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+void create_basis_aux_v4(int jellium, int auto_ri, double Blimit, int LMAX, int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
 
@@ -2681,7 +2790,9 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
  // invoked only if lz>10
  // untested
   int no_lz = 6;
-  if (lz<10) lz = 10; else lz -= 10;
+
+ //CPMZ commented out lines with lz
+  //if (lz<10) lz = 10; else lz -= 10;
 
   int plus_s, plus_p, plus_d, plus_f, plus_g;
   get_nspdf(plus_s,plus_p,plus_d,plus_f,plus_g,basis_aux);
@@ -2704,7 +2815,7 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
   vector<int> basis_size;
 
  //CPMZ parameter
-  const double zsc = 1.2;
+  const double zsc = 1.2; //approximately convert n-1>l to n-1=l
 
   bool z_basis_only = 1;
   for (int j=0;j<basis_std.size();j++)
@@ -2885,7 +2996,7 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
       vector<double> basis1 = basis_min[i1];
 
       int nmax = get_bsize(zt13,zt24);
-      if (jellium) nmax = get_bsize_jellium(zt24/zt13,l13);
+      if (jellium) nmax = get_bsize_jellium(zt24/zt13,l13,auto_ri);
       if (!jellium)
       {
         if (l24==0) nmax += plus_s;
@@ -2908,12 +3019,13 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
 
      //restriction to z-axis (m=0)
       int lm13 = l13;
-      if (lm13>=lz) lm13 = 0;
+      //if (lm13>=lz) lm13 = 0;
      //CPMZ try this
       //if (z_basis_only) lm13--;
 
      //max zt only for higher angular momentum
-      if (l13>5 || l13>=lz) { nmax = 1; zt13 = zt24; }
+      if (l13>5) { nmax = 1; zt13 = zt24; }
+      //if (l13>5 || l13>=lz) { nmax = 1; zt13 = zt24; }
 
      //skip r^n higher angular momentum entirely
       //if (l13>0 && n13-l13-1>0) { nmax = 1; zt13 = zt24; }
@@ -2921,9 +3033,22 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
 
       double zf = zt24/zt13;
       double B = 1.;
-      if (nmax>1) B = exp(log(zf)/(nmax-1));
+      if (nmax>1)
+        B = exp(log(zf)/(nmax-1));
 
-      bool valid_basis = check_valid_basis(n13,l13);
+     //make sure aux basis is not overcomplete
+      if (auto_ri==5)
+      {
+        while (nmax>2)
+        {
+          B = exp(log(zf)/(nmax-1));
+          if (B>Blimit) break;
+          nmax--;
+        }
+        printf("  atom: %i  l: %i  B: %8.5f  nmax: %2i \n",n,l13,B,nmax);
+      }
+
+      bool valid_basis = check_valid_basis(n13,l13,LMAX);
 
       if (valid_basis)
       for (int ns=nmax-1;ns>=0;ns--)
@@ -2955,7 +3080,7 @@ void create_basis_aux_v4(int jellium, int lz, int natoms, vector<vector<double> 
   return;
 }
 
-void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+void create_basis_aux_v3(int natoms, int LMAX, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
 
@@ -3028,7 +3153,7 @@ void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<
       double zt13 = zt1+zt3;
       double zt24 = zt2+zt4;
 
-      int n24 = get_n12(n2,n4,l2,l4); 
+      int n24 = get_n12(n2,n4,l2,l4);
       int l24 = l2+l4;
 
       int nmax = get_bsize(zt13,zt24);
@@ -3043,7 +3168,7 @@ void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<
         vector<double> b1 = basis1;
         b1[0] = n13; b1[1] = l13; b1[3] = ztn;
 
-        bool valid_basis = check_valid_basis(n13,l13);
+        bool valid_basis = check_valid_basis(n13,l13,LMAX);
         if (valid_basis)
         {
           //if (n==0)
@@ -3071,7 +3196,7 @@ void create_basis_aux_v3(int natoms, vector<vector<double> >& basis_std, vector<
   return;
 }
 
-void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
+void create_basis_aux(int natoms, int LMAX, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux)
 {
   if (basis_std.size()<1) { printf("\n ERROR: couldn't create auxiliary basis set \n"); return; }
 
@@ -3121,7 +3246,7 @@ void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vec
             b1[3] = z12;
 
 
-            bool valid_basis = check_valid_basis(n12,l12);
+            bool valid_basis = check_valid_basis(n12,l12,LMAX);
             if (valid_basis)
             {
               for (int m=-l12;m<=l12;m++)
@@ -3256,16 +3381,22 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
 
   int auto_ri = read_ri();
   if (auto_ri<=0) auto_ri = 4;
+  int LMAX = read_int_2("RI_LMAX");
+  if (LMAX<0) LMAX = LMAX_AUX_DEFAULT;
 
   if (auto_ri>=2)
   {
     //basis_aux.clear();
     if (auto_ri>=4)
-      create_basis_aux_v4(jellium,auto_ri,natoms,basis,basis_aux);
+    {
+      double Blimit = read_float("BLIMIT");
+      if (Blimit<1.) Blimit = BLIMIT_DEFAULT;
+      create_basis_aux_v4(jellium,auto_ri,Blimit,LMAX,natoms,basis,basis_aux);
+    }
     else if (auto_ri==3)
-      create_basis_aux_v3(natoms,basis,basis_aux);
+      create_basis_aux_v3(natoms,LMAX,basis,basis_aux);
     else
-      create_basis_aux(natoms,basis,basis_aux);
+      create_basis_aux(natoms,LMAX,basis,basis_aux);
     prl++;
   }
 
@@ -3308,7 +3439,8 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
  #endif
 
   //prl1++;
-  print_basis(natoms,basis,basis_aux,prl1);
+  if (!read_int("SKIP_BASIS_PRINT"))
+    print_basis(natoms,basis,basis_aux,prl1);
 
   return natoms;
 }
