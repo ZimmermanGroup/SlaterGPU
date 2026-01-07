@@ -409,7 +409,7 @@ int read_lmax()
   ifstream infile;
   infile.open(filename.c_str());
 
-  int lmax = LMAX_AUX;
+  int lmax = LMAX_AUX_DEFAULT;
   if (!infile)
     return lmax;
 
@@ -418,6 +418,13 @@ int read_lmax()
 
   if (success)
     lmax = atoi(line.c_str());
+
+  if (lmax>LMAX_AUX)
+  {
+    printf("\n WARNING: lmax from RI_LMAX file is higher than LMAX_AUX. \n");
+    printf(" WARNING: will use %i for LMAX_AUX \n",LMAX_AUX);
+    lmax = LMAX_AUX;
+  }
 
   infile.close();
 
