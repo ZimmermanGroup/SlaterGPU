@@ -242,6 +242,7 @@ void get_hcore(double *hcore, double *En, double *T, int N,
       idx_i += di;
     }// for i
 
+    if (En!=NULL)
     for (int i = 0; i < N * N; i++) {
       En[i] = tmp[i];
     }
@@ -274,6 +275,7 @@ void get_hcore(double *hcore, double *En, double *T, int N,
     }// for i
   }
 
+  if (T!=NULL)
   for (int i = 0; i < N * N; i++) {
     T[i] = tmp[i];
   }
@@ -282,6 +284,12 @@ void get_hcore(double *hcore, double *En, double *T, int N,
   }
 
   delete [] tmp;
+}
+
+void get_hcore(double *hcore, int N,
+               int natm, int nbas, int nenv,
+               int *atm, int *bas, double *env) {
+  return get_hcore(hcore,NULL,NULL,N,natm,nbas,nenv,atm,bas,env);
 }
 
 void get_tcore(double *tcore, int N,
