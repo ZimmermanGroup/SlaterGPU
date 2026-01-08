@@ -17,7 +17,7 @@ project(SlaterGPU VERSION 0.1
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
                   LANGUAGES C CXX)
 
-set(USE_ACC False)
+set(USE_ACC True)
 set(USE_MPI True)
 set(USE_OMP True)
 set(RED_DOUBLE True)
