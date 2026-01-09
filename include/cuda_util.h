@@ -1,9 +1,16 @@
 #ifndef CUDA_UTILH
 #define CUDA_UTILH
 
-//#include <cublas.h>
+#if !USE_ACC
+#include <complex>
+typedef std::complex<double> cuDoubleComplex;
+typedef std::complex<float> cuFloatComplex;
+typedef void* cusolverDnHandle_t;
+typedef void* cublasHandle_t;
+#else
 #include <cublas_v2.h>
 #include <cusolverDn.h>
+#endif
 
 int invert_eigen_cusolver(int size, double* A, double eig_max, cusolverDnHandle_t& cu_hdl);
 int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl);
@@ -41,4 +48,5 @@ void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first);
 void copy_to_all_gpu(int ngpu, int s1, float* A, int include_first);
 void copy_to_all_gpu(int ngpu, int s1, int s2, double** A, int include_first);
 
-#endif
+
+#endif // CUDA_UTILH

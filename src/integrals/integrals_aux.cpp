@@ -5,6 +5,7 @@
 #include "../../include/cintprep.h"
 
 #include "write.h"
+#include "read.h"
 
 void auto_crash()
 {
@@ -1617,13 +1618,64 @@ vector<vector<double> > setup_integrals_gsgpu(vector<vector<double> >& basis_aux
   return basis;
 }
 
+void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas_ri, int* atm, int* bas, double* env, double* S, double* T, double* jH1, double* A, double* C, int prl)
+{
+  get_overlap(S, N, natm, nbas, nenv, atm, bas, env);
+  get_hcore(jH1, N, natm, nbas, nenv, atm, bas, env);
+  if (T!=NULL)
+    get_tcore(T, N, natm, nbas, nenv, atm, bas, env);
+
+  if (prl>1)
+  {
+    printf("\n S: \n");
+    print_square(N,S);
+    printf("\n jH1: \n");
+    print_square(N,jH1);
+  }
+
+  if (Naux>0)
+  {
+    gen_eri_2c(A, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
+    gen_eri_3c(C, N, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
+  }
+  else
+  {
+    printf("  no auxiliary basis \n");
+  }
+
+  if (prl>1)
+  {
+    printf("\n A: \n");
+    for (int m=0;m<Naux;m++)
+    {
+      for (int n=0;n<Naux;n++)
+        printf(" %8.5f",A[m*Naux+n]);
+      printf("\n");
+    }
+
+    int N2 = N*N;
+    printf("\n C: \n");
+    for (int m=0;m<N2;m++)
+    {
+      for (int n=0;n<Naux;n++)
+        printf(" %8.5f",C[m*Naux+n]);
+      printf("\n");
+    }
+  }
+
+  return;
+}
+
 void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas_ri, int* atm, int* bas, double* env, double* S, double* En, double* T, double* jH1, double* A, double* C, double* pvp, int prl)
 {
   get_overlap(S, N, natm, nbas, nenv, atm, bas, env);
   get_hcore(jH1, En, T, N, natm, nbas, nenv, atm, bas, env);
   //if (T!=NULL)
   //  get_tcore(T, N, natm, nbas, nenv, atm, bas, env);
-  gen_pvp(pvp, N, natm, nbas, nenv, atm, bas, env);
+
+  bool x2c = read_int("X2C");
+  if (x2c)
+    gen_pvp(pvp, N, natm, nbas, nenv, atm, bas, env);
 
   if (prl>1)
   {

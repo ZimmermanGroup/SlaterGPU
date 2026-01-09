@@ -52,6 +52,6 @@ void mat_times_mat_bt_cpu(double* C, double* A, double* B, int M, int N, int K, 
 void mat_times_mat_bt_cpu(float* C, float* A, float* B, int N);
 void mat_times_mat_bt_cpu(double* C, double* A, double* B, int M, int N, int K);
 void mat_times_mat_bt_cpu(double* C, double* A, double* B, int N);
-
+void mat_times_mat_at_cpu(double* C, double* A, double* B, int M, int N, int K);
 
 #endif
