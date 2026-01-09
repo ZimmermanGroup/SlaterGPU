@@ -354,9 +354,9 @@ void reduce_2c1(int tid, int s1, int s2, int gs, double** val1, double** val3, i
 
 #else
   for (int i1=s1;i1<s2;i1++)
-  for (int i2=s3;i2<s4;i2++)
+  for (int i2=s1;i2<s2;i2++)
   {
-    int ii1 = i1-s1; int ii2 = i2-s3;
+    int ii1 = i1-s1; int ii2 = i2-s1;
     double val = 0.;
     for (int j=0;j<gs;j++)
       val += val1[ii1][j]*val3[ii2][j];

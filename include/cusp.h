@@ -24,6 +24,7 @@
 
 using namespace std;
 
+
 void compute_diatomic_symm(int natoms, int* atno, vector<vector<double> > basis, vector<double*>& pB_all, int prl);
 
 void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* pB1, double* pB2, int prl);

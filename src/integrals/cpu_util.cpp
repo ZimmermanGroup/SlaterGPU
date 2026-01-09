@@ -1120,3 +1120,23 @@ void cross(double* m, double* r1, double* r2)
 
   return;
 }
+
+// Extended version of mat_times_mat_at_cpu with M, N, K parameters
+void mat_times_mat_at_cpu(double* C, double* A, double* B, int M, int N, int K)
+{
+  // C = A^T * B
+  // A is K x M, B is K x N, C is M x N
+  
+  int LDA = M;
+  int LDB = N;
+  int LDC = N;
+
+  double ALPHA = 1.0;
+  double BETA = 0.0;
+
+  char TA = 'T';
+  char TB = 'N';
+  dgemm_(&TB,&TA,&N,&M,&K,&ALPHA,B,&LDB,A,&LDA,&BETA,C,&LDC);
+
+  return;
+}
