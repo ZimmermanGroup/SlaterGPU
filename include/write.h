@@ -62,8 +62,8 @@ void write_S_En_T(int N, float* S, float* En, float* T);
 void write_S_En_T(int N, double* S, double* En, double* T);
 
 void write_mo_grid(int natoms, int* atno, double* coords, int nrad, int gsa, vector<vector<double> > basis,
-                   int No, double* Pao, double* jCA, double* jS, float* grid, float* wt, int prl)
+                   int No, double* Pao, double* jCA, double* jS, float* grid, float* wt, int prl);
 void write_mo_grid(int natoms, int* atno, double* coords, int nrad, int gsa, vector<vector<double> > basis,
-                   int No, double* Pao, double* jCA, double* jS, double* grid, double* wt, int prl)
+                   int No, double* Pao, double* jCA, double* jS, double* grid, double* wt, int prl);
 
 #endif
