@@ -21,6 +21,9 @@ if(USE_ACC)
     target_compile_options(io PRIVATE
         ${IO_COMP_FLAGS} -DUSE_ACC=1 -acc=gpu
         )
+    target_link_options(io PRIVATE
+        -acc=gpu
+        )
 else()
     target_compile_options(io PRIVATE
         ${IO_COMP_FLAGS} -DUSE_ACC=0
