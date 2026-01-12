@@ -33,6 +33,10 @@ extern void dsyevx_(
     double* work, int * lwork,
     int* iwork, int* IFAIL,
     int* info );
+
+extern void dgetrf_(int* M, int* N, double* A, int* LDA, int* IPIV, int* INFO);
+
+extern void dgetri_(int* N, double* A, int* LDA, int* IPIV, double* WORK, int* LWORK, int* INFO);
 }
 
 void print_square(int N, double* A);
@@ -778,7 +782,36 @@ int mat_root_inv_stable_cpu(double* A, int size, double inv_cutoff, int prl)
   return nlow;
 }
 
+int LU_inv_stable_cpu(double* A, int size)
+{
+ //Need to check if debug is necessary, but need ZEST incorporation first
+    int size2 = size*size;
+    int infolu;
+    int infoinv;
+    int* piv = new int[size];
+    double* work = new double[size2];
 
+    dgetrf_(&size,&size,A,&size,piv,&infolu);
+    if(infolu != 0)
+    {    
+      printf("LU factorization failed %i\n",infolu);
+      delete [] piv; 
+      delete [] work;
+      exit(1);
+    }    
+
+    dgetri_(&size,A,&size,piv,work,&size2,&infoinv);
+    if(infoinv != 0)
+    {    
+      printf("LU inversion failed %i\n",infoinv);
+      exit(1);
+    }    
+
+    delete [] piv; 
+    delete [] work;
+
+    return infoinv;
+}
 
 void trans_cpu(float* Bt, float* B, int m, int n)
 {
