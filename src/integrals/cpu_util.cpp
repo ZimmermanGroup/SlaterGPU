@@ -784,6 +784,7 @@ int mat_root_inv_stable_cpu(double* A, int size, double inv_cutoff, int prl)
 
 int LU_inv_stable_cpu(double* A, int size)
 {
+ //Need to check if debug is necessary, but need ZEST incorporation first
     int size2 = size*size;
     int infolu;
     int infoinv;
