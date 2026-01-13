@@ -15,13 +15,123 @@
 #include "scf_util.h"
 #include "prosph.h"
 #include "quad.h"
+#include "jellium_ints.h"
 
 
 using namespace std;
 
 
+void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector<double> > basis_aux,
+             int nrad, int nang, double* ang_g, double* ang_w, int prl)
+{
+  //if (natoms>1)
+  //  return spheroidal_jellium(natoms,z0,Ne,basis,basis_aux,nrad,nang,ang_g,ang_w,prl,cu_hdl);
 
-void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<vector<double> > basis, vector<vector<double> > basis_aux, int prl)
+  double Rc = 1.;
+  double Rc_read = read_float("RC");
+  if (Rc_read>0.) Rc = Rc_read;
+
+  bool slater = 0;
+  int order = read_int("JELLIUM");
+  if (order<2) slater = 1;
+
+  printf("\n TESTING jellium functions.   order: %i \n",order);
+
+
+  double Zg = read_float("ZG");
+  double ztg = read_float("ZTG");
+  if (ztg<0.) { printf("\n ERROR: Gaussian impurity zeta cannot be less than 0. \n"); exit(-1); }
+
+  int No = Ne/2;
+  //int Ne = 2*No;
+  double rs = Rc*pow(Ne,-1./3.);
+
+  printf("  Ne: %2i  rs: %8.5f  Rc: %8.5f  Zg: %6.3f  ztg: %5.3f \n",Ne,rs,Rc,Zg,ztg);
+  print_murak_rmax(Rc,nrad,basis);
+
+  int N = basis.size();
+  int N2 = N*N;
+  int Naux = basis_aux.size();
+  int Na2 = Naux*Naux;
+  int N2a = Naux*N2;
+
+
+  //update norms in basis
+  for (int i=0;i<N;i++)
+  {
+    int n1 = basis[i][0]; int l1 = basis[i][1]; int m1 = basis[i][2]; double zt1 = basis[i][3];
+    double norm0 = basis[i][4];
+    double norm1 = norm0; //norm_sgs(n1,l1,m1,zt1,Rc);
+    basis[i][4] = norm1;
+    //printf("  basis %2i  n1: %i  norm: %8.5f -> %8.5f \n",i,n1,norm0,norm1);
+  }
+
+  int atno[natoms];
+  atno[0] = 1;
+  //MD float coordsf[3]; coordsf[0] = coordsf[1] = coordsf[2] = 0.;
+  double coords[3]; coords[0] = coords[1] = coords[2] = 0.;
+
+
+ //need Jellium integrals in SGS basis
+  double* En = new double[N2]();
+  double* S = new double[N2];
+  double* T = new double[N2];
+  double* A = new double[Na2];
+  double* C = new double[N2a];
+
+  #pragma acc enter data create(S[0:N2],En[0:N2],T[0:N2],A[0:Na2],C[0:N2a])
+
+  bool found_ints = read_integrals("0",N,Naux,S,T,En,A,C,prl);
+  //bool found_a = read_square(Naux,A,"A");
+  //if (!found_a) { printf("\n ERROR: couldn't find 2c integrals \n"); exit(-1); }
+  #pragma acc update device(S[0:N2],En[0:N2],T[0:N2],A[0:Na2],C[0:N2a])
+
+  bool have_ints = read_int("JINTS");
+  if (have_ints)
+  {
+    bool have_A = check_file("A");
+    bool have_C = check_file("Ciap");
+    bool have_1 = check_file("SENT");
+
+    if (!have_A || !have_C || !have_1) have_ints = 0;
+  }
+  if (!have_ints)
+  {
+    compute_STEn_jellium(slater,order,Zg,ztg,rs,Rc,Ne,1,basis,nrad,nang,ang_g,ang_w,S,T,En,prl);
+    compute_C_jellium(slater,Rc,basis,basis_aux,nrad,nang,ang_g,ang_w,C);
+
+    write_S_En_T(N,S,En,T);
+    write_C(Naux,N2,C);
+    write_int(1,"JINTS");
+  }
+  bool need_olintsd = !check_file("olintsd");
+  int coulomb = read_int("COULOMB");
+  if (need_olintsd && coulomb<2)
+  {
+    double* ol = new double[N2*N2];
+
+    compute_4c_ol_jellium(slater,Rc,basis,nrad,nang,ang_g,ang_w,ol,prl);
+    write_square(N2,ol,"olintsd",1);
+
+    delete [] ol;
+  }
+  //#pragma acc update device(S[0:N2],En[0:N2],T[0:N2],A[0:Na2],C[0:N2a])
+
+  printf("\n done with Jellium integrals \n\n");
+
+   //cleanup
+  #pragma acc exit data delete(En[0:N2])
+  #pragma acc enter data create(S[0:N2],T[0:N2],A[0:Na2],C[0:N2a])
+  delete [] En;
+  delete [] S;
+  delete [] T;
+  delete [] A;
+  delete [] C;
+
+  return;
+}
+
+void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<vector<double> > basis, vector<vector<double> > basis_aux, int prl, int jellium)
 {
  //prolate spheroidal coordinates
   if (prl > 0) printf("Computing prolate spheroidal integrals:\n");
@@ -67,17 +177,26 @@ void compute_ps_integrals_to_disk(int natoms, int* atno, double* coords, vector<
   double* Cysp = new double[N2a]();
   for (int j=0;j<N2;j++) Ssp[j] = Tsp[j] = Ensp[j] = pVpsp[j] = 0.;
 
-  compute_STEn_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,Ssp,Tsp,Ensp,prl);
-  //compute_pVp_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,pVpsp,prl);
-  //compute_pVp_3c_ps(natoms,atno,coords,basis,nquad,nquad2,nsplit,nmu,nnu,nphi,pVpsp,prl);
-  compute_2c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
-  compute_3c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
+  if (jellium>0)
+  {
+    compute_2c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
+    if (prl > 0) printf("Writing A to disk to be used for jellium\n");
+    write_square(Naux,Asp,"A",2);
+  }
+  else
+  {
+    compute_STEn_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,Ssp,Tsp,Ensp,prl);
+    //compute_pVp_ps(natoms,atno,coords,basis,nquad,nmu,nnu,nphi,pVpsp,prl);
+    //compute_pVp_3c_ps(natoms,atno,coords,basis,nquad,nquad2,nsplit,nmu,nnu,nphi,pVpsp,prl);
+    compute_2c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis_aux,nquad,nmu,nnu,nphi,Asp,prl);
+    compute_3c_ps(0,0,gamma,nbatch,natoms,atno,coords,basis,basis_aux,nquad,nquad2,nsplit,nmu,nnu,nphi,Ensp,Csp,prl);
 
-  if (prl > 0) printf("Printing PS Integral Files:\n");
-  write_S_En_T(N,Ssp,Ensp,Tsp);
-  //write_square(N,pVpsp,"pVp",2);
-  write_square(Naux,Asp,"A",2);
-  write_C(Naux,N2,Csp);
+    if (prl > 0) printf("Printing PS Integral Files:\n");
+    write_S_En_T(N,Ssp,Ensp,Tsp);
+    //write_square(N,pVpsp,"pVp",2);
+    write_square(Naux,Asp,"A",2);
+    write_C(Naux,N2,Csp);
+  }
 
   delete [] Asp;
   delete [] Csp;
@@ -132,6 +251,8 @@ int main(int argc, char* argv[]) {
   printf(" There are %d occupied orbitals (%d core)\n",No,Nc);
   printf(" Na: %d Nb: %d\n",Na,Nb);
 
+  int Ne = Na + Nb;
+
   int N = basis.size();
   int Naux = basis_aux.size();
 
@@ -158,6 +279,18 @@ int main(int argc, char* argv[]) {
   double * ang_w = new double[size_ang];
   get_angular_grid(size_ang,ang_g,ang_w);
 
+  int jellium = read_int("JELLIUM");
+  bool do_ps_integrals = check_PS();
+
+  int prl = 1;
+
+  if (jellium>0)
+  {
+    //get A matrix
+    compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl,jellium);
+    do_ps_integrals = 0;
+  }
+
   // Doing work
   if (true) {
     double * A = new double[Naux2]();
@@ -182,7 +315,7 @@ int main(int argc, char* argv[]) {
     double* V = new double[nc];
     double* dV = new double[3*nc];
    
-    int prl = 1;
+    //int prl = 1;
     int c4 = 0;
     double* g = nullptr;
      
@@ -200,8 +333,12 @@ int main(int argc, char* argv[]) {
       printf("\n TESTING gaussian integrals \n");
       compute_gaussian_integrals_to_disk(N,Naux,natoms,nbas,nenv,nbas_ri,atm,bas,env);
     }
-    else if (check_PS() > 0)
-      compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl);
+    else if (jellium > 0)
+    {
+      do_jellium(natoms,Ne,basis,basis_aux,nrad,nang,ang_g,ang_w,prl);
+    }
+    else if (do_ps_integrals)
+      compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl,jellium);
     else
     {
       printf("Computing Standard Integrals:\n");
