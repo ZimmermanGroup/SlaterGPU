@@ -119,6 +119,20 @@ void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector
 
   printf("\n done with Jellium integrals \n\n");
 
+// ADD THIS SECTION HERE to test compute_Exyz_slaussian
+  printf("\n Testing compute_Exyz_slaussian \n");
+  
+  double* E = new double[3*N2]();  // Initialize to zeros
+  #pragma acc enter data create(E[0:3*N2])
+  
+  compute_Exyz_slaussian(Rc, basis, nrad, nang, ang_g, ang_w, E, prl);
+  
+  #pragma acc exit data delete(E[0:3*N2])
+  delete [] E;
+  
+  printf("\n done testing compute_Exyz_slaussian \n\n");
+  // END OF ADDED SECTION
+
    //cleanup
   #pragma acc exit data delete(En[0:N2])
   #pragma acc enter data create(S[0:N2],T[0:N2],A[0:Na2],C[0:N2a])

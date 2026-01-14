@@ -52,4 +52,6 @@ void fix_ortho_cpu(int N, double* jCA, double* S);
 
 void symmetrize_MOs(int natoms, int N1, vector<vector<double> > basis, double* jCA, double* S);
 
+void compute_Exyz_slaussian(double Rc, vector<vector<double> >& basis,
+                            int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl);
 #endif

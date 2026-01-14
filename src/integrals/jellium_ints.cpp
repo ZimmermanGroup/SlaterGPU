@@ -1375,3 +1375,161 @@ void print_murak_rmax(double Rc, int nrad, vector<vector<double> > basis)
   delete [] rwt;
   return;
 }
+
+void compute_Exyz_slaussian(double Rc, vector<vector<double> >& basis,
+                            int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl)
+{
+  if (prl>1) printf(" beginning compute_Exyz_slaussian \n");
+
+  int N = basis.size();
+  int N2 = N*N;
+
+  printf("  compute_Exyz_slaussian.   nrad/ang: %3i %3i \n",nrad,nang);
+
+  int gs = nrad*nang;
+  int gs6 = 6*gs;
+
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+
+  double* grid = new double[gs6];
+  double* wt = new double[gs];
+  #pragma acc enter data create(grid[0:gs6],wt[0:gs])
+
+  // Generate Murak grid (same as compute_STEn_jellium)
+  int m_murak = MMURAK;
+  double Z1 = Z1J;
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  #pragma acc update self(grid[0:gs6])
+
+  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs2 = gs;
+
+ #if USE_GAUSS
+  printf("  DEBUG: Gaussian only \n");
+  gs1 = nrad*nang;
+ #endif
+
+  printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
+
+  // Initialize E matrix
+  #pragma acc parallel loop present(E[0:3*N2])
+  for (int j=0;j<3*N2;j++)
+    E[j] = 0.;
+
+  // Evaluate basis functions
+  int igs = N*gs;
+  double* valS1 = new double[igs];
+  double* valS2 = new double[igs];
+  #pragma acc enter data create(valS1[0:igs],valS2[0:igs])
+
+ #pragma acc parallel loop collapse(2) present(valS1[0:igs])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gs;j++)
+    valS1[i1*gs+j] = 1.;
+
+ #pragma acc parallel loop collapse(2) present(valS2[0:igs],wt[0:gs])
+  for (int i2=0;i2<N;i2++)
+  for (int j=0;j<gs;j++)
+    valS2[i2*gs+j] = wt[j];
+
+  // Evaluate Slaussian basis functions
+  for (int i1=0;i1<N;i1++)
+  {
+    vector<double> basis1 = basis[i1];
+    int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; 
+    double zeta1 = basis1[3];
+
+    eval_ssd(i1,gs,grid,&valS1[i1*gs],n1,l1,m1,zeta1,Rc);
+    eval_ssd(i1,gs,grid,&valS2[i1*gs],n1,l1,m1,zeta1,Rc);
+  }
+
+  // Compute Exyz matrix elements
+  for (int i1=0;i1<N;i1++)
+  for (int i2=0;i2<=i1;i2++)
+  {
+    double* valm = &valS1[i1*gs];
+    double* valn = &valS2[i2*gs];
+
+    double valx = 0.; double valy = 0.; double valz = 0.;
+   #pragma acc parallel loop present(valm[0:gs],valn[0:gs],grid[0:gs6]) reduction(+:valx,valy,valz)
+    for (int j=0;j<gs;j++)
+    {
+      // Grid is centered at jellium origin (0,0,0)
+      double x = grid[6*j+0];
+      double y = grid[6*j+1];
+      double z = grid[6*j+2];
+
+      valx += valm[j]*valn[j]*x;
+      valy += valm[j]*valn[j]*y;
+      valz += valm[j]*valn[j]*z;
+    }
+
+   #pragma acc serial present(E[0:3*N2])
+    {
+      E[i1*N+i2]      = E[i2*N+i1]      = valx;
+      E[N2+i1*N+i2]   = E[N2+i2*N+i1]   = valy;
+      E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
+    }
+  }
+
+  if (prl>0) printf("  done integrating <B|xyz|B> \n\n");
+
+  #pragma acc update self(E[0:3*N2])
+
+  // Apply normalization
+  double* norm = new double[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+  #pragma acc enter data copyin(norm[0:N])
+
+ #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
+  for (int i=0;i<N;i++)
+ #pragma acc loop independent
+  for (int j=0;j<N;j++)
+  {
+    double n12 = norm[i]*norm[j];
+    E[i*N+j]      *= n12;
+    E[N2+i*N+j]   *= n12;
+    E[2*N2+i*N+j] *= n12;
+  }
+
+  #pragma acc exit data delete(norm[0:N])
+  delete [] norm;
+
+  // Cleanup
+  #pragma acc exit data delete(valS1[0:igs],valS2[0:igs])
+  delete [] valS1;
+  delete [] valS2;
+
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
+  delete [] grid;
+  delete [] wt;
+
+  if (1 || prl>1 || prl==-1)
+  {
+    printf("\n Ex:  \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[i*N+j]);
+      printf("\n");
+    }
+    printf("\n Ey:  \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[N2+i*N+j]);
+      printf("\n");
+    }
+    printf("\n Ez: \n");
+    for (int i=0;i<N;i++)
+    {
+      for (int j=0;j<N;j++)
+        printf(" %15.12f",E[2*N2+i*N+j]);
+      printf("\n");
+    }
+  }
+
+  return;
+}
