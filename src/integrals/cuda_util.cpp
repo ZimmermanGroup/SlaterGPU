@@ -1,3 +1,5 @@
+//Vaibhav needs to fix this
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,7 +12,10 @@
 #include "cuda_util.h"
 #include "cpu_util.h"
 
+#if USE_ACC
 #include "cuda_runtime.h"
+#include <cuComplex.h>
+#endif
 
 //these functions assume the matrices are already on the device, via ACC
 //hoping to reduce overhead by getting cusolver handle just once
@@ -23,21 +28,32 @@ void print_square_sm(int N, float* A);
 void print_square_sm(int N, double* A);
 double read_float(string filename);
 
-#include <cuComplex.h>
+
 
 void print_square_complex(int N, cuDoubleComplex* A)
 {
+ #if !USE_ACC
+  printf("\n ERROR: there is no CPU implementation for print_square_complex \n"); exit(-1);
+ #else
   for (int i=0;i<N;i++)
   {
     for (int j=0;j<N;j++)
       printf("  %8.5f + %8.5fi",A[i*N+j].x,A[i*N+j].y);
     printf("\n");
   }
+
+ #endif
 }
 
 //void expmat_complex(int N, double* theta1, double* theta1i, double* U, cusolverDnHandle_t cu_hdl, cublasHandle_t cublasH)
 double expmat_complex(int N, double* theta1, double* theta1i, double* jCA, double* U, cusolverDnHandle_t cu_hdl, cublasHandle_t cublasH)
 {
+  double ss = 0.;
+ 
+  #if !USE_ACC
+    printf("\n ERROR: there is no CPU implementation for expmat_complex \n"); exit(-1);
+    return 0.;
+  #else
  //this is a bit of a mess
  //takes exp(-i theta)
 
@@ -140,8 +156,7 @@ double expmat_complex(int N, double* theta1, double* theta1i, double* jCA, doubl
   cudaDeviceSynchronize();
 
  //CPMZ cannot use this in current form
-  double ss = 0.;
-  for (int i=0;i<N;i++)
+ for (int i=0;i<N;i++)
   for (int j=0;j<i;j++)
   {
     double x1 = U1[i*N+j].x;
@@ -194,6 +209,7 @@ double expmat_complex(int N, double* theta1, double* theta1i, double* jCA, doubl
   delete [] Ue;
   delete [] eix;
   delete [] U1;
+ #endif
 
   return ss;
 }
@@ -203,6 +219,11 @@ void expmat(int N, double* theta1, double* U, cusolverDnHandle_t cu_hdl, cublasH
  //this is a bit of a mess
  //takes exp(-i theta)
  // assumes the matrix is antisymmetric
+
+ #if !USE_ACC
+  printf("\n ERROR: there is no CPU implementation for expmat \n"); exit(-1);
+  return;
+ #else
 
   int N2 = N*N;
 
@@ -305,11 +326,16 @@ void expmat(int N, double* theta1, double* U, cusolverDnHandle_t cu_hdl, cublasH
   delete [] eix;
   delete [] U1;
 
+ #endif
+
   return;
 }
 
 void mat_times_mat(float* C, float* A, float* B, int M, int N, int K)
 {
+  #if !USE_ACC
+    return mat_times_mat_cpu(C,A,B,M,N,K);
+  #endif
   int MN = M*N;
   int MK = M*K;
   int NK = N*K;
@@ -337,6 +363,9 @@ void mat_times_mat(float* C, float* A, float* B, int M, int N, int K)
 
 void mat_times_mat(float* C, float* A, float* B, int N)
 {
+  #if !USE_ACC
+     return mat_times_mat_cpu(C,A,B,N);
+  #endif
   return mat_times_mat(C,A,B,N,N,N);
 }
 
@@ -613,6 +642,9 @@ int mat_root_inv_cusolver(double* A, int size, cusolverDnHandle_t& cu_hdl)
 
 void diagonalize_cusolver(int N, float* A, float* Ae, cusolverDnHandle_t& cu_hdl)
 {
+ #if !USE_ACC
+ printf("\n ERROR: there is no CPU implementation for float diagonalize_cusolver \n"); exit(-1);
+ #else
   cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
   cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
 
@@ -633,7 +665,7 @@ void diagonalize_cusolver(int N, float* A, float* Ae, cusolverDnHandle_t& cu_hdl
 
  #pragma acc exit data delete(work[0:Lwork],info[0:1])
 
-#if 0
+ #if 0
   #pragma acc update self(A[0:N*N],Ae[0:N])
   printf("  eigenvalues: ");
   for (int i=0;i<N;i++)
@@ -641,16 +673,21 @@ void diagonalize_cusolver(int N, float* A, float* Ae, cusolverDnHandle_t& cu_hdl
   printf("\n");
   printf("  eigenvectors: \n");
   print_square_sm(N,A);
-#endif
+ #endif
 
   delete [] work;
   delete [] info;
+
+ #endif
 
   return;
 }
 
 void diagonalize_cusolver(int Ne, int N, double* A, double* Ae, cusolverDnHandle_t& cu_hdl)
 {
+ #if !USE_ACC
+  return la_diag(N,N,A,Ae);
+ #else
   cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
   cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
 
@@ -700,6 +737,7 @@ void diagonalize_cusolver(int Ne, int N, double* A, double* Ae, cusolverDnHandle
   delete [] work;
   delete [] info;
 
+ #endif
   return;
 }
 
@@ -937,6 +975,11 @@ int invert_cusolver(int N, float* A, cusolverDnHandle_t& cu_hdl)
 {
   int reset = 0;
 
+ #if !USE_ACC
+  printf("\n ERROR: there is no CPU implementation for invert_cusolver \n"); exit(-1);
+  return reset;
+ #else
+
   int N2 = N*N;
   float* B = new float[N2];
   #pragma acc enter data create(B[0:N2])
@@ -1016,12 +1059,19 @@ int invert_cusolver(int N, float* A, cusolverDnHandle_t& cu_hdl)
   delete [] info;
   delete [] work;
 
+ #endif
+
   return reset;
 }
 
 int invert_cusolver(int N, double* A, cusolverDnHandle_t& cu_hdl)
 {
   int reset = 0;
+ #if !USE_ACC
+  printf("\n ERROR: there is no CPU implementation for invert_cusolver \n"); exit(-1);
+  return reset;
+ #else
+
 
   int N2 = N*N;
   double* B = new double[N2];
@@ -1115,6 +1165,7 @@ int invert_cusolver(int N, double* A, cusolverDnHandle_t& cu_hdl)
   cudaFree(info);
   cudaFree(work);
 
+ #endif
   return reset;
 }
 

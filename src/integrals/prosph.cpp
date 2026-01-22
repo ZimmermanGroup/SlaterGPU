@@ -10,8 +10,9 @@
 // 2. //asynchronous?
 
 // get_cfn turned off
-
-void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first);
+#if USE_ACC
+  void copy_to_all_gpu(int ngpu, int s1, double* A, int include_first);
+#endif
 void swap_grids_gpu(int gs, double*& grid, double*& gridm, double*& wt, double* gridn, double* gridmn, double* wtn);
 void auto_crash();
 
@@ -1501,7 +1502,9 @@ void do_3c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
     int nphi1 = nphi;
 
     get_3c_position(A1,B1,C1,A2,B2,C2,A3,B3,C3,rot);
-    copy_to_all_gpu(nomp,9,rot,1);
+    #if USE_ACC
+      copy_to_all_gpu(nomp,9,rot,1);
+    #endif
     double coordn[9];
     coordn[0] = A1; coordn[1] = B1; coordn[2] = C1;
     coordn[3] = A2; coordn[4] = B2; coordn[5] = C2;
@@ -1708,7 +1711,9 @@ void do_3c_integrals_ps(const double epsilon, double cf, int nomp, int ss, int m
     int nphi1 = nphi;
 
     get_3c_position(A1,B1,C1,A2,B2,C2,A3,B3,C3,rot);
-    copy_to_all_gpu(nomp,9,rot,1);
+    #if USE_ACC
+      copy_to_all_gpu(nomp,9,rot,1);
+    #endif
     double coordn[9];
     coordn[0] = A1; coordn[1] = B1; coordn[2] = C1;
     coordn[3] = A2; coordn[4] = B2; coordn[5] = C2;
@@ -2204,7 +2209,9 @@ void integrate_STEnAC_2c(int natoms, int* atno, double* coords, vector<vector<do
     {
       do_rot = 1;
       get_2c_position(A1,B1,C1,A2,B2,C2,rot);
-      copy_to_all_gpu(nomp,9,rot,1);
+      #if USE_ACC
+        copy_to_all_gpu(nomp,9,rot,1);
+      #endif
     }
     else
       A1 = B1 = C1 = A2 = B2 = C2 = 0.;

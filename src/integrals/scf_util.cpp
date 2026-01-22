@@ -223,10 +223,10 @@ void ao_to_mo(int N, double* jAO, double* jMO, double* jCA, double* tmp)
 {
  #if !USE_ACC
   return ao_to_mo_cpu(N,jAO,jMO,jCA,tmp);
- #endif
+ #else
   mat_times_mat(tmp,jAO,jCA,N);
   mat_times_mat_at(jMO,jCA,tmp,N);
-
+#endif
   return;
 }
 

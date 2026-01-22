@@ -13,6 +13,7 @@
 #include <vector>
 #include "becke.h"
 #include "read.h"
+#include "jellium_ints.h"
 //#include "vcf.h"
 //#include "becke.h"
 
@@ -66,7 +67,9 @@ void write_Col(int Naux, int N2, double* C);
 void write_S_En_T(int N, float* S, float* En, float* T);
 void write_S_En_T(int N, double* S, double* En, double* T);
 
-//void save_grid_rho(bool gbasis, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, vector<vector<double> >& basis);
-//void save_grid_ao_basis(bool gbasis, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, vector<vector<double> >& basis);
+void write_mo_grid(int natoms, int* atno, double* coords, int nrad, int gsa, vector<vector<double> > basis,
+                   int No, double* Pao, double* jCA, double* jS, float* grid, float* wt, int prl);
+void write_mo_grid(int natoms, int* atno, double* coords, int nrad, int gsa, vector<vector<double> > basis,
+                   int No, double* Pao, double* jCA, double* jS, double* grid, double* wt, int prl);
 
 #endif

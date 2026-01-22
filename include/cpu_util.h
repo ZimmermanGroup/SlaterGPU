@@ -37,6 +37,7 @@ int invert_cpu(double* A, int size, int mode);
 int mat_root_cpu(double* A, int size);
 int mat_root_inv_cpu(double* A, int size);
 int mat_root_inv_stable_cpu(double* A, int size, double inv_cutoff, int prl);
+int LU_inv_stable_cpu(double* A, int size);
 
 void trans_cpu(float* Bt, float* B, int m, int n);
 void trans_cpu(double* Bt, double* B, int m, int n);
@@ -54,6 +55,6 @@ void mat_times_mat_bt_cpu(double* C, double* A, double* B, int M, int N, int K, 
 void mat_times_mat_bt_cpu(float* C, float* A, float* B, int N);
 void mat_times_mat_bt_cpu(double* C, double* A, double* B, int M, int N, int K);
 void mat_times_mat_bt_cpu(double* C, double* A, double* B, int N);
-
+void mat_times_mat_at_cpu(double* C, double* A, double* B, int M, int N, int K);
 
 #endif

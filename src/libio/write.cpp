@@ -1848,3 +1848,266 @@ void write_S_En_T(int N, double* S, double* En, double* T)
   return;
 }
 
+void write_mo_grid(int natoms, int* atno, double* coords, int nrad, int gsa, vector<vector<double> > basis,
+                   int No, double* Pao, double* jCA, double* jS, float* grid, float* wt, int prl)
+{
+  if (nrad<1) nrad = 1;
+  if (natoms>3) return;
+
+ //assumes jCA on gpu
+
+  //int gs = gsa/natoms;
+  //int gsa3 = 3*gsa;
+  int gsa6 = 6*gsa;
+
+  printf("\n getting MOs on the grid (size: %6i) \n",gsa);
+  if (gsa<1) { exit(-1); }
+
+  int nang = gsa/nrad/natoms;
+  
+  bool sgs_basis = 0;
+  bool ss_basis = 0;
+  if (basis[0].size()>10) ss_basis = 1;
+  //if (basis[0].size()>10) sgs_basis = 1;
+  if (sgs_basis && prl>1) printf("  this is an SGS basis \n");
+  if (ss_basis && prl>1)  printf("  this is an SS basis \n");
+
+  double Zg = read_float("ZG");
+  double ztg = read_float("ZTG");
+  double Rc = read_float("RC");
+  //int jorder = 2;
+
+  int gs1 = 0;
+  if (Rc>0.)
+    gs1 = get_gs1(nrad,nang,grid,Rc);
+
+  //#include "jsetup.cpp"
+  int gs2 = gsa;
+
+  int N = basis.size();
+  int N2 = N*N;
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+
+  float norm[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+
+ #if 0
+  float* Paon = new float[N2];
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+    Paon[i*N+j] = Pao[i*N+j]*norm[i]*norm[j];
+
+  if (prl>1)
+  {
+    printf("\n Pao: \n");
+    print_square(N,Pao);
+    printf("\n");
+  }
+ #endif
+
+  int iN = N;
+  float** val1 = new float*[iN];
+  for (int i=0;i<iN;i++)
+    val1[i] = new float[gsa];
+
+  float* grid1 = new float[gsa6];
+
+  #pragma acc enter data copyin(norm[0:N])
+  #pragma acc enter data create(val1[0:iN][0:gsa])
+  #pragma acc enter data create(grid1[0:gsa6])
+
+ #if 0
+  #pragma acc parallel loop present(rho[0:gsa])
+  for (int j=0;j<gsa;j++)
+    rho[j] = 0.f;
+ #endif
+
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+
+    float Z1 = (float)atno[m];
+    double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
+
+    copy_grid(gsa,grid1,grid);
+    recenter_grid_zero(gsa,grid1,-A1,-B1,-C1);
+
+    #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
+    for (int i1=s1;i1<s2;i1++)
+    for (int j=0;j<gsa;j++)
+      val1[i1][j] = 1.f;
+
+    for (int i1=s1;i1<s2;i1++)
+    {
+      int ii1 = i1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; float zeta1 = basis1[3];
+
+      if (ss_basis)
+        eval_ss(ii1,gs2,grid,val1[ii1],n1,l1,m1,zeta1,Rc);
+      else if (sgs_basis)
+        eval_sgs(ii1,gs1,gs2,grid,val1[ii1],n1,l1,m1,zeta1,Rc);
+      else
+        eval_sh(ii1,gsa,grid1,val1[ii1],n1,l1,m1,zeta1);
+    }
+
+  } //loop m over natoms
+
+
+ #if 0
+ //rho
+  for (int i1=0;i1<N;i1++)
+  {
+    int ii1 = i1;
+    float* valn = val1[ii1];
+
+    for (int i2=0;i2<N;i2++)
+    {
+      float d1 = Paon[i1*N+i2];
+
+      int ii2 = i2;
+      float* valm = val1[ii2];
+
+      #pragma acc parallel loop present(rho[0:gsa],gf[0:gsa],TL[0:gsa],valm[0:gsa],valn[0:gsa],valL[0:gsa])
+      for (int j=0;j<gsa;j++)
+        rho[j] += d1*valn[j]*valm[j];
+
+    } //loop i2
+  } //loop i1
+
+  double den = 0.;
+  #pragma acc parallel loop present(rho[0:gsa],wt[0:gsa]) reduction(+:den)
+  for (int j=0;j<gsa;j++)
+    den += rho[j]*wt[j];
+  printf("  total den: %12.8f \n",den);
+
+  if (prl>1 && gsa<20000)
+  {
+    #pragma acc update self(rho[0:gsa])
+    printf("\n rho: \n");
+    for (int n=0;n<natoms;n++)
+    {
+      for (int j=0;j<gs;j+=pr_inc)
+        printf(" %8.5f",rho[n*gs+j]);
+      printf("\n");
+    }
+  }
+ #endif
+
+  //float thresh = 1.e-20f;
+
+  double* tm1 = new double[gsa];
+  #pragma acc enter data create(tm1[0:gsa])
+
+  printf("  z:");
+  if (natoms>1)
+  for (int k=0;k<gsa;k++)
+  {
+    float x1 = grid[6*k+0]; float y1 = grid[6*k+1]; float z1 = grid[6*k+2];
+    if (x1==0. && y1==0.)
+      printf(" %9.5f",z1);
+  }
+  else
+  for (int k=0;k<gsa;k++)
+  {
+    float x1 = grid[6*k+0]; float y1 = grid[6*k+1]; float z1 = grid[6*k+2];
+    if (x1==0. && y1==0. && z1>0.)
+      printf(" %9.5f",z1);
+  }
+  printf("\n");
+
+ //MOs
+  string filename = "MO_ON_GRID";
+  ofstream outfile;
+  outfile.open(filename.c_str());
+  //outfile << right << setw(6) << "MO" << setw(12) << "x" 
+  //        << setw(12) << "y" << setw(12) << "z" << setw(12) << "value" << '\n';
+  
+  outfile << fixed << setprecision(5);
+  
+  for (int i1=0;i1<N;i1++)
+  {
+    #pragma acc parallel loop present(tm1[0:gsa])
+    for (int j=0;j<gsa;j++)
+      tm1[j] = 0.f;
+
+    #pragma acc parallel loop present(tm1[0:gsa],val1[0:iN][0:gsa],norm[0:N],jCA[0:N2])
+    for (int j=0;j<gsa;j++)
+    {
+      float v1 = 0.f;
+      #pragma acc loop reduction(+:v1)
+      for (int k=0;k<N;k++)
+        v1 += jCA[k*N+i1]*norm[k]*val1[k][j]; 
+      tm1[j] = v1;                            
+    }
+
+    float sign1 = 1.;
+   #pragma acc serial present(tm1[0:gsa])
+    if (tm1[0]<0.)
+      sign1 *= -1.;
+
+    #pragma acc update self(tm1[0:gsa])
+    // printf("  MO%i:",i1);
+    outfile << "MO " << i1 << ":\n";
+    //if (natoms>1)
+    for (int k=0;k<gsa;k++)
+    {
+      float x1 = grid[6*k+0]; float y1 = grid[6*k+1]; float z1 = grid[6*k+2];
+      float mo_val = sign1*tm1[k];
+      //if (x1==0. && y1==0.)
+
+      outfile << setw(12) << x1 << setw(12) << y1 << setw(12) << z1
+              << setw(12) << mo_val << '\n';
+    }
+  }
+  outfile.close();
+  printf("\n");
+
+  #pragma acc exit data delete(tm1[0:gsa])
+
+  delete [] tm1;
+
+
+ //cleanup
+  #pragma acc exit data delete(norm[0:N])
+  #pragma acc exit data delete(val1[0:iN][0:gsa])
+  #pragma acc exit data delete(grid1[0:gsa6])
+
+  //delete [] Paon;
+  delete [] n2i;
+
+  delete [] grid1;
+
+  for (int i=0;i<iN;i++)
+    delete [] val1[i];
+  delete [] val1;
+
+  return;
+}
+
+void write_mo_grid(int natoms, int* atno, double* coords, int nrad, int gsa, vector<vector<double> > basis,
+                   int No, double* Pao, double* jCA, double* jS, double* grid, double* wt, int prl)
+{
+  int gs6 = 6*gsa;
+  float* gridf = new float[gs6];
+  float* wtf = new float[gsa];
+  #pragma acc enter data create(gridf[0:gs6],wtf[0:gsa])
+
+  #pragma acc parallel loop present(gridf[0:gs6],grid[0:gs6])
+  for (int j=0;j<gs6;j++)
+    gridf[j] = grid[j];
+  #pragma acc parallel loop present(wtf[0:gsa],wt[0:gsa])
+  for (int j=0;j<gsa;j++)
+    wtf[j] = wt[j];
+  #pragma acc update self(gridf[0:gs6])
+
+  write_mo_grid(natoms,atno,coords,nrad,gsa,basis,No,Pao,jCA,jS,gridf,wtf,prl);
+
+  #pragma acc exit data delete(gridf[0:gs6],wtf[0:gsa])
+  delete [] gridf;
+  delete [] wtf;
+}
