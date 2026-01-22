@@ -99,11 +99,11 @@ void get_overlap_ri(double * overlap, int Naux,
                     int natm, int nbas, int nbas_ri, int nenv,
                     int *atm, int* bas, double *env);
 
-void get_hcore(double *hcore, int N,
+void get_hcore(double *hcore, double *En, double *T, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
 
-void get_hcore(double *hcore, double *En, double *T, int N,
+void get_hcore(double *hcore, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
 
@@ -115,7 +115,7 @@ void gen_pvp(double *pvp, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
 
-void gen_eri(double **eri, int N, 
+void gen_eri(double **eri, int N,
              int natm, int nbas, int nenv,
              int *atm, int *bas, double *env);
 

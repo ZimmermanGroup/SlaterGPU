@@ -23,7 +23,7 @@ bool determine_mo_symmetry(int point_group, int natoms, int* atno, float* coords
 bool determine_mo_symmetry(int point_group, int natoms, int* atno, double* coords, vector<vector<double> > basis, double* jCA, double* jS, int* symm, int prl);
 
 void determine_symmetry_atomic(int N, int* symmblocks, vector<vector<double> >& basis, double* jCA, int prl);
-
+void determine_symmetry_atomic_sz(int N, int* symmblocks, vector<vector<double> >& basis, double* jCA, int prl);
 void determine_symmetry_aos(int N, int* symb, double* jCA, int prl);
 
 

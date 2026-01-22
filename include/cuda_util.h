@@ -23,6 +23,8 @@ void diagonalize_cusolver(int Ne, int N, double* A, double* Ae, cusolverDnHandle
 int mat_root_inv_cusolver(double* A, int size, cusolverDnHandle_t& cu_hdl);
 int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHandle_t& cu_hdl);
 
+void solve_axeb_gpu(int dim, double* A, double* b, cusolverDnHandle_t& cusolverH);
+
 void expmat(int N, double* theta1, double* U, cusolverDnHandle_t cu_hdl, cublasHandle_t cublasH);
 //double expmat_complex(int N, double* theta1, double* theta1i, double* U, cusolverDnHandle_t cu_hdl, cublasHandle_t cublasH);
 double expmat_complex(int N, double* theta1, double* theta1i, double* jCA, double* U, cusolverDnHandle_t cu_hdl, cublasHandle_t cublasH);

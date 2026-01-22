@@ -9,8 +9,8 @@ using namespace std;
 void setup_env_bas_grid(
   int * bas_g, int * atm_g, double ** env_g, int & nenv_g,
   const int * bas, const int * atm, const double * env,
-  int nbas, int natm, int nenv, int bas_idx
-) {
+  int nbas, int natm, int nenv, int bas_idx)
+{
   nenv_g = PTR_ENV_START;
   int offset = PTR_ENV_START;
   atm_g[CHARGE_OF ] = 1;
@@ -72,11 +72,11 @@ void setup_env_bas_grid(
 
 template <class T>
 void gen_gto_on_grid(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   T * grid, int grid_size, int N, int bas_idx, T ** gto_on_grid,
-  int & shl_size
-) {
+  int & shl_size)
+{
   int di = CINTcgto_spheric(bas_idx,bas);
   int dj = 1;
   shl_size = di;
@@ -127,11 +127,11 @@ void gen_gto_on_grid(
 
 template <class T>
 void gen_gto_grad_on_grid(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   T * grid, int grid_size, int N, int bas_idx, T ** grad_on_grid,
-  int & shl_size
-) {
+  int & shl_size)
+{
   int di = CINTcgto_spheric(bas_idx,bas);
   int dj = 1;
   shl_size = di;
@@ -153,7 +153,7 @@ void gen_gto_grad_on_grid(
     env_g[offset + 0] = (double)grid[i * 6 + 0];
     env_g[offset + 1] = (double)grid[i * 6 + 1];
     env_g[offset + 2] = (double)grid[i * 6 + 2];
-  
+
     cint1e_ovlpip_sph(buf,shls,atm_g,2,bas_g,2,env_g);
     for (int j = 0; j < di * dj; j++) {
       for (int k = 0; k < 3; k++) {
@@ -169,25 +169,25 @@ void gen_gto_grad_on_grid(
 
 
 template void gen_gto_grad_on_grid<double>(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   double * grid, int grid_size, int N, int bas_idx, double ** grad_on_grid,
   int & shl_size
 );
 template void gen_gto_grad_on_grid<float>(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   float * grid, int grid_size, int N, int bas_idx, float ** grad_on_grid,
   int & shl_size
 );
 template void gen_gto_on_grid<double>(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   double * grid, int grid_size, int N, int bas_idx, double ** gto_on_grid,
   int & shl_size
 );
 template void gen_gto_on_grid<float>(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   float * grid, int grid_size, int N, int bas_idx, float ** gto_on_grid,
   int & shl_size
@@ -241,7 +241,7 @@ void compute_ovlp_grid(
   for (int i = 0; i < 3; i++) {
     env[offset++] = at_coord[i];
   }
-  
+
   // Getting basis set specification
   // basis set for large decay
   env[offset ++] = 1e9;
@@ -253,7 +253,7 @@ void compute_ovlp_grid(
   for (int i = 0; i < bas[BAS_SLOTS + NPRIM_OF] * bas[BAS_SLOTS + NCTR_OF]; i++) {
     env[offset++] = env0[bas0[bas_idx * BAS_SLOTS + PTR_COEFF] + i];
   }
-  
+
   // assumes gto_grid has appropriate size for number of subshells
   for (int i = 0; i < grid_size; i ++) {
     env[PTR_ENV_START + 0] = grid[i*6 + 0];

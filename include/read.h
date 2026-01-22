@@ -42,6 +42,7 @@ int read_int_2(string filename);
 int read_int_3(string filename);
 bool read_array(int size, double* A, string filename);
 vector<double> read_vector(string filename);
+vector<int> read_vector_int(string filename);
 vector<vector<double> > read_vecvec_csv(string filename);
 void read_thresh(float& no_thresh, float& occ_thresh);
 int read_opt();
