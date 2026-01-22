@@ -2,7 +2,8 @@
 channels = ["nvidia", "conda-forge"]
 platforms = ["linux-64", "linux-aarch64"]
 preview = ["pixi-build"]
-requires-pixi = ">=0.54"
+# Minimum pixi version: 0.63.0 required for pixi-build-cmake 0.3.8 (build API v4)
+requires-pixi = ">=0.63"
 
 [package]
 name = "slatergpu"
@@ -10,7 +11,8 @@ version = "0.1.14"
 
 [package.build.backend]
 name = "pixi-build-cmake"
-version = "==0.3.4"
+# NOTE: pixi-build-cmake 0.3.5+ requires build API v4, which means pixi >= 0.63.0
+version = "==0.3.8"
 
 [package.build.config]
 compilers = []
