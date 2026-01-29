@@ -2468,15 +2468,16 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
       if (nup==1) nup = 0;
       else if (nup==3) nup = 1;
       else if (nup==5) nup = 2;
+      else if (nup==7) nup = 3;
       else if (nup==2 || nup==4)
       {
-        printf(" ERROR: doublet/quartet not available \n");
-        exit(1);
+        printf(" Warning: doublet/quartet may not be fully developed, carefully check results \n");
+        //exit(1);
       }
       else if (nup>5)
       {
-        printf(" ERROR: spin>5 not available \n");
-        exit(1);
+        printf(" ERROR: spin>5 may not be fully developed, carefully check results \n");
+        //exit(1);
       }
     }
     if (tok_line.size()>3) natoms++;
