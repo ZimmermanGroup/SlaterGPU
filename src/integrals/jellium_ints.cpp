@@ -1506,7 +1506,7 @@ void compute_Exyz_slaussian(double Rc, vector<vector<double> >& basis,
   delete [] grid;
   delete [] wt;
 
-  if (1 || prl>1 || prl==-1)
+  if (prl>1 || prl==-1)
   {
     printf("\n Ex:  \n");
     for (int i=0;i<N;i++)
