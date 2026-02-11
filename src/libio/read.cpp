@@ -1807,7 +1807,46 @@ bool read_integrals(string dirname, int N, int Naux, double* S, double* T, doubl
 
   return 1;
 }
+bool read_MOI_from_file(int Mm, int M3, double** MOI, string filename, int prl)
+{
+  printf("  attempting file read: %s \n", filename.c_str());
 
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    printf("  couldn't open file \n");
+    return false;
+  }
+  
+  string line;
+
+  (bool)getline(infile, line);
+  int wi = 0;
+  while (!infile.eof())
+  {
+    (bool)getline(infile, line);
+    vector<string> tok_line = split1(line, ' ');
+    if (tok_line.size() > 0)
+    {
+      if (tok_line.size() < M3) { 
+        printf(" ERROR: file size wrong in MOI (%2i vs %2i) \n", tok_line.size(), M3); 
+        exit(1); 
+      }
+      for (int m = 0; m < M3; m++)
+        MOI[wi][m] = atof(tok_line[m].c_str());
+      wi++;
+    }
+  }
+  
+  if (wi == Mm) { 
+    if (prl > 1) printf("   found all lines of MOI \n"); 
+  }
+  else printf(" MOI missing lines \n");
+  
+  infile.close();
+  return true;
+}
 double nuclear_repulsion(int natoms, int* atno, double* coords)
 {
   double Enn = 0;
