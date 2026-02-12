@@ -89,6 +89,7 @@ int read_square(int N, int M, double** A, string filename);
 int read_square(int N, double* A, string filename);
 int read_square(vector<vector<double> > basis, double* Pao, string filename);
 int read_rect(int N, int M, double* C, string filename);
+bool read_MOI_from_file(int Mm, int M3, double** MOI, string filename, int prl);
 
 bool check_PS();
 
