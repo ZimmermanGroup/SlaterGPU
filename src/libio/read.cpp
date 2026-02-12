@@ -1807,8 +1807,20 @@ bool read_integrals(string dirname, int N, int Naux, double* S, double* T, doubl
 
   return 1;
 }
+
 bool read_MOI_from_file(int Mm, int M3, double** MOI, string filename, int prl)
 {
+  // Read 4-center 2-electron molecular orbital integrals (MOI) from a text file.
+  // Each row of the file corresponds to one orbital index combination, with M3 columns per row.
+  // Expected format is Mm rows and M3 columns
+  // Parameters:
+  //   Mm       - expected number of rows in the file (number of basis functions)
+  //   M3       - expected number of columns per row 
+  //   MOI      - output 2D array [Mm][M3] to populate with integral values
+  //   filename - path to the MOI text file
+  //   prl      - print level for diagnostic output (higher = more verbose)
+  //
+  // Returns true on success, false if the file cannot be opened.
   printf("  attempting file read: %s \n", filename.c_str());
 
   ifstream infile;
@@ -1821,24 +1833,28 @@ bool read_MOI_from_file(int Mm, int M3, double** MOI, string filename, int prl)
   
   string line;
 
+  // Skip the header line
   (bool)getline(infile, line);
-  int wi = 0;
+  int wi = 0; // row counter for MOI
   while (!infile.eof())
   {
     (bool)getline(infile, line);
     vector<string> tok_line = split1(line, ' ');
     if (tok_line.size() > 0)
     {
+      // Validate that each row has at least M3 columns
       if (tok_line.size() < M3) { 
         printf(" ERROR: file size wrong in MOI (%2i vs %2i) \n", tok_line.size(), M3); 
         exit(1); 
       }
+      // Parse M3 floating-point values into the current MOI row
       for (int m = 0; m < M3; m++)
         MOI[wi][m] = atof(tok_line[m].c_str());
       wi++;
     }
   }
   
+  // Verify that the expected number of rows were read
   if (wi == Mm) { 
     if (prl > 1) printf("   found all lines of MOI \n"); 
   }
@@ -1847,6 +1863,7 @@ bool read_MOI_from_file(int Mm, int M3, double** MOI, string filename, int prl)
   infile.close();
   return true;
 }
+
 double nuclear_repulsion(int natoms, int* atno, double* coords)
 {
   double Enn = 0;
