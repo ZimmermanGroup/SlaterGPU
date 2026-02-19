@@ -1971,6 +1971,7 @@ void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vect
     for (int j=0;j<gsa;j++)
       val1[i1][j] = 0.f;
 
+    if (need_grad)
     #pragma acc parallel loop collapse(2) present(val1g[0:iN][0:gsa3])
     for (int i1=0;i1<s2-s1;i1++)
     for (int j=0;j<gsa3;j++)
@@ -2052,6 +2053,7 @@ void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vect
       for (int j=0;j<gsa;j++)
         val2[i2][j] = 0.f;
 
+      if (need_grad)
       #pragma acc parallel loop collapse(2) present(val2g[0:iN][0:gsa3])
       for (int i2=0;i2<s4-s3;i2++)
       for (int j=0;j<gsa3;j++)
