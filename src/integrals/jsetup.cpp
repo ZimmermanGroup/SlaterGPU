@@ -5,9 +5,15 @@
   if (sgs_basis && prl>1) printf("  this is an SGS basis \n");
   if (ss_basis && prl>1)  printf("  this is an SS basis \n");
 
-  double Zg = read_float("ZG");
-  double ztg = read_float("ZTG");
-  double Rc = read_float("RC");
+  double Zg  = 0.;
+  double ztg = 1.;
+  double Rc  = 0.;
+  if (ss_basis || sgs_basis)
+  {
+    Zg = read_float("ZG");
+    ztg = read_float("ZTG");
+    Rc = read_float("RC");
+  }
   //int jorder = 2;
 
   int gs1 = 0;

@@ -10,23 +10,23 @@ using namespace std;
 extern "C" {
   #include "cint_funcs.h"
   int cint1e_ovlp_cart(
-    double *buf, int *shls,int *atm, int natm, 
+    double *buf, int *shls,int *atm, int natm,
     int *bas, int nbas, double *env
   );
   int cint1e_ovlp_sph(
-    double *buf, int *shls,int *atm, int natm, 
+    double *buf, int *shls,int *atm, int natm,
     int *bas, int nbas, double *env
-  ); 
+  );
   int cint1e_ipovlp_cart(
-    double *buf, int *shls, int *atm, int natm, 
+    double *buf, int *shls, int *atm, int natm,
     int *bas, int nbas, double *env
   );
   int cint1e_ipovlp_sph(
-    double *buf, int *shls, int *atm, int natm, 
+    double *buf, int *shls, int *atm, int natm,
     int *bas, int nbas, double *env
   );
   int cint1e_ovlpip_sph(
-    double *buf, int *shls, int *atm, int natm, 
+    double *buf, int *shls, int *atm, int natm,
     int *bas, int nbas, double *env
   );
   double CINTgto_norm(FINT n, double a);
@@ -48,14 +48,14 @@ void setup_env_bas_grid(
 );
 template <class T>
 void gen_gto_on_grid(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   T * grid, int grid_size, int N, int bas_idx, T ** gto_on_grid,
   int & shl_size
 );
 template <class T>
 void gen_gto_grad_on_grid(
-  const int nbas, const int natm, const int nenv, 
+  const int nbas, const int natm, const int nenv,
   const int * bas, const int * atm, const double * env,
   T * grid, int grid_size, int N, int bas_idx, T ** grad_on_grid,
   int & shl_size

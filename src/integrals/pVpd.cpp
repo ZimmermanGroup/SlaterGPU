@@ -1886,9 +1886,387 @@ void get_p_5gp4d(int tid, int gs, double* grid, double* val, double zeta)
     double ezor = exp(-zr)/r;
     double f0 = x2*x2-6.*x2*y2+y2*y2;
 
-    val[3*i]   *= x*(-zeta*f0 + 4.*(x2-3.*y2)*r)*ezor;
+    val[3*i]   *= -x*(zeta*f0 - 4.*(x2-3.*y2)*r)*ezor;
     val[3*i+1] *= -y*(zeta*f0 + 4.*(3.*x2-y2)*r)*ezor;
-    val[3*i+2] *= z*zeta*f0*ezor;
+    val[3*i+2] *= -z*zeta*f0*ezor;
+  }
+  return;
+}
+
+void get_p_6gm4d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= y*(-y2*(y2+z2)+x4*(4.-zr)+x2*(3.*z2+y2*(1.+zr)))*ezor;
+    val[3*i+1] *= x*(x4-3*y2*z2+y4*(-4.+zr)+x2*(z2-y2*(1.+zr)))*ezor;
+    val[3*i+2] *= -x*(x-y)*y*(x+y)*z*(-1.+zr)*ezor;
+  }
+  return;
+}
+
+void get_p_6gm3d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= x*y*z*(6.*z2+x2*(9.-3.*zr)+y2*(5.+zr))*ezor;
+    val[3*i+1] *= z*(3*x4-3*y2*z2+y4*(-4.+zr)+3*x2*(z2+y2*(1.-zr)))*ezor;
+    val[3*i+2] *= -y*(-3.*x2+y2)*(x2+y2+z2*(2.-zr))*ezor;
+  }
+  return;
+}
+
+void get_p_6gm2d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= y*(-y4+5*y2*z2+6*z4+x4*(-4.+zr)+x2*(3.*z2*(3.-2.*zr)+y2*(-5.+zr)))*ezor;
+    val[3*i+1] *= x*(-x4+6*z4+3*y2*z2*(3.-2.*zr)+y4*(-4.+zr)+x2*(5.*z2+y2*(-5.+zr)))*ezor;
+    val[3*i+2] *= x*y*z*(11.*y2+18*z2+(y2-6.*z2)*zr+x2*(11.+zr))*ezor;
+  }
+  return;
+}
+
+void get_p_6gm1d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= x*y*z*(-9*y2-2*z2+(3*y2-4*z2)*zr+3*x2*(-3+zr))*ezor;
+    val[3*i+1] *= z*(-3*x4+4*z4+3*y4*(-4+zr)-y2*z2*(1+4*zr)+x2*(z2+3*y2*(-5+zr)))*ezor;
+    val[3*i+2] *= y*(-3*x4-3*y4-4*z4*(-4+zr)+3*y2*z2*(2+zr)+x2*(-6*y2+3*z2*(2+zr)))*ezor;
+  }
+  return;
+}
+
+void get_p_6g0d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= -x*(12.*y2*z2*(5.-2.*zr)+3*x4*(-5.+zr)+3.*y4*(-5.+zr)+8.*z4*(5.+zr)+6.*x2*(2.*z2*(5.-2.*zr)+y2*(-5.+zr)))*ezor;
+    val[3*i+1] *= -y*(12.*y2*z2*(5.-2.*zr)+3*x4*(-5.+zr)+3.*y4*(-5.+zr)+8.*z4*(5.+zr)+6.*x2*(2.*z2*(5.-2.*zr)+y2*(-5.+zr)))*ezor;
+    val[3*i+2] *= -z*(8.*y2*z2*(5.-3.*zr)+8*z4*(-5.+zr)+3.*x4*(15.+zr)+3.*y4*(15.+zr)+x2*(8.*z2*(5.-3.*zr)+6.*y2*(15.+zr)))*ezor;
+  }
+  return;
+}
+
+void get_p_6gp1d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= z*(-3.*y4+1.*y2*z2+4.*z4+x4*(-12.+3.*zr)+x2*(z2*(-1.-4.*zr)+y2*(-15.+3.*zr)))*ezor;
+    val[3*i+1] *= x*y*z*(-9.*y2-2*z2+(3.*y2-4*z2)*zr+3*x2*(-3.+zr))*ezor;
+    val[3*i+2] *= x*(-3.*x4-3.*y4+z4*(16.-4.*zr)+y2*z2*(6.+3.*zr)+x2*(-6.*y2+z2*(6.+3.*zr)))*ezor;
+  }
+  return;
+}
+
+void get_p_6gp2d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= x*(12.*z4+y4*(1.-zr)+x4*(-5.+zr)+6.*y2*z2*(1.+zr)-2.*x2*(2.*y2+z2*(-7.+3.*zr)))*ezor;
+    val[3*i+1] *= -y*(12.*z4+2.*y2*z2*(7-3*zr)+x4*(1.-zr)+y4*(-5.+zr)+x2*(-4.*y2+6.*z2*(1.+zr)))*ezor;
+    val[3*i+2] *= (x-y)*(x+y)*z*(11*y2+18*z2+(y2-6*z2)*zr+x2*(11+zr))*ezor;
+  }
+  return;
+}
+
+void get_p_6gp3d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= z*(-3*y2*(y2+z2)+x4*(4-zr)+3*x2*(z2+y2*(-1+zr)))*ezor;
+    val[3*i+1] *= -x*y*z*(6*z2+y2*(9-3*zr)+x2*(5+zr))*ezor;
+    val[3*i+2] *= x*(x2-3*y2)*(x2+y2+z2*(2-zr))*ezor;
+  }
+  return;
+}
+
+void get_p_6gp4d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= -x*(12.*y2*z2+x4*(-5.+zr)+y4*(11.+zr)-2.*x2*(2.*z2+y2*(-7.+3.*zr)))*ezor;
+    val[3*i+1] *= -y*(-4*y2*z2+y4*(-5.+zr)+x4*(11.+zr)+x2*(12.*z2+y2*(14.-6.*zr)))*ezor;
+    val[3*i+2] *= -z*(x4-6.*x2*y2+y4)*(-1.+zr)*ezor;
+  }
+  return;
+}
+
+void get_p_7gm4d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= -y*(y4+y2*z2+x4*(-5.+zr)-x2*(3.*z2+y2*zr))*ezor;
+    val[3*i+1] *= x*(x4-3*y2*z2+y4*(-5.+zr)+x2*(z2-y2*zr))*ezor;
+    val[3*i+2] *=-x*(x-y)*y*(x+y)*z*(-2.+zr)*ezor;
+  }
+  return;
+}
+
+void get_p_7gm3d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= x*y*z*(6.*z2-3.*x2*(-4.+zr)+y2*(4.+zr))*ezor;
+    val[3*i+1] *= z*(3.*x4-3.*y2*z2+y4*(-5.+zr)+3*x2*(z2+y2*(2.-zr)))*ezor;
+    val[3*i+2] *= -y*(-3.*x2+y2)*(x2+y2+z2*(3.-zr))*ezor;
+  }
+  return;
+}
+
+void get_p_7gm2d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= y*(-((y2-6*z2)*(y2+z2))+x4*(-5+zr)+x2*(3*z2*(5-2*zr)+y2*(-6+zr)))*ezor;
+    val[3*i+1] *= x*(-x4+6*z2+3*y2*z2*(5-2*zr)+y4*(-5+zr)+x2*(5*z2+y2*(-6+zr)))*ezor;
+    val[3*i+2] *= x*y*z*(10*y2+24*z2+(y2-6*z2)*zr+x2*(10+zr))*ezor;
+  }
+  return;
+}
+
+void get_p_7gm1d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= x*y*z*(2*(-6*y2+z2)+(3*y2-4*z2)*zr+3*x2*(-4+zr))*ezor;
+    val[3*i+1] *= z*(-3*x4+4*z2+y2*z2*(3-4*zr)+3*y4*(-5+zr)+x2*(z2+3*y2*(-6+zr)))*ezor;
+    val[3*i+2] *= -y*(3*x4+3*y4+4*z2*(-5+zr)-3*y2*z2*(1+zr)+x2*(6*y2-3*z2*(1+zr)))*ezor;
+  }
+  return;
+}
+
+void get_p_7g0d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= -x*(12*y2*z2*(7-2*zr)+3*x4*(-6+zr)+3*y4*(-6+zr)+8*z4*(4+zr)+6*x2*(2*z2*(7-2*zr)+y2*(-6+zr)))*ezor;
+    val[3*i+1] *= -y*(12*y2*z2*(7-2*zr)+3*x4*(-6+zr)+3*y4*(-6+zr)+8*z4*(4+zr)+6*x2*(2*z2*(7-2*zr)+y2*(-6+zr)))*ezor;
+    val[3*i+2] *= -z*(8*y2*z2*(8-3*zr)+8*z4*(-6+zr)+3*x4*(14+zr)+3*y4*(14+zr)+x2*(8*z2*(8-3*zr)+6*y2*(14+zr)))*ezor;
+  }
+  return;
+}
+
+void get_p_7gp1d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *=  z*(-3.*y4+y2*z2+4.*z4+3.*x4*(-5.+zr)+x2*(z2*(3.-4.*zr)+3.*y2*(-6.+zr)))*ezor;
+    val[3*i+1] *= x*y*z*(2.*(-6.*y2+z2)+(3.*y2-4.*z2)*zr+3.*x2*(-4.+zr))*ezor;
+    val[3*i+2] *= -x*(3.*x4+3.*y4+4*z4*(-5.+zr)-3.*y2*z2*(1.+zr)+x2*(6.*y2-3.*z2*(1.+zr)))*ezor;
+  }
+  return;
+}
+
+void get_p_7gp2d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= x*(12.*z4+6.*y2*z2*zr+y4*(2.-zr)+x4*(-6.+zr)+x2*(-4.*y2+2*z2*(10.-3*zr)))*ezor;
+    val[3*i+1] *= y*(-12.*z4+y4*(6.-zr)+x4*(-2.+zr)+2.*y2*z2*(-10.+3.*zr)+x2*(4.*y2-6.*z2*zr))*ezor;
+    val[3*i+2] *= (x-y)*(x+y)*z*(10.*y2+24*z2+(y2-6.*z2)*zr+x2*(10.+zr))*ezor;
+  }
+  return;
+}
+
+void get_p_7gp3d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= z*(-3.*y2*(y2+z2)+x4*(5.-zr)+3.*x2*(z2+y2*(-2.+zr)))*ezor;
+    val[3*i+1] *= -x*y*z*(6.*z2-3.*y2*(-4.+zr)+x2*(4.+zr))*ezor;
+    val[3*i+2] *= x*(x2-3.*y2)*(x2+y2+z2*(3.-zr))*ezor;
+  }
+  return;
+}
+
+void get_p_7gp4d(int tid, int gs, double* grid, double* val, double zeta)
+{
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for(int i=0;i<gs;i++)
+  {
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
+    double x2 = x*x; double y2 = y*y; double z2 = z*z;
+    double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
+    double zr = zeta*r;
+    double ezor = exp(-zr)/r;
+
+    val[3*i]   *= -x*(12.*y2*z2+x4*(-6.+zr)+y4*(10.+zr)+x2*(-4.*z2+y2*(20.-6.*zr)))*ezor;
+    val[3*i+1] *= -y*(-4.*y2*z2+y4*(-6.+zr)+x4*(10.+zr)+x2*(12.*z2+y2*(20.-6.*zr)))*ezor;
+    val[3*i+2] *= -(x4-6.*x2*y2+y4)*z*(-2.+zr)*ezor;
   }
   return;
 }
@@ -1909,8 +2287,8 @@ void get_p_6hm5d(int tid, int gs, double* grid, double* val, double zeta)
     //double ezor = exp(-zr)/r;
     double f1 = 5.*x4-10.*x2*y+y4;
 
-    val[3*i]   *= x*y*(20.*(y2-x2) - (10.*x2*y2-5.*x4-y4)*zeta/r) * ezr;
-    val[3*i+1] *= (y2*(20.*x2-4.*y2) + (-5.*x4+10.*x2*y2-y4) - y2*(-5.*x4+10.*x2*y2-y4)*zeta/r) * ezr;
+    val[3*i]   *= x*y*(20.*(y2-x2)-(10.*x2*y2-5.*x4-y4)*zeta/r) * ezr;
+    val[3*i+1] *= (y2*(20.*x2-4.*y2)+(-5.*x4+10.*x2*y2-y4) - y2*(-5.*x4+10.*x2*y2-y4)*zeta/r) * ezr;
     val[3*i+2] *= y*z*(-5.*x4+10.*x2*y2-y4)*zeta/r * ezr;
     //val[3*i]   *= -x*y*(zeta*f1 + 20.*(y2-x2)*r)*ezor;
     //val[3*i+1] *= (-zeta*y2*f1 + 5.*(x4-6.*x2*y2+y4)*r)*ezor;
@@ -2941,7 +3319,7 @@ void get_dp_hp5d(int tid, int gs, double* grid, double* val)
 
 
 
-//derivatives of the spherical part only
+//derivatives of the angular part only
 void eval_dp_3rd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1)
 {
   if (l1==0)
@@ -2951,87 +3329,87 @@ void eval_dp_3rd(int tid, int gs, double* grid, double* val, int n1, int l1, int
   else if (l1==1)
   {
     if (m1==1)
-      return get_dp_pxd(tid,gs,grid,val);
+      get_dp_pxd(tid,gs,grid,val);
     else if (m1==-1)
-      return get_dp_pyd(tid,gs,grid,val);
+      get_dp_pyd(tid,gs,grid,val);
     else
-      return get_dp_pzd(tid,gs,grid,val);
+      get_dp_pzd(tid,gs,grid,val);
   }
   else if (l1==2)
   {
     if (m1==-2)
-      return get_dp_dxyd(tid,gs,grid,val);
+      get_dp_dxyd(tid,gs,grid,val);
     else if (m1==-1)
-      return get_dp_dyzd(tid,gs,grid,val);
+      get_dp_dyzd(tid,gs,grid,val);
     else if (m1== 0)
-      return get_dp_dz2d(tid,gs,grid,val);
+      get_dp_dz2d(tid,gs,grid,val);
     else if (m1== 1)
-      return get_dp_dxzd(tid,gs,grid,val);
+      get_dp_dxzd(tid,gs,grid,val);
     else if (m1== 2)
-      return get_dp_dx2y2d(tid,gs,grid,val);
+      get_dp_dx2y2d(tid,gs,grid,val);
   }
   else if (l1==3)
   {
     if (m1==-3)
-      return get_dp_fm3d(tid,gs,grid,val);
+      get_dp_fm3d(tid,gs,grid,val);
     else if (m1==-2)
-      return get_dp_fm2d(tid,gs,grid,val);
+      get_dp_fm2d(tid,gs,grid,val);
     else if (m1==-1)
-      return get_dp_fm1d(tid,gs,grid,val);
+      get_dp_fm1d(tid,gs,grid,val);
     else if (m1== 0)
-      return get_dp_f0d(tid,gs,grid,val);
+      get_dp_f0d(tid,gs,grid,val);
     else if (m1== 1)
-      return get_dp_fp1d(tid,gs,grid,val);
+      get_dp_fp1d(tid,gs,grid,val);
     else if (m1== 2)
-      return get_dp_fp2d(tid,gs,grid,val);
+      get_dp_fp2d(tid,gs,grid,val);
     else if (m1== 3)
-      return get_dp_fp3d(tid,gs,grid,val);
+      get_dp_fp3d(tid,gs,grid,val);
   }
   else if (l1==4)
   {
     if (m1==-4)
-      return get_dp_gm4d(tid,gs,grid,val);
+      get_dp_gm4d(tid,gs,grid,val);
     else if (m1==-3)
-      return get_dp_gm3d(tid,gs,grid,val);
+      get_dp_gm3d(tid,gs,grid,val);
     else if (m1==-2)
-      return get_dp_gm2d(tid,gs,grid,val);
+      get_dp_gm2d(tid,gs,grid,val);
     else if (m1==-1)
-      return get_dp_gm1d(tid,gs,grid,val);
+      get_dp_gm1d(tid,gs,grid,val);
     else if (m1== 0)
-      return get_dp_g0d(tid,gs,grid,val);
+      get_dp_g0d(tid,gs,grid,val);
     else if (m1== 1)
-      return get_dp_gp1d(tid,gs,grid,val);
+      get_dp_gp1d(tid,gs,grid,val);
     else if (m1== 2)
-      return get_dp_gp2d(tid,gs,grid,val);
+      get_dp_gp2d(tid,gs,grid,val);
     else if (m1== 3)
-      return get_dp_gp3d(tid,gs,grid,val);
+      get_dp_gp3d(tid,gs,grid,val);
     else if (m1== 4)
-      return get_dp_gp4d(tid,gs,grid,val);
+      get_dp_gp4d(tid,gs,grid,val);
   }
   else if (l1==5)
   {
     if (m1==-5)
-      return get_dp_hm5d(tid,gs,grid,val);
+      get_dp_hm5d(tid,gs,grid,val);
     else if (m1==-4)
-      return get_dp_hm4d(tid,gs,grid,val);
+      get_dp_hm4d(tid,gs,grid,val);
     else if (m1==-3)
-      return get_dp_hm3d(tid,gs,grid,val);
+      get_dp_hm3d(tid,gs,grid,val);
     else if (m1==-2)
-      return get_dp_hm2d(tid,gs,grid,val);
+      get_dp_hm2d(tid,gs,grid,val);
     else if (m1==-1)
-      return get_dp_hm1d(tid,gs,grid,val);
+      get_dp_hm1d(tid,gs,grid,val);
     else if (m1== 0)
-      return get_dp_h0d(tid,gs,grid,val);
+      get_dp_h0d(tid,gs,grid,val);
     else if (m1== 1)
-      return get_dp_hp1d(tid,gs,grid,val);
+      get_dp_hp1d(tid,gs,grid,val);
     else if (m1== 2)
-      return get_dp_hp2d(tid,gs,grid,val);
+      get_dp_hp2d(tid,gs,grid,val);
     else if (m1== 3)
-      return get_dp_hp3d(tid,gs,grid,val);
+      get_dp_hp3d(tid,gs,grid,val);
     else if (m1== 4)
-      return get_dp_hp4d(tid,gs,grid,val);
+      get_dp_hp4d(tid,gs,grid,val);
     else if (m1== 5)
-      return get_dp_hp5d(tid,gs,grid,val);
+      get_dp_hp5d(tid,gs,grid,val);
   }
   return;
 }
@@ -3040,289 +3418,333 @@ void eval_dp_3rd(int tid, int gs, double* grid, double* val, int n1, int l1, int
 void eval_pd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1, double zeta1)
 {
   if (n1==1)
-    return get_p_1sd(tid,gs,grid,val,zeta1);
+    get_p_1sd(tid,gs,grid,val,zeta1);
   else if (n1==2)
   {
     if (l1==0)
-      return get_p_2sd(tid,gs,grid,val,zeta1);
+      get_p_2sd(tid,gs,grid,val,zeta1);
     else
     {
       if (m1==1)
-        return get_p_2pxd(tid,gs,grid,val,zeta1);
+        get_p_2pxd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_2pyd(tid,gs,grid,val,zeta1);
+        get_p_2pyd(tid,gs,grid,val,zeta1);
       else
-        return get_p_2pzd(tid,gs,grid,val,zeta1);
+        get_p_2pzd(tid,gs,grid,val,zeta1);
     }
   }
   else if (n1==3)
   {
     if (l1==0)
     {
-      return get_p_3sd(tid,gs,grid,val,zeta1);
+      get_p_3sd(tid,gs,grid,val,zeta1);
     }
     else if (l1==1)
     {
       if (m1==1)
-        return get_p_3pxd(tid,gs,grid,val,zeta1);
+        get_p_3pxd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_3pyd(tid,gs,grid,val,zeta1);
+        get_p_3pyd(tid,gs,grid,val,zeta1);
       else
-        return get_p_3pzd(tid,gs,grid,val,zeta1);
+        get_p_3pzd(tid,gs,grid,val,zeta1);
     }
     else if (l1==2)
     {
       if (m1==-2)
-        return get_p_3dxyd(tid,gs,grid,val,zeta1);
+        get_p_3dxyd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_3dyzd(tid,gs,grid,val,zeta1);
+        get_p_3dyzd(tid,gs,grid,val,zeta1);
       else if (m1== 0)
-        return get_p_3dz2d(tid,gs,grid,val,zeta1);
+        get_p_3dz2d(tid,gs,grid,val,zeta1);
       else if (m1== 1)
-        return get_p_3dxzd(tid,gs,grid,val,zeta1);
+        get_p_3dxzd(tid,gs,grid,val,zeta1);
       else if (m1== 2)
-        return get_p_3dx2y2d(tid,gs,grid,val,zeta1);
+        get_p_3dx2y2d(tid,gs,grid,val,zeta1);
     }
   }
   else if (n1==4)
   {
     if (l1==0)
     {
-      return get_p_4sd(tid,gs,grid,val,zeta1);
+      get_p_4sd(tid,gs,grid,val,zeta1);
     }
     else if (l1==1)
     {
       if (m1==1)
-        return get_p_4pxd(tid,gs,grid,val,zeta1);
+        get_p_4pxd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_4pyd(tid,gs,grid,val,zeta1);
+        get_p_4pyd(tid,gs,grid,val,zeta1);
       else
-        return get_p_4pzd(tid,gs,grid,val,zeta1);
+        get_p_4pzd(tid,gs,grid,val,zeta1);
     }
     else if (l1==2)
     {
       if (m1==-2)
-        return get_p_4dxyd(tid,gs,grid,val,zeta1);
+        get_p_4dxyd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_4dyzd(tid,gs,grid,val,zeta1);
+        get_p_4dyzd(tid,gs,grid,val,zeta1);
       else if (m1== 0)
-        return get_p_4dz2d(tid,gs,grid,val,zeta1);
+        get_p_4dz2d(tid,gs,grid,val,zeta1);
       else if (m1== 1)
-        return get_p_4dxzd(tid,gs,grid,val,zeta1);
+        get_p_4dxzd(tid,gs,grid,val,zeta1);
       else if (m1== 2)
-        return get_p_4dx2y2d(tid,gs,grid,val,zeta1);
+        get_p_4dx2y2d(tid,gs,grid,val,zeta1);
     }
     else if (l1==3)
     {
       if (m1==-3)
-        return get_p_4fm3d(tid,gs,grid,val,zeta1);
+        get_p_4fm3d(tid,gs,grid,val,zeta1);
       else if (m1==-2)
-        return get_p_4fm2d(tid,gs,grid,val,zeta1);
+        get_p_4fm2d(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_4fm1d(tid,gs,grid,val,zeta1);
+        get_p_4fm1d(tid,gs,grid,val,zeta1);
       else if (m1== 0)
-        return get_p_4f0d(tid,gs,grid,val,zeta1);
+        get_p_4f0d(tid,gs,grid,val,zeta1);
       else if (m1== 1)
-        return get_p_4fp1d(tid,gs,grid,val,zeta1);
+        get_p_4fp1d(tid,gs,grid,val,zeta1);
       else if (m1== 2)
-        return get_p_4fp2d(tid,gs,grid,val,zeta1);
+        get_p_4fp2d(tid,gs,grid,val,zeta1);
       else if (m1== 3)
-        return get_p_4fp3d(tid,gs,grid,val,zeta1);
+        get_p_4fp3d(tid,gs,grid,val,zeta1);
     }
   }
   else if (n1==5)
   {
     if (l1==0)
     {
-      return get_p_5sd(tid,gs,grid,val,zeta1);
+      get_p_5sd(tid,gs,grid,val,zeta1);
     }
     else if (l1==1)
     {
       if (m1==1)
-        return get_p_5pxd(tid,gs,grid,val,zeta1);
+        get_p_5pxd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_5pyd(tid,gs,grid,val,zeta1);
+        get_p_5pyd(tid,gs,grid,val,zeta1);
       else
-        return get_p_5pzd(tid,gs,grid,val,zeta1);
+        get_p_5pzd(tid,gs,grid,val,zeta1);
     }
     else if (l1==2)
     {
       if (m1==-2)
-        return get_p_5dxyd(tid,gs,grid,val,zeta1);
+        get_p_5dxyd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_5dyzd(tid,gs,grid,val,zeta1);
+        get_p_5dyzd(tid,gs,grid,val,zeta1);
       else if (m1==0)
-        return get_p_5dz2d(tid,gs,grid,val,zeta1);
+        get_p_5dz2d(tid,gs,grid,val,zeta1);
       else if (m1==1)
-        return get_p_5dxzd(tid,gs,grid,val,zeta1);
+        get_p_5dxzd(tid,gs,grid,val,zeta1);
       else if (m1==2)
-        return get_p_5dx2y2d(tid,gs,grid,val,zeta1);
+        get_p_5dx2y2d(tid,gs,grid,val,zeta1);
     }
     else if (l1==3)
     {
       if (m1==-3)
-        return get_p_5fm3d(tid,gs,grid,val,zeta1);
+        get_p_5fm3d(tid,gs,grid,val,zeta1);
       else if (m1==-2)
-        return get_p_5fm2d(tid,gs,grid,val,zeta1);
+        get_p_5fm2d(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_5fm1d(tid,gs,grid,val,zeta1);
+        get_p_5fm1d(tid,gs,grid,val,zeta1);
       else if (m1==0)
-        return get_p_5f0d(tid,gs,grid,val,zeta1);
+        get_p_5f0d(tid,gs,grid,val,zeta1);
       else if (m1==1)
-        return get_p_5fp1d(tid,gs,grid,val,zeta1);
+        get_p_5fp1d(tid,gs,grid,val,zeta1);
       else if (m1==2)
-        return get_p_5fp2d(tid,gs,grid,val,zeta1);
+        get_p_5fp2d(tid,gs,grid,val,zeta1);
       else if (m1==3)
-        return get_p_5fp3d(tid,gs,grid,val,zeta1);
+        get_p_5fp3d(tid,gs,grid,val,zeta1);
     }
     else if (l1==4)
     {
       if (m1==-4)
-        return get_p_5gm4d(tid,gs,grid,val,zeta1);
+        get_p_5gm4d(tid,gs,grid,val,zeta1);
       else if (m1==-3)
-        return get_p_5gm3d(tid,gs,grid,val,zeta1);
+        get_p_5gm3d(tid,gs,grid,val,zeta1);
       else if (m1==-2)
-        return get_p_5gm2d(tid,gs,grid,val,zeta1);
+        get_p_5gm2d(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_5gm1d(tid,gs,grid,val,zeta1);
+        get_p_5gm1d(tid,gs,grid,val,zeta1);
       else if (m1== 0)
-        return get_p_5g0d(tid,gs,grid,val,zeta1);
+        get_p_5g0d(tid,gs,grid,val,zeta1);
       else if (m1== 1)
-        return get_p_5gp1d(tid,gs,grid,val,zeta1);
+        get_p_5gp1d(tid,gs,grid,val,zeta1);
       else if (m1== 2)
-        return get_p_5gp2d(tid,gs,grid,val,zeta1);
+        get_p_5gp2d(tid,gs,grid,val,zeta1);
       else if (m1== 3)
-        return get_p_5gp3d(tid,gs,grid,val,zeta1);
+        get_p_5gp3d(tid,gs,grid,val,zeta1);
       else if (m1== 4)
-        return get_p_5gp4d(tid,gs,grid,val,zeta1);
+        get_p_5gp4d(tid,gs,grid,val,zeta1);
     }
   }
   else if (n1==6)
   {
     if (l1==0)
     {
-      return get_p_6sd(tid,gs,grid,val,zeta1);
+      get_p_6sd(tid,gs,grid,val,zeta1);
     }
     else if (l1==1)
     {
       if (m1==1)
-        return get_p_6pxd(tid,gs,grid,val,zeta1);
+        get_p_6pxd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_6pyd(tid,gs,grid,val,zeta1);
+        get_p_6pyd(tid,gs,grid,val,zeta1);
       else
-        return get_p_6pzd(tid,gs,grid,val,zeta1);
+        get_p_6pzd(tid,gs,grid,val,zeta1);
     }
     else if (l1==2)
     {
       if (m1==-2)
-        return get_p_6dxyd(tid,gs,grid,val,zeta1);
+        get_p_6dxyd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_6dyzd(tid,gs,grid,val,zeta1);
+        get_p_6dyzd(tid,gs,grid,val,zeta1);
       else if (m1==0)
-        return get_p_6dz2d(tid,gs,grid,val,zeta1);
+        get_p_6dz2d(tid,gs,grid,val,zeta1);
       else if (m1==1)
-        return get_p_6dxzd(tid,gs,grid,val,zeta1);
+        get_p_6dxzd(tid,gs,grid,val,zeta1);
       else if (m1==2)
-        return get_p_6dx2y2d(tid,gs,grid,val,zeta1);
+        get_p_6dx2y2d(tid,gs,grid,val,zeta1);
     }
     else if (l1==3)
     {
       if (m1==-3)
-        return get_p_6fm3d(tid,gs,grid,val,zeta1);
+        get_p_6fm3d(tid,gs,grid,val,zeta1);
       else if (m1==-2)
-        return get_p_6fm2d(tid,gs,grid,val,zeta1);
+        get_p_6fm2d(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_6fm1d(tid,gs,grid,val,zeta1);
+        get_p_6fm1d(tid,gs,grid,val,zeta1);
       else if (m1==0)
-        return get_p_6f0d(tid,gs,grid,val,zeta1);
+        get_p_6f0d(tid,gs,grid,val,zeta1);
       else if (m1==1)
-        return get_p_6fp1d(tid,gs,grid,val,zeta1);
+        get_p_6fp1d(tid,gs,grid,val,zeta1);
       else if (m1==2)
-        return get_p_6fp2d(tid,gs,grid,val,zeta1);
+        get_p_6fp2d(tid,gs,grid,val,zeta1);
       else if (m1==3)
-        return get_p_6fp3d(tid,gs,grid,val,zeta1);
+        get_p_6fp3d(tid,gs,grid,val,zeta1);
     }
     else if (l1==4)
     {
-      printf(" WARNING: 6g derivatives not available \n");
+      printf(" WARNING: 6g derivatives being tested \n");
+      if (m1==-4)
+        get_p_6gm4d(tid,gs,grid,val,zeta1);
+      else if (m1==-3)
+        get_p_6gm3d(tid,gs,grid,val,zeta1);
+      else if (m1==-2)
+        get_p_6gm2d(tid,gs,grid,val,zeta1);
+      else if (m1==-1)
+        get_p_6gm1d(tid,gs,grid,val,zeta1);
+      else if (m1== 0)
+        get_p_6g0d(tid,gs,grid,val,zeta1);
+      else if (m1== 1)
+        get_p_6gp1d(tid,gs,grid,val,zeta1);
+      else if (m1== 2)
+        get_p_6gp2d(tid,gs,grid,val,zeta1);
+      else if (m1== 3)
+        get_p_6gp3d(tid,gs,grid,val,zeta1);
+      else if (m1== 4)
+        get_p_6gp4d(tid,gs,grid,val,zeta1);
     }
     else if (l1==5)
     {
       if (m1==-5)
-        return get_p_6hm5d(tid,gs,grid,val,zeta1);
+        get_p_6hm5d(tid,gs,grid,val,zeta1);
       else if (m1==-4)
-        return get_p_6hm4d(tid,gs,grid,val,zeta1);
+        get_p_6hm4d(tid,gs,grid,val,zeta1);
       else if (m1==-3)
-        return get_p_6hm3d(tid,gs,grid,val,zeta1);
+        get_p_6hm3d(tid,gs,grid,val,zeta1);
       else if (m1==-2)
-        return get_p_6hm2d(tid,gs,grid,val,zeta1);
+        get_p_6hm2d(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_6hm1d(tid,gs,grid,val,zeta1);
+        get_p_6hm1d(tid,gs,grid,val,zeta1);
       else if (m1== 0)
-        return get_p_6h0d(tid,gs,grid,val,zeta1);
+        get_p_6h0d(tid,gs,grid,val,zeta1);
       else if (m1== 1)
-        return get_p_6hp1d(tid,gs,grid,val,zeta1);
+        get_p_6hp1d(tid,gs,grid,val,zeta1);
       else if (m1== 2)
-        return get_p_6hp2d(tid,gs,grid,val,zeta1);
+        get_p_6hp2d(tid,gs,grid,val,zeta1);
       else if (m1== 3)
-        return get_p_6hp3d(tid,gs,grid,val,zeta1);
+        get_p_6hp3d(tid,gs,grid,val,zeta1);
       else if (m1== 4)
-        return get_p_6hp4d(tid,gs,grid,val,zeta1);
+        get_p_6hp4d(tid,gs,grid,val,zeta1);
       else if (m1== 5)
-        return get_p_6hp5d(tid,gs,grid,val,zeta1);
+        get_p_6hp5d(tid,gs,grid,val,zeta1);
     }
   }
   else if (n1==7)
   {
     if (l1==0)
     {
-      return get_p_7sd(tid,gs,grid,val,zeta1);
+      get_p_7sd(tid,gs,grid,val,zeta1);
     }
     else if (l1==1)
     {
       if (m1==1)
-        return get_p_6pxd(tid,gs,grid,val,zeta1);
+        get_p_6pxd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_6pyd(tid,gs,grid,val,zeta1);
+        get_p_6pyd(tid,gs,grid,val,zeta1);
       else
-        return get_p_6pzd(tid,gs,grid,val,zeta1);
+        get_p_6pzd(tid,gs,grid,val,zeta1);
     }
     else if (l1==2)
     {
       if (m1==-2)
-        return get_p_7dxyd(tid,gs,grid,val,zeta1);
+        get_p_7dxyd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_7dyzd(tid,gs,grid,val,zeta1);
+        get_p_7dyzd(tid,gs,grid,val,zeta1);
       else if (m1==0)
-        return get_p_7dz2d(tid,gs,grid,val,zeta1);
+        get_p_7dz2d(tid,gs,grid,val,zeta1);
       else if (m1==1)
-        return get_p_7dxzd(tid,gs,grid,val,zeta1);
+        get_p_7dxzd(tid,gs,grid,val,zeta1);
       else if (m1==2)
-        return get_p_7dx2y2d(tid,gs,grid,val,zeta1);
+        get_p_7dx2y2d(tid,gs,grid,val,zeta1);
     }
     else if (l1==3)
     {
       if (m1==-3)
-        return get_p_7fm3d(tid,gs,grid,val,zeta1);
+        get_p_7fm3d(tid,gs,grid,val,zeta1);
       else if (m1==-2)
-        return get_p_7fm2d(tid,gs,grid,val,zeta1);
+        get_p_7fm2d(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        return get_p_7fm1d(tid,gs,grid,val,zeta1);
+        get_p_7fm1d(tid,gs,grid,val,zeta1);
       else if (m1==0)
-        return get_p_7f0d(tid,gs,grid,val,zeta1);
+        get_p_7f0d(tid,gs,grid,val,zeta1);
       else if (m1==1)
-        return get_p_7fp1d(tid,gs,grid,val,zeta1);
+        get_p_7fp1d(tid,gs,grid,val,zeta1);
       else if (m1==2)
-        return get_p_7fp2d(tid,gs,grid,val,zeta1);
+        get_p_7fp2d(tid,gs,grid,val,zeta1);
       else if (m1==3)
-        return get_p_7fp3d(tid,gs,grid,val,zeta1);
+        get_p_7fp3d(tid,gs,grid,val,zeta1);
+    }
+    else if (l1==4)
+    {
+      printf(" WARNING: 6g derivatives being tested \n");
+      if (m1==-4)
+        get_p_7gm4d(tid,gs,grid,val,zeta1);
+      else if (m1==-3)
+        get_p_7gm3d(tid,gs,grid,val,zeta1);
+      else if (m1==-2)
+        get_p_7gm2d(tid,gs,grid,val,zeta1);
+      else if (m1==-1)
+        get_p_7gm1d(tid,gs,grid,val,zeta1);
+      else if (m1== 0)
+        get_p_7g0d(tid,gs,grid,val,zeta1);
+      else if (m1== 1)
+        get_p_7gp1d(tid,gs,grid,val,zeta1);
+      else if (m1== 2)
+        get_p_7gp2d(tid,gs,grid,val,zeta1);
+      else if (m1== 3)
+        get_p_7gp3d(tid,gs,grid,val,zeta1);
+      else if (m1== 4)
+        get_p_7gp4d(tid,gs,grid,val,zeta1);
+    }
+    else if (l1==5)
+    {
+      printf(" WARNING: 7h derivatives not available \n");
     }
   }
   else if (n1==8)
   {
     if (l1==0)
     {
-      return get_p_8sd(tid,gs,grid,val,zeta1);
+      get_p_8sd(tid,gs,grid,val,zeta1);
     }
     else
     {

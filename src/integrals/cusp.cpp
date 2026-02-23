@@ -295,6 +295,13 @@ void compute_cusp(int natoms, int* atno, double* coords, vector<vector<double> >
     float Zeff = basis[j1][8];
     printf("   %i %8.5f \n",n,Zeff);
     atchg[n] = Zeff;
+
+   //don't apply cusp correction to small charge
+    if (Zeff<0.1)
+    {
+      not_X[n] = 0;
+      atchg[n] = 0.;
+    }
   }
   else atchg[n] = 0.;
 
@@ -654,7 +661,7 @@ int prepare_PSP(double thresh, int natoms, int N, double* S, vector<double*> Pc_
     exit(1);
   }
 
-  if (prl>-3)
+  if (prl>0)
   {
     int nprint1 = 5; if (nprint1>N) nprint1 = N;
     int nprint = nlowexpected+2; if (prl>1) nprint = N;

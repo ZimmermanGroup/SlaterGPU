@@ -2,6 +2,21 @@
 
 using namespace std;
 
+void get_evenly_spaced_radial_grid(int size, double* r, double* w, double rmax)
+{
+  double dr = rmax/size;
+
+ #pragma acc parallel loop present(r[0:size],w[0:size])
+  for (int j=0;j<size;j++)
+  {
+    double r1 = (j+1)*dr;
+    r[j] = r1;
+    w[j] = r1*r1;
+  }
+
+  return;
+}
+
 void get_eumac_grid(int size, double* r, double* w, const double rmax, const int m)
 {
   printf("\n Euler Mac grid not ready \n");

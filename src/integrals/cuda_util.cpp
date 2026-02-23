@@ -218,6 +218,7 @@ void expmat(int N, double* theta1, double* U, cusolverDnHandle_t cu_hdl, cublasH
 {
  //this is a bit of a mess
  //takes exp(-i theta)
+ // assumes the matrix is antisymmetric
 
  #if !USE_ACC
   printf("\n ERROR: there is no CPU implementation for expmat \n"); exit(-1);
@@ -1168,3 +1169,48 @@ int invert_cusolver(int N, double* A, cusolverDnHandle_t& cu_hdl)
   return reset;
 }
 
+void solve_axeb_gpu(int dim, double* A, double* b, cusolverDnHandle_t& cu_hdl)
+{
+  int* d_info = new int[1];
+  int* d_ipiv = new int[dim];
+  double* d_X = new double[dim];
+
+  size_t lwork = 0;
+  int niter;
+
+  {
+    #pragma acc enter data create(d_ipiv[0:dim],d_info[0:1],d_X[0:dim])
+
+    #pragma acc host_data use_device(A, b, d_ipiv, d_info)
+    {
+      cusolverDnDDgesv_bufferSize(cu_hdl,dim,1,A,dim,d_ipiv,b,dim,NULL,dim,NULL,&lwork);
+    }
+    cudaDeviceSynchronize();
+
+
+    //printf(" lwork: %4zu \n",lwork);
+    double* d_work = new double[lwork];
+
+    #pragma acc enter data create(d_work[0:lwork])
+
+    #pragma acc host_data use_device(A, b, d_ipiv, d_info, d_X, d_work)
+    {
+      //Ax=b
+      cusolverDnDDgesv(cu_hdl,dim,1,A,dim,d_ipiv,b,dim,d_X,dim,d_work,lwork,&niter,d_info);
+    }
+    cudaDeviceSynchronize();
+    delete [] d_work;
+
+    #pragma acc parallel loop present(d_X[0:dim],b[0:dim])
+    for (int j=0;j<dim;j++)
+      b[j] = d_X[j];
+
+    #pragma acc exit data delete(d_ipiv[0:dim],d_info[0:1],d_X[0:dim],d_work[0:lwork])
+  }
+
+  delete [] d_info;
+  delete [] d_ipiv;
+  delete [] d_X;
+
+  return;
+}

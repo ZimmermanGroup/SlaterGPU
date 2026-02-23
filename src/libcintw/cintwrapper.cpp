@@ -157,127 +157,6 @@ void get_overlap_ri(double * overlap, int Naux,
   } // else
 }
 
-void get_hcore(double *hcore, int N,
-               int natm, int nbas, int nenv,
-               int *atm, int *bas, double *env) {
-  int idx_i = 0;
-  int di, dj;
-  int shls[2];
-
-  double *tmp = new double[N * N];
-  
-  if (BT::DO_CART) {
-    for (int i = 0; i < nbas; i++) {
-      int idx_j = 0;
-      shls[0] = i;
-      di = CINTcgto_cart(i, bas);
-      for (int j = 0; j <= i; j++) {
-        dj = CINTcgto_cart(j, bas);
-        shls[1] = j;
-        double *buf = new double[di*dj];
-        cint1e_nuc_cart(buf,shls,atm,natm,bas,nbas,env);
-
-        for (int j1 = 0; j1 < dj; j1++) {
-          for (int i1 = 0; i1 < di; i1++) {
-            int oi = i1 + idx_i;
-            int oj = j1 + idx_j;
-            tmp[oi * N + oj] = tmp[oj * N + oi] = buf[j1*di + i1];
-          } // for i1
-        } // for j1
-        delete [] buf;
-        idx_j += dj;
-      } // for j
-      idx_i += di;
-    }// for i
-
-    for (int i = 0; i < N * N; i++) {
-      hcore[i] = tmp[i];
-    }
-
-    idx_i = 0;
-    for (int i = 0; i < nbas; i++) {
-      int idx_j = 0;
-      shls[0] = i;
-      di = CINTcgto_cart(i, bas);
-      for (int j = 0; j <= i; j++) {
-        dj = CINTcgto_cart(j, bas);
-        shls[1] = j;
-        double *buf = new double[di*dj];
-        cint1e_kin_cart(buf,shls,atm,natm,bas,nbas,env);
-
-        for (int j1 = 0; j1 < dj; j1++) {
-          for (int i1 = 0; i1 < di; i1++) {
-            int oi = i1 + idx_i;
-            int oj = j1 + idx_j;
-            tmp[oi * N + oj] = tmp[oj * N + oi] = buf[j1*di + i1];
-          } // for i1
-        } // for j1
-        delete [] buf;
-        idx_j += dj;
-      } // for j
-      idx_i += di;
-    }// for i
-  } // if BT::DO_CART
-  else {
-    for (int i = 0; i < nbas; i++) {
-      int idx_j = 0;
-      shls[0] = i;
-      di = CINTcgto_spheric(i, bas);
-      for (int j = 0; j <= i; j++) {
-        dj = CINTcgto_spheric(j, bas);
-        shls[1] = j;
-        double *buf = new double[di*dj];
-        cint1e_nuc_sph(buf,shls,atm,natm,bas,nbas,env);
-
-        for (int j1 = 0; j1 < dj; j1++) {
-          for (int i1 = 0; i1 < di; i1++) {
-            int oi = i1 + idx_i;
-            int oj = j1 + idx_j;
-            tmp[oi * N + oj] = tmp[oj * N + oi] = buf[j1*di + i1];
-          } // for i1
-        } // for j1
-        delete [] buf;
-        idx_j += dj;
-      } // for j
-      idx_i += di;
-    }// for i
-
-    for (int i = 0; i < N * N; i++) {
-      hcore[i] = tmp[i];
-    }
-
-    idx_i = 0;
-    for (int i = 0; i < nbas; i++) {
-      int idx_j = 0;
-      shls[0] = i;
-      di = CINTcgto_spheric(i, bas);
-      for (int j = 0; j <= i; j++) {
-        dj = CINTcgto_spheric(j, bas);
-        shls[1] = j;
-        double *buf = new double[di*dj];
-        cint1e_kin_sph(buf,shls,atm,natm,bas,nbas,env);
-
-        for (int j1 = 0; j1 < dj; j1++) {
-          for (int i1 = 0; i1 < di; i1++) {
-            int oi = i1 + idx_i;
-            int oj = j1 + idx_j;
-            tmp[oi * N + oj] = tmp[oj * N + oi] = buf[j1*di + i1];
-          } // for i1
-        } // for j1
-        delete [] buf;
-        idx_j += dj;
-      } // for j
-      idx_i += di;
-    }// for i
-  }  
-
-  for (int i = 0; i < N * N; i++) {
-    hcore[i] += tmp[i];
-  }
-
-  delete [] tmp;
-}
-
 void get_hcore(double *hcore, double *En, double *T, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env) {
@@ -286,7 +165,7 @@ void get_hcore(double *hcore, double *En, double *T, int N,
   int shls[2];
 
   double *tmp = new double[N * N];
-  
+
   if (BT::DO_CART) {
     for (int i = 0; i < nbas; i++) {
       int idx_j = 0;
@@ -363,6 +242,7 @@ void get_hcore(double *hcore, double *En, double *T, int N,
       idx_i += di;
     }// for i
 
+    if (En!=NULL)
     for (int i = 0; i < N * N; i++) {
       En[i] = tmp[i];
     }
@@ -393,8 +273,9 @@ void get_hcore(double *hcore, double *En, double *T, int N,
       } // for j
       idx_i += di;
     }// for i
-  }  
+  }
 
+  if (T!=NULL)
   for (int i = 0; i < N * N; i++) {
     T[i] = tmp[i];
   }
@@ -403,6 +284,12 @@ void get_hcore(double *hcore, double *En, double *T, int N,
   }
 
   delete [] tmp;
+}
+
+void get_hcore(double *hcore, int N,
+               int natm, int nbas, int nenv,
+               int *atm, int *bas, double *env) {
+  return get_hcore(hcore,NULL,NULL,N,natm,nbas,nenv,atm,bas,env);
 }
 
 void get_tcore(double *tcore, int N,
@@ -414,7 +301,7 @@ void get_tcore(double *tcore, int N,
 
   int N2 = N*N;
   double *tmp = new double[N2];
-  
+
   if (BT::DO_CART) {
 
     idx_i = 0;
@@ -465,7 +352,7 @@ void get_tcore(double *tcore, int N,
       } // for j
       idx_i += di;
     }// for i
-  }  
+  }
 
   for (int i = 0; i < N2; i++) {
     tcore[i] = tmp[i];
@@ -663,7 +550,7 @@ void gen_eri(double **eri, int N,
   } // else
 }
 
-void gen_jMOI_gto(double **eri, int N, 
+void gen_jMOI_gto(double **eri, int N,
                   int natm, int nbas, int nenv,
                   int *atm, int *bas, double *env) {
   int N2 = N*N;
@@ -793,7 +680,7 @@ void gen_ri_int(double *jSaux, double *jSinv, double **jCaux,
       jV[i*Naux+j] = jERI2c[i*Naux + j];
     }
   }
-  
+
   double * eval = new double[Naux];
   char v = 'V';
   char u = 'U';
@@ -805,7 +692,7 @@ void gen_ri_int(double *jSaux, double *jSinv, double **jCaux,
   // }
 //  LAPACKE_dsyev(LAPACK_ROW_MAJOR, v, u, Naux, jV, Naux, work);
 
-  
+
   int ipiv[Naux];
 
   double *diag = new double[Naux2]();
@@ -818,7 +705,7 @@ void gen_ri_int(double *jSaux, double *jSinv, double **jCaux,
 //              N,N,N,1.0,jV,N,diag,N,0.,tmp,N);
 //  cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasTrans,
 //              N,N,N,1.0,tmp,N,jV,N,0.,diag,N);
-  
+
   for (int i = 0; i < N2; i++) {
     //can replace with cblas_dgemm later
     for (int mu = 0; mu < Naux; mu++) {
@@ -863,12 +750,12 @@ void gen_eri_ri(double *jSaux, double *jSinv, double **jCaux,
           eri[ij][kl] = 0.;
           for (int mu = 0; mu < Naux; mu++) {
             for (int nu = 0; nu < Naux; nu++) {
-              eri[ij][kl] += jERI3c[ij*Naux + mu] * jERI3c[kl*Naux + nu] 
+              eri[ij][kl] += jERI3c[ij*Naux + mu] * jERI3c[kl*Naux + nu]
                           * jV[mu*Naux+nu];
             }
           }
         }
-      }      
+      }
     }
   }
   delete [] jV;
@@ -1181,7 +1068,8 @@ void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
 }
 
 void contract_dS(int natm, int N, int nbas, double *grad_term, double *GF,
-                 int *atm, int *bas, double *env) {
+                 int *atm, int *bas, double *env)
+{
   int N2 = N*N;
   double *jS = new double[3*N2];
   int idx_i = 0;
@@ -1189,26 +1077,29 @@ void contract_dS(int natm, int N, int nbas, double *grad_term, double *GF,
   int di, dj;
   int shls[2];
 
-  for (int i = 0; i < 3*natm; i++) {
+  for (int i = 0; i < 3*natm; i++)
     grad_term[i] = 0.;
-  }
 
-  for (int i = 0; i < nbas; i++) {
+  for (int i = 0; i < nbas; i++)
+  {
     int idx_j = 0;
     shls[0] = i;
     di = CINTcgto_spheric(i, bas);
-    for (int j = 0; j < di; j++) {
+    for (int j = 0; j < di; j++)
       atm_idx[idx_i + j] = bas[ATOM_OF + BAS_SLOTS*i];
-    }
-    for (int j = 0; j < nbas; j++) {
+    for (int j = 0; j < nbas; j++)
+    {
       dj = CINTcgto_spheric(j, bas);
       shls[1] = j;
       double *buf = new double[di*dj*3];
       cint1e_ipovlp_sph(buf,shls,atm,natm,bas,nbas,env);
 
-      for (int x = 0; x < 3; x++) {
-        for (int j1 = 0; j1 < dj; j1++) {
-          for (int i1 = 0; i1 < di; i1++) {
+      for (int x = 0; x < 3; x++)
+      {
+        for (int j1 = 0; j1 < dj; j1++)
+        {
+          for (int i1 = 0; i1 < di; i1++)
+          {
             int oi = i1 + idx_i;
             int oj = j1 + idx_j;
             jS[x*N2 + oi * N + oj] = buf[x * dj * di + j1*di + i1];
@@ -1221,10 +1112,13 @@ void contract_dS(int natm, int N, int nbas, double *grad_term, double *GF,
     idx_i += di;
   }// for i
 
-  for (int x = 0; x < 3; x++) {
-    for (int i = 0; i < N; i++) {
+  for (int x = 0; x < 3; x++)
+  {
+    for (int i = 0; i < N; i++)
+    {
       int atm_i = atm_idx[i];
-      for (int j = 0; j < N; j++) {
+      for (int j = 0; j < N; j++)
+      {
         int atm_j = atm_idx[j];
         grad_term[atm_i*3 + x] += GF[i*N+j] * jS[x*N2 + i*N+j];
         grad_term[atm_j*3 + x] += GF[i*N+j] * jS[x*N2 + j*N+i];
@@ -1512,7 +1406,7 @@ void contract_d2c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
   delete [] atm_idx;
 }
 
-void contract_d3c2e(int natm, int N, int nbas, int Naux, int nbas_ri, 
+void contract_d3c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
                     double *grad_term, double *gQmunu,
                     int *atm, int *bas, double *env) {
   int N2 = N*N;

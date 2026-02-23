@@ -39,6 +39,11 @@ extern void dgetrf_(int* M, int* N, double* A, int* LDA, int* IPIV, int* INFO);
 extern void dgetri_(int* N, double* A, int* LDA, int* IPIV, double* WORK, int* LWORK, int* INFO);
 }
 
+extern "C" {
+    void dgesv_(int* n, int* nrhs, double* a, int* lda, int* ipiv,
+                double* b, int* ldb, int* info);
+}
+
 void print_square(int N, double* A);
 void print_square_sm(int N, double* A);
 
@@ -53,7 +58,17 @@ double randomf(double a, double b)
   return randn;
 }
 
-void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta) 
+void solve_axeb(int dim, double* A, double* b)
+{
+  int info;
+  int one = 1;
+  int z[dim];
+  dgesv_(&dim,&one,A,&dim,z,b,&dim,&info);
+
+  return;
+}
+
+void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta)
 {
   printf("\n ERROR expmat_complex_cpu broken by new compiler \n"); exit(-1);
 
@@ -135,9 +150,11 @@ void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta)
 
 void expmat_cpu(int N, double *theta, double *etheta)
 {
-  printf("\n ERROR expmat_cpu broken by new compiler \n"); exit(-1);
+ //computes exp(-i theta)
 
- #if 0
+  printf("\n WARNING: expmat_cpu broken by new compiler \n");
+
+ #if 1
   int N2 = N*N;
   char JOBZ = 'V';
   char UPLO = 'U';
@@ -688,26 +705,28 @@ int mat_root_cpu(double* A, int size)
 
 int mat_root_inv_cpu(double* A, int size)
 {
-  double* B = new double[size*size];
-  for (int i=0;i<size*size;i++) B[i] = A[i];
+  int size2 = size*size;
+
+  double* B = new double[size2];
+  for (int i=0;i<size2;i++) B[i] = A[i];
   double* Beigen = new double[size];
   for (int i=0;i<size;i++) Beigen[i] = 0.;
 
   la_diag(size,size,B,Beigen);
 
-  double* Bi = new double[size*size];
-  //for (int i=0;i<size*size;i++) Bi[i] = B[i];
+  double* Bi = new double[size2];
+  //for (int i=0;i<size2;i++) Bi[i] = B[i];
 
   trans_cpu(Bi,B,size,size);
 
-  double* tmp = new double[size*size]();
-  for (int i=0;i<size*size;i++) A[i] = 0.;
+  double* tmp = new double[size2]();
+  for (int i=0;i<size2;i++) A[i] = 0.;
 
-#if 0
+ #if 0
   printf("  eigenvalues for mat_root_inv:");
   for (int i=0;i<min(size,8);i++) printf(" %5g",Beigen[i]);
   printf("\n");
-#endif
+ #endif
 
   int nsmall = 0;
   for (int i=0;i<size;i++)
@@ -733,20 +752,18 @@ int mat_root_inv_cpu(double* A, int size)
 
 int mat_root_inv_stable_cpu(double* A, int size, double inv_cutoff, int prl)
 {
-  double* B = new double[size*size];
-  for (int i=0;i<size*size;i++) B[i] = A[i];
+  int size2 = size*size;
+
+  double* B = new double[size2];
+  for (int i=0;i<size2;i++) B[i] = A[i];
   double* Beigen = new double[size];
   for (int i=0;i<size;i++) Beigen[i] = 0.;
 
   la_diag(size,size,B,Beigen);
 
-  double* Bi = new double[size*size];
-  //for (int i=0;i<size*size;i++) Bi[i] = B[i];
-
+  double* Bi = new double[size2];
+  //for (int j=0;j<size2;j++) Bi[j] = B[j];
   trans_cpu(Bi,B,size,size);
-
-  double* tmp = new double[size*size]();
-  for (int i=0;i<size*size;i++) A[i] = 0.;
 
   if (prl>1)
   {
@@ -765,9 +782,12 @@ int mat_root_inv_stable_cpu(double* A, int size, double inv_cutoff, int prl)
   if (prl>0)
     printf("  found %i low eigenvalues \n",nlow);
 
+  double* tmp = new double[size2]();
   for (int i=0;i<size;i++)
   for (int j=0;j<size;j++)
-    tmp[i*size+j] += Bi[i*size+j] / sqrt(Beigen[j]);
+    tmp[i*size+j] = Bi[i*size+j] / sqrt(Beigen[j]);
+
+  for (int i=0;i<size2;i++) A[i] = 0.;
   for (int i=0;i<size;i++)
   for (int j=0;j<size;j++)
   for (int k=0;k<size;k++)

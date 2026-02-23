@@ -28,4 +28,6 @@ void get_murak_grid_f(int size, float* r, float* w, int Z, const int m);
 void get_murak_grid_zeta(int tid, int size, double* r, double* w, const double zeta, const int m);
 void get_murak_grid_zeta(int size, double* r, double* w, const double zeta, const int m);
 
+void get_evenly_spaced_radial_grid(int size, double* r, double* w, double rmax);
+
 #endif

@@ -669,6 +669,43 @@ bool determine_mo_symmetry(const int point_group, int natoms, int* atno, float* 
   return result;
 }
 
+void determine_symmetry_atomic_sz(int N, int* symmblocks, vector<vector<double> >& basis, double* jCA, int prl)
+{
+ //symmetries only for partly symmetric atoms
+ //z direction is priviledged
+
+ //label "all others"
+  for (int n=0;n<N;n++)
+    symmblocks[n] = 42;
+
+  double thresh = 1.e-4;
+  for (int m=0;m<N;m++)
+  {
+    vector<double> basis1 = basis[m];
+
+   //m==0 quantum numbers
+    if (basis1[2]==0)
+    for (int j=0;j<N;j++)
+    if(fabs(jCA[m*N+j])>thresh)
+      symmblocks[j] = 1;
+
+    if (basis1[2]!=0)
+    for (int j=0;j<N;j++)
+    if(fabs(jCA[m*N+j])>thresh)
+      symmblocks[j] = 2;
+
+  }
+
+  if (prl>0)
+  {
+    printf("  symm blocks: ");
+    for (int n=0;n<N;n++)
+      printf(" %i",symmblocks[n]);
+    printf("\n");
+  }
+
+  return;
+}
 
 void determine_symmetry_atomic(int N, int* symmblocks, vector<vector<double> >& basis, double* jCA, int prl)
 {

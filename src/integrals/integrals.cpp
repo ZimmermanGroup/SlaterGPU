@@ -4237,8 +4237,9 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
 }
 
 //applied electric fields
-// currently does x,y,z directions only
-void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* E, int prl)
+// x,y,z directions only
+// could expand this to include higher order terms
+void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl)
 {
   if (prl>1) printf(" beginning compute_E (double precision) \n");
 
@@ -4280,13 +4281,27 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
  #endif
   acc_assign(3*N2,E,0.);
 
+ //nuclear contribution
+  double Exat = 0.; double Eyat = 0.; double Ezat = 0.;
+  int Ztot = 0;
+  for (int m=0;m<natoms;m++)
+    Ztot += atno[m];
+  for (int m=0;m<natoms;m++)
+  {
+    double Z1 = atno[m];
+    double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
+
+    Exat += -A1*Z1;
+    Eyat += -B1*Z1;
+    Ezat += -C1*Z1;
+  }
+
   for (int m=0;m<natoms;m++)
   {
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
-    float A1 = coords[3*m+0]; float B1 = coords[3*m+1]; float C1 = coords[3*m+2];
+    double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     for (int i1=s1;i1<s2;i1++)
     for (int i2=s1;i2<=i1;i2++)
@@ -4299,7 +4314,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
       vector<double> basis2 = basis[i2];
       int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; double zeta2 = basis2[3];
 
-      float z12 = zeta1 + zeta2;
+      double z12 = zeta1 + zeta2;
      //new grid with zeta dependence
       generate_central_grid_2d(-1,0,grid1m,wt1,z12,nrad,nang,ang_g,ang_w);
 
@@ -4338,17 +4353,17 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
     } //pairs of basis on single atoms
 
 
-   if (natoms>1) { printf("\n WARNING: can only do 1 atom in compute_Exyz \n"); exit(-1); }
+   //if (natoms>1) { printf("  WARNING: testing >1 atom in compute_Exyz \n"); }
+
    //complete but needs testing
-   #if 0
     for (int n=m+1;n<natoms;n++)
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
       //printf(" mn: %i %i s1-4: %i %i - %i %i \n",m,n,s1,s2,s3,s4);
 
-      float Z2 = (float)atno[n];
-      float A2 = coords[3*n+0]; float B2 = coords[3*n+1]; float C2 = coords[3*n+2];
-      float A12 = A2-A1; float B12 = B2-B1; float C12 = C2-C1;
+      double Z2 = atno[n];
+      double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
+      double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
 
       for (int i1=s1;i1<s2;i1++)
       for (int i2=s3;i2<s4;i2++)
@@ -4382,10 +4397,10 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
        //needs to happen after becke weighting
         add_r1_to_grid(gs,grid2m,0.,0.,0.);
 
-        #pragma acc parallel loop present(val1n[0:gs],val2m[0:gs])
+        #pragma acc parallel loop present(val2m[0:gs],val2n[0:gs])
         for (int j=0;j<gs;j++)
-          val2m[j] = val2n[j] = 1.; 
-        #pragma acc parallel loop present(val1m[0:gs],val2n[0:gs],wt1[0:gs],wt2[0:gs])
+          val2m[j] = val2n[j] = 1.;
+        #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],wt1[0:gs],wt2[0:gs])
         for (int j=0;j<gs;j++)
         {
           val1m[j] = wt1[j];
@@ -4399,7 +4414,7 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
         eval_shd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2); //basis 2 on center 2
 
         double valx = 0.; double valy = 0.; double valz = 0.;
-       #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid1n[0:gs6]) reduction(+:valx,valy,valz)
+       #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid2n[0:gs6]) reduction(+:valx,valy,valz)
         for (int j=0;j<gs;j++)
         {
           double x1 = grid1m[6*j+0]+A1;
@@ -4422,17 +4437,15 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
       }
 
     } //loop n>m
-   #endif
 
   } //loop m over natoms
-
 
   double* norm = new double[N];
   for (int i=0;i<N;i++)
     norm[i] = basis[i][4];
   #pragma acc enter data copyin(norm[0:N])
 
-  #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
+ #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
   for (int i=0;i<N;i++)
  #pragma acc loop independent
   for (int j=0;j<N;j++)
@@ -4443,15 +4456,21 @@ void compute_Exyz(int natoms, int* atno, float* coords, vector<vector<double> > 
     E[2*N2+i*N+j] *= n12;
   }
 
- #if 0
- #pragma acc parallel loop independent present(S[0:N2])
-  for (int i=0;i<N;i++)
- #pragma acc loop independent
-  for (int j=0;j<i;j++)
-  {
-    E[j*N+i] = S[i*N+j];
-  }
- #endif
+  printf("  atomic Exa: %8.5f %8.5f %8.5f \n",Exat,Eyat,Ezat);
+
+   double Zfact = 1./Ztot;
+   Exat *= Zfact;
+   Eyat *= Zfact;
+   Ezat *= Zfact;
+  #pragma acc parallel loop present(E[0:3*N2],S[0:N2])
+  for (int j=0;j<N2;j++)
+    E[j] += Exat*S[j];
+  #pragma acc parallel loop present(E[0:3*N2],S[0:N2])
+  for (int j=0;j<N2;j++)
+    E[N2+j] += Eyat*S[j];
+  #pragma acc parallel loop present(E[0:3*N2],S[0:N2])
+  for (int j=0;j<N2;j++)
+    E[2*N2+j] += Ezat*S[j];
 
   #pragma acc exit data delete(norm[0:N])
   delete [] norm;

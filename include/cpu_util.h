@@ -16,11 +16,13 @@ using namespace std;
 
 //#define lapack_complex_float complex< float >
 //#define lapack_complex_double complex< double >
-    
+
 //#include <lapacke.h>
 //#include <cblas.h>
 
 double randomf(double a, double b);
+
+void solve_axeb(int dim, double* A, double* b);
 
 void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta);
 void expmat_cpu(int N, double *theta, double *etheta);
