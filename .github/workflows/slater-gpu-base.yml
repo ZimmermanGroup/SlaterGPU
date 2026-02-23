@@ -1,24 +1,48 @@
 name: SlaterGPU Base
 
-on: [workflow_call]
+on:
+  workflow_call:
+    inputs:
+      use-latest-pixi:
+        type: boolean
+        default: false
 
 jobs:
   build:
     runs-on: gpu
-    
+
     defaults:
       run:
         shell: bash
     steps:
-    - uses: prefix-dev/setup-pixi@v0.9.1
+    - uses: actions/checkout@v4
+
+    - name: Extract minimum pixi version from pixi.toml
+      id: pixi-version
+      run: |
+        VERSION=$(grep 'requires-pixi' pixi.toml | sed 's/.*>=\([0-9.]*\).*/\1/')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Using minimum pixi version: $VERSION"
+
+    - name: Set up Pixi (minimum version)
+      if: ${{ !inputs.use-latest-pixi }}
+      uses: prefix-dev/setup-pixi@v0.9.1
       with:
-        pixi-version: v0.54.0
+        pixi-version: v${{ steps.pixi-version.outputs.version }}
         log-level: v
         run-install: false
         # cache: true
       continue-on-error: true
-    - uses: actions/checkout@v4
-    
+
+    - name: Set up Pixi (latest version for scheduled builds)
+      if: ${{ inputs.use-latest-pixi }}
+      uses: prefix-dev/setup-pixi@v0.9.1
+      with:
+        log-level: v
+        run-install: false
+        # cache: true
+      continue-on-error: true
+
     # Cache NVHPC installation
     - name: Cache NVHPC
       id: cache-nvhpc
@@ -28,14 +52,14 @@ jobs:
           /home/runner/work/Linux_x86_64
           /home/runner/work/modulefiles
         key: nvhpc-25.1-cuda-12.6-v1-${{ runner.os }}
-        
+
     - name: Install nvhpc
       run: |
         source .github/workflows/install_nvhpc.sh
       env:
         CACHE_HIT: ${{ steps.cache-nvhpc.outputs.cache-hit }}
       continue-on-error: true
-      
+
     - name: Install and test SlaterGPU
       run: |
         source ~/.pixi/envs/environment-modules/init/bash

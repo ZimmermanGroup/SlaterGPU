@@ -1,7 +1,16 @@
 name: CI
 
-on: [push]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run monthly on the 1st at midnight UTC to test with latest pixi
+    - cron: '0 0 1 * *'
 
 jobs:
   run-slater-gpu:
     uses: ./.github/workflows/slater-gpu-base.yml
+    with:
+      use-latest-pixi: ${{ github.event_name == 'schedule' }}
