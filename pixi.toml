@@ -2,7 +2,7 @@
 channels = ["nvidia", "conda-forge"]
 platforms = ["linux-64", "linux-aarch64"]
 preview = ["pixi-build"]
-requires-pixi = ">=0.54"
+requires-pixi = ">=0.60.0"
 
 [package]
 name = "slatergpu"
@@ -10,7 +10,7 @@ version = "0.1.14"
 
 [package.build.backend]
 name = "pixi-build-cmake"
-version = "==0.3.4"
+version = ">=0.3.6,<=0.3.8"
 
 [package.build.config]
 compilers = []

@@ -15,7 +15,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgcc-ng-15.2.0-h69a702a_16.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgomp-15.2.0-he0feb66_16.conda
       - conda: .
-        subdir: linux-64
+        build: hb0f4dca_0
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-2_gnu.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcint-5.3.0-h0037855_0.conda
@@ -23,7 +23,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libgcc-ng-15.2.0-he9431aa_16.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libgomp-15.2.0-h8acb6b2_16.conda
       - conda: .
-        subdir: linux-aarch64
+        build: he8cfe8b_0
   pytest:
     channels:
     - url: https://conda.anaconda.org/nvidia/
@@ -75,7 +75,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
       - conda: .
-        subdir: linux-64
+        build: hb0f4dca_0
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-2_gnu.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/bzip2-1.0.8-h4777abc_8.conda
@@ -119,7 +119,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/zstd-1.5.7-h85ac4a6_6.conda
       - conda: .
-        subdir: linux-aarch64
+        build: he8cfe8b_0
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
@@ -877,17 +877,19 @@ packages:
 - conda: .
   name: slatergpu
   version: 0.1.14
-  build: hbf21a9e_0
+  build: hb0f4dca_0
   subdir: linux-64
-  variants: {}
+  variants:
+    target_platform: linux-64
   depends:
   - libcint >=5.3,<5.4.0a0
 - conda: .
   name: slatergpu
   version: 0.1.14
-  build: hbf21a9e_0
+  build: he8cfe8b_0
   subdir: linux-aarch64
-  variants: {}
+  variants:
+    target_platform: linux-aarch64
   depends:
   - libcint >=5.3,<5.4.0a0
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_ha0e22de_103.conda
