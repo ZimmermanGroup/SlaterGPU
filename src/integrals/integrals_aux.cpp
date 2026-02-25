@@ -1458,7 +1458,7 @@ int get_imax_n2i(int natoms, int N, vector<vector<double> >& basis, int* n2i)
     int wa2 = basis[i][9];
     if (wa2!=wa)
     {
-      int cmaxN = i-iprev; 
+      int cmaxN = i-iprev;
       if (cmaxN>imaxN) imaxN = cmaxN;
       n2i[wa] = i;
       wa = wa2;
@@ -1493,7 +1493,7 @@ int get_natoms_with_basis(int natoms, int* atno, vector<vector<double> >& basis)
     else
       natoms1 = n+1;
   }
-  
+
   return natoms1;
 }
 

@@ -260,13 +260,13 @@ void CINTPrep::read_bas(string inpbas) {
 
   int i = 0;
   while (i < lines.size()) {
-    if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);}) 
+    if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);})
         && lines[i].c_str()[0] != '*') {
       iss.str(lines[i]);
       string atom_symbol;
       iss >> atom_symbol;
       if (iss.fail() || elem_2_int.count(atom_symbol) == 0) {
-        printf("ERROR reading basis set %s at line %d\n", 
+        printf("ERROR reading basis set %s at line %d\n",
               basfile.c_str(), i);
         exit(1);
       }
@@ -279,7 +279,7 @@ void CINTPrep::read_bas(string inpbas) {
         basis_t basis;
         basis.nuc = atom_num;
         while (i < lines.size()) {
-          if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);}) 
+          if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);})
               && lines[i].c_str()[0] != '*') {
             iss.str(lines[i]);
             string ang;
@@ -669,4 +669,6 @@ void CINTPrep::prep_env() {
     env[offset] = 0.;
     env[offset + 1] = 1.;
   } // if do_ri
+
+  return;
 }

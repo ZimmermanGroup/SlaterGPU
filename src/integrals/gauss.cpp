@@ -912,6 +912,490 @@ int eval_gh_full(int gs, float* grid, float** val1, int i1, int natoms, int nbas
   return shl_size;
 }
 
+void eval_hess_ghd(int gs, double* grid, double* val, int n1, int l1, int m1, double norm1, double zeta1)
+{
+  int gs6 = 6*gs;
+  int nlm = n1-l1-1;
+  double nlm2 = nlm*nlm;
+  double nlmo2 = nlm*0.5;
+  double ntm = 0.5*nlm-2.;
+  double zt2 = zeta1*zeta1;
+
+  if (l1==0)
+  {
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rp*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+1] = g1*rp*nnrr*x*y;
+      val[6*i+2] = g1*rp*nnrr*x*z;
+      val[6*i+3] = g1*rp*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rp*nnrr*y*z;
+      val[6*i+5] = g1*rp*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+    }
+  }
+
+  else if (l1==1)
+  {
+   //different labels compared to Slater basis
+    if (m1==-1) //x
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rp*x*(nlm2*x2+3*nlm*(y2+z2)+nlm*x2*(1-4*r2*zeta1)+2*r4*zeta1*(-3+2*x2*zeta1));
+      val[6*i+1] = g1*rp*y*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+2] = g1*rp*z*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+3] = g1*rp*x*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rp*nnrr*x*y*z;
+      val[6*i+5] = g1*rp*x*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+    }
+    else if (m1==0) //y
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rp*y*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+1] = g1*rp*x*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+2] = g1*rp*nnrr*x*y*z;
+      val[6*i+3] = g1*rp*y*(nlm2*y2+2*r4*zeta1*(-3+2*y2*zeta1)+nlm*(3*x2+y2+3*z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rp*z*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+5] = g1*rp*y*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+    }
+    else //z
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rp*z*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+1] = g1*rp*nnrr*x*y*z;
+      val[6*i+2] = g1*rp*x*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+      val[6*i+3] = g1*rp*z*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rp*y*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+      val[6*i+5] = g1*rp*z*(nlm2*z2+2*r4*zeta1*(-3+2*z2*zeta1)+nlm*(3*x2+3*y2+z2-4*r2*z2*zeta1));
+    }
+  }
+
+  else if (l1==2)
+  {
+   //xy yz, z2, xz, x2-y2
+    if (m1==-2) //xy
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rp*x*y*(nlm2*x2+3*nlm*(y2+z2)+nlm*x2*(1-4*r2*zeta1)+2*r4*zeta1*(-3+2*x2*zeta1));
+      val[6*i+1] = g1*rpo*((nlm2*x2*y2)/r4+(-1+2*x2*zeta1)*(-1+2*y2*zeta1)+(nlm*(x4+y4+x2*z2+y2*z2-4*r2*x2*y2*zeta1))/r4);
+      val[6*i+2] = g1*rp*y*z*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+3] = g1*rp*x*y*(nlm2*y2+2*r4*zeta1*(-3+2*y2*zeta1)+nlm*(3*x2+y2+3*z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rp*x*z*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+5] = g1*rp*x*y*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+    }
+    else if (m1==-1) //yz
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rp*y*z*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+1] = g1*rp*x*z*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+2] = g1*rp*x*y*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+      val[6*i+3] = g1*rp*y*z*(nlm2*y2+2*r4*zeta1*(-3+2*y2*zeta1)+nlm*(3*x2+y2+3*z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rpo*(nlm2*y2*z2/r4+(-1+2*y2*zeta1)*(-1+2*z2*zeta1)+(nlm*(x2*y2+y4+x2*z2+z4-4*r2*y2*z2*zeta1))/r4);
+      val[6*i+5] = g1*rp*y*z*(nlm2*z2+2*r4*zeta1*(-3+2*z2*zeta1)+nlm*(3*x2+3*y2+z2-4*r2*z2*zeta1));
+    }
+    else if (m1==0) //z2
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double z4 = z2*z2;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+      double x2py22 = pow(x2+y2,2.);
+
+      val[6*i+0] = g1*rpo*(-2+(nlm*(-((x2+y2)*((3+nlm)*x2+y2))+((-7+2*nlm)*x2+y2)*z2+2*z4))/r4+(2*((x2+y2)*((5+2*nlm)*x2+y2)-((-3+4*nlm)*x2+y2)*z2-2*z4)*zeta1)/r2-4*x2*(x2+y2-2*z2)*zt2);
+      val[6*i+1] = g1*rp*x*y*(-nlm*(2+nlm)*(x2+y2)+2*(-4+nlm)*nlm*z2+4*r2*((2+nlm)*(x2+y2)-2*(-1+nlm)*z2)*zeta1-4*r4*(x2+y2-2*z2)*zt2);
+      val[6*i+2] = g1*rp*x*z*(-((-4+nlm)*nlm*(x2+y2))+2*(-1+nlm)*nlm*z2+4*r2*((-1+nlm)*(x2+y2)-(1+2*nlm)*z2)*zeta1-4*r4*(x2+y2-2*z2)*zt2);
+      val[6*i+3] = g1*rpo*(-2+(nlm*(-((x2+y2)*(x2+(3+nlm)*y2))+(x2+(-7+2*nlm)*y2)*z2+2*z4))/r4+(2*((x2+y2)*(x2+(5+2*nlm)*y2)-(x2+(-3+4*nlm)*y2)*z2-2*z4)*zeta1)/r2-4*y2*(x2+y2-2*z2)*z2);
+      val[6*i+4] = g1*rp*y*z*(-((-4+nlm)*nlm*(x2+y2))+2*(-1+nlm)*nlm*z2+4*r2*((-1+nlm)*(x2+y2)-(1+2*nlm)*z2)*zeta1-4*r4*(x2+y2-2*z2)*zt2);
+      val[6*i+5] = g1*rpo*(4+(nlm*(-x2py22-(-11+nlm)*(x2+y2)*z2+2*(3+nlm)*z4))/r4+(2*(x2py22+(-9+2*nlm)*(x2+y2)*z2-2*(5+2*nlm)*z4)*zeta1)/r2-4*z2*(x2+y2-2*z2)*z2);
+    }
+    else if (m1==1) //xz
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double r2 = r*r;
+      double x4 = x2*x2;
+      double z4 = z2*z2;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rp*x*z*(nlm2*x2+3*nlm*(y2+z2)+nlm*x2*(1-4*r2*zeta1)+2*r4*zeta1*(-3+2*x2*zeta1));
+      val[6*i+1] = g1*rp*y*z*(nlm2*x2+2*r4*zeta1*(-1+2*x2*zeta1)+nlm*(y2+z2+x2*(-1-4*r2*zeta1)));
+      val[6*i+2] = g1*rpo*(nlm2*x2*z2/r4+(-1+2*x2*zeta1)*(-1+2*z2*zeta1)+(nlm*(x4+x2*y2+y2*z2+z4-4*r2*x2*z2*zeta1))/r4);
+      val[6*i+3] = g1*rp*x*z*(nlm2*y2+2*r4*zeta1*(-1+2*y2*zeta1)+nlm*(x2-y2+z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rp*x*y*(nlm2*z2+2*r4*zeta1*(-1+2*z2*zeta1)+nlm*(x2+y2-z2-4*r2*z2*zeta1));
+      val[6*i+5] = g1*rp*x*z*(nlm2*z2+2*r4*zeta1*(-3+2*z2*zeta1)+nlm*(3*x2+3*y2+z2-4*r2*z2*zeta1));
+    }
+    else if (m1==2) //x2-y2
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double r2 = r*r;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+      double nnrr = (nlm-2.)*nlm-4.*nlm*r2*zeta1+4.*r2*r2*zt2;
+
+      val[6*i+0] = g1*rpo*(2+(nlm2*x2*(x-y)*(x+y))/r4+2*zeta1*(y2+x2*(-5+2*(x-y)*(x+y)*zeta1))+(nlm*(-y2*(y2+z2)-4*x4*x2*zeta1+x4*(3-4*z2*zeta1)+x2*(5*z2+2*y2*(3+2*(y2+z2)*zeta1))))/r4);
+      val[6*i+1] = g1*rp*x*(x-y)*y*(x+y)*((-2+nlm)*nlm-4*nlm*r2*zeta1+4*r4*zt2);
+      val[6*i+2] = g1*rp*x*z*(nlm2*(x-y)*(x+y)+4*r4*zeta1*(-1+(x-y)*(x+y)*zeta1)+2*nlm*(2*y2+z2+2*r2*(-x+y)*(x+y)*zeta1));
+      val[6*i+3] = g1*rpo*(-2+(nlm2*(x-y)*y2*(x+y))/r4+(nlm*(x4-6*x2*y2-3*y4+x2*z2-5*y2*z2-4*r2*(x-y)*y2*(x+y)*zeta1))/r4+2*zeta1*(5*y2-2*y4*zeta1+x2*(-1+2*y2*zeta1)));
+      val[6*i+4] = -g1*rp*y*z*(nlm2*(-x2+y2)-4*r4*zeta1*(1+(x-y)*(x+y)*zeta1)+2*nlm*(2*x2+z2+2*r2*(x-y)*(x+y)*zeta1));
+      val[6*i+5] = g1*rpo*(x-y)*(x+y)*((nlm*(x2+y2+(-1+nlm)*z2))/r4-2*zeta1-(4*nlm*z2*zeta1)/r2+4*z2*z2);
+    }
+  } //d ftns
+
+  else if (l1==3)
+  {
+   //y(3x2-y2), xyz, y(5z2-r2), 5z3-3zr2, x(5z2-r2), (x2-y2)z, x(x2-3y2)
+    if (m1==-3) //y(3x2-y2)
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+
+      val[6*i+0] = g1*rpo*y*(6+(nlm2*(3*x4-x2*y2))/r4+(nlm*(9*x4+16*x2*y2-y4+15*x2*z2-y2*z2-4*r2*x2*(3*x2-y2)*zeta1))/r4+2*zeta1*(y2+6*x4*zeta1-x2*(15+2*y2*zeta1)));
+      val[6*i+1] = g1*rpo*x*(6+(nlm2*(3*x2*y2-y4))/r4+6*x2*zeta1*(-1+2*y2*zeta1)-2*y2*zeta1*(3+2*y2*zeta1)+(nlm*(5*y4+3*(x4+(x2+y2)*z2)+4*r2*y2*(-3*x2+y2)*zeta1))/r4);
+      val[6*i+2] = g1*2*rpo*x*y*z*((nlmo2*(3*nlm*x2+8*y2-nlm*y2+6*z2))/r4-6*zeta1+(2*nlm*(-3*x2+y2)*zeta1)/r2+2*(3*x2-y2)*zt2);
+      val[6*i+3] = g1*rpo*y*(-6+(nlm2*(3*x2*y2-y4))/r4+(nlm*(9*x4-4*x2*y2-5*y4+9*x2*z2-7*y2*z2+4*r2*y2*(-3*x2+y2)*zeta1))/r4+2*zeta1*(7*y2-2*y4*zeta1+x2*(-9+6*y2*zeta1)));
+      val[6*i+4] = g1*rp*z*(nlm2*(3*x2*y2-y4)+nlm*(3*x4-6*x2*y2-y4+3*x2*z2-3*y2*z2+4*r2*y2*(-3*x2+y2)*zeta1)+2*r4*zeta1*(3*y2-2*y4*zeta1+x2*(-3+6*y2*zeta1)));
+      val[6*i+5] = g1*rpo*y*(3*x2-y2)*((nlm*(x2+y2+(-1+nlm)*z2))/r4-2*zeta1-(4*nlm*z2*zeta1)/r2+4*z2*zt2);
+   }
+    else if (m1==-2) //xyz
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+
+      val[6*i+0] = g1*rp*x*y*z*(nlm2*x2+3*nlm*(y2+z2)+nlm*x2*(1-4*r2*zeta1)+2*r4*zeta1*(-3+2*x2*zeta1));
+      val[6*i+1] = g1*rpo*z*((nlm2*x2*y2)/r4+(-1+2*x2*zeta1)*(-1+2*y2*zeta1)+(nlm*(x4+y4+x2*z2+y2*z2-4*r2*x2*y2*zeta1))/r4);
+      val[6*i+2] = g1*rpo*y*((nlm2*x2*z2)/r4+(-1+2*x2*zeta1)*(-1+2*z2*zeta1)+(nlm*(x4+x2*y2+y2*z2+z4-4*r2*x2*z2*zeta1))/r4);
+      val[6*i+3] = g1*rp*x*y*z*(nlm2*y2+2*r4*zeta1*(-3+2*y2*zeta1)+nlm*(3*x2+y2+3*z2-4*r2*y2*zeta1));
+      val[6*i+4] = g1*rpo*x*((nlm2*y2*z2)/r4+(-1+2*y2*zeta1)*(-1+2*z2*zeta1)+(nlm*(x2*y2+y4+x2*z2+z4-4*r2*y2*z2*zeta1))/r4);
+      val[6*i+5] = g1*rp*x*y*z*(nlm2*z2+2*r4*zeta1*(-3+2*z2*zeta1)+nlm*(3*x2+3*y2+z2-4*r2*z2*zeta1));
+    }
+    else if (m1==-1) //y(5z2-r2)
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double x2y22 = pow(x2+y2,2.);
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+
+      val[6*i+0] = g1*rpo*y*(-2+(-nlm2*x2*(x2+y2-4*z2)-nlm*(3*x4+(y-2*z)*(y+2*z)*(y2+z2)+x2*(4*y2+9*z2))+4*nlm*r2*x2*(x2+y2-4*z2)*zeta1+2*r4*zeta1*(y2-4*z2+x2*(5-2*(x2+y2-4*z2)*zeta1)))/r4);
+      val[6*i+1] = g1*rpo*x*(-2+(-nlm2*y2*(x2+y2-4*z2)-nlm*(x4+3*y4+9*y2*z2-4*z4+x2*(4*y2-3*z2))+4*nlm*r2*y2*(x2+y2-4*z2)*zeta1+2*r4*zeta1*(x2+5*y2-4*z2-2*y2*(x2+y2-4*z2)*zeta1))/r4);
+      val[6*i+2] = g1*2*rpo*x*y*z*((3*nlm)/r2-((-2+nlm)*nlm*(x2+y2-4*z2))/(2*r4)-6*zeta1+(2*nlm*(x2+y2-4*z2)*zeta1)/r2-2*(x2+y2-4*z2)*zt2);
+      val[6*i+3] = g1*rpo*y*(-6-(4*nlm*y2)/r2-(3*nlm*(x2+y2-4*z2))/r2-((-2+nlm)*nlm*y2*(x2+y2-4*z2))/r4+8*y2*zeta1+6*(x2+y2-4*z2)*zeta1+(4*nlm*y2*(x2+y2-4*z2)*zeta1)/r2-4*y2*(x2+y2-4*z2)*zt2);
+      val[6*i+4] = g1*rpo*z*(8-(nlm2*y2*(x2+y2-4*z2))/r4+2*zeta1*(x2-5*y2-4*z2-2*y2*(x2+y2-4*z2)*zeta1)+(nlm*(-x4+6*x2*y2+7*y4+3*x2*z2+y2*z2+4*z4+4*r2*y2*(x2+y2-4*z2)*zeta1))/r4);
+      val[6*i+5] = g1*rpo*y*(8+(nlm*(-x2y22-(-21+nlm)*(x2+y2)*z2+4*(3+nlm)*z4))/r4+(2*(x2y22+(-19+2*nlm)*(x2+y2)*z2-4*(5+2*nlm)*z4)*zeta1)/r2-4*z2*(x2+y2-4*z2)*zt2);
+    }
+    else if (m1==0) //5z3-3zr2
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double x2y22 = pow(x2+y2,2.);
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+
+      val[6*i+0] = g1*rpo*z*(-2+(-nlm2*x2*(x2+y2-4*z2)-nlm*(3*x4+(y-2*z)*(y+2*z)*(y2+z2)+x2*(4*y2+9*z2))+4*nlm*r2*x2*(x2+y2-4*z2)*zeta1+2*r4*zeta1*(y2-4*z2+x2*(5-2*(x2+y2-4*z2)*zeta1)))/r4);
+      val[6*i+1] = g1*rpo*x*y*z*(8*zeta1+(-nlm*(2+nlm)*(x2+y2)+4*(-3+nlm)*nlm*z2+4*nlm*r2*(x2+y2-4*z2)*zeta1-4*r4*(x2+y2-4*z2)*zt2)/r4);
+      val[6*i+2] = g1*rpo*x*(-2+(nlm*(-x2y22-(-11+nlm)*(x2+y2)*z2+2*(1+2*nlm)*z4))/r4+(2*(x2y22+(-9+2*nlm)*(x2+y2)*z2-2*(5+4*nlm)*z4)*zeta1)/r2-4*z2*(x2+y2-4*z2)*zt2);
+      val[6*i+3] = g1*rpo*z*(-2+(-nlm2*y2*(x2+y2-4*z2)-nlm*(x4+3*y4+9*y2*z2-4*z4+x2*(4*y2-3*z2))+4*nlm*r2*y2*(x2+y2-4*z2)*zeta1+2*r4*zeta1*(x2+5*y2-4*z2-2*y2*(x2+y2-4*z2)*zeta1))/r4);
+      val[6*i+4] = g1*rpo*y*(-2+(nlm*(-x2y22-(-11+nlm)*(x2+y2)*z2+2*(1+2*nlm)*z4))/r4+(2*(x2y22+(-9+2*nlm)*(x2+y2)*z2-2*(5+4*nlm)*z4)*zeta1)/r2-4*z2*(x2+y2-4*z2)*zt2);
+      val[6*i+5] = g1*rpo*z*(24+(nlm*(-3*x2y22-(-27+nlm)*(x2+y2)*z2+4*(5+nlm)*z4))/r4+(2*(3*x2y22+(-25+2*nlm)*(x2+y2)*z2-4*(7+2*nlm)*z4)*zeta1)/r2-4*z2*(x2+y2-4*z2)*zt2);
+    }
+    else if (m1==1) //x(5z2-r2)
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double x2y22 = pow(x2+y2,2.);
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+
+      val[6*i+0] = g1*rpo*x*(-6-(nlm2*x2*(x2+y2-4*z2))/r4+6*(y2-4*z2)*zeta1+2*x2*zeta1*(7-2*(x2+y2-4*z2)*zeta1)+(nlm*(-5*x4-8*x2*y2-3*y4-3*x2*z2+9*y2*z2+12*z4+4*r2*x2*(x2+y2-4*z2)*zeta1))/r4);
+      val[6*i+1] = g1*rpo*y*(-2+(-nlm2*x2*(x2+y2-4*z2)-nlm*(3*x4+(y-2*z)*(y+2*z)*(y2+z2)+x2*(4*y2+9*z2))+4*nlm*r2*x2*(x2+y2-4*z2)*zeta1+2*r4*zeta1*(y2-4*z2+x2*(5-2*(x2+y2-4*z2)*zeta1)))/r4);
+      val[6*i+2] = g1*rpo*z*(8-(nlm2*x2*(x2+y2-4*z2))/r4+(nlm*(7*x4+6*x2*y2-y4+x2*z2+3*y2*z2+4*z4+4*r2*x2*(x2+y2-4*z2)*zeta1))/r4+2*zeta1*(y2-4*z2-x2*(5+2*(x2+y2-4*z2)*zeta1)));
+      val[6*i+3] = g1*rpo*x*(-2+(-nlm2*y2*(x2+y2-4*z2)-nlm*(x4+3*y4+9*y2*z2-4*z4+x2*(4*y2-3*z2))+4*nlm*r2*y2*(x2+y2-4*z2)*zeta1+2*r4*zeta1*(x2+5*y2-4*z2-2*y2*(x2+y2-4*z2)*zeta1))/r4);
+      val[6*i+4] = g1*2*rpo*x*y*z*((3*nlm)/r2-((-2+nlm)*nlm*(x2+y2-4*z2))/(2*r4)-6*zeta1+(2*nlm*(x2+y2-4*z2)*zeta1)/r2-2*(x2+y2-4*z2)*zt2);
+      val[6*i+5] = g1*rpo*x*(8+(nlm*(-x2y22-(-21+nlm)*(x2+y2)*z2+4*(3+nlm)*z4))/r4+(2*(x2y22+(-19+2*nlm)*(x2+y2)*z2-4*(5+2*nlm)*z4)*zeta1)/r2-4*z2*(x2+y2-4*z2)*zt2);
+    }
+    else if (m1==2) //(x2-y2)z
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+
+      val[6*i+0] = g1*rpo*z*(2+(nlm2*x2*(x-y)*(x+y))/r4+2*zeta1*(y2+x2*(-5+2*(x-y)*(x+y)*zeta1))+(nlm*(-y2*(y2+z2)-4*x4*x2*zeta1+x4*(3-4*z2*zeta1)+x2*(5*z2+2*y2*(3+2*(y2+z2)*zeta1))))/r4);
+      val[6*i+1] = g1*rp*x*(x-y)*y*(x+y)*z*((-2+nlm)*nlm-4*nlm*r2*zeta1+4*r4*zt2);
+      val[6*i+2] = g1*rp*x*(nlm2*(x-y)*(x+y)*z2+2*r4*(1-x2*zeta1+y2*zeta1)*(1-2*z2*zeta1)+nlm*(x4-y4+x2*z2+3*y2*z2+2*z4-4*r2*(x-y)*(x+y)*z2*zeta1));
+      val[6*i+3] = g1*rpo*z*(-2+(nlm2*(x-y)*y2*(x+y))/r4+(nlm*(x4-6*x2*y2-3*y4+x2*z2-5*y2*z2-4*r2*(x-y)*y2*(x+y)*zeta1))/r4+2*zeta1*(5*y2-2*y4*zeta1+x2*(-1+2*y2*zeta1)));
+      val[6*i+4] = g1*rpo*y*((nlm2*(x-y)*(x+y)*z2)/r4+2*(1+(x-y)*(x+y)*zeta1)*(-1+2*z2*zeta1)+(nlm*(x4-y4-3*x2*z2-y2*z2-2*z4-4*r2*(x-y)*(x+y)*z2*zeta1))/r4);
+      val[6*i+5] = g1*rp*(x-y)*(x+y)*z*(nlm2*z2+2*r4*zeta1*(-3+2*z2*zeta1)+nlm*(3*x2+3*y2+z2-4*r2*z2*zeta1));
+   }
+    else if (m1==3) //x(x2-3y2)
+    #pragma acc parallel loop present(grid[0:gs6],val[0:gs6])
+    for (int i=0;i<gs;i++)
+    {
+      double x = grid[6*i+0];
+      double y = grid[6*i+1];
+      double z = grid[6*i+2];
+      double r = grid[6*i+3];
+      double x2 = x*x;
+      double y2 = y*y;
+      double z2 = z*z;
+      double x4 = x2*x2;
+      double y4 = y2*y2;
+      double z4 = z2*z2;
+      double r2 = r*r;
+      double r4 = r2*r2;
+
+      double g1 = exp(-zeta1*r2);
+      double rp = pow(r2,ntm);
+      double rpo = pow(r2,nlmo2);
+
+      val[6*i+0] = g1*rpo*x*(6+(nlm2*(x4-3*x2*y2))/r4+(nlm*(5*x4+4*x2*y2-9*y4+7*x2*z2-9*y2*z2-4*r2*x2*(x2-3*y2)*zeta1))/r4+2*zeta1*(9*y2+2*x4*zeta1-x2*(7+6*y2*zeta1)));
+      val[6*i+1] = g1*rpo*y*(-6+(nlm2*(x4-3*x2*y2))/r4+6*(x2+y2)*zeta1+4*x2*(x2-3*y2)*zt2+(nlm*(-5*x4-3*y4-3*(x2+y2)*z2-4*r2*x2*(x2-3*y2)*zeta1))/r4);
+      val[6*i+2] = g1*rp*z*(nlm2*(x4-3*x2*y2)+nlm*(x4+6*x2*y2-3*y4+3*x2*z2-3*y2*z2-4*r2*x2*(x2-3*y2)*zeta1)+2*r4*zeta1*(3*y2+2*x4*zeta1-3*x2*(1+2*y2*zeta1)));
+      val[6*i+3] = g1*rpo*x*(-6+(nlm2*y2*(x2-3*y2))/r4+6*y2*zeta1*(5-2*y2*zeta1)+2*x2*zeta1*(-1+2*y2*zeta1)+(nlm*(x4-16*x2*y2-9*y4+x2*z2-15*y2*z2-4*r2*y2*(x2-3*y2)*zeta1))/r4);
+      val[6*i+4] = g1*2*rpo*x*y*z*((nlmo2*((-8+nlm)*x2-3*nlm*y2-6*z2))/r4+6*zeta1-(2*nlm*(x2-3*y2)*zeta1)/r2+2*(x2-3*y2)*zt2);
+      val[6*i+5] = g1*rpo*x*(x2-3*y2)*((nlm*(x2+y2+(-1+nlm)*z2))/r4-2*zeta1-(4*nlm*z2*zeta1)/r2+4*z2*zt2);
+    }
+  }
+ /*
+  else if (l1==4)
+  {
+   //x*y * (x*x - y*y), y*z * (3.*x*x - y*y), x*y * (6.*z*z - x*x - y*y), y*z * (4.*z*z - 3.*x*x - 3.*y*y), (35.*z2*z2 - 30.*z2*r2 + 3.*r2*r2), x*z * (4.*z*z - 3.*x*x - 3.*y*y), (x2 - y2) * (6.*z*z - x2 - y2), x*z * (x*x - 3.*y*y), (x*x * (x*x - 3.*y*y) - y*y * (3.*x*x - y*y))
+   //need these elements?
+  }
+ */
+  else
+  {
+    printf(" ERROR: l>3 not available in eval_hess_ghd \n");
+  }
+
+  #pragma acc parallel loop present(val[0:gs6])
+  for (int i=0;i<gs6;i++)
+    val[i] *= norm1;
+
+  return;
+}
+
 void eval_pd_gh(int gs, double* grid, double* val, int n1, int l1, int m1, double norm1, double zeta1)
 {
   int gs3 = 3*gs;
@@ -946,7 +1430,9 @@ void eval_pd_gh(int gs, double* grid, double* val, int n1, int l1, int m1, doubl
   }
   else if (l1==1)
   {
-    if (m1==1) //x
+   //this label differs from the Slater basis,
+   // though the ordering is the same
+    if (m1==-1) //x
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
     for (int i=0;i<gs;i++)
     {
@@ -968,7 +1454,7 @@ void eval_pd_gh(int gs, double* grid, double* val, int n1, int l1, int m1, doubl
       val[3*i+1] = g1*rp*v0*x*y;
       val[3*i+2] = g1*rp*v0*x*z;
     }
-    else if (m1==-1) //y
+    else if (m1==0) //y
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
     for (int i=0;i<gs;i++)
     {
@@ -990,7 +1476,7 @@ void eval_pd_gh(int gs, double* grid, double* val, int n1, int l1, int m1, doubl
       val[3*i+1] = g1*rp*(x2+z2+y2*v1);
       val[3*i+2] = g1*rp*v0*y*z;
     }
-    else if (m1==0) //z
+    else //z
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
     for (int i=0;i<gs;i++)
     {
@@ -1083,7 +1569,7 @@ void eval_pd_gh(int gs, double* grid, double* val, int n1, int l1, int m1, doubl
 
       val[3*i+0] = g1*rp*(x2y2*v1 - 2.*v2*z2 - fz*z4)*x;
       val[3*i+1] = g1*rp*(x2y2*v1 - 2.*v2*z2 - fz*z4)*y;
-      val[3*i+2] = g1*rp*(x2y2*v3 + 2.*v4*z2 - fz*z4)*z;
+      val[3*i+2] = g1*rp*(x2y2*v3+2.*v4*z2 - fz*z4)*z;
     }
     else if (m1==1) //xz
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
@@ -1799,7 +2285,7 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float x2y2 = x2+y2;
       float y2z2 = y2+z2;
 
-      val[3*i+0] = g1*rp*(y2 + z2 + x2*(1. + nlm - tz*r2))*y*z;
+      val[3*i+0] = g1*rp*(y2 + z2 + x2*(1.f + nlm - tz*r2))*y*z;
       val[3*i+1] = g1*rp*(x2*(1.f - tz*y2) + z2 + y2*(1.f + nlm - tz*y2z2))*x*z;
       val[3*i+2] = g1*rp*(x2 + y2 + (1.f + nlm - tz*x2y2)*z2 - tz*z4)*x*y;
     }
@@ -1823,9 +2309,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float rp = powf(r2,ntm);
       float x2y2 = x2+y2;
 
-      val[3*i+0] = g1*rp*(x2y2*(-2.f - nlm + tz*x2y2) - 2.f*(1. - 2.f*nlm + hz*x2y2)*z2 - ez*z4)*x*y;
+      val[3*i+0] = g1*rp*(x2y2*(-2.f - nlm + tz*x2y2) - 2.f*(1.f - 2.f*nlm + hz*x2y2)*z2 - ez*z4)*x*y;
       val[3*i+1] = g1*rp*(x2y2*(-x2 - (3.f + nlm - tz*x2)*y2 + tz*y4) + (3.f*x2 + (1.f + 4.f*nlm - sz*x2)*y2 - sz*y4)*z2 +  4.f*(1.f - tz*y2)*z4);
-      val[3*i+2] = g1*rp*(x2y2*(8.f - nlm + tz*x2y2) + 2.f*(4. + 2.f*nlm - hz*x2y2)*z2 - ez*z4)*y*z;
+      val[3*i+2] = g1*rp*(x2y2*(8.f - nlm + tz*x2y2) + 2.f*(4.f + 2.f*nlm - hz*x2y2)*z2 - ez*z4)*y*z;
     }
     else if (m1==0) //(2z2-3x2-3y2)z
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
@@ -1871,9 +2357,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float rp = powf(r2,ntm);
       float x2y2 = x2+y2;
 
-      val[3*i+0] = g1*rp*(x2y2*(-y2 + x2*(-3.f - nlm + tz*x2y2)) + (3.f*y2 + x2*(1.f + 4.f*nlm - sz*x2y2))*z2 + 4.f*(1. - tz*x2)*z4);
-      val[3*i+1] = g1*rp*(x2y2*(-2.f - nlm + tz*x2y2) - 2.f*(1. - 2.f*nlm + hz*x2y2)*z2 - ez*z4)*x*y;
-      val[3*i+2] = g1*rp*(x2y2*(8.f - nlm + tz*x2y2) + 2.f*(4. + 2.f*nlm - hz*x2y2)*z2 - ez*z4)*x*z;
+      val[3*i+0] = g1*rp*(x2y2*(-y2 + x2*(-3.f - nlm + tz*x2y2)) + (3.f*y2 + x2*(1.f + 4.f*nlm - sz*x2y2))*z2 + 4.f*(1.f - tz*x2)*z4);
+      val[3*i+1] = g1*rp*(x2y2*(-2.f - nlm + tz*x2y2) - 2.f*(1.f - 2.f*nlm + hz*x2y2)*z2 - ez*z4)*x*y;
+      val[3*i+2] = g1*rp*(x2y2*(8.f - nlm + tz*x2y2) + 2.f*(4.f + 2.f*nlm - hz*x2y2)*z2 - ez*z4)*x*z;
     }
     else if (m1==2) //(x2-y2)z
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
@@ -2015,10 +2501,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float g1 = expf(-zeta1*r2);
       float rp = powf(r2,ntm);
 
-    //CPMZ need float in numbers
-      val[3*i+0] = g1*rp*x*y*z*(sz*x4 + sz*y4 + z2*(-6. + 4.*nlm - ez*z2) + y2*(-6. - 3.*nlm - tz*z2) + x2*(-6. - 3.*nlm + 12.f*zeta1*y2 - tz*z2));
-      val[3*i+1] = g1*rp*z*(sz*y4*y2 + x4*(-3. + sz*y2) + 4.*z4 + y2*z2*(-5. + 4.*nlm - ez*z2) + y4*(-9. - 3.*nlm - tz*z2) + x2*(12.f*zeta1*y4 + 1.*z2 + y2*(-12. - 3.*nlm - tz*z2)));
-      val[3*i+2] = g1*rp*y*(-3.*y4 + y2*(9. - 3.*nlm + sz*y2)*z2 + (12. + 4.*nlm - tz*y2)*z4 - ez*z4*z2 + x4*(-3. + sz*z2) + x2*(-6.*y2 + (9. - 3.*nlm + 12.f*zeta1*y2)*z2 - tz*z4));
+      val[3*i+0] = g1*rp*x*y*z*(sz*x4 + sz*y4 + z2*(-6.f + 4.f*nlm - ez*z2) + y2*(-6.f - 3.f*nlm - tz*z2) + x2*(-6.f - 3.f*nlm + 12.f*zeta1*y2 - tz*z2));
+      val[3*i+1] = g1*rp*z*(sz*y4*y2 + x4*(-3.f + sz*y2) + 4.f*z4 + y2*z2*(-5.f + 4.f*nlm - ez*z2) + y4*(-9.f - 3.f*nlm - tz*z2) + x2*(12.f*zeta1*y4 + z2 + y2*(-12.f - 3.f*nlm - tz*z2)));
+      val[3*i+2] = g1*rp*y*(-3.f*y4 + y2*(9.f - 3.f*nlm + sz*y2)*z2 + (12.f + 4.f*nlm - tz*y2)*z4 - ez*z4*z2 + x4*(-3.f + sz*z2) + x2*(-6.f*y2 + (9.f - 3.f*nlm + 12.f*zeta1*y2)*z2 - tz*z4));
     }
     else if (m1==0) //(35.*z2*z2 - 30.*z2*r2 + 3.*r2*r2)
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
@@ -2039,9 +2524,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float g1 = expf(-zeta1*r2);
       float rp = powf(r2,ntm);
 
-      val[3*i+0] = g1*rp*x*(-sz*x4*x2 - sz*y4*y2 + z4*(-48. + 8.*nlm - 16.*zeta1*z2) + y2*z2*(-36. - 24.*nlm + 32.f*zeta1*z2) + y4*(12. + 3.*nlm + 42.f*zeta1*z2) + x4*(12. + 3.*nlm - 18.*zeta1*y2 + 42.f*zeta1*z2) + x2*(-18.*zeta1*y4 + z2*(-36. - 24.*nlm + 32.f*zeta1*z2) +  y2*(24. + 6.*nlm + 84.*zeta1*z2)));
-      val[3*i+1] = g1*rp*y*(-sz*x4*x2 - sz*y4*y2 + z4*(-48. + 8.*nlm - 16.*zeta1*z2) + y2*z2*(-36. - 24.*nlm + 32.f*zeta1*z2) + y4*(12. + 3.*nlm + 42.f*zeta1*z2) + x4*(12. + 3.*nlm - 18.*zeta1*y2 + 42.f*zeta1*z2) + x2*(-18.*zeta1*y4 + z2*(-36. - 24.*nlm + 32.f*zeta1*z2) + y2*(24. + 6.*nlm + 84.*zeta1*z2)));
-      val[3*i+2] = g1*rp*z*(-sz*x4*x2 - sz*y4*y2 + z4*(32. + 8.*nlm - 16.*zeta1*z2) + y2*z2*(-16. - 24.*nlm + 32.f*zeta1*z2) + y4*(-48. + 3.*nlm + 42.f*zeta1*z2) + x4*(-48. + 3.*nlm - 18.*zeta1*y2 + 42.f*zeta1*z2) +  x2*(-18.*zeta1*y4 + z2*(-16. - 24.*nlm + 32.f*zeta1*z2) +  y2*(-96. + 6.*nlm + 84.*zeta1*z2)));
+      val[3*i+0] = g1*rp*x*(-sz*x4*x2 - sz*y4*y2 + z4*(-48.f + 8.f*nlm - 16.f*zeta1*z2) + y2*z2*(-36.f - 24.f*nlm + 32.f*zeta1*z2) + y4*(12.f + 3.f*nlm + 42.f*zeta1*z2) + x4*(12.f + 3.f*nlm - 18.f*zeta1*y2 + 42.f*zeta1*z2) + x2*(-18.f*zeta1*y4 + z2*(-36.f - 24.f*nlm + 32.f*zeta1*z2) +  y2*(24.f + 6.f*nlm + 84.f*zeta1*z2)));
+      val[3*i+1] = g1*rp*y*(-sz*x4*x2 - sz*y4*y2 + z4*(-48.f + 8.f*nlm - 16.f*zeta1*z2) + y2*z2*(-36.f - 24.f*nlm + 32.f*zeta1*z2) + y4*(12.f + 3.f*nlm + 42.f*zeta1*z2) + x4*(12.f + 3.f*nlm - 18.f*zeta1*y2 + 42.f*zeta1*z2) + x2*(-18.f*zeta1*y4 + z2*(-36.f - 24.f*nlm + 32.f*zeta1*z2) + y2*(24.f + 6.f*nlm + 84.f*zeta1*z2)));
+      val[3*i+2] = g1*rp*z*(-sz*x4*x2 - sz*y4*y2 + z4*(32.f + 8.f*nlm - 16.f*zeta1*z2) + y2*z2*(-16.f - 24.f*nlm + 32.f*zeta1*z2) + y4*(-48.f + 3.f*nlm + 42.f*zeta1*z2) + x4*(-48.f + 3.f*nlm - 18.f*zeta1*y2 + 42.f*zeta1*z2) +  x2*(-18.f*zeta1*y4 + z2*(-16.f - 24.f*nlm + 32.f*zeta1*z2) +  y2*(-96.f + 6.f*nlm + 84.f*zeta1*z2)));
     }
     else if (m1==1) //x*z * (4.*z*z - 3.*x*x - 3.*y*y)
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
@@ -2062,9 +2547,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float g1 = expf(-zeta1*r2);
       float rp = powf(r2,ntm);
 
-      val[3*i+0] = g1*rp*z*(sz*x4*x2 - 3.*y4 + y2*z2 + 4.*z4 + x4*(-9. - 3.*nlm + 12.f*zeta1*y2 - tz*z2) + x2*(sz*y4 + z2*(-5. + 4.*nlm - ez*z2) + y2*(-12. - 3.*nlm - tz*z2)));
-      val[3*i+1] = g1*rp*x*y*z*(sz*x4 + sz*y4 + z2*(-6. + 4.*nlm - ez*z2) + y2*(-6. - 3.*nlm - tz*z2) + x2*(-6. - 3.*nlm + 12.f*zeta1*y2 - tz*z2));
-      val[3*i+2] = g1*rp*x*(-3.*y4 + y2*(9. - 3.*nlm + sz*y2)*z2 + (12. + 4.*nlm - tz*y2)*z4 - ez*z4*z2 + x4*(-3. + sz*z2) + x2*(-6.*y2 + (9. - 3.*nlm + 12.f*zeta1*y2)*z2 - tz*z4));
+      val[3*i+0] = g1*rp*z*(sz*x4*x2 - 3.f*y4 + y2*z2 + 4.f*z4 + x4*(-9.f - 3.f*nlm + 12.f*zeta1*y2 - tz*z2) + x2*(sz*y4 + z2*(-5.f + 4.f*nlm - ez*z2) + y2*(-12.f - 3.f*nlm - tz*z2)));
+      val[3*i+1] = g1*rp*x*y*z*(sz*x4 + sz*y4 + z2*(-6.f + 4.f*nlm - ez*z2) + y2*(-6.f - 3.f*nlm - tz*z2) + x2*(-6.f - 3.*nlm + 12.f*zeta1*y2 - tz*z2));
+      val[3*i+2] = g1*rp*x*(-3.f*y4 + y2*(9.f - 3.f*nlm + sz*y2)*z2 + (12.f + 4.f*nlm - tz*y2)*z4 - ez*z4*z2 + x4*(-3.f + sz*z2) + x2*(-6.f*y2 + (9.f - 3.f*nlm + 12.f*zeta1*y2)*z2 - tz*z4));
       //val[3*i+0] = g1*rp*z*(sz*x4*x2 - 3.*y4 + y2*z2 + 4.*z4 + x4*(-9. - 3.*nlm + 12.f*zeta1*y2 - tz*z2) + x2*(sz*y4 + z2*(-5. + 4.*nlm - ez*z2) + y2*(-12. - 3.*nlm - tz*z2)));
       //val[3*i+1] = g1*rp*x*y*z*(sz*x4 + sz*y4 + z2*(-6. + 4.*nlm - ez*z2) + y2*(-6. - 3.*nlm - tz*z2) + x2*(-6. - 3.*nlm + 12.f*zeta1*y2 - tz*z2));
       //val[3*i+2] = g1*rp*x*(-3.*y4 + y2*(9. - 3.*nlm + sz*y2)*z2 + (12. + 4.*nlm - tz*y2)*z4 - ez*z4*z2 + x4*(-3. + sz*z2) + x2*(-6.*y2 + (9. - 3.*nlm + 12.f*zeta1*y2)*z2 - tz*z4));
@@ -2088,9 +2573,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float g1 = expf(-zeta1*r2);
       float rp = powf(r2,ntm);
 
-      val[3*i+0] = g1*rp*2.*x*(zeta1*x4*x2 + 0.5*nlm*y4 - zeta1*y4*y2 + y2*(6. - 3.*nlm + iz*y2)*z2 + (6. + sz*y2)*z4 + x4*(-2. - 0.5*nlm + zeta1*y2 - iz*z2)+ x2*(-2.*y2 - zeta1*y4 + z2*(4. + 3.*nlm - sz*z2)));
-      val[3*i+1] = g1*rp*2.*y*(2.*x2*y2 + 2.*y4 - 6.*x2*z2 - 4.*y2*z2 - 6.*z4 + nlm*(-0.5*x4 + 0.5*y4 + 3.*x2*z2 - 3.*y2*z2) + zeta1*(x4*x2 - y4*y2 + 5.*y4*z2 + 6.*y2*z4 + x4*(y2 - 5.*z2) + x2*(-1.*y4 - 6.*z4)));
-      val[3*i+2] = g1*rp*2.f*z*(zeta1*x4*x2 - zeta1*y4*y2 + x4*(6. - 0.5*nlm + zeta1*y2 - iz*z2) + y4*(-6. + 0.5*nlm + iz*z2) + y2*z2*(-6. - 3.*nlm + sz*z2) + x2*((6. + 3.*nlm)*z2 + zeta1*(-y4 - 6.*z4)));
+      val[3*i+0] = g1*rp*2.f*x*(zeta1*x4*x2 + 0.5f*nlm*y4 - zeta1*y4*y2 + y2*(6.f - 3.f*nlm + iz*y2)*z2 + (6.f + sz*y2)*z4 + x4*(-2.f - 0.5f*nlm + zeta1*y2 - iz*z2)+ x2*(-2.*y2 - zeta1*y4 + z2*(4.f + 3.*nlm - sz*z2)));
+      val[3*i+1] = g1*rp*2.f*y*(2.f*x2*y2 + 2.f*y4 - 6.f*x2*z2 - 4.f*y2*z2 - 6.f*z4 + nlm*(-0.5f*x4 + 0.5f*y4 + 3.f*x2*z2 - 3.f*y2*z2) + zeta1*(x4*x2 - y4*y2 + 5.f*y4*z2 + 6.f*y2*z4 + x4*(y2 - 5.f*z2) + x2*(-y4 - 6.f*z4)));
+      val[3*i+2] = g1*rp*2.f*z*(zeta1*x4*x2 - zeta1*y4*y2 + x4*(6.f - 0.5*nlm + zeta1*y2 - iz*z2) + y4*(-6.f + 0.5f*nlm + iz*z2) + y2*z2*(-6.f - 3.f*nlm + sz*z2) + x2*((6.f + 3.f*nlm)*z2 + zeta1*(-y4 - 6.f*z4)));
     }
     else if (m1==3) //x*z * (x*x - 3.*y*y)
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
@@ -2111,9 +2596,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float g1 = expf(-zeta1*r2);
       float rp = powf(r2,ntm);
 
-      val[3*i+0] = -g1*rp*2.f*z*(zeta1*x4*x2 + 1.5*y4 + 1.5*y2*z2 + x4*(-1.5 - 0.5*nlm - tz*y2 + zeta1*z2) + x2*(-1.5*z2 + y2*(1.5*nlm - hz*y2 - hz*z2)));
-      val[3*i+1] = -g1*rp*2.*x*y*z*(zeta1*x4 - hz*y4 + 3.*z2 + y2*(3. + 1.5*nlm - hz*z2) + x2*(3. - 0.5*nlm - tz*y2 + zeta1*z2));
-      val[3*i+2] = -g1*rp*2.*x*(x4*(-0.5 + zeta1*z2) + y2*(1.5*y2 + (1.5 + 1.5*nlm - hz*y2)*z2 - hz*z4) + x2*(y2 + (-0.5 - 0.5*nlm - tz*y2)*z2 + zeta1*z4));
+      val[3*i+0] = -g1*rp*2.f*z*(zeta1*x4*x2 + 1.5f*y4 + 1.5f*y2*z2 + x4*(-1.5f - 0.5f*nlm - tz*y2 + zeta1*z2) + x2*(-1.5f*z2 + y2*(1.5f*nlm - hz*y2 - hz*z2)));
+      val[3*i+1] = -g1*rp*2.f*x*y*z*(zeta1*x4 - hz*y4 + 3.f*z2 + y2*(3.f + 1.5f*nlm - hz*z2) + x2*(3.f - 0.5f*nlm - tz*y2 + zeta1*z2));
+      val[3*i+2] = -g1*rp*2.f*x*(x4*(-0.5f + zeta1*z2) + y2*(1.5f*y2 + (1.5f + 1.5f*nlm - hz*y2)*z2 - hz*z4) + x2*(y2 + (-0.5f - 0.5f*nlm - tz*y2)*z2 + zeta1*z4));
     }
     else if (m1==4) //(x*x * (x*x - 3.*y*y) - y*y * (3.*x*x - y*y))
     #pragma acc parallel loop present(grid[0:6*gs],val[0:gs3])
@@ -2134,9 +2619,9 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
       float g1 = expf(-zeta1*r2);
       float rp = powf(r2,ntm);
 
-      val[3*i+0] = -g1*rp*2.*x*(zeta1*x4*x2 + zeta1*y4*y2 + 6.*y2*z2 + y4*(6. - 0.5*nlm + zeta1*z2) + x4*(-2. - 0.5*nlm - iz*y2 + zeta1*z2) + x2*(-iz*y4 - 2.f*z2 + y2*(4. + 3.*nlm - sz*z2)));
-      val[3*i+1] = -g1*rp*2.*y*(zeta1*x4*x2 + zeta1*y4*y2 - 2.*y2*z2 + y4*(-2. - 0.5*nlm + zeta1*z2) + x4*(6. - 0.5*nlm - iz*y2 + zeta1*z2) + x2*(-iz*y4 + 6.*z2 + y2*(4. + 3.*nlm - sz*z2)));
-      val[3*i+2] = -g1*rp*2.f*z*(nlm*(-0.5*x4 + 3.*x2*y2 - 0.5*y4) + zeta1*(x4*x2 + x4*(-5.*y2 + z2) + y4*(y2 + z2) + x2*(-5.*y4 - 6.*y2*z2)));
+      val[3*i+0] = -g1*rp*2.f*x*(zeta1*x4*x2 + zeta1*y4*y2 + 6.f*y2*z2 + y4*(6.f - 0.5f*nlm + zeta1*z2) + x4*(-2.f - 0.5f*nlm - iz*y2 + zeta1*z2) + x2*(-iz*y4 - 2.f*z2 + y2*(4.f + 3.f*nlm - sz*z2)));
+      val[3*i+1] = -g1*rp*2.f*y*(zeta1*x4*x2 + zeta1*y4*y2 - 2.f*y2*z2 + y4*(-2.f - 0.5f*nlm + zeta1*z2) + x4*(6.f - 0.5f*nlm - iz*y2 + zeta1*z2) + x2*(-iz*y4 + 6.f*z2 + y2*(4.f + 3.f*nlm - sz*z2)));
+      val[3*i+2] = -g1*rp*2.f*z*(nlm*(-0.5f*x4 + 3.f*x2*y2 - 0.5f*y4) + zeta1*(x4*x2 + x4*(-5.f*y2 + z2) + y4*(y2 + z2) + x2*(-5.f*y4 - 6.f*y2*z2)));
     }
   }
   else if (l1>4)

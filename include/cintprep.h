@@ -37,7 +37,7 @@ class CINTPrep {
     int var_dim_ri;
     int nbas_ri;
     int nenv_ri;
-  
+
   public:
     CINTPrep(bool doing_ri = false);
     ~CINTPrep();
@@ -50,8 +50,8 @@ class CINTPrep {
     void set_atm(int *&atm_in);
     void set_bas(int *&bas_in);
     void set_env(double *&env_in);
-    void assign_coords(int natoms, int *atomlist, double *coords, bool in_bohr = true); 
-    void assign_coords(int natoms, int *atomlist, float *coords, bool in_bohr = true); 
+    void assign_coords(int natoms, int *atomlist, double *coords, bool in_bohr = true);
+    void assign_coords(int natoms, int *atomlist, float *coords, bool in_bohr = true);
 
     //RI funcs
     int get_var_dim_ri();
@@ -65,11 +65,11 @@ class CINTPrep {
 
     void copy_atoms(vector< int > &atoms_copy);
     void copy_coord(vector< double > &coord_copy);
- 
+
     unordered_map<short, short> anum_to_N;
 };
 
-// TODO 
+// TODO
 // 1. do ri stuff
 // 2. probably should have read_xyz/read_bas take in filenames
 //    and manage memory associated with atm/env

@@ -30,7 +30,7 @@ extern "C" {
                           int *atm, int natm, int *bas, int nbas, double *env);
   int cint2e_sph(double *buf, int *shls,
                      int *atm, int natm, int *bas, int nbas, double *env, CINTOpt *no_opt);
-  
+
   // gradient integrals
   // < -ih∇ | Vnuc | -ih∇ >
   int cint1e_ipnucip_cart(double *buf, int *shls,
@@ -71,6 +71,14 @@ extern "C" {
 
   int CINTtot_cgto_spheric(const int *bas, const int nbas);
   FINT CINTcgto_spheric(const FINT n, const FINT *bas);
+
+ //was CACHE_SIZE_T
+  int64_t int1e_grids_sph(double *out, FINT *dims, FINT *shls,
+                               FINT *atm, FINT natm, FINT *bas, FINT nbas,
+                               double *env, CINTOpt *opt, double *cache);
+  int64_t int1e_grids_cart(double *out, FINT *dims, FINT *shls,
+                                FINT *atm, FINT natm, FINT *bas, FINT nbas,
+                                double *env, CINTOpt *opt, double *cache);
 }
 
 using namespace std;
@@ -91,6 +99,11 @@ class BT {
 };
 
 int calc_di(int i, int *bas);
+
+//potential on a grid
+void get_vri(double** val, int gs, int N,
+                 int natm, int nbas, int nbas_ri, int nenv,
+                 int* atm, int* bas, double* env);
 
 void get_overlap(double * overlap, int N,
                  int natm, int nbas, int nenv,
@@ -157,7 +170,7 @@ void contract_dVne(int natm, int N, int nbas, double *grad_term, double *Pao,
 void contract_d2c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
                     double *grad_term, double *gRS,
                     int *atm, int *bas, double *env);
-void contract_d3c2e(int natm, int N, int nbas, int Naux, int nbas_ri, 
+void contract_d3c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
                     double *grad_term, double *gQmunu,
                     int *atm, int *bas, double *env);
 #endif

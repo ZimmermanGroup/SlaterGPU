@@ -22,13 +22,6 @@
 
 using namespace std;
 
-//extern "C" void dgetri(int *N, double **A, int *lda, int *IPIV,
-//                       double *WORK, int *lwork, int *INFO);
-//extern "C" void dgetrf(int *M, int *N, double **A, int *lda, int *IPIV,
-//                       int *INFO);
-//extern "C" void dsyev(char *jobz, char *uplo, int *n, double *a, int *lda,
-//                      double *w, double * work, int *lwork, int* info);
-
 bool BT::DO_CART = true;
 
 int binom(int n, int k) {
@@ -41,6 +34,120 @@ int calc_di(int i, int *bas) {
     idx_i += CINTcgto_cart(j, bas);
   }
   return idx_i;
+}
+
+void get_vri(double** val, int gs, int N,
+                 int natm, int nbas, int nbas_ri, int nenv,
+                 int* atm, int* bas, double* env)
+{
+  int idx_i = 0;
+  int di, dj;
+  int shls[4] = {0, 0, 0, gs};
+
+  int nbasx = nbas;
+  int b0 = 0;
+  int Nx = N;
+  if (nbas_ri>0)
+  {
+    b0 = nbas;
+    nbasx = nbas_ri;
+    Nx = nbas_ri;
+
+    printf("  using ri basis in get_vri \n");
+  }
+
+ //CPMZ something is off about the cache size estimate
+  int cache_size = int1e_grids_sph(NULL, NULL, shls, atm, natm, bas, nbas+nbas_ri, env, NULL, NULL);
+  //printf(" cache_size: %4i \n",cache_size);
+  cache_size += gs;
+  cache_size *= 10;
+  //double* cache = new double[cache_size]();
+
+ //CPMZ just let libcint allocate for itself
+  double* cache = NULL;
+
+  if (BT::DO_CART)
+  {
+    for (int i=0;i<nbasx;i++)
+    {
+      int i0 = b0 + i;
+      int idx_j = 0;
+      shls[0] = i0;
+      di = CINTcgto_cart(i0, bas);
+
+      for (int j=0;j<=i;j++)
+      {
+        int j0 = b0 + j;
+        dj = CINTcgto_cart(j0, bas);
+        shls[1] = j0;
+
+        double* buf = new double[di*dj*gs]();
+        int1e_grids_cart(buf, NULL, shls, atm, natm, bas, nbas, env, NULL, cache);
+
+        for (int j1=0;j1<dj;j1++)
+        for (int i1=0;i1<di;i1++)
+        {
+          int oi = i1 + idx_i;
+          int oj = j1 + idx_j;
+
+          int ind = oi*Nx+oj;
+          //double d12 = 0.5*(Pao[ind]+Pao[oj*Nx+oi]);
+
+          for (int k=0;k<gs;k++)
+            val[ind][k] = buf[(j1*di + i1)*gs + k];
+        }
+
+        delete [] buf;
+        idx_j += dj;
+      } // for j
+      idx_i += di;
+    } // for i
+
+  } // if BT::DO_CART
+  else
+  {
+    for (int i=0;i<nbasx;i++)
+    {
+      int i0 = b0+i;
+      int idx_j = 0;
+      shls[0] = i0;
+      di = CINTcgto_spheric(i0, bas);
+
+      for (int j=0;j<=i;j++)
+      {
+        int j0 = b0+j;
+        dj = CINTcgto_spheric(j0, bas);
+        shls[1] = j0;
+
+        //printf("  dij: %2i %2i  gs: %4i \n",di,dj,gs);
+        double* buf = new double[di*dj*gs]();
+        int1e_grids_sph(buf, NULL, shls, atm, natm, bas, nbas, env, NULL, cache);
+
+        for (int j1=0;j1<dj;j1++)
+        for (int i1=0;i1<di;i1++)
+        {
+          int oi = i1 + idx_i;
+          int oj = j1 + idx_j;
+
+          int ind = oi*Nx+oj;
+          //double d12 = 0.5*(Pao[ind]+Pao[oj*Nx+oi]);
+
+          for (int k=0;k<gs;k++)
+            val[ind][k] = buf[(j1*di + i1)*gs + k];
+        }
+
+        delete [] buf;
+        idx_j += dj;
+      } // for j
+
+      idx_i += di;
+    }// for i
+
+  } // else
+
+  //delete [] cache;
+
+  return;
 }
 
 void get_overlap(double * overlap, int N,
@@ -339,7 +446,7 @@ void get_tcore(double *tcore, int N,
         shls[1] = j;
         double *buf = new double[di*dj];
         cint1e_kin_sph(buf,shls,atm,natm,bas,nbas,env);
-        
+
         for (int j1 = 0; j1 < dj; j1++) {
           for (int i1 = 0; i1 < di; i1++) {
             int oi = i1 + idx_i;
@@ -400,13 +507,13 @@ void gen_pvp(double *pvp, int N,
   else {
     idx_i = 0;
     for (int i = 0; i < nbas; i++) {
-      idx_j = 0; 
+      idx_j = 0;
       di = CINTcgto_spheric(i,bas);
-      shls[0] = i; 
+      shls[0] = i;
       for (int j = 0; j < nbas; j++) {
         dj = CINTcgto_spheric(j,bas);
-        shls[1] = j; 
-        #if 0  
+        shls[1] = j;
+        #if 0
         printf("di: %i dj: %i \n",di,dj);
         #endif
         double *buf = new double[di * dj * 9];
@@ -414,11 +521,11 @@ void gen_pvp(double *pvp, int N,
         #if 0
         printf("buf:\n");
         for (int g1 = 0; g1 < di*dj*9; g1++)
-        {    
+        {
           printf("%6.8f ",buf[g1]);
         }
         printf("\n");
-        #endif   
+        #endif
         for (int i1 = 0; i1 < di; i1++) {
           for (int j1 = 0; j1 < dj; j1++) {
             int oi = i1 + idx_i;
@@ -426,7 +533,7 @@ void gen_pvp(double *pvp, int N,
             tmp[oi * N + oj] = tmp[oj * N + oi] = -(buf[0*di*dj + j1*di + i1]+buf[4*di*dj + j1*di + i1]+buf[8*di*dj + j1*di + i1]);
           } //end i1
         } //end j1
-        delete [] buf; 
+        delete [] buf;
         idx_j += dj;
       } //end j
       idx_i += di;

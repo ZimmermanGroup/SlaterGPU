@@ -38,10 +38,21 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
 void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);
 void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);
 void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* rho, double* drho, int prl);
+void compute_lap_hessg(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* lapl, double* hess, int prl);
 
-void compute_lap_hess(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int nrad, int gsa, double* grid, double* Pao, double* hessw, double* lapl, int htype, double* hessp, int prl);
-void compute_delt(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* delt, int prl);
-void compute_B_field(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, double* Paodt,
+
+//finite difference Hessian
+void get_hessian_fd_grid(const double dx, int gsa, double* grid, double* gridh);
+void eval_hessian_fd(double dx, int gsh, double* vals, double* fdvals, int gsa, double* hess);
+void eval_grad_hessian_fd(double dx, int gsh, double* vals, double* fdvals, int gsa, double* grad, double* hess);
+//finite difference gradient
+void get_fd_grid(const double dx, int gsa, double* grid, double* gridh);
+void eval_grad_fd(double dx, int gsh, double* fdvals, int gsa, double* valg);
+
+
+void compute_lap_hess(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int nrad, int gsa, double* grid, double* Pao, double* rhohess, double* hessw, double* lapl, int htype, double* hessp, int prl);
+void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* delt, int prl);
+void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, double* Pao, double* Paodt,
                      int nrad, int nang, double* ang_g, double* ang_w, int gsa, double* grid, double* B, int prl);
 
 void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool gga, bool tau, bool need_wt, double* Pao,
@@ -58,6 +69,8 @@ void compute_fxc (int natoms, int* atno, double* coords, vector<vector<double> >
 //                  float* grid, float* wt, float* vxc, float* vxcs, double* fxc, int prl);
 void compute_fxc (bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool need_wt, bool gga, double* Pao, int gsa,
                   float* grid, float* wt, double* vxc, double* vxcs, double* fxc, int prl);
+void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool need_wt, bool gga,
+                 double* Pao, int gs, double* grid, double* wt, double* vxc, double* vxcs, double* fxc, int prl);
 
 
 void compute_delta(int natoms, int* atno, double* coords, vector<vector<double> > &basis1, vector<vector<double> > &basis2, int No, double* jCA, bool gga, bool tau, float* rho, int gsa, float* grid, float* wt, double* diff, int prl);
