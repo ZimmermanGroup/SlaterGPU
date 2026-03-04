@@ -1,0 +1,57 @@
+name: Setup Build Environment
+description: Sets up NVHPC and pixi for building SlaterGPU and dependent projects
+
+inputs:
+  use-latest-pixi:
+    description: Use latest pixi version instead of the minimum from pixi.toml (for scheduled builds)
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Extract minimum pixi version from pixi.toml
+      id: pixi-version
+      if: ${{ inputs.use-latest-pixi != 'true' }}
+      shell: bash
+      run: |
+        VERSION=$(grep 'requires-pixi' pixi.toml | sed 's/.*>=\([0-9.]*\).*/\1/')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Minimum pixi version from pixi.toml: $VERSION"
+
+    - name: Set up Pixi (minimum version)
+      if: ${{ inputs.use-latest-pixi != 'true' }}
+      uses: prefix-dev/setup-pixi@v0.9.1
+      with:
+        pixi-version: v${{ steps.pixi-version.outputs.version }}
+        log-level: v
+        run-install: false
+        # cache: true
+      continue-on-error: true
+
+    - name: Set up Pixi (latest version for scheduled builds)
+      if: ${{ inputs.use-latest-pixi == 'true' }}
+      uses: prefix-dev/setup-pixi@v0.9.1
+      with:
+        log-level: v
+        run-install: false
+        # cache: true
+      continue-on-error: true
+
+    # Cache NVHPC installation
+    - name: Cache NVHPC
+      id: cache-nvhpc
+      uses: actions/cache@v4
+      with:
+        path: |
+          /home/runner/work/Linux_x86_64
+          /home/runner/work/modulefiles
+        key: nvhpc-25.1-cuda-12.6-v1-${{ runner.os }}
+
+    - name: Install nvhpc
+      shell: bash
+      run: |
+        source ${{ github.action_path }}/install_nvhpc.sh
+      env:
+        CACHE_HIT: ${{ steps.cache-nvhpc.outputs.cache-hit }}
+      continue-on-error: true
