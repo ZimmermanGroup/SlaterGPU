@@ -113,7 +113,7 @@ void eval_c2v_mos(int natoms, int gsa, int iN, int N, float* norm, float* tm1, f
     short y_symm = 0;
     float vy1 = tm1[0]; float vy2 = tm1[1]; // +/- y on atom 1
     if (fabs(vy1)<thresh || fabs(vy2)<thresh)
-    { 
+    {
       //printf("    using alt vy \n");
       vy1 = tm1[4]; vy2 = tm1[5];
     }

@@ -517,7 +517,7 @@ void get_3dz2d(int tid, int gs, double* grid, double* val, double zeta)
     val[i] *= (2.*z*z-x*x-y*y)*ezr;
 
    //ambiguous for which r to use
-    //val[i] *= 3.*z*z-r*r; 
+    //val[i] *= 3.*z*z-r*r;
   }
 }
 
