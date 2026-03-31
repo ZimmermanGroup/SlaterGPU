@@ -14,7 +14,7 @@ void get_h_1s(int gs, double* grid, double* val, double zeta)
 
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double xy = x*y; double xz = x*z; double yz = y*z;
-    double zr = zeta*r; double ozr = 1.f+zr;
+    double zr = zeta*r; double ozr = 1.+zr;
 
    //xx, xy, xz, yy, yz, zz
     val[6*i]   *= (-y2-z2+x2*zr)*ezor;
@@ -41,15 +41,15 @@ void get_h_2s(int gs, double* grid, double* val, double zeta)
 
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double xy = x*y; double xz = x*z; double yz = y*z;
-    double zr = zeta*r; double ozr = 1.f+zr;
+    double zr = zeta*r; double ozr = 1.+zr;
 
    //xx, xy, xz, yy, yz, zz
     val[6*i]   *= (y2+z2+zt2*x2*r2 - zr*(x2+r2))*ezor;
     val[6*i+1] *= xy*(-1.f-zr+zt2*r2)*ezor;
     val[6*i+2] *= xz*(-1.f-zr+zt2*r2)*ezor;
-    val[6*i+3] *= (z2+zt2*y2*(y2+z2)-zr*(2.f*y2+z2)+x2*(1.f+zt2*y2-zr))*ezor;
+    val[6*i+3] *= (z2+zt2*y2*(y2+z2)-zr*(2.*y2+z2)+x2*(1.+zt2*y2-zr))*ezor;
     val[6*i+4] *= yz*(-1.f-zr+zt2*r2)*ezor;
-    val[6*i+5] *= (y2+x2*(1.f+zt2*z2-zr) + zt2*z2*(y2+z2) - zr*(y2+2.f*z2))*ezor;
+    val[6*i+5] *= (y2+x2*(1.+zt2*z2-zr) + zt2*z2*(y2+z2) - zr*(y2+2.*z2))*ezor;
   }
   return;
 }
@@ -68,10 +68,10 @@ void get_h_2px(int gs, double* grid, double* val, double zeta)
 
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double xy = x*y; double xz = x*z; double yz = y*z;
-    double zr = zeta*r; double ozr = 1.f+zr;
+    double zr = zeta*r; double ozr = 1.+zr;
 
    //xx, xy, xz, yy, yz, zz
-    val[6*i]   *= x*(-3.f*(y2+z2)+x2*(-2.f+zr))*ezor;
+    val[6*i]   *= x*(-3.*(y2+z2)+x2*(-2.+zr))*ezor;
     val[6*i+1] *= y*(-y2-z2+x2*zr)*ezor;
     val[6*i+2] *= z*(-y2-z2+x2*zr)*ezor;
     val[6*i+3] *= x*(-x2-z2 + y2*zr)*ezor;
@@ -95,13 +95,13 @@ void get_h_2py(int gs, double* grid, double* val, double zeta)
 
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double xy = x*y; double xz = x*z; double yz = y*z;
-    double zr = zeta*r; double ozr = 1.f+zr;
+    double zr = zeta*r; double ozr = 1.+zr;
 
    //xx, xy, xz, yy, yz, zz
     val[6*i]   *= y*(-y2-z2+x2*zr)*ezor;
     val[6*i+1] *= x*(-x2-z2+y2*zr)*ezor;
     val[6*i+2] *= x*y*z*ozr*ezor;
-    val[6*i+3] *= y*(-3.f*x2-3.f*z2+y2*(-2.f+zr))*ezor;
+    val[6*i+3] *= y*(-3.*x2-3.*z2+y2*(-2.+zr))*ezor;
     val[6*i+4] *= z*(-x2-z2+y2*zr)*ezor;
     val[6*i+5] *= y*(-x2-y2+z2*zr)*ezor;
   }
@@ -122,7 +122,7 @@ void get_h_2pz(int gs, double* grid, double* val, double zeta)
 
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double xy = x*y; double xz = x*z; double yz = y*z;
-    double zr = zeta*r; double ozr = 1.f+zr;
+    double zr = zeta*r; double ozr = 1.+zr;
 
    //xx, xy, xz, yy, yz, zz
     val[6*i]   *= z*(-y2-z2+x2*zr)*ezor;
@@ -130,7 +130,7 @@ void get_h_2pz(int gs, double* grid, double* val, double zeta)
     val[6*i+2] *= x*(-x2-y2+z2*zr)*ezor;
     val[6*i+3] *= z*(-x2-z2+y2*zr)*ezor;
     val[6*i+4] *= y*(-x2-y2+z2*zr)*ezor;
-    val[6*i+5] *= z*(-3.f*(x2+y2)+z2*(-2.f+zr))*ezor;
+    val[6*i+5] *= z*(-3.*(x2+y2)+z2*(-2.+zr))*ezor;
   }
   return;
 }
@@ -479,7 +479,7 @@ void eval_h(int gs, double* grid, double* val, int n1, int l1, int m1, double ze
   }
   else if (n1==3)
   {
-    printf("  WARNING: n=3 Hessian is being tested \n");
+    //printf("  WARNING: n=3 Hessian is being tested \n");
     if (l1==2)
     {
       if (m1==-2)
@@ -536,8 +536,8 @@ void eval_h(int gs, float* grid, float* val, int n1, int l1, int m1, float zeta1
   #pragma acc enter data create(gridd[0:gs6],vald[0:gs])
   eval_h(gs,gridd,vald,n1,l1,m1,zeta1);
 
-  #pragma acc parallel loop present(val[0:gs],vald[0:gs])
-  for (int j=0;j<gs;j++)
+  #pragma acc parallel loop present(val[0:gs6],vald[0:gs6])
+  for (int j=0;j<gs6;j++)
     val[j] = vald[j];
 
   #pragma acc exit data delete(vald[0:gs],gridd[0:gs6])

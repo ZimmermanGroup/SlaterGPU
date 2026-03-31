@@ -1,4 +1,5 @@
 #include "integrals.h"
+#include "gauss.h"
 
 #define TEST_SORT 0
 //symmetrize wrt atom swap
@@ -4236,10 +4237,67 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
   return;
 }
 
+void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, double* grid1m, double A1, double B1, double C1, double* E)
+{
+  int gs6 = 6*gs;
+  int N2 = N*N;
+
+  double valx = 0.; double valy = 0.; double valz = 0.;
+  #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs],grid1m[0:gs6]) reduction(+:valx,valy,valz)
+  for (int j=0;j<gs;j++)
+  {
+   //assumes common 0,0,0 origin
+    double x = grid1m[6*j+0]+A1;
+    double y = grid1m[6*j+1]+B1;
+    double z = grid1m[6*j+2]+C1;
+
+    valx += val1m[j]*val2m[j]*x;
+    valy += val1m[j]*val2m[j]*y;
+    valz += val1m[j]*val2m[j]*z;
+  }
+
+  #pragma acc serial present(E[0:3*N2])
+  {
+    E[i1*N+i2]      = E[i2*N+i1] = valx;
+    E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
+    E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
+  }
+  return;
+}
+
+void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, double* val2m, double* val2n, double* grid1m, double* grid2n, double A1, double B1, double C1, double A2, double B2, double C2, double* E)
+{
+  int gs6 = 6*gs;
+  int N2 = N*N;
+
+  double valx = 0.; double valy = 0.; double valz = 0.;
+  #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid2n[0:gs6]) reduction(+:valx,valy,valz)
+  for (int j=0;j<gs;j++)
+  {
+    double x1 = grid1m[6*j+0]+A1;
+    double y1 = grid1m[6*j+1]+B1;
+    double z1 = grid1m[6*j+2]+C1;
+    double x2 = grid2n[6*j+0]+A2;
+    double y2 = grid2n[6*j+1]+B2;
+    double z2 = grid2n[6*j+2]+C2;
+    valx += val1m[j]*val2m[j]*x1 + val1n[j]*val2n[j]*x2;
+    valy += val1m[j]*val2m[j]*y1 + val1n[j]*val2n[j]*y2;
+    valz += val1m[j]*val2m[j]*z1 + val1n[j]*val2n[j]*z2;
+  }
+
+  #pragma acc serial present(E[0:N2])
+  {
+    E[i1*N+i2]      = E[i2*N+i1] = valx;
+    E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
+    E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
+  }
+  return;
+}
+
 //applied electric fields
 // x,y,z directions only
 // could expand this to include higher order terms
-void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl)
+void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl)
 {
   if (prl>1) printf(" beginning compute_E (double precision) \n");
 
@@ -4266,9 +4324,15 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
   double* val2m = new double[gs];
   double* val2n = new double[gs];
 
+  double* tmp = NULL;
+  if (gbasis)
+    tmp = new double[gs];
+
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
-  //printf("  iN: %i \n",imaxN);
+  printf("  iN: %i \n",imaxN);
+
+  const int ig = 10;
 
  #if USE_ACC
   #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
@@ -4278,6 +4342,10 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
   #pragma acc enter data create(grid1m[0:gs6],grid1n[0:gs6],wt1[0:gs])
   #pragma acc enter data create(grid2m[0:gs6],grid2n[0:gs6],wt2[0:gs])
   #pragma acc enter data create(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+  if (gbasis)
+  {
+    #pragma acc enter data create(tmp[0:gs])
+  }
  #endif
   acc_assign(3*N2,E,0.);
 
@@ -4301,8 +4369,60 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
+    double Z1 = atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
+    if (gbasis)
+    {
+      generate_central_grid_2d(-1,1,grid1m,wt1,Z1,nrad,nang,ang_g,ang_w);
+
+      for (int i1=s1;i1<s2;i1++)
+      for (int i2=s1;i2<=i1;i2++)
+      {
+        vector<double> basis1 = basis[i1];
+        int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; int ng1 = basis1[3];
+
+        vector<double> basis2 = basis[i2];
+        int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; int ng2 = basis2[3];
+
+       #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs])
+        for (int k=0;k<gs;k++)
+          val1m[k] = val2m[k] = 0.;
+
+        for (int j=0;j<ng1;j++)
+        {
+          int in = ig + ng1;
+          double zeta1 = basis1[ig+j]; double norm1 = basis1[in+j];
+
+          //printf("   (1)  evaluating zeta/norm: %8.5f %8.5f  l/m: %i %i \n",zeta1,norm1,l1,m1);
+          eval_ghd(gs,grid1m,tmp,l1,m1,norm1,zeta1);
+         #pragma acc parallel loop present(tmp[0:gs],val1m[0:gs])
+          for (int k=0;k<gs;k++)
+            val1m[k] += tmp[k];
+        }
+
+        for (int j=0;j<ng2;j++)
+        {
+          int in = ig + ng2;
+          double zeta2 = basis2[ig+j]; double norm2 = basis2[in+j];
+
+          //printf("   (2)  evaluating zeta/norm: %8.5f %8.5f  l/m: %i %i \n",zeta2,norm2,l2,m2);
+          eval_ghd(gs,grid1m,tmp,l2,m2,norm2,zeta2);
+         #pragma acc parallel loop present(tmp[0:gs],val2m[0:gs])
+          for (int k=0;k<gs;k++)
+            val2m[k] += tmp[k];
+        }
+
+        #pragma acc parallel loop present(val1m[0:gs],wt1[0:gs])
+        for (int j=0;j<gs;j++)
+          val1m[j] *= wt1[j];
+
+        reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,E);
+
+      } //i1,i2 over gbasis
+    }
+
+    if (!gbasis)
     for (int i1=s1;i1<s2;i1++)
     for (int i2=s1;i2<=i1;i2++)
     {
@@ -4329,26 +4449,7 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
       eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
       eval_shd(ii1,gs,grid1m,val2m,n2,l2,m2,zeta2); //basis 2
 
-      double valx = 0.; double valy = 0.; double valz = 0.;
-     #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs],grid1m[0:gs6]) reduction(+:valx,valy,valz)
-      for (int j=0;j<gs;j++)
-      {
-       //assumes common 0,0,0 origin
-        double x = grid1m[6*j+0]+A1;
-        double y = grid1m[6*j+1]+B1;
-        double z = grid1m[6*j+2]+C1;
-
-        valx += val1m[j]*val2m[j]*x;
-        valy += val1m[j]*val2m[j]*y;
-        valz += val1m[j]*val2m[j]*z;
-      }
-
-     #pragma acc serial present(E[0:3*N2])
-      {
-        E[i1*N+i2]      = E[i2*N+i1] = valx;
-        E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
-        E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
-      }
+      reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,E);
 
     } //pairs of basis on single atoms
 
@@ -4365,6 +4466,88 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
       double A12 = A2-A1; double B12 = B2-B1; double C12 = C2-C1;
 
+      if (gbasis)
+      {
+       //new grid with zeta dependence
+        generate_central_grid_2d(-1,1,grid1m,wt1,Z1,nrad,nang,ang_g,ang_w);
+        generate_central_grid_2d(-1,1,grid2m,wt2,Z2,nrad,nang,ang_g,ang_w);
+
+       //grid1 at 0,0,0 now has r1 at 3, r2 at 4
+        add_r2_to_grid(gs,grid1m,A12,B12,C12);
+        recenter_grid(gs,grid2m,A12,B12,C12);
+
+       //optimize this
+        //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
+
+        copy_grid(gs,grid2n,grid2m);
+        recenter_grid(gs,grid2n,-A12,-B12,-C12);      //grid 2 centered on atom 1
+
+        copy_grid(gs,grid1n,grid1m);
+        recenter_grid_zero(gs,grid1n,-A12,-B12,-C12); //grid 1 centered on atom 2
+
+       //needs to happen after becke weighting
+        add_r1_to_grid(gs,grid2m,0.,0.,0.);
+
+        for (int i1=s1;i1<s2;i1++)
+        for (int i2=s1;i2<=i1;i2++)
+        {
+          vector<double> basis1 = basis[i1];
+          int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; int ng1 = basis1[3];
+
+          vector<double> basis2 = basis[i2];
+          int n2 = basis2[0]; int l2 = basis2[1]; int m2 = basis2[2]; int ng2 = basis2[3];
+
+         #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
+          for (int k=0;k<gs;k++)
+            val1m[k] = val1n[k] = val2m[k] = val2n[k] = 0.;
+
+          for (int j=0;j<ng1;j++)
+          {
+            int in = ig + ng1;
+            double zeta1 = basis1[ig+j]; double norm1 = basis1[in+j];
+
+            //printf("   (1)  evaluating zeta/norm: %8.5f %8.5f  l/m: %i %i \n",zeta1,norm1,l1,m1);
+            eval_ghd(gs,grid1m,tmp,l1,m1,norm1,zeta1);
+           #pragma acc parallel loop present(tmp[0:gs],val1m[0:gs])
+            for (int k=0;k<gs;k++)
+              val1m[k] += tmp[k];
+
+            eval_ghd(gs,grid2m,tmp,l1,m1,norm1,zeta1);
+           #pragma acc parallel loop present(tmp[0:gs],val1n[0:gs])
+            for (int k=0;k<gs;k++)
+              val1n[k] += tmp[k];
+          }
+
+          for (int j=0;j<ng2;j++)
+          {
+            int in = ig + ng2;
+            double zeta2 = basis2[ig+j]; double norm2 = basis2[in+j];
+
+            //printf("   (1)  evaluating zeta/norm: %8.5f %8.5f  l/m: %i %i \n",zeta1,norm1,l1,m1);
+            eval_ghd(gs,grid1n,tmp,l2,m2,norm2,zeta2);
+           #pragma acc parallel loop present(tmp[0:gs],val2m[0:gs])
+            for (int k=0;k<gs;k++)
+              val2m[k] += tmp[k];
+
+            eval_ghd(gs,grid2n,tmp,l2,m2,norm2,zeta2);
+           #pragma acc parallel loop present(tmp[0:gs],val2n[0:gs])
+            for (int k=0;k<gs;k++)
+              val2n[k] += tmp[k];
+          }
+
+          #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],wt1[0:gs],wt2[0:gs])
+          for (int j=0;j<gs;j++)
+          {
+            val1m[j] *= wt1[j];
+            val1n[j] *= wt2[j];
+          }
+
+          reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,E);
+        } //i1,i2 over gbasis
+      }
+
+      if (!gbasis)
       for (int i1=s1;i1<s2;i1++)
       for (int i2=s3;i2<s4;i2++)
       {
@@ -4413,55 +4596,44 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
         eval_shd(ii1,gs,grid1n,val2m,n2,l2,m2,zeta2); //basis 2 on center 1
         eval_shd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2); //basis 2 on center 2
 
-        double valx = 0.; double valy = 0.; double valz = 0.;
-       #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid2n[0:gs6]) reduction(+:valx,valy,valz)
-        for (int j=0;j<gs;j++)
-        {
-          double x1 = grid1m[6*j+0]+A1;
-          double y1 = grid1m[6*j+1]+B1;
-          double z1 = grid1m[6*j+2]+C1;
-          double x2 = grid2n[6*j+0]+A2;
-          double y2 = grid2n[6*j+1]+B2;
-          double z2 = grid2n[6*j+2]+C2;
-          valx += val1m[j]*val2m[j]*x1 + val1n[j]*val2n[j]*x2;
-          valy += val1m[j]*val2m[j]*y1 + val1n[j]*val2n[j]*y2;
-          valz += val1m[j]*val2m[j]*z1 + val1n[j]*val2n[j]*z2;
-        }
+        reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,E);
 
-       #pragma acc serial present(E[0:N2])
-        {
-          E[i1*N+i2]      = E[i2*N+i1] = valx;
-          E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
-          E[2*N2+i1*N+i2] = E[2*N2+i2*N+i1] = valz;
-        }
-      }
+      } //loop i1,i2
 
     } //loop n>m
 
   } //loop m over natoms
 
-  double* norm = new double[N];
-  for (int i=0;i<N;i++)
-    norm[i] = basis[i][4];
-  #pragma acc enter data copyin(norm[0:N])
-
- #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
-  for (int i=0;i<N;i++)
- #pragma acc loop independent
-  for (int j=0;j<N;j++)
+  if (!gbasis)
   {
-    double n12 = norm[i]*norm[j];
-    E[i*N+j]      *= n12;
-    E[N2+i*N+j]   *= n12;
-    E[2*N2+i*N+j] *= n12;
+    double* norm = new double[N];
+    for (int i=0;i<N;i++)
+      norm[i] = basis[i][4];
+    #pragma acc enter data copyin(norm[0:N])
+
+   #pragma acc parallel loop independent present(E[0:3*N2],norm[0:N])
+    for (int i=0;i<N;i++)
+   #pragma acc loop independent
+    for (int j=0;j<N;j++)
+    {
+      double n12 = norm[i]*norm[j];
+      E[i*N+j]      *= n12;
+      E[N2+i*N+j]   *= n12;
+      E[2*N2+i*N+j] *= n12;
+    }
+
+    #pragma acc exit data delete(norm[0:N])
+    delete [] norm;
   }
 
-  printf("  atomic Exa: %8.5f %8.5f %8.5f \n",Exat,Eyat,Ezat);
+  if (prl>-1)
+    printf("  atomic Exa: %8.5f %8.5f %8.5f \n",Exat,Eyat,Ezat);
 
-   double Zfact = 1./Ztot;
-   Exat *= Zfact;
-   Eyat *= Zfact;
-   Ezat *= Zfact;
+  double Zfact = 1./Ztot;
+  Exat *= Zfact;
+  Eyat *= Zfact;
+  Ezat *= Zfact;
+
   #pragma acc parallel loop present(E[0:3*N2],S[0:N2])
   for (int j=0;j<N2;j++)
     E[j] += Exat*S[j];
@@ -4472,11 +4644,7 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
   for (int j=0;j<N2;j++)
     E[2*N2+j] += Ezat*S[j];
 
-  #pragma acc exit data delete(norm[0:N])
-  delete [] norm;
-
   //clean_small_values(N,E);
-
 
  #if USE_ACC
   #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
@@ -4501,6 +4669,10 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
   #pragma acc exit data delete(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs])
   #pragma acc exit data delete(n2i[0:natoms])
   #pragma acc exit data delete(coords[0:3*natoms],atno[0:natoms])
+  if (gbasis)
+  {
+    #pragma acc exit data delete(tmp[0:gs])
+  }
 #endif
 
   delete [] n2i;
@@ -4515,6 +4687,8 @@ void compute_Exyz(int natoms, int* atno, double* coords, vector<vector<double> >
   delete [] grid2n;
   delete [] wt1;
   delete [] wt2;
+  if (gbasis)
+    delete [] tmp;
 
   return;
 }
