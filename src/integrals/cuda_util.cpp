@@ -1171,6 +1171,9 @@ int invert_cusolver(int N, double* A, cusolverDnHandle_t& cu_hdl)
 
 void solve_axeb_gpu(int dim, double* A, double* b, cusolverDnHandle_t& cu_hdl)
 {
+  #if !USE_ACC
+    solve_axeb(dim,A,b);
+  #else
   int* d_info = new int[1];
   int* d_ipiv = new int[dim];
   double* d_X = new double[dim];
@@ -1211,6 +1214,8 @@ void solve_axeb_gpu(int dim, double* A, double* b, cusolverDnHandle_t& cu_hdl)
   delete [] d_info;
   delete [] d_ipiv;
   delete [] d_X;
+
+  #endif
 
   return;
 }
