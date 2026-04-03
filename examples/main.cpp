@@ -21,6 +21,216 @@
 using namespace std;
 
 
+void save_mog(int natoms, int* atno, double* coords, int nrad, int gsa, vector<vector<double> > basis,
+              int No, double* grid, double* wt, int prl)
+{
+  if (nrad<1) nrad = 1; 
+  if (natoms>3) return;
+
+  //assumes jCA on gpu
+
+  //int gs = gsa/natoms;
+  //int gsa3 = 3*gsa;
+  int gsa6 = 6*gsa;
+
+  printf("\n getting MOs on the grid (size: %6i) \n",gsa);
+  if (gsa<1) { exit(-1); }
+
+  int nang = gsa/nrad/natoms;
+  //#include "slatergpu/jsetup.cpp"
+  int gs2 = gsa; 
+
+  int N = basis.size();
+  int N2 = N*N; 
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+
+  int the_num = read_int("TNUM");
+
+  float norm[N];
+  for (int i=0;i<N;i++)
+    norm[i] = basis[i][4];
+
+  int iN = N; 
+  float** val1 = new float*[iN];
+  for (int i=0;i<iN;i++)
+    val1[i] = new float[gsa];
+
+  float* grid1 = new float[gsa6];
+
+  #pragma acc enter data copyin(norm[0:N])
+  #pragma acc enter data create(val1[0:iN][0:gsa])
+  #pragma acc enter data create(grid1[0:gsa6])
+
+  for (int m=0;m<natoms;m++)
+  {
+   //working on this block of the matrix
+    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
+
+    float Z1 = (float)atno[m];
+    double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2]; 
+
+    //copy_grid(gsa,grid1,grid);
+    #pragma acc parallel loop independent present(grid1[0:gsa6],grid[0:gsa6])  //need to check if this should be 6*gs or gsa6 gsa seems like it would be for Becke
+    for (int j=0;j<gsa6;j++)
+      grid1[j] = grid[j];
+    recenter_grid_zero(gsa,grid1,-A1,-B1,-C1);
+    
+    #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
+    for (int i1=s1;i1<s2;i1++)
+    for (int j=0;j<gsa;j++)
+      val1[i1][j] = 1.f; 
+
+    for (int i1=s1;i1<s2;i1++)
+    {    
+      int ii1 = i1;
+
+      vector<double> basis1 = basis[i1];
+      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; float zeta1 = basis1[3];
+
+      #if 0
+      if (ss_basis)
+        eval_ss(ii1,gs2,grid,val1[ii1],n1,l1,m1,zeta1,Rc);
+      else if (sgs_basis)
+        eval_sgs(ii1,gs1,gs2,grid,val1[ii1],n1,l1,m1,zeta1,Rc);
+      else 
+      #endif
+        eval_sh(ii1,gsa,grid1,val1[ii1],n1,l1,m1,zeta1);
+    }    
+
+  } //loop m over natoms
+
+  //double* tm1 = new double[gsa];
+  //#pragma acc enter data create(tm1[0:gsa])
+  #if 0
+  printf("  z:");
+  if (natoms>1)
+  for (int k=0;k<gsa;k++)
+  {
+    float x1 = grid[6*k+0]; float y1 = grid[6*k+1]; float z1 = grid[6*k+2];
+    if (x1==0. && y1==0.)
+      printf(" %9.5f",z1);
+  }
+  else 
+  for (int k=0;k<gsa;k++)
+  {
+    float x1 = grid[6*k+0]; float y1 = grid[6*k+1]; float z1 = grid[6*k+2];
+    if (x1==0. && y1==0. && z1>0.)
+      printf(" %9.5f",z1);
+  }
+  printf("\n");
+  #endif
+
+  #pragma acc update self(wt[0:gsa],val1[0:iN][0:gsa])
+
+  printf("\n grid: \n");
+  for (int i=0;i<gsa;i++)
+    printf("%12.12f ",grid[i]);
+
+  printf("\n weights: \n");
+  //for (int i=0;i<gsa;i++)
+  //  printf("%12.12f ",wt[i]);
+  printf("%12.12f \n",wt[100000]);
+
+  double bnorm = 0.;
+  printf("\n bnorm: \n");
+  for (int i=0;i<gsa;i++)
+  {
+    printf("val1: %12.12f \n",val1[0][i]);
+    bnorm += val1[0][i]*val1[0][i]*wt[i];
+  }
+  printf("%12.12f \n",bnorm);
+  
+//added loop ADS
+  for (int k1=0;k1<the_num+1;k1++)
+  {
+    double* mogrid = new double[N*gsa];
+    string str_it = to_string(k1);
+    double* jCA = new double[N2];
+    read_square(N,jCA,("CAoptL2_v"+str_it).c_str());
+    //printf("CAoptL2_v%s", str_it.c_str());
+    //print_square(N,jCA);
+    double* tm1 = new double[gsa];
+    #pragma acc enter data copyin(jCA[0:N2])
+    #pragma acc enter data create(tm1[0:gsa])
+    double normt = 0.;
+    //MOs
+    for (int i1=0;i1<N;i1++)
+    {
+      #pragma acc parallel loop present(tm1[0:gsa])
+      for (int j=0;j<gsa;j++)
+        tm1[j] = 0.f; 
+
+      #pragma acc parallel loop present(tm1[0:gsa],val1[0:iN][0:gsa],norm[0:N],jCA[0:N2])
+      for (int j=0;j<gsa;j++)
+      {    
+        float v1 = 0.f; 
+        #pragma acc loop reduction(+:v1)
+        for (int k=0;k<N;k++)
+          v1 += jCA[k*N+i1]*norm[k]*val1[k][j];
+        tm1[j] = v1;
+      }    
+
+      float sign1 = 1.;
+      #pragma acc serial present(tm1[0:gsa])
+      if (tm1[0]<0.)
+        sign1 *= -1.; 
+
+      #pragma acc update self(tm1[0:gsa])
+
+      normt = 0.;
+
+      for (int i3=0;i3<gsa;i3++)
+      {
+        normt += tm1[i3]*tm1[i3]*wt[i3];
+      }
+
+      printf("norm: %12.12f \n", normt);
+
+      for (int i2=0;i2<gsa;i2++)
+      {
+        mogrid[i1*gsa+i2] = tm1[i2];
+      }
+    }
+    //printf("norm: %12.12f \n", normt);
+    #pragma acc exit data delete(tm1[0:gsa],jCA[0:N2])
+    delete [] tm1; 
+    delete [] jCA;
+
+    if(k1 == 0)
+    {
+      printf("MOg_0: \n");
+      for (int l=0;l<N;l++)
+      {
+        for (int l1=0;l1<gsa;l1++)
+        {
+          //printf("%12.12f ", mogrid[l*gsa+l1]);
+        }
+        //printf("\n");
+      }
+    }
+  
+    write_rect(No,gsa,mogrid,"MOg_"+str_it);
+
+    delete [] mogrid;
+  } //ADS
+
+  //cleanup
+   #pragma acc exit data delete(norm[0:N])
+   #pragma acc exit data delete(val1[0:iN][0:gsa])
+   #pragma acc exit data delete(grid1[0:gsa6])
+
+   delete [] n2i; 
+
+   delete [] grid1;
+
+   for (int i=0;i<iN;i++)
+     delete [] val1[i];
+   delete [] val1;
+
+   return;
+}
+
 void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector<double> > basis_aux,
              int nrad, int nang, double* ang_g, double* ang_w, int prl)
 {
@@ -232,6 +442,7 @@ int main(int argc, char* argv[]) {
   #pragma omp parallel
   nomp = omp_get_num_threads();
 
+  int save_mog_ads = 1;
   int ngpu = 0;
   #if USE_ACC
   ngpu = acc_get_num_devices(acc_device_nvidia);
@@ -348,6 +559,27 @@ int main(int argc, char* argv[]) {
     if(c4 > 0)
       #pragma acc enter data create(g[0:N2*N2])
     printf("1e ints: %d\n2c2e ints: %d\n3c3e ints: %d\n4c4e ints: %d\n",N2, Naux2, N2a, N2*N2);
+
+    if (save_mog_ads)
+    {
+      int gsa = gs*natoms;
+      int gsa6 = gsa*6;
+      int Nos = No + (Na - Nb);
+      double* grid =  new double[gsa6];
+      double* wt = new double[gsa];
+      for (int i=0;i<gsa6;i++)
+      {
+        if(i<gsa) wt[i] = 0.;
+        grid[i] = 0.;
+      }
+      #pragma acc enter data copyin(grid[0:gsa6],wt[0:gsa],ang_g[0:3*size_ang],ang_w[0:size_ang])
+      get_becke_grid_full(natoms,atno,coords,nrad,nang,ang_g,ang_w,6,grid,wt);
+      save_mog(natoms,atno,coords,nrad,gsa,basis,Nos,grid,wt,prl);
+      #pragma acc exit data delete(grid[0:gsa6],wt[0:gsa],ang_g[0:3*size_ang],ang_w[0:size_ang])
+      delete [] grid;
+      delete [] wt;
+      return 0;
+    }
 
     if (gbasis)
     {

@@ -50,7 +50,7 @@ const string elem_arr[118] = {
 };
 
 const map<char, int> angular_mom = {
-  {'S', 0}, {'P', 1}, {'D', 2}, {'F',3}, {'G',4}, {'H',5}, {'I',6}
+  {'S', 0}, {'P', 1}, {'D', 2}, {'F',3}, {'G',4}, {'H',5}, {'I',6}, {'J',7}, {'K',8}
 };
 
 #endif //_ELEMENTS_H_
