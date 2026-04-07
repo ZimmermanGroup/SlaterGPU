@@ -55,7 +55,6 @@ cmake = "4.0.3.*"
 ninja = "1.13.*"
 
 [package.host-dependencies]
-libcint = "5.3.0.*"
 
 [feature.pytest.dependencies]
 pytest = ">=8.3.3,<9"

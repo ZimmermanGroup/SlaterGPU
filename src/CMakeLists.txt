@@ -16,8 +16,18 @@ install(TARGETS SlaterGPU io
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(${DO_GTO})
-    install(TARGETS cintw
-            EXPORT SlaterGPUTargets  
+    set(_CINTW_INSTALL_TARGETS cintw)
+    # When libcint is built from source via FetchContent (the default path in
+    # libcintw/CMakeLists.txt), the "cint" CMake target exists and must be
+    # included in the export set. CMake requires this because cintw links
+    # against cint — exported targets must carry their dependencies.
+    # When LIBCINT_PATH is set instead, cintw links to a file path (not a
+    # CMake target), so there is no "cint" target and nothing extra to export.
+    if(TARGET cint)
+        list(APPEND _CINTW_INSTALL_TARGETS cint)
+    endif()
+    install(TARGETS ${_CINTW_INSTALL_TARGETS}
+            EXPORT SlaterGPUTargets
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
