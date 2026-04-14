@@ -17,7 +17,11 @@ project(SlaterGPU VERSION 0.1
                   DESCRIPTION "Integrals over Slater type orbitals with GPU Acceleration"
                   LANGUAGES C CXX)
 
-set(USE_ACC True)
+set(USE_ACC ON)
+if("$ENV{USE_ACC}" STREQUAL "OFF")
+    set(USE_ACC OFF)
+endif()
+message(STATUS "USE_ACC: ${USE_ACC}")
 set(USE_MPI True)
 set(USE_OMP True)
 set(RED_DOUBLE True)
