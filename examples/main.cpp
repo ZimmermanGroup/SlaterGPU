@@ -342,11 +342,8 @@ int main(int argc, char* argv[]) {
     }
     else if (jellium > 0)
     {
-      //int angular_num = nang;
-      //nang = size_ang;
       //do_jellium(natoms,Ne,basis,basis_aux,nrad,nang,ang_g,ang_w,prl);
       do_jellium(natoms,Ne,atno,basis,basis_aux,nrad,size_ang,ang_g,ang_w,prl);
-      //nang = angular_num;
     }
     else if (do_ps_integrals)
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl,jellium);
