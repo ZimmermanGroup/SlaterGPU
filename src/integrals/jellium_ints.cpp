@@ -579,7 +579,7 @@ void compute_C_jellium(bool use_slater, double Rc, vector<vector<double> > basis
   return;
 }
 
-void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, double* grid, double* Vr)
+void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int* atno, int gs1, int gs2, double* grid, double* Vr)
 {
   int gs = gs2;
   int gs6 = 6*gs;
@@ -632,10 +632,11 @@ void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int
    //standard Jellium (quadratic then 1/r)
     //double c1 = -0.5*Ne/Rc;
     //double c2 = Rc*Rc;
-    double c1 = -(1.*Ne)/order/Rc;
+    int Z = atno[0];
+    double c1 = -(1.*Z)/order/Rc;
     double c2 = 1.+order;
     double c3 = pow(Rc,order);
-    double c4 = -Ne;
+    double c4 = -Z;
 
    #pragma acc parallel loop present(Vr[0:gs],grid[0:gs6])
     for (int j=0;j<gs1;j++)
@@ -716,15 +717,15 @@ void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int
   return;
 }
 
-void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, double* grid, double* Vr)
+void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int* atno, int gs1, int gs2, double* grid, double* Vr)
 {
   int order = read_int("JELLIUM");
   if (order<2) order = 2;
 
-  return compute_Vr_jellium(order,Zg,ztg,Rc,Ne,gs1,gs2,grid,Vr);
+  return compute_Vr_jellium(order,Zg,ztg,Rc,Ne,atno,gs1,gs2,grid,Vr);
 }
 
-void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, float* gridf, double* Vr)
+void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int* atno, int gs1, int gs2, float* gridf, double* Vr)
 {
   int gs = gs2;
   int gs6 = 6*gs;
@@ -738,7 +739,7 @@ void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int gs1, int g
   for (int j=0;j<gs6;j++)
     grid[j] = gridf[j];
 
-  compute_Vr_jellium(Zg,ztg,Rc,Ne,gs1,gs2,grid,Vr);
+  compute_Vr_jellium(Zg,ztg,Rc,Ne,atno,gs1,gs2,grid,Vr);
 
   #pragma acc exit data delete(grid[0:gs6])
   delete [] grid;
@@ -877,7 +878,7 @@ void fill_permute_ol4(int N, double* ol)
 }
 
 void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > basis,
-   	 int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl)
+   	 int nrad, int size_ang, double* ang_g, double* ang_w, double* ol, int prl)
 {
   bool sgs_basis = 0;
 
@@ -890,10 +891,10 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   int N2 = N*N;
   int N3 = N2*N;
 
-  int gs = nrad*nang;
+  int gs = nrad*size_ang;
   int gs6 = 6*gs;
 
-  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(ang_g[0:3*size_ang],ang_w[0:size_ang])
 
   double* grid = new double[gs6];
   double* wt = new double[gs];
@@ -904,10 +905,10 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   double Z1 = Z1J;
   //bool murak_zeta = 1;
   //generate_central_grid_2d(-1,!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
-  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,size_ang,ang_g,ang_w);
   #pragma acc update self(grid[0:gs6])
 
-  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs1 = get_gs1(nrad,size_ang,grid,Rc);
   int gs2 = gs;
 
   if (use_slater)
@@ -917,7 +918,7 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   }
  #if USE_GAUSS
   printf("  DEBUG: Gaussian only \n");
-  gs1 = nrad*nang;
+  gs1 = nrad*size_ang;
  #endif
 
   int igs = N*gs;
@@ -997,7 +998,7 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   delete [] valS1;
   delete [] valS2;
 
-  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(ang_g[0:3*size_ang],ang_w[0:size_ang])
   #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
   delete [] grid;
   delete [] wt;
@@ -1005,8 +1006,8 @@ void compute_4c_ol_jellium(bool use_slater, double Rc, vector<vector<double> > b
   return;
 }
 
-void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, double rs, double Rc, int Ne, bool update_norm, vector<vector<double> >& basis,
-         int nrad, int nang, double* ang_g, double* ang_w, double* S, double* T, double* En, int prl)
+void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, double rs, double Rc, int Ne, int* atno, bool update_norm, vector<vector<double> >& basis,
+         int nrad, int size_ang, double* ang_g, double* ang_w, double* S, double* T, double* En, int prl)
 {
  //in this ftn, rs isn't used. instead, compute_Vr is already analytically evaluated.
 
@@ -1017,10 +1018,10 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
 
   //int Ne = 2*No;
 
-  int gs = nrad*nang;
+  int gs = nrad*size_ang;
   int gs6 = 6*gs;
 
-  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc enter data copyin(ang_g[0:3*size_ang],ang_w[0:size_ang])
 
   double* grid = new double[gs6];
   double* wt = new double[gs];
@@ -1032,10 +1033,10 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
   double Z1 = Z1J;
   bool murak_zeta = 1;
   //generate_central_grid_2d(-1,!murak_zeta,grid,wt,Z1,nrad,nang,ang_g,ang_w);
-  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,nang,ang_g,ang_w);
+  generate_central_grid_3d(m_murak,grid,wt,Z1,nrad,size_ang,ang_g,ang_w);
   #pragma acc update self(grid[0:gs6])
 
-  int gs1 = get_gs1(nrad,nang,grid,Rc);
+  int gs1 = get_gs1(nrad,size_ang,grid,Rc);
   int gs2 = gs;
   printf("  gs1: %4i  gs2: %4i \n",gs1,gs2);
 
@@ -1059,7 +1060,7 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
     double* Vr = new double[gs];
     #pragma acc enter data create(Vr[0:gs])
 
-    compute_Vr_jellium(order,Zg,ztg,Rc,Ne,gs1,gs2,grid,Vr);
+    compute_Vr_jellium(order,Zg,ztg,Rc,Ne,atno,gs1,gs2,grid,Vr);
     //compute_Vr_jellium(rs,Rc,nrad,nang,ang_g,ang_w,grid,Vr);
 
     if (use_slater)
@@ -1069,7 +1070,7 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
     }
    #if USE_GAUSS
     printf("  DEBUG: Gaussian only \n");
-    gs1 = nrad*nang;
+    gs1 = nrad*size_ang;
    #endif
 
     if (prl>1)
@@ -1077,7 +1078,7 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
       #pragma acc update self(Vr[0:gs])
       printf("\n       r      Vr: \n");
       for (int j=0;j<nrad;j++)
-        printf("   %8.5f  %9.6f \n",grid[6*nang*j+3],Vr[j*nang]);
+        printf("   %8.5f  %9.6f \n",grid[6*size_ang*j+3],Vr[j*size_ang]);
     }
 
    //evaluate basis ftns
@@ -1311,7 +1312,7 @@ void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, dou
     print_square(N,T);
   }
 
-  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(ang_g[0:3*size_ang],ang_w[0:size_ang])
   #pragma acc exit data delete(grid[0:gs6],wt[0:gs])
   delete [] grid;
   delete [] wt;

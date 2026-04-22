@@ -21,8 +21,8 @@
 using namespace std;
 
 
-void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector<double> > basis_aux,
-             int nrad, int nang, double* ang_g, double* ang_w, int prl)
+void do_jellium(int natoms, int Ne, int* atno, vector<vector<double> > basis, vector<vector<double> > basis_aux,
+             int nrad, int size_ang, double* ang_g, double* ang_w, int prl)
 {
   //if (natoms>1)
   //  return spheroidal_jellium(natoms,z0,Ne,basis,basis_aux,nrad,nang,ang_g,ang_w,prl,cu_hdl);
@@ -44,9 +44,9 @@ void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector
 
   int No = Ne/2;
   //int Ne = 2*No;
-  double rs = Rc*pow(Ne,-1./3.);
+  double rs = Rc*pow(atno[0],-1./3.);
 
-  printf("  Ne: %2i  rs: %8.5f  Rc: %8.5f  Zg: %6.3f  ztg: %5.3f \n",Ne,rs,Rc,Zg,ztg);
+  printf("Z: %2i  Ne: %2i  rs: %8.5f  Rc: %8.5f  Zg: %6.3f  ztg: %5.3f \n",atno[0],Ne,rs,Rc,Zg,ztg);
   print_murak_rmax(Rc,nrad,basis);
 
   int N = basis.size();
@@ -66,8 +66,8 @@ void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector
     //printf("  basis %2i  n1: %i  norm: %8.5f -> %8.5f \n",i,n1,norm0,norm1);
   }
 
-  int atno[natoms];
-  atno[0] = 1;
+  //int atno[natoms];
+  //atno[0] = 1;
   //MD float coordsf[3]; coordsf[0] = coordsf[1] = coordsf[2] = 0.;
   double coords[3]; coords[0] = coords[1] = coords[2] = 0.;
 
@@ -97,8 +97,8 @@ void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector
   }
   if (!have_ints)
   {
-    compute_STEn_jellium(slater,order,Zg,ztg,rs,Rc,Ne,1,basis,nrad,nang,ang_g,ang_w,S,T,En,prl);
-    compute_C_jellium(slater,Rc,basis,basis_aux,nrad,nang,ang_g,ang_w,C);
+    compute_STEn_jellium(slater,order,Zg,ztg,rs,Rc,Ne,atno,1,basis,nrad,size_ang,ang_g,ang_w,S,T,En,prl);
+    compute_C_jellium(slater,Rc,basis,basis_aux,nrad,size_ang,ang_g,ang_w,C);
 
     write_S_En_T(N,S,En,T);
     write_C(Naux,N2,C);
@@ -110,7 +110,7 @@ void do_jellium(int natoms, int Ne, vector<vector<double> > basis, vector<vector
   {
     double* ol = new double[N2*N2];
 
-    compute_4c_ol_jellium(slater,Rc,basis,nrad,nang,ang_g,ang_w,ol,prl);
+    compute_4c_ol_jellium(slater,Rc,basis,nrad,size_ang,ang_g,ang_w,ol,prl);
     write_square(N2,ol,"olintsd",1);
 
     delete [] ol;
@@ -342,7 +342,11 @@ int main(int argc, char* argv[]) {
     }
     else if (jellium > 0)
     {
-      do_jellium(natoms,Ne,basis,basis_aux,nrad,nang,ang_g,ang_w,prl);
+      //int angular_num = nang;
+      //nang = size_ang;
+      //do_jellium(natoms,Ne,basis,basis_aux,nrad,nang,ang_g,ang_w,prl);
+      do_jellium(natoms,Ne,atno,basis,basis_aux,nrad,size_ang,ang_g,ang_w,prl);
+      //nang = angular_num;
     }
     else if (do_ps_integrals)
       compute_ps_integrals_to_disk(natoms,atno,coords,basis,basis_aux,prl,jellium);
