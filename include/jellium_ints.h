@@ -32,18 +32,18 @@ void print_murak_rmax(double Rc, int nrad, vector<vector<double> > basis);
 int get_gs1(int nrad, int nang, float* gridf, double Rc);
 int get_gs1(int nrad, int nang, double* grid, double Rc);
 
-void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, double rs, double Rc, int Ne, bool update_norm, vector<vector<double> >& basis,
-         int nrad, int nang, double* ang_g, double* ang_w, double* S, double* T, double* En, int prl);
+void compute_STEn_jellium(bool use_slater, int order, double Zg, double ztg, double rs, double Rc, int Ne, int* atno, bool update_norm, vector<vector<double> >& basis,
+         int nrad, int size_ang, double* ang_g, double* ang_w, double* S, double* T, double* En, int prl);
 
-void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, double* grid, double* Vr);
-void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, double* grid, double* Vr);
-void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int gs1, int gs2, float* grid, double* Vr);
+void compute_Vr_jellium(int order, double Zg, double ztg, double Rc, int Ne, int* atno, int gs1, int gs2, double* grid, double* Vr);
+void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int* atno, int gs1, int gs2, double* grid, double* Vr);
+void compute_Vr_jellium(double Zg, double ztg, double Rc, int Ne, int* atno, int gs1, int gs2, float* grid, double* Vr);
 
 void compute_C_jellium(bool slater, double Rc, vector<vector<double> > basis, vector<vector<double> > basis_aux, int nrad, int nang,
                        double* ang_g, double* ang_w, double* C);
 
 void compute_4c_ol_jellium(bool slater, double Rc, vector<vector<double> > basis,
-         int nrad, int nang, double* ang_g, double* ang_w, double* ol, int prl);
+         int nrad, int size_ang, double* ang_g, double* ang_w, double* ol, int prl);
 
 //overlap.cpp:
 void orthonormalize_mos(int Nn, int N, double* S, double* jCA);
