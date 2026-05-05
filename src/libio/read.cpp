@@ -2547,7 +2547,10 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
   while (!infile.eof())
   {
     (bool)getline(infile, line);
-    vector<string> tok_line = split1(line,' ');
+    vector<string> tok_line_raw = split1(line, ' ');
+    vector<string> tok_line;
+    for (const string& t : tok_line_raw)
+      if (!t.empty()) tok_line.push_back(t);
 
     //cout << " 2READ: " << line << endl;
     if (tok_line.size()>3)
