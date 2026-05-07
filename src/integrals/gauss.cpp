@@ -9,8 +9,60 @@
 //eval_gh: check factor of sqrt(2)?
 
 
+void eval_vghd(int gsa, double* grid, double* val, int n, int l, int m, double norm, double zt)
+{
+  int gsa6 = 6*gsa;
+  double nph = l+0.5;
 
+  if (l>5) { printf("\n ERROR: l>6 in eval_vgh \n"); exit(-1); }
 
+ #if 1
+  double normf = 2.*PI/(2.*l+1.)*norm;
+  double norm1 = pow(zt,-0.5*(2.*l+3.));
+  double norm2 = pow(zt,-1.-0.5*l);
+  double gf1 = 0.5*(2.*l+3.);
+  double gf2 = 1.-0.5*l;
+
+  #pragma acc parallel loop present(grid[0:gsa6],val[0:gsa])
+  for (int j=0;j<gsa;j++)
+  {
+    double r = grid[6*j+3];
+    double zr2 = zt*r*r;
+    double rl1 = pow(r,-l-1.);
+    double rl  = pow(r,l);
+    val[j] = normf*(norm1*rl1*igam(gf1,zr2) + norm2*rl*igamc(gf2,zr2));
+  }
+ #endif
+
+ #if 0
+  double normf = 0.5*PI*norm/zt;
+  //normf *= 11.136655993664;
+ //CPMZ check all of these
+ /*
+  if (l==1) normf *= 0.5;
+  if (l==2) normf *= 0.75;
+  if (l==3) normf *= 1.875;
+  if (l==4) normf *= 6.5625;
+  if (l==5) normf *= 29.53125;
+  if (l==6) normf *= 162.421875;
+ */
+
+ #pragma acc parallel loop present(grid[0:gsa6],val[0:gsa])
+  for (int j=0;j<gsa;j++)
+  {
+    double r = grid[6*j+3];
+    double zr2 = zt*r*r;
+    //double rl = pow(r,l);
+
+    double Fn = pow(zr2,-nph)*igam(nph,zr2);
+    val[j] = normf*Fn;
+  }
+ #endif
+
+  return;
+}
+
+#if 0
 void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int No, int M, int natoms, int* atno, double* coords, int gs, int gsb, vector<vector<double> >& basis,
                     double* Pao, double* Pmo, double* jCA, float* grid, float* gridb, float* wt, float* wtb, float* rho, float* vxch, int prl)
 {
@@ -440,216 +492,402 @@ void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int
 
   return;
 }
+#endif
 
-void wf_to_grid_gh_ke_2(int natoms, int* atno, double* coords, vector<vector<double> > basis, int nbas, int nenv, int N, int* atm, int* bas, double* env,
-                        double* jCA, int gs, float* grid, float* wt, double* Td, int prl)
+void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, double* coords, vector<vector<double> > basis,
+                   double* Pao, double* gfao, int gs, double* grid, double* wt,
+                   double* rho, double* gf, double* Td, double* TL, int prl)
 {
-  if (prl>-1) printf("  compute_ke: Gaussian basis (testing) \n");
-  printf("\n WARNING: updated eval_gh_ke ftns to new procedure \n");
+  if (prl>1) printf("  wf_to_grid_gh \n");
 
   int gsa = gs*natoms;
   int gsa3 = gsa*3;
   int gsa6 = gsa*6;
 
-  int N0 = basis.size();
-  if (N0!=N) { printf("\n ERROR: mismatch in basis sizes \n"); exit(-1); }
-  //int N2 = N*N;
-  int* n2i = new int[natoms];
-  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+  bool need_g = 1;
+  if (Td==NULL) need_g = 0;
+  bool need_gf = 1;
+  if (gf==NULL || gfao==NULL) need_gf = 0;
+  bool need_L = 1;
+  if (TL==NULL) need_L = 0;
 
-  printf("  imaxN: %2i \n",imaxN);
-
-  int iN = imaxN;
-  float** val1  = new float*[iN];
-  float** val1d = new float*[iN];
-  for (int i=0;i<iN;i++)
-    val1[i]  = new float[gsa];
-  for (int i=0;i<iN;i++)
-    val1d[i] = new float[gsa3];
-
-  float** val2 = new float*[iN];
-  for (int i=0;i<iN;i++)
-    val2[i] = new float[gsa];
-  float** val2d = new float*[iN];
-  for (int i=0;i<iN;i++)
-    val2d[i] = new float[gsa3];
-
-  float* valmo = new float[gsa];
-
-  float* grid1 = new float[gsa6];
-  float* grid2 = new float[gsa6];
-
-  #pragma acc enter data create(grid1[0:gsa6],grid2[0:gsa6])
-  #pragma acc enter data create(valmo[0:gsa],val1[0:iN][0:gsa],val1d[0:iN][0:gsa3],val2[0:iN][0:gsa],val2d[0:iN][0:gsa3])
+  int N = basis.size();
+  int N2 = N*N;
 
   if (prl>1)
   {
-    printf("\n jCA: \n");
-    print_square(N,jCA);
+    printf("\n Pao: \n");
+    print_square(N,Pao);
   }
 
-  #pragma acc parallel loop present(valmo[0:gsa])
-  for (int j=0;j<gsa;j++)
-    valmo[j] = 0.f;
+ //normalization convention
+  for (int j=0;j<N2;j++)
+    Pao[j] *= 2.;
+  if (need_gf)
+  for (int j=0;j<N2;j++)
+    gfao[j] *= 2.;
 
+  int* n2i = new int[natoms];
+  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
+
+  int iN = imaxN;
+  double* val0 = new double[gsa];
+  double* val0p = new double[gsa3];
+  double** val1  = new double*[iN];
+  double** val1p = new double*[iN];
+  double** val1L = new double*[iN];
+  for (int i=0;i<iN;i++)
+    val1[i]  = new double[gsa];
+  if (need_g)
+  for (int i=0;i<iN;i++)
+    val1p[i] = new double[gsa3];
+  if (need_L)
+  for (int i=0;i<iN;i++)
+    val1L[i] = new double[gsa];
+
+  double** val2 = new double*[iN];
+  double** val2p = new double*[iN];
+  double** val2L = new double*[iN];
+  for (int i=0;i<iN;i++)
+    val2[i] = new double[gsa];
+  if (need_g)
+  for (int i=0;i<iN;i++)
+    val2p[i] = new double[gsa3];
+  if (need_L)
+  for (int i=0;i<iN;i++)
+    val2L[i] = new double[gsa];
+
+  double* grid1 = new double[gsa6];
+  double* grid2 = new double[gsa6];
+
+  #pragma acc enter data create(grid1[0:gsa6],grid2[0:gsa6])
+  #pragma acc enter data create(val0[0:gsa],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
+  if (need_g)
+  {
+    #pragma acc enter data create(val0p[0:gsa3],val1p[0:iN][0:gsa3],val2p[0:iN][0:gsa3])
+  }
+  if (need_L)
+  {
+    #pragma acc enter data create(val1L[0:iN][0:gsa],val2L[0:iN][0:gsa])
+  }
+
+  if (calc_rho)
+  #pragma acc parallel loop present(rho[0:gsa])
+  for (int j=0;j<gsa;j++)
+    rho[j] = 0.;
+
+  if (need_gf)
+  #pragma acc parallel loop present(gf[0:gsa])
+  for (int j=0;j<gsa;j++)
+    gf[j] = 0.;
+
+  if (need_g)
   #pragma acc parallel loop present(Td[0:gsa])
   for (int j=0;j<gsa;j++)
     Td[j] = 0.;
+
+  if (need_L)
+  #pragma acc parallel loop present(TL[0:gsa])
+  for (int j=0;j<gsa;j++)
+    TL[j] = 0.;
+
+  const int ig = 10;
 
   for (int m=0;m<natoms;m++)
   {
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
+    //double Z1 = (double)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
     recenter_grid_zero(gsa,grid1,-A1,-B1,-C1);
 
-   //tricky due to non-constant jumps in loop
-   //#pragma omp parallel for
+    #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
+    for (int i1=0;i1<s2-s1;i1++)
+    for (int j=0;j<gsa;j++)
+      val1[i1][j] = 0.;
+
+    if (need_g)
+    #pragma acc parallel loop collapse(2) present(val1p[0:iN][0:gsa3])
+    for (int i1=0;i1<s2-s1;i1++)
+    for (int j=0;j<gsa3;j++)
+      val1p[i1][j] = 0.;
+
+    if (need_L)
+    #pragma acc parallel loop collapse(2) present(val1L[0:iN][0:gsa])
+    for (int i1=0;i1<s2-s1;i1++)
+    for (int j=0;j<gsa;j++)
+      val1L[i1][j] = 0.;
+
     for (int i1=s1;i1<s2;i1++)
     {
       int ii1 = i1-s1;
-
-      int nshl = eval_gh_full(gs,grid,&val1[ii1],i1,natoms,nbas,nenv,N,atm,bas,env);
-
-      //eval_gh_ke_full(gs,grid,&val1d[ii1],i1,natoms,nbas,nenv,N,atm,bas,env);
-      printf("  i1: %2i  nshl: %2i \n",i1,nshl);
-
-      i1 += nshl-1;
-    }
-    #pragma acc update device(val1[0:iN][0:gsa])
-
-
-
-   #if 0
-    for (int i1=s1;i1<s2;i1++)
-    {
-      int ii1 = i1-s1;
-
       vector<double> basis1 = basis[i1];
-      int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; int ng = basis1[3];
+      int l1 = basis1[1]; int m1 = basis1[2]; int ng = basis1[3];
       int in = ig + ng; //index to find norm
 
-      float* valm = val1[ii1];
-      float* valL = val1L[ii1];
+      double* valm = val1[ii1];
+      double* valmp = val1p[ii1];
+      double* valml = val1L[ii1];
       for (int j=0;j<ng;j++)
       {
         double zeta1 = basis1[ig+j]; double norm1 = basis1[in+j];
 
-        eval_gh(gsa,grid1,val0,l1,m1,norm1,zeta1);
+        eval_ghd(gsa,grid1,val0,l1,m1,norm1,zeta1);
 
        #pragma acc parallel loop present(val0[0:gsa],valm[0:gsa])
         for (int k=0;k<gsa;k++)
           valm[k] += val0[k];
 
-        eval_gh_ke(gsa,grid1,val0,n1,l1,norm1,zeta1);
+        if (need_g)
+        {
+          eval_pd_gh(gsa,grid1,val0p,l1+1,l1,m1,norm1,zeta1);
 
-       #pragma acc parallel loop present(val0[0:gsa],valL[0:gsa])
-        for (int k=0;k<gsa;k++)
-          valL[k] += val0[k];
+         #pragma acc parallel loop present(val0p[0:gsa3],valmp[0:gsa3])
+          for (int k=0;k<gsa3;k++)
+            valmp[k] += val0p[k];
+        }
+
+        if (need_L)
+        {
+          eval_ghd_ke(gsa,grid1,val0p,l1+1,l1,1.,zeta1);
+
+         #pragma acc parallel loop present(val0[0:gsa],val0p[0:gsa3],valml[0:gsa])
+          for (int k=0;k<gsa;k++)
+            valml[k] += val0[k]*val0p[k];
+        }
       }
+
     }
-   #endif
 
    //compute all
     for (int i1=s1;i1<s2;i1++)
     {
-      float* valm = val1[i1-s1];
-      //float* vald = val1d[i1-s1];
+      int ii1 = i1-s1;
+      double* valm = val1[ii1];
+      double* valmp = val1p[ii1];
+      double* valml = val1L[ii1];
 
-      float c1 = jCA[i1*N+0];
+      for (int i2=s1;i2<s2;i2++)
+      {
+        int ii2 = i2-s1;
+        double* valn = val1[ii2];
+        double* valnp = val1p[ii2];
+        double* valnl = val1L[ii2];
 
-     #pragma acc parallel loop present(valmo[0:gsa],valm[0:gsa])
-      for (int j=0;j<gsa;j++)
-        valmo[j] += c1*valm[j];
+        double d12 = Pao[i1*N+i2];
 
-    // #pragma acc parallel loop present(Td[0:gsa],vald[0:gsa])
-    //  for (int j=0;j<gsa;j++)
-    //    TL[j] += c1*vald[j];
+        if (calc_rho)
+       #pragma acc parallel loop present(rho[0:gsa],valm[0:gsa],valn[0:gsa])
+        for (int j=0;j<gsa;j++)
+          rho[j] += d12*valm[j]*valn[j];
+
+        if (need_g)
+       #pragma acc parallel loop present(Td[0:gsa],valmp[0:gsa3],valnp[0:gsa3])
+        for (int j=0;j<gsa;j++)
+          Td[j] += d12*(valmp[3*j+0]*valnp[3*j+0] + valmp[3*j+1]*valnp[3*j+1] + valmp[3*j+2]*valnp[3*j+2]);
+
+        if (need_L)
+       #pragma acc parallel loop present(TL[0:gsa],valm[0:gsa],valn[0:gsa],valml[0:gsa],valnl[0:gsa])
+        for (int j=0;j<gsa;j++)
+          TL[j] += 0.5*d12*(valml[j]*valn[j]+valm[j]*valnl[j]);
+
+        if (need_gf)
+        {
+          double g12 = gfao[i1*N+i2];
+         #pragma acc parallel loop present(gf[0:gsa],valm[0:gsa],valn[0:gsa])
+          for (int j=0;j<gsa;j++)
+            gf[j] += g12*valm[j]*valn[j];
+        }
+      }
     }
 
-    if (0)
     for (int n=0;n<natoms;n++)
+    if (m!=n)
     {
      //working on this block of the matrix
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[n];
+      //double Z2 = (double)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       copy_grid(gsa,grid2,grid);
-      recenter_grid_zero(gsa,grid1,-A2,-B2,-C2);
+      recenter_grid_zero(gsa,grid2,-A2,-B2,-C2);
 
-      for (int i2=s3;i2<s4;i2++)
+      #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
+      for (int i1=0;i1<s4-s3;i1++)
+      for (int j=0;j<gsa;j++)
+        val2[i1][j] = 0.;
+
+      if (need_g)
+      #pragma acc parallel loop collapse(2) present(val2p[0:iN][0:gsa3])
+      for (int i1=0;i1<s4-s3;i1++)
+      for (int j=0;j<gsa3;j++)
+        val2p[i1][j] = 0.;
+
+      if (need_L)
+      #pragma acc parallel loop collapse(2) present(val2L[0:iN][0:gsa])
+      for (int i1=0;i1<s4-s3;i1++)
+      for (int j=0;j<gsa;j++)
+        val2L[i1][j] = 0.;
+
+      for (int i1=s3;i1<s4;i1++)
       {
-        int ii2 = i2-s3;
+        int ii1 = i1-s3;
+        vector<double> basis2 = basis[i1];
+        int l2 = basis2[1]; int m2 = basis2[2]; int ng = basis2[3];
+        int in = ig + ng; //index to find norm
 
-        int nshl = eval_gh_full(gs,grid,&val2[ii2],i2,natoms,nbas,nenv,N,atm,bas,env);
-        printf("  i2: %2i  nshl: %2i \n",i2,nshl);
+        double* valm = val2[ii1];
+        double* valmp = val2p[ii1];
+        double* valml = val2L[ii1];
+        for (int j=0;j<ng;j++)
+        {
+          double zeta2 = basis2[ig+j]; double norm2 = basis2[in+j];
 
-        i2 += nshl-1;
+          eval_ghd(gsa,grid2,val0,l2,m2,norm2,zeta2);
+
+         #pragma acc parallel loop present(val0[0:gsa],valm[0:gsa])
+          for (int k=0;k<gsa;k++)
+            valm[k] += val0[k];
+
+          if (need_g)
+          {
+            eval_pd_gh(gsa,grid2,val0p,l2+1,l2,m2,norm2,zeta2);
+
+           #pragma acc parallel loop present(val0p[0:gsa3],valmp[0:gsa3])
+            for (int k=0;k<gsa3;k++)
+              valmp[k] += val0p[k];
+          }
+
+          if (need_L)
+          {
+            eval_ghd_ke(gsa,grid2,val0p,l2+1,l2,1.,zeta2);
+
+           #pragma acc parallel loop present(val0[0:gsa],val0p[0:gsa],valml[0:gsa])
+            for (int k=0;k<gsa;k++)
+              valml[k] += val0[k]*val0p[k];
+          }
+        }
+
       }
-      #pragma acc update device(val2[0:iN][0:gsa])
+
+     //compute all
+      for (int i1=s1;i1<s2;i1++)
+      {
+        int ii1 = i1-s1;
+        double* valm = val1[ii1];
+        double* valmp = val1p[ii1];
+        double* valml = val1L[ii1];
+
+        for (int i2=s3;i2<s4;i2++)
+        {
+          int ii2 = i2-s3;
+          double* valn = val2[ii2];
+          double* valnp = val2p[ii2];
+          double* valnl = val2L[ii2];
+
+          double d12 = Pao[i1*N+i2];
+
+          if (calc_rho)
+         #pragma acc parallel loop present(rho[0:gsa],valm[0:gsa],valn[0:gsa])
+          for (int j=0;j<gsa;j++)
+            rho[j] += d12*valm[j]*valn[j];
+
+          if (need_g)
+         #pragma acc parallel loop present(Td[0:gsa],valmp[0:gsa3],valnp[0:gsa3])
+          for (int j=0;j<gsa;j++)
+            Td[j] += d12*(valmp[3*j+0]*valnp[3*j+0] + valmp[3*j+1]*valnp[3*j+1] + valmp[3*j+2]*valnp[3*j+2]);
+
+          if (need_L)
+         #pragma acc parallel loop present(TL[0:gsa],valm[0:gsa],valn[0:gsa],valml[0:gsa],valnl[0:gsa])
+          for (int j=0;j<gsa;j++)
+            TL[j] += 0.5*d12*(valml[j]*valn[j]+valm[j]*valnl[j]);
+
+          if (need_gf)
+          {
+            double g12 = gfao[i1*N+i2];
+           #pragma acc parallel loop present(gf[0:gsa],valm[0:gsa],valn[0:gsa])
+            for (int j=0;j<gsa;j++)
+              gf[j] += g12*valm[j]*valn[j];
+          }
+        }
+      }
     }
 
   }
 
-
+  if (prl>0 || calc_rho)
   {
-   //check total density
-    float* rho = new float[gsa];
-    #pragma acc enter data create(rho[0:gsa])
-
-    #pragma acc parallel loop present(rho[0:gsa],valmo[0:gsa])
+    double dtot = 0.;
+   #pragma acc parallel loop present(rho[0:gsa],wt[0:gsa])
     for (int j=0;j<gsa;j++)
-      rho[j] = valmo[j]*valmo[j];
-
-    double d1 = 0.;
-    #pragma acc parallel loop present(rho[0:gsa],wt[0:gsa]) reduction(+:d1)
-    for (int j=0;j<gsa;j++)
-      d1 += rho[j]*wt[j];
-
-    printf("   total density (v2): %9.6f \n",d1);
-
-    #pragma acc exit data delete(rho[0:gsa])
-    delete [] rho;
+      dtot += rho[j]*wt[j];
+    printf("  integrated density: %9.6f \n",dtot);
   }
 
-  float ket = 0.;
-  #pragma acc parallel loop present(Td[0:gsa],valmo[0:gsa],wt[0:gsa]) reduction(+:ket)
+  if (need_g)
+  #pragma acc parallel loop present(Td[0:gsa])
   for (int j=0;j<gsa;j++)
-    ket += valmo[j]*Td[j]*wt[j];
-  printf("\n total KE: %9.6f \n",ket);
+    Td[j] *= 0.5;
 
-
-  float thresh = 1.e-12;
-  #pragma acc parallel loop present(valmo[0:gsa])
+  if (need_L)
+  #pragma acc parallel loop present(TL[0:gsa])
   for (int j=0;j<gsa;j++)
-  if (fabs(valmo[j])<thresh)
-    valmo[j] = thresh;
+    TL[j] *= -0.5;
 
-  #pragma acc parallel loop present(Td[0:gsa],valmo[0:gsa])
-  for (int j=0;j<gsa;j++)
-    Td[j] *= -0.5/valmo[j];
-
-  if (prl>-2)
+  if (divide_by_rho)
   {
-    #pragma acc update self(valmo[0:gsa])
-    printf("\n MO: \n");
-    print_vec(gsa,grid,valmo);
+    const double den = 1.e-30;
+
+    if (need_g)
+    #pragma acc parallel loop present(Td[0:gsa],rho[0:gsa])
+    for (int j=0;j<gsa;j++)
+      Td[j] /= (rho[j]+den);
+
+    if (need_L)
+    #pragma acc parallel loop present(TL[0:gsa],rho[0:gsa])
+    for (int j=0;j<gsa;j++)
+      TL[j] /= (rho[j]+den);
+
+    if (need_gf)
+    #pragma acc parallel loop present(gf[0:gsa],rho[0:gsa])
+    for (int j=0;j<gsa;j++)
+      gf[j] /= (rho[j]+den);
   }
-  if (0)
+
+  if (prl>2 && gsa<10000)
+  {
+    #pragma acc update self(gf[0:gsa])
+    printf("\n gf: \n");
+    print_vec(gsa,grid,gf);
+  }
+  if (prl>2 && need_g && gsa<10000)
   {
     #pragma acc update self(Td[0:gsa])
-    printf("\n ke: \n");
+    printf("\n Td: \n");
     print_vec(gsa,grid,Td);
   }
 
+ //revert normalization convention
+  for (int j=0;j<N2;j++)
+    Pao[j] *= 0.5;
+  if (need_gf)
+  for (int j=0;j<N2;j++)
+    gfao[j] *= 0.5;
+
   #pragma acc exit data delete(grid1[0:gsa6],grid2[0:gsa6])
-  #pragma acc exit data delete(valmo[0:gsa],val1[0:iN][0:gsa],val1d[0:iN][0:gsa3],val2[0:iN][0:gsa],val2d[0:iN][0:gsa3])
+  #pragma acc exit data delete(val0[0:gsa],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
+  if (need_g)
+  {
+    #pragma acc exit data delete(val0p[0:gsa3],val1p[0:iN][0:gsa3],val2p[0:iN][0:gsa3])
+  }
+  if (need_L)
+  {
+    #pragma acc exit data delete(val1L[0:iN][0:gsa],val2L[0:iN][0:gsa])
+  }
 
   delete [] grid1;
   delete [] grid2;
@@ -657,18 +895,30 @@ void wf_to_grid_gh_ke_2(int natoms, int* atno, double* coords, vector<vector<dou
 
   for (int i=0;i<iN;i++)
     delete [] val1[i];
+  if (need_g)
   for (int i=0;i<iN;i++)
-    delete [] val1d[i];
+    delete [] val1p[i];
+  if (need_L)
+  for (int i=0;i<iN;i++)
+    delete [] val1L[i];
   delete [] val1;
-  delete [] val1d;
+  delete [] val1p;
+  delete [] val1L;
 
   for (int i=0;i<iN;i++)
     delete [] val2[i];
-  delete [] val2;
+  if (need_g)
   for (int i=0;i<iN;i++)
-    delete [] val2d[i];
-  delete [] val2d;
+    delete [] val2p[i];
+  if (need_L)
+  for (int i=0;i<iN;i++)
+    delete [] val2L[i];
+  delete [] val2;
+  delete [] val2p;
+  delete [] val2L;
 
+  delete [] val0;
+  delete [] val0p;
 
   return;
 }
@@ -852,12 +1102,13 @@ void wf_to_grid_gh_ke(int natoms, int* atno, double* coords, vector<vector<doubl
   return;
 }
 
-void eval_gh_ke(int gs, double* grid, double* val1, int n1, int l1, double norm1, const double zeta1)
+void eval_ghd_ke(int gs, double* grid, double* val1, int n1, int l1, double norm1, const double zeta1)
 {
   int gs6 = 6*gs;
 
   int nnm = n1*(n1-1);
   int llp = l1*(l1+1);
+  int nml = nnm-llp;
   double fz2 = 4.*zeta1*zeta1;
   double ta = 2.*zeta1*(1.+2.*n1);
 
@@ -866,7 +1117,7 @@ void eval_gh_ke(int gs, double* grid, double* val1, int n1, int l1, double norm1
   {
     double r = grid[6*j+3];
     double r2 = r*r;
-    val1[j] = -ta + (nnm-llp)/r2 + fz2*r2;
+    val1[j] = -ta + nml/r2 + fz2*r2;
   }
 
   if (norm1!=1.)
@@ -3407,18 +3658,13 @@ void eval_gh(int gs, float* grid, float* val1, int l1, int m1, const float norm1
   return;
 }
 
-void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1)
+//spherical harmonic part of Gaussian ftn
+void eval_gh_spd(bool include_r, int gs, double* grid, double* val1, int l1, int m1)
 {
-  #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
-  for (int i=0;i<gs;i++)
-  {
-    double r = grid[6*i+3];
-    double g1 = exp(-r*r*zeta1);
-    val1[i] = norm1*g1;
-  }
-
  //most l1 values are untested
  //especially l1>=3
+
+  //printf("  eval_gh_spd. inc_r: %i gs: %4i l1: %i m1: %i \n",(int)include_r,gs,l1,m1);
 
   if (l1==0) return;
 
@@ -3706,7 +3952,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double y = grid[6*i+1];
         double x2 = x*x;
         double y2 = y*y;
-        val1[i] *= -(5.*x2*x2 - 10.*x2*y2 + y2*y2)*y;
+        val1[i] *= (5.*x2*x2 - 10.*x2*y2 + y2*y2)*y; //changed sign
       }
     }
     else if (m1==-4)      //h (y2 - x2)*x*y*z
@@ -3719,7 +3965,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double z = grid[6*i+2];
         double x2 = x*x;
         double y2 = y*y;
-        val1[i] *= (y2 - x2)*x*y*z;
+        val1[i] *= -(y2 - x2)*x*y*z; //changed sign
       }
     }
    //ordering differed (lower should be +5)
@@ -3736,7 +3982,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double y2 = y*y;
         double z2 = z*z;
         double r2 = r*r;
-        val1[i] *= y * (r2*(3.*x2-y2) + 9.*z2*(y2-3.*x2));
+        val1[i] *= -y * (r2*(3.*x2-y2) + 9.*z2*(y2-3.*x2)); //changed sign
         //val1[i] *= (x2*x2 - 10.*x2*y2 + 5.*y2*y2)*x;
       }
     }
@@ -3769,7 +4015,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double r = grid[6*i+3];
         double z2 = z*z;
         double r2 = r*r;
-        val1[i] *= y * (14.*r2*z2 - 21.*z2*z2 - r2*r2);
+        val1[i] *= -y * (14.*r2*z2 - 21.*z2*z2 - r2*r2); //changed sign
         //val1[i] *= z * (x2*x2 - 6.*x2*y2 + y2*y2);
       }
     }
@@ -3798,7 +4044,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double r = grid[6*i+3];
         double z2 = z*z;
         double r2 = r*r;
-        val1[i] *= x*(-r2*r2 + 14.*r2*z2 - 21.*z2*z2);
+        val1[i] *= -x*(-r2*r2 + 14.*r2*z2 - 21.*z2*z2); //changed sign
         //val1[i] *= x * (x2-3.*y2)*(x2 + y2 - 8.*z2);
       }
     }
@@ -3814,7 +4060,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double r = grid[6*i+3];
         double z2 = z*z;
         double r2 = r*r;
-        val1[i] *= z * (r2 - 3.*z2)*(x-y)*(x+y);
+        val1[i] *= -z * (r2 - 3.*z2)*(x-y)*(x+y); //changed sign
         //val1[i] *= y * (x2*x2 + y2*y2 - 12.*y2*z2 + 8.*z2*z2 + 2.*x2 * (y2-6.*z2));
       }
     }
@@ -3832,7 +4078,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double y2 = y*y;
         double z2 = z*z;
         double r2 = r*r;
-        val1[i] *= x * (r2*(x2-3.*y2) + 9.*z2*(3.*y2-x2));
+        val1[i] *= -x * (r2*(x2-3.*y2) + 9.*z2*(3.*y2-x2)); //changed sign
         //val1[i] *= (x2 - y2) * (x2 + y2 - 2.*z2) * z;
       }
     }
@@ -3861,7 +4107,7 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
         double y = grid[6*i+1];
         double x2 = x*x;
         double y2 = y*y;
-        val1[i] *= x * (10.*x2*y2 - x2*x2 - 5.*y2*y2);
+        val1[i] *= -x * (10.*x2*y2 - x2*x2 - 5.*y2*y2); //changed sign
         //val1[i] *= x * (x2*x2 + y2*y2 - 12.*y2*z2 + 8.*z2*z2 + 2.*x2* (y2 - 6.*z2));
       }
     }
@@ -4078,6 +4324,36 @@ void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double n
       }
     }
   }
+
+  if (include_r)
+  {
+   #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+    for (int i=0;i<gs;i++)
+    {
+      double r = grid[6*i+3];
+      val1[i] *= pow(r,-l1);
+    }
+  }
+
+  return;
+}
+
+void eval_gh_spd(int gs, double* grid, double* val1, int l1, int m1)
+{
+ //default is do not divide by r^l
+  return eval_gh_spd(0,gs,grid,val1,l1,m1);
+}
+
+void eval_ghd(int gs, double* grid, double* val1, int l1, int m1, const double norm1, const double zeta1)
+{
+  #pragma acc parallel loop present(grid[0:6*gs],val1[0:gs])
+  for (int i=0;i<gs;i++)
+  {
+    double r = grid[6*i+3];
+    double g1 = exp(-r*r*zeta1);
+    val1[i] = norm1*g1;
+  }
+  eval_gh_spd(gs,grid,val1,l1,m1);
 
   return;
 }

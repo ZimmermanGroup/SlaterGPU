@@ -17,6 +17,10 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
 
 void becke_weight_nc(int natoms, float* grid1, float* wt1, double* coords);
 void becke_weight_nc(int natoms, float* grid1, float* wt1, float* coordsf);
+void becke_weight_nc(const int mu_order, const int natoms, float* Rs, const int gc, const int gs, float* grid1, float* wt1, int* atno, float* coords);
+void becke_weight_ncg(const int mu_order, const int natoms, float* Rs, const int gc, const int gs, float* grid1, float* wt1, int* atno, float* coords);
+void becke_weight_ncgd(const int mu_order, const int natoms, double* Rs, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords);
+void becke_weight_nc(const int mu_order, const int natoms, double* Rs, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords);
 
 void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2, float* grid3, float* wt3,
                      int Z1, int Z2, int Z3, float A2, float B2, float C2, float A3, float B3, float C3);
@@ -25,10 +29,15 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
 void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* wt2,
                      double zeta1, double zeta2, double A2, double B2, double C2);
 
+float becke_ar(float r1, float r2);
+double becke_ard(double r1, double r2);
+
 void get_becke_grid_full(float alpha, int natoms, int* atno, float* coords, int nrad, int nang, float* ang_g, float* ang_w, const int gc, float* grid, float* wt);
+void get_becke_grid_full(int mu_order, float alpha, int natoms, int* atno, float* coords, int nrad, int nang, float* ang_g, float* ang_w, const int gc, float* grid, float* wt);
 void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, float* ang_g, float* ang_w, const int gc, float* grid, float* wt);
 void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, float* grid, float* wt);
 void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt);
+void get_becke_grid_full(int mu_order, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt);
 void get_becke_grid_sparse(double rmax, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt);
 
 void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);
@@ -87,8 +96,8 @@ void density_in_basis2(int natoms, int* atno, double* coords, vector<vector<doub
 
 double becke_ad(int Z1, int Z2);
 float becke_a(int Z1, int Z2);
-float bf3(float f1);
-double bf3d(double f1);
+float bf3(int mu_order, float f1);
+double bf3d(int mu_order, double f1);
 
 //stretch atom 1's radius
 float becke_a(float alpha, int Z1, int Z2);

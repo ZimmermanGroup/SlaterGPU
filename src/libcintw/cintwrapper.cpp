@@ -56,12 +56,14 @@ void get_vri(double** val, int gs, int N,
     printf("  using ri basis in get_vri \n");
   }
 
+ /*
  //CPMZ something is off about the cache size estimate
   int cache_size = int1e_grids_sph(NULL, NULL, shls, atm, natm, bas, nbas+nbas_ri, env, NULL, NULL);
   //printf(" cache_size: %4i \n",cache_size);
   cache_size += gs;
   cache_size *= 10;
   //double* cache = new double[cache_size]();
+ */
 
  //CPMZ just let libcint allocate for itself
   double* cache = NULL;
@@ -271,10 +273,13 @@ void get_hcore(double *hcore, double *En, double *T, int N,
   int di, dj;
   int shls[2];
 
-  double *tmp = new double[N * N];
+  int N2 = N*N;
+  double *tmp = new double[N2];
 
-  if (BT::DO_CART) {
-    for (int i = 0; i < nbas; i++) {
+  if (BT::DO_CART)
+  {
+    for (int i = 0; i < nbas; i++)
+    {
       int idx_j = 0;
       shls[0] = i;
       di = CINTcgto_cart(i, bas);
@@ -297,12 +302,12 @@ void get_hcore(double *hcore, double *En, double *T, int N,
       idx_i += di;
     }// for i
 
-    for (int i = 0; i < N * N; i++) {
+    for (int i = 0; i < N2; i++)
       hcore[i] = tmp[i];
-    }
 
     idx_i = 0;
-    for (int i = 0; i < nbas; i++) {
+    for (int i = 0; i < nbas; i++)
+    {
       int idx_j = 0;
       shls[0] = i;
       di = CINTcgto_cart(i, bas);
@@ -325,8 +330,10 @@ void get_hcore(double *hcore, double *En, double *T, int N,
       idx_i += di;
     }// for i
   } // if BT::DO_CART
-  else {
-    for (int i = 0; i < nbas; i++) {
+  else
+  {
+    for (int i = 0; i < nbas; i++)
+    {
       int idx_j = 0;
       shls[0] = i;
       di = CINTcgto_spheric(i, bas);
@@ -350,15 +357,14 @@ void get_hcore(double *hcore, double *En, double *T, int N,
     }// for i
 
     if (En!=NULL)
-    for (int i = 0; i < N * N; i++) {
+    for (int i = 0; i < N2; i++)
       En[i] = tmp[i];
-    }
-    for (int i = 0; i < N * N; i++) {
+    for (int i = 0; i < N2; i++)
       hcore[i] = tmp[i];
-    }
 
     idx_i = 0;
-    for (int i = 0; i < nbas; i++) {
+    for (int i = 0; i < nbas; i++)
+    {
       int idx_j = 0;
       shls[0] = i;
       di = CINTcgto_spheric(i, bas);
@@ -383,19 +389,18 @@ void get_hcore(double *hcore, double *En, double *T, int N,
   }
 
   if (T!=NULL)
-  for (int i = 0; i < N * N; i++) {
+  for (int i = 0; i < N2; i++)
     T[i] = tmp[i];
-  }
-  for (int i = 0; i < N * N; i++) {
+  for (int i = 0; i < N2; i++)
     hcore[i] += tmp[i];
-  }
 
   delete [] tmp;
 }
 
 void get_hcore(double *hcore, int N,
                int natm, int nbas, int nenv,
-               int *atm, int *bas, double *env) {
+               int *atm, int *bas, double *env)
+{
   return get_hcore(hcore,NULL,NULL,N,natm,nbas,nenv,atm,bas,env);
 }
 
@@ -409,8 +414,8 @@ void get_tcore(double *tcore, int N,
   int N2 = N*N;
   double *tmp = new double[N2];
 
-  if (BT::DO_CART) {
-
+  if (BT::DO_CART)
+  {
     idx_i = 0;
     for (int i = 0; i < nbas; i++) {
       int idx_j = 0;
@@ -435,7 +440,8 @@ void get_tcore(double *tcore, int N,
       idx_i += di;
     }// for i
   } // if BT::DO_CART
-  else {
+  else
+  {
     idx_i = 0;
     for (int i = 0; i < nbas; i++) {
       int idx_j = 0;
@@ -544,12 +550,320 @@ void gen_pvp(double *pvp, int N,
     pvp[i] = tmp[i];
   }
 
-  delete [] tmp; 
+  delete [] tmp;
 }
 
-void gen_eri(double **eri, int N, 
+void gen_4c_overlap_m4(double* ovlp4, size_t N,
+                    int natm, int nbas, int nenv,
+                    int* atm, int* bas, double* env)
+{
+  size_t N2 = N*N;
+  size_t Npairs = N*(N+1)/2;
+  CINTOpt *no_opt = NULL;
+
+ #define USE_PARA_4C 1
+
+ #if USE_PARA_4C
+ //when j==i, parallel execution could write to same place at the same time
+  int nomp = 1;
+ #pragma omp parallel
+  nomp = omp_get_num_threads();
+  if (nbas<nomp) nomp = nbas;
+
+  printf("  gen_4c_overlap on %i threads \n",nomp);
+ #endif
+
+
+  int dmax = 1;
+  for (int i=0;i<nbas;i++)
+  {
+    int di = 0;
+    if (BT::DO_CART)
+      di = CINTcgto_cart(i, bas);
+    else
+      di = CINTcgto_spheric(i, bas);
+    if (dmax<di)
+      dmax = di;
+  }
+
+ #if USE_PARA_4C
+ //will need to use these offsets in the parallel loops
+  size_t* shell_offset = new size_t[nbas+1];
+  shell_offset[0] = 0;
+  if (BT::DO_CART)
+  {
+    for (int i=0;i<nbas;i++)
+      shell_offset[i+1] = shell_offset[i] + CINTcgto_cart(i,bas);
+  }
+  else
+  {
+    for (int i=0;i<nbas;i++)
+      shell_offset[i+1] = shell_offset[i] + CINTcgto_spheric(i,bas);
+  }
+ #endif
+
+  size_t dm4 = 2*dmax*dmax*dmax*dmax;
+  double* bufall = new double[dm4*nomp]();
+
+  if (BT::DO_CART)
+  {
+    //size_t idxi = 0, idxj = 0, idxk = 0, idxl = 0;
+
+   #pragma omp parallel for schedule(static,1) num_threads(nomp)
+    for (size_t i=0;i<nbas;i++)
+    {
+      size_t di, dj, dk, dl;
+      int tid = omp_get_thread_num();
+      double* buf = &bufall[tid*dm4];
+      //double* buf = bufall;
+
+      di = CINTcgto_cart(i, bas);
+      size_t idxi = shell_offset[i];
+      for (size_t j=0;j<=i;j++) //j<=i
+      {
+        dj = CINTcgto_cart(j, bas);
+        size_t idxj = shell_offset[j];
+        for (size_t k=0;k<nbas;k++)
+        {
+          dk = CINTcgto_cart(k, bas);
+          size_t idxk = shell_offset[k];
+          for (size_t l=0;l<=k;l++) //l<=k
+          {
+            dl = CINTcgto_cart(l, bas);
+            size_t idxl = shell_offset[l];
+
+            int shls[4] = {i, j, k, l};
+            cint4c1e_cart(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (size_t l1=0;l1<dl;l1++)
+            for (size_t k1=0;k1<dk;k1++)
+            for (size_t j1=0;j1<dj;j1++)
+            for (size_t i1=0;i1<di;i1++)
+            {
+              size_t oia = i1 + idxi;
+              size_t oja = j1 + idxj;
+              size_t oi = max(oia,oja);
+              size_t oj = min(oia,oja);
+
+              size_t oka = k1 + idxk;
+              size_t ola = l1 + idxl;
+              size_t ok = max(oka,ola);
+              size_t ol = min(oka,ola);
+
+              size_t ij = oi*(oi+1)/2 + oj;
+              size_t kl = ok*(ok+1)/2 + ol;
+              size_t bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+
+              ovlp4[ij*Npairs+kl] = buf[bdx];
+            }
+
+            //idxl += dl;
+          }
+          //idxl = 0;
+          //idxk += dk;
+        }
+        //idxk = 0;
+        //idxj += dj;
+      }
+      //idxj = 0;
+      //idxi += di;
+    }
+  }
+  else
+  {
+    //size_t idxi = 0, idxj = 0, idxk = 0, idxl = 0;
+
+    // Same structure but use CINTcgto_spheric + cint4c1e_sph
+   #pragma omp parallel for schedule(static,1) num_threads(nomp)
+    for (size_t i=0;i<nbas;i++)
+    {
+      size_t di, dj, dk, dl;
+      int tid = omp_get_thread_num();
+      double* buf = &bufall[tid*dm4];
+      //double* buf = bufall;
+
+      di = CINTcgto_spheric(i, bas);
+      size_t idxi = shell_offset[i];
+      for (size_t j=0;j<=i;j++) //j<=i
+      {
+        dj = CINTcgto_spheric(j, bas);
+        size_t idxj = shell_offset[j];
+        for (size_t k=0;k<nbas;k++)
+        {
+          dk = CINTcgto_spheric(k, bas);
+          size_t idxk = shell_offset[k];
+          for (size_t l=0;l<=k;l++) //l<=k
+          {
+            dl = CINTcgto_spheric(l, bas);
+            size_t idxl = shell_offset[l];
+
+            int shls[4] = {i, j, k, l};
+            cint4c1e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (size_t l1=0;l1<dl;l1++)
+            for (size_t k1=0;k1<dk;k1++)
+            for (size_t j1=0;j1<dj;j1++)
+            for (size_t i1=0;i1<di;i1++)
+            {
+              size_t oia = i1 + idxi;
+              size_t oja = j1 + idxj;
+              size_t oi = max(oia,oja);
+              size_t oj = min(oia,oja);
+
+              size_t oka = k1 + idxk;
+              size_t ola = l1 + idxl;
+              size_t ok = max(oka,ola);
+              size_t ol = min(oka,ola);
+
+              size_t ij = oi*(oi+1)/2 + oj;
+              size_t kl = ok*(ok+1)/2 + ol;
+              size_t bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+
+              ovlp4[ij*Npairs+kl] = buf[bdx];
+            }
+            //idxl += dl;
+          }
+          //idxl = 0;
+          //idxk += dk;
+        }
+        //idxk = 0;
+        //idxj += dj;
+      }
+      //idxj = 0;
+      //idxi += di;
+    }
+  }
+
+  delete [] bufall;
+ #if USE_PARA_4C
+  delete [] shell_offset;
+ #endif
+
+  return;
+}
+
+
+void gen_4c_overlap(double* ovlp4, size_t N,
+                    int natm, int nbas, int nenv,
+                    int* atm, int* bas, double* env)
+{
+  size_t N2 = N*N;
+  size_t idxi = 0, idxj = 0, idxk = 0, idxl = 0;
+  size_t di, dj, dk, dl;
+  CINTOpt *no_opt = NULL;
+
+  int dmax = 1;
+  for (int i=0;i<nbas;i++)
+  {
+    di = CINTcgto_cart(i, bas);
+    if (dmax<di)
+      dmax = di;
+    dj = CINTcgto_spheric(i, bas);
+    if (dmax<dj)
+      dmax = dj;
+  }
+  double* buf = new double[dmax*dmax*dmax*dmax]();
+
+  if (BT::DO_CART)
+  {
+    for (size_t i=0;i<nbas;i++)
+    {
+      di = CINTcgto_cart(i, bas);
+      for (size_t j=0;j<nbas;j++)
+      {
+        dj = CINTcgto_cart(j, bas);
+        for (size_t k=0;k<nbas;k++)
+        {
+          dk = CINTcgto_cart(k, bas);
+          for (size_t l=0;l<nbas;l++)
+          {
+            dl = CINTcgto_cart(l, bas);
+            int shls[4] = {i, j, k, l};
+
+            cint4c1e_cart(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (size_t l1=0;l1<dl;l1++)
+            for (size_t k1=0;k1<dk;k1++)
+            for (size_t j1=0;j1<dj;j1++)
+            for (size_t i1=0;i1<di;i1++)
+            {
+              size_t oi = i1 + idxi;
+              size_t oj = j1 + idxj;
+              size_t ok = k1 + idxk;
+              size_t ol = l1 + idxl;
+              size_t ij = oi * N + oj;
+              size_t kl = ok * N + ol;
+              size_t bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+              ovlp4[ij*N2+kl] = buf[bdx];
+            }
+
+            idxl += dl;
+          }
+          idxl = 0;
+          idxk += dk;
+        }
+        idxk = 0;
+        idxj += dj;
+      }
+      idxj = 0;
+      idxi += di;
+    }
+  }
+  else
+  {
+    // Same structure but use CINTcgto_spheric + cint4c1e_sph
+    for (size_t i=0;i<nbas;i++)
+    {
+      di = CINTcgto_spheric(i, bas);
+      for (size_t j=0;j<nbas;j++)
+      {
+        dj = CINTcgto_spheric(j, bas);
+        for (size_t k=0;k<nbas;k++)
+        {
+          dk = CINTcgto_spheric(k, bas);
+          for (size_t l=0;l<nbas;l++)
+          {
+            dl = CINTcgto_spheric(l, bas);
+            int shls[4] = {i, j, k, l};
+
+            cint4c1e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (size_t l1=0;l1<dl;l1++)
+            for (size_t k1=0;k1<dk;k1++)
+            for (size_t j1=0;j1<dj;j1++)
+            for (size_t i1=0;i1<di;i1++)
+            {
+              size_t oi = i1 + idxi;
+              size_t oj = j1 + idxj;
+              size_t ok = k1 + idxk;
+              size_t ol = l1 + idxl;
+              size_t ij = oi * N + oj;
+              size_t kl = ok * N + ol;
+              size_t bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+              ovlp4[ij*N2+kl] = buf[bdx];
+            }
+            idxl += dl;
+          }
+          idxl = 0;
+          idxk += dk;
+        }
+        idxk = 0;
+        idxj += dj;
+      }
+      idxj = 0;
+      idxi += di;
+    }
+  }
+
+  delete [] buf;
+
+  return;
+}
+
+void gen_eri(double **eri, int N,
              int natm, int nbas, int nenv,
-             int *atm, int *bas, double *env) {
+             int *atm, int *bas, double *env)
+{
   //int N2 = N*N;
 
   int idxi = 0;
@@ -561,14 +875,19 @@ void gen_eri(double **eri, int N,
   int dk = 0;
   int dl = 0;
   CINTOpt *no_opt = NULL;
-  if (BT::DO_CART) {
-    for (int i = 0; i < nbas; i++) {
+  if (BT::DO_CART)
+  {
+    for (int i = 0; i < nbas; i++)
+    {
       di = CINTcgto_cart(i,bas);
-      for (int j = 0; j < nbas; j++) {
+      for (int j = 0; j < nbas; j++)
+      {
         dj = CINTcgto_cart(j,bas);
-        for (int k = 0; k < nbas; k++) {
+        for (int k = 0; k < nbas; k++)
+        {
           dk = CINTcgto_cart(k,bas);
-          for (int l = 0; l < nbas; l++) {
+          for (int l = 0; l < nbas; l++)
+          {
             dl = CINTcgto_cart(l,bas);
             double * buf = new double[di*dj*dk*dl];
             int shls[4];
@@ -608,14 +927,19 @@ void gen_eri(double **eri, int N,
       idxi += di;
     } // for i
   } // if BT::DO_CART
-  else {
-    for (int i = 0; i < nbas; i++) {
+  else
+  {
+    for (int i = 0; i < nbas; i++)
+    {
       di = CINTcgto_spheric(i,bas);
-      for (int j = 0; j < nbas; j++) {
+      for (int j = 0; j < nbas; j++)
+      {
         dj = CINTcgto_spheric(j,bas);
-        for (int k = 0; k < nbas; k++) {
+        for (int k = 0; k < nbas; k++)
+        {
           dk = CINTcgto_spheric(k,bas);
-          for (int l = 0; l < nbas; l++) {
+          for (int l = 0; l < nbas; l++)
+          {
             dl = CINTcgto_spheric(l,bas);
             double * buf = new double[di*dj*dk*dl];
             int shls[4];
@@ -655,6 +979,8 @@ void gen_eri(double **eri, int N,
       idxi += di;
     } // for i
   } // else
+
+  return;
 }
 
 void gen_jMOI_gto(double **eri, int N,

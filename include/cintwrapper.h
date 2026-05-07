@@ -79,6 +79,11 @@ extern "C" {
   int64_t int1e_grids_cart(double *out, FINT *dims, FINT *shls,
                                 FINT *atm, FINT natm, FINT *bas, FINT nbas,
                                 double *env, CINTOpt *opt, double *cache);
+
+  int cint4c1e_cart(double *buf, int *shls, int *atm, int natm,
+                    int *bas, int nbas, double *env, CINTOpt *opt);
+  int cint4c1e_sph(double *buf, int *shls, int *atm, int natm,
+                   int *bas, int nbas, double *env, CINTOpt *opt);
 }
 
 using namespace std;
@@ -127,6 +132,14 @@ void get_tcore(double *tcore, int N,
 void gen_pvp(double *pvp, int N,
                int natm, int nbas, int nenv,
                int *atm, int *bas, double *env);
+
+void gen_4c_overlap_m4(double* ovlp4, size_t N,
+                    int natm, int nbas, int nenv,
+                    int* atm, int* bas, double* env);
+
+void gen_4c_overlap(double* ovlp4, size_t N,
+                    int natm, int nbas, int nenv,
+                    int* atm, int* bas, double* env);
 
 void gen_eri(double **eri, int N,
              int natm, int nbas, int nenv,

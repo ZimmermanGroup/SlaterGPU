@@ -4237,10 +4237,12 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
   return;
 }
 
-void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, double* grid1m, double A1, double B1, double C1, double* E)
+void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, double* grid1m, double A1, double B1, double C1, double rconf, double pconf, double* E)
 {
   int gs6 = 6*gs;
   int N2 = N*N;
+
+  const double a = 11.; //33, 66 also viable?
 
   double valx = 0.; double valy = 0.; double valz = 0.;
   #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs],grid1m[0:gs6]) reduction(+:valx,valy,valz)
@@ -4251,9 +4253,18 @@ void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, do
     double y = grid1m[6*j+1]+B1;
     double z = grid1m[6*j+2]+C1;
 
-    valx += val1m[j]*val2m[j]*x;
-    valy += val1m[j]*val2m[j]*y;
-    valz += val1m[j]*val2m[j]*z;
+   //wave centered at zero
+    double xs = x/(1.+exp(x*x/a));
+    double ys = y/(1.+exp(y*y/a));
+    double zs = z/(1.+exp(z*z/a));
+
+   //confining potential
+    double r = sqrt(x*x+y*y+z*z);
+    if (r>rconf) { xs += pconf*(r-rconf); ys += pconf*(r-rconf); zs += pconf*(r-rconf); }
+
+    valx += val1m[j]*val2m[j]*xs;
+    valy += val1m[j]*val2m[j]*ys;
+    valz += val1m[j]*val2m[j]*zs;
   }
 
   #pragma acc serial present(E[0:3*N2])
@@ -4265,10 +4276,12 @@ void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, do
   return;
 }
 
-void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, double* val2m, double* val2n, double* grid1m, double* grid2n, double A1, double B1, double C1, double A2, double B2, double C2, double* E)
+void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, double* val2m, double* val2n, double* grid1m, double* grid2n, double A1, double B1, double C1, double A2, double B2, double C2, double rconf, double pconf, double* E)
 {
   int gs6 = 6*gs;
   int N2 = N*N;
+
+  const double a = 11.;
 
   double valx = 0.; double valy = 0.; double valz = 0.;
   #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid2n[0:gs6]) reduction(+:valx,valy,valz)
@@ -4280,9 +4293,23 @@ void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, 
     double x2 = grid2n[6*j+0]+A2;
     double y2 = grid2n[6*j+1]+B2;
     double z2 = grid2n[6*j+2]+C2;
-    valx += val1m[j]*val2m[j]*x1 + val1n[j]*val2n[j]*x2;
-    valy += val1m[j]*val2m[j]*y1 + val1n[j]*val2n[j]*y2;
-    valz += val1m[j]*val2m[j]*z1 + val1n[j]*val2n[j]*z2;
+
+   //wave centered at zero
+    double xs1 = x1/(1.+exp(x1*x1/a));
+    double ys1 = y1/(1.+exp(y1*y1/a));
+    double zs1 = z1/(1.+exp(z1*z1/a));
+    double xs2 = x2/(1.+exp(x2*x2/a));
+    double ys2 = y2/(1.+exp(y2*y2/a));
+    double zs2 = z2/(1.+exp(z2*z2/a));
+
+    double r1 = sqrt(x1*x1+y1*y1+z1*z1);
+    double r2 = sqrt(x2*x2+y2*y2+z2*z2);
+    if (r1>rconf) { xs1 += pconf*(r1-rconf); ys1 += pconf*(r1-rconf); zs1 += pconf*(r1-rconf); }
+    if (r2>rconf) { xs2 += pconf*(r2-rconf); ys2 += pconf*(r2-rconf); zs2 += pconf*(r2-rconf); }
+
+    valx += val1m[j]*val2m[j]*xs1 + val1n[j]*val2n[j]*xs2;
+    valy += val1m[j]*val2m[j]*ys1 + val1n[j]*val2n[j]*ys2;
+    valz += val1m[j]*val2m[j]*zs1 + val1n[j]*val2n[j]*zs2;
   }
 
   #pragma acc serial present(E[0:N2])
@@ -4297,9 +4324,9 @@ void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, 
 //applied electric fields
 // x,y,z directions only
 // could expand this to include higher order terms
-void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl)
+void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl)
 {
-  if (prl>1) printf(" beginning compute_E (double precision) \n");
+  if (prl>1) printf(" beginning compute_E (double precision). rpconfine: %8.5f %8.5f \n",rconf,pconf);
 
   int N = basis.size();
   int N2 = N*N;
@@ -4417,7 +4444,7 @@ void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vec
         for (int j=0;j<gs;j++)
           val1m[j] *= wt1[j];
 
-        reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,E);
+        reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,rconf,pconf,E);
 
       } //i1,i2 over gbasis
     }
@@ -4449,7 +4476,7 @@ void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vec
       eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
       eval_shd(ii1,gs,grid1m,val2m,n2,l2,m2,zeta2); //basis 2
 
-      reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,E);
+      reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,rconf,pconf,E);
 
     } //pairs of basis on single atoms
 
@@ -4543,7 +4570,7 @@ void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vec
             val1n[j] *= wt2[j];
           }
 
-          reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,E);
+          reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,rconf,pconf,E);
         } //i1,i2 over gbasis
       }
 
@@ -4596,7 +4623,7 @@ void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vec
         eval_shd(ii1,gs,grid1n,val2m,n2,l2,m2,zeta2); //basis 2 on center 1
         eval_shd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2); //basis 2 on center 2
 
-        reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,E);
+        reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,rconf,pconf,E);
 
       } //loop i1,i2
 
@@ -4691,6 +4718,11 @@ void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vec
     delete [] tmp;
 
   return;
+}
+
+void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl)
+{
+  return compute_Exyz(0,0,natoms,atno,coords,gbasis,basis,nrad,nang,ang_g,ang_w,S,E,prl);
 }
 
 //high-precision overlap integrals

@@ -23,7 +23,7 @@ void print_vec(int gsa, float* grid, float* A, float* B);
 
 using namespace std;
 
-//#pragma acc routine seq
+#pragma acc routine seq
 int get_atom_grid(int n, int natoms, int gsa)
 {
   int f1 = gsa/natoms;
@@ -37,7 +37,7 @@ int get_atom_grid(int n, int natoms, int gsa)
 
 double sigmoid(double v1)
 {
-  double val = 1./(1.f+exp(-v1));
+  double val = 1./(1.+exp(-v1));
   return 1. - val;
 }
 
@@ -60,6 +60,8 @@ float tanhh(float a)
 
 void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, const int natoms, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords0)
 {
+  int mu_order = 3;
+
   int gsa = gs*natoms;
   if (natoms==1)
   {
@@ -112,6 +114,7 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
   int nat2 = natoms*natoms;
 
   double Ra[nat2];
+  for (int i=0;i<natoms;i++) Ra[i*natoms+i] = 10000.;
  //relative atomic positions
   for (int i=0;i<natoms;i++)
   for (int j=0;j<i;j++)
@@ -121,11 +124,13 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
     double dax = xa2-xa1; double day = ya2-ya1; double daz = za2-za1;
     double ra1 = sqrt(dax*dax+day*day+daz*daz);
 
+    //printf("  %i %i Ra: %5.2f \n",i,j,ra1);
     Ra[i*natoms+j] = ra1;
     Ra[j*natoms+i] = ra1;
   }
 
   double aij[nat2];
+  for (int i=0;i<natoms;i++) aij[i*natoms+i] = 1.;
   for (int i=0;i<natoms;i++)
   for (int j=0;j<i;j++)
   {
@@ -153,6 +158,7 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
     bij[i*natoms+j] = b12;
     bij[j*natoms+i] = b21;
   }
+  for (int i=0;i<natoms;i++) bij[i*natoms+i] = 1.;
 
  #if 0
   printf("  b: \n");
@@ -201,8 +207,8 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
 
       double nu12 =  mu12 + a12*omm12;
       double nu21 = -mu12 + a21*omm12;
-      double f12 = bf3d(nu12);
-      double f21 = bf3d(nu21);
+      double f12 = bf3d(mu_order,nu12);
+      double f21 = bf3d(mu_order,nu21);
 
       if (alpha>0.)
       {
@@ -221,8 +227,8 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
 
      //"b" terms
 
-      //const double nu0 = beta*oR12;
-      const double nu0 = beta;
+      //const double nu0 = beta;
+      const double nu0 = 0.;
       if (alpha>0.)
       {
         //mu12 = r1-r2; //sigmoid not dependent on R12
@@ -246,8 +252,8 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
         nu12 =  mu12 + b12*omm12;
         nu21 = -mu12 + b21*omm12;
 
-        f12 = bf3d(nu12);
-        f21 = bf3d(nu21);
+        f12 = bf3d(mu_order,nu12);
+        f21 = bf3d(mu_order,nu21);
       }
 
       fpb[i*natoms+j] = f12;
@@ -348,8 +354,9 @@ void atomic_domain_cell_wt(const int ta, const float alpha, const float beta, co
 }
 
 //n-center grid wts (float)
-void becke_weight_nc(const int natoms, const int gc, const int gs, float* grid1, float* wt1, int* atno, float* coords)
+void becke_weight_nc(const int mu_order, const int natoms, float* Rs, const int gc, const int gs, float* grid1, float* wt1, int* atno, float* coords)
 {
+  if (mu_order<1) { printf("  mu_order is zero. no Becke wts \n"); return; }
   if (natoms<2) return;
 
   int gsa = gs*natoms;
@@ -376,8 +383,8 @@ void becke_weight_nc(const int natoms, const int gc, const int gs, float* grid1,
   for (int j=0;j<i;j++)
   {
     int Z1 = atno[i]; int Z2 = atno[j];
-    float a12 = becke_a(Z1,Z2);
-    float a21 = becke_a(Z2,Z1);
+    float a12 = becke_ar(Rs[Z1],Rs[Z2]);
+    float a21 = becke_ar(Rs[Z2],Rs[Z1]);
     aij[i*natoms+j] = a12;
     aij[j*natoms+i] = a21;
   }
@@ -415,8 +422,8 @@ void becke_weight_nc(const int natoms, const int gc, const int gs, float* grid1,
       float omm12 = 1.-mu12*mu12;
       float nu12 =  mu12 + a12*omm12;
       float nu21 = -mu12 + a21*omm12;
-      float f12 = bf3(nu12);
-      float f21 = bf3(nu21);
+      float f12 = bf3(mu_order,nu12);
+      float f21 = bf3(mu_order,nu21);
 
       fp[i*natoms+j] = f12;
       fp[j*natoms+i] = f21;
@@ -449,20 +456,244 @@ void becke_weight_nc(const int natoms, const int gc, const int gs, float* grid1,
   return;
 }
 
-void becke_weight_nc(const int natoms, const int gc, const int gs, float* grid1, float* wt1, int* atno, double* coords)
+//GPU version
+void becke_weight_ncgd(const int mu_order, const int natoms, double* Rs, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords)
 {
+ //this works but has a quirk:
+ // had to static allocate an array within an acc loop
+
+  if (mu_order<1) return;
+  if (natoms<2) return;
+  if (natoms*natoms>1000) { printf("\n ERROR: static array allocation in becke_weight_ncg has a problem (natoms: %2i) \n",natoms); return; }
+
+  int gsa = gs*natoms;
+  int nat2 = natoms*natoms;
+
+  double Ra[nat2];
+  double aij[nat2];
+  #pragma acc enter data create(Ra[0:nat2],aij[0:nat2])
+
+ //atomic positions
+ #pragma acc parallel loop collapse(2) present(Ra[0:nat2],coords[0:3*natoms])
+  for (int i=0;i<natoms;i++)
+  for (int j=0;j<natoms;j++)
+  {
+    double xa1 = coords[3*i+0]; double ya1 = coords[3*i+1]; double za1 = coords[3*i+2];
+    double xa2 = coords[3*j+0]; double ya2 = coords[3*j+1]; double za2 = coords[3*j+2];
+    double dax = xa2-xa1; double day = ya2-ya1; double daz = za2-za1;
+    double ra1 = sqrt(dax*dax+day*day+daz*daz);
+
+    Ra[i*natoms+j] = ra1;
+  }
+ #pragma acc parallel loop present(Ra[0:nat2])
+  for (int i=0;i<natoms;i++)
+    Ra[i*natoms+i] = 1.;
+
+ #pragma acc parallel loop collapse(2) present(aij[0:nat2],atno[0:natoms],coords[0:3*natoms],Rs[0:36])
+  for (int i=0;i<natoms;i++)
+  for (int j=0;j<natoms;j++)
+  {
+    int Z1 = atno[i]; int Z2 = atno[j];
+    double a12 = becke_ard(Rs[Z1],Rs[Z2]);
+    aij[i*natoms+j] = a12;
+  }
+
+  #pragma acc parallel loop present(Ra[0:nat2],aij[0:nat2],coords[0:3*natoms],grid1[0:gc*gsa],wt1[0:gsa])
+  for (int n=0;n<gsa;n++)
+  {
+    double x = grid1[gc*n+0]; double y = grid1[gc*n+1]; double z = grid1[gc*n+2];
+
+    int wa = get_atom_grid(n,natoms,gsa);
+
+    double fp1[1000]; //natoms up to ~30
+    #pragma acc loop collapse(2)
+    for (int i=0;i<natoms;i++)
+    for (int j=0;j<natoms;j++)
+    {
+      double a12 = aij[i*natoms+j];
+      double oR12 = 1./Ra[i*natoms+j];
+
+      double dx1 = x-coords[3*i+0]; double dy1 = y-coords[3*i+1]; double dz1 = z-coords[3*i+2];
+      double dx2 = x-coords[3*j+0]; double dy2 = y-coords[3*j+1]; double dz2 = z-coords[3*j+2];
+      double r1 = sqrt(dx1*dx1+dy1*dy1+dz1*dz1);
+      double r2 = sqrt(dx2*dx2+dy2*dy2+dz2*dz2);
+
+      double mu12 = (r1-r2)*oR12;
+      double omm12 = 1.-mu12*mu12;
+      double nu12 =  mu12 + a12*omm12;
+      double f12 = bf3d(mu_order,nu12);
+
+      fp1[i*natoms+j] = f12;
+    }
+
+   #pragma acc loop
+    for (int i=0;i<natoms;i++)
+      fp1[i*natoms+i] = 1.;
+
+    double s1;
+    {
+      double s0 = 1.;
+     #pragma acc loop reduction(*:s0)
+      for (int j=0;j<natoms;j++)
+        s0 *= fp1[wa*natoms+j];
+      s1 = s0;
+    }
+
+    double norm = 1.e-15;
+   #pragma acc loop reduction(+:norm)
+    for (int i=0;i<natoms;i++)
+    {
+      double s0 = 1.;
+     #pragma acc loop reduction(*:s0)
+      for (int j=0;j<natoms;j++)
+        s0 *= fp1[i*natoms+j];
+      norm += s0;
+    }
+
+    wt1[n] *= s1/norm;
+  }
+
+  #pragma acc exit data delete(Ra[0:nat2],aij[0:nat2])
+
+  return;
+}
+
+void becke_weight_ncg(const int mu_order, const int natoms, float* Rs, const int gc, const int gs, float* grid1, float* wt1, int* atno, float* coords)
+{
+ //this works but has a quirk:
+ // had to static allocate an array within an acc loop
+
+  if (mu_order<1) return;
+  if (natoms<2) return;
+  if (natoms*natoms>1000) { printf("\n ERROR: static array allocation in becke_weight_ncg has a problem (natoms: %2i) \n",natoms); return; }
+
+  int gsa = gs*natoms;
+  int nat2 = natoms*natoms;
+
+  float Ra[nat2];
+  float aij[nat2];
+  #pragma acc enter data create(Ra[0:nat2],aij[0:nat2])
+
+ //atomic positions
+ #pragma acc parallel loop collapse(2) present(Ra[0:nat2],coords[0:3*natoms])
+  for (int i=0;i<natoms;i++)
+  for (int j=0;j<natoms;j++)
+  {
+    float xa1 = coords[3*i+0]; float ya1 = coords[3*i+1]; float za1 = coords[3*i+2];
+    float xa2 = coords[3*j+0]; float ya2 = coords[3*j+1]; float za2 = coords[3*j+2];
+    float dax = xa2-xa1; float day = ya2-ya1; float daz = za2-za1;
+    float ra1 = sqrtf(dax*dax+day*day+daz*daz);
+
+    Ra[i*natoms+j] = ra1;
+  }
+ #pragma acc parallel loop present(Ra[0:nat2])
+  for (int i=0;i<natoms;i++)
+    Ra[i*natoms+i] = 1.f;
+
+ #pragma acc parallel loop collapse(2) present(aij[0:nat2],atno[0:natoms],coords[0:3*natoms],Rs[0:36])
+  for (int i=0;i<natoms;i++)
+  for (int j=0;j<natoms;j++)
+  {
+    int Z1 = atno[i]; int Z2 = atno[j];
+    float a12 = becke_ar(Rs[Z1],Rs[Z2]);
+    aij[i*natoms+j] = a12;
+  }
+
+  #pragma acc parallel loop present(Ra[0:nat2],aij[0:nat2],coords[0:3*natoms],grid1[0:gc*gsa],wt1[0:gsa])
+  for (int n=0;n<gsa;n++)
+  {
+    float x = grid1[gc*n+0]; float y = grid1[gc*n+1]; float z = grid1[gc*n+2];
+
+    int wa = get_atom_grid(n,natoms,gsa);
+
+    float fp1[1000]; //natoms up to ~30
+    #pragma acc loop collapse(2)
+    for (int i=0;i<natoms;i++)
+    for (int j=0;j<natoms;j++)
+    {
+      float a12 = aij[i*natoms+j];
+      float oR12 = 1./Ra[i*natoms+j];
+
+      float dx1 = x-coords[3*i+0]; float dy1 = y-coords[3*i+1]; float dz1 = z-coords[3*i+2];
+      float dx2 = x-coords[3*j+0]; float dy2 = y-coords[3*j+1]; float dz2 = z-coords[3*j+2];
+      float r1 = sqrtf(dx1*dx1+dy1*dy1+dz1*dz1);
+      float r2 = sqrtf(dx2*dx2+dy2*dy2+dz2*dz2);
+
+      float mu12 = (r1-r2)*oR12;
+      float omm12 = 1.-mu12*mu12;
+      float nu12 =  mu12 + a12*omm12;
+      float f12 = bf3(mu_order,nu12);
+
+      fp1[i*natoms+j] = f12;
+    }
+
+   #pragma acc loop
+    for (int i=0;i<natoms;i++)
+      fp1[i*natoms+i] = 1.;
+
+    float s1;
+    {
+      float s0 = 1.;
+     #pragma acc loop reduction(*:s0)
+      for (int j=0;j<natoms;j++)
+        s0 *= fp1[wa*natoms+j];
+      s1 = s0;
+    }
+
+    float norm = 1.e-15;
+   #pragma acc loop reduction(+:norm)
+    for (int i=0;i<natoms;i++)
+    {
+      float s0 = 1.;
+     #pragma acc loop reduction(*:s0)
+      for (int j=0;j<natoms;j++)
+        s0 *= fp1[i*natoms+j];
+      norm += s0;
+    }
+
+    wt1[n] *= s1/norm;
+  }
+
+  #pragma acc exit data delete(Ra[0:nat2],aij[0:nat2])
+
+  return;
+}
+
+void becke_weight_nc(const int mu_order, const int natoms, const int gc, const int gs, float* grid1, float* wt1, int* atno, float* coords)
+{
+  if (mu_order<1) { printf("  mu_order is zero. no Becke wts \n"); return; }
+
+  int Zmax = 0;
+  for (int n=0;n<natoms;n++)
+  if (atno[n]>Zmax)
+    Zmax = atno[n];
+  float* Rs = new float[Zmax+1]();
+  for (int m=0;m<Zmax;m++)
+    Rs[m+1] = get_radii_2(m+1);
+
+  becke_weight_nc(mu_order,natoms,Rs,gc,gs,grid1,wt1,atno,coords);
+
+  delete [] Rs;
+  return;
+}
+
+void becke_weight_nc(const int mu_order, const int natoms, const int gc, const int gs, float* grid1, float* wt1, int* atno, double* coords)
+{
+  if (mu_order<1) { printf("  mu_order is zero. no Becke wts \n"); return; }
+
   float coordsf[3*natoms];
   for (int n=0;n<3*natoms;n++)
     coordsf[n] = coords[n];
 
-  becke_weight_nc(natoms,gc,gs,grid1,wt1,atno,coordsf);
+  becke_weight_nc(mu_order,natoms,gc,gs,grid1,wt1,atno,coordsf);
 
   return;
 }
 
 //n-center grid wts (double)
-void becke_weight_nc(const int natoms, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords)
+void becke_weight_nc(const int mu_order, const int natoms, double* Rs, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords)
 {
+  if (mu_order<1) { printf("  mu_order is zero. no Becke wts \n"); return; }
   if (natoms<2) return;
 
   int gsa = gs*natoms;
@@ -489,8 +720,8 @@ void becke_weight_nc(const int natoms, const int gc, const int gs, double* grid1
   for (int j=0;j<i;j++)
   {
     int Z1 = atno[i]; int Z2 = atno[j];
-    double a12 = becke_ad(Z1,Z2);
-    double a21 = becke_ad(Z2,Z1);
+    double a12 = becke_ard(Rs[Z1],Rs[Z2]);
+    double a21 = becke_ard(Rs[Z2],Rs[Z1]);
     aij[i*natoms+j] = a12;
     aij[j*natoms+i] = a21;
   }
@@ -528,8 +759,8 @@ void becke_weight_nc(const int natoms, const int gc, const int gs, double* grid1
       double omm12 = 1.-mu12*mu12;
       double nu12 =  mu12 + a12*omm12;
       double nu21 = -mu12 + a21*omm12;
-      double f12 = bf3d(nu12);
-      double f21 = bf3d(nu21);
+      double f12 = bf3d(mu_order,nu12);
+      double f21 = bf3d(mu_order,nu21);
 
       fp[i*natoms+j] = f12;
       fp[j*natoms+i] = f21;
@@ -561,9 +792,27 @@ void becke_weight_nc(const int natoms, const int gc, const int gs, double* grid1
   return;
 }
 
+void becke_weight_nc(const int mu_order, const int natoms, const int gc, const int gs, double* grid1, double* wt1, int* atno, double* coords)
+{
+  int Zmax = 0;
+  for (int n=0;n<natoms;n++)
+  if (atno[n]>Zmax)
+    Zmax = atno[n];
+  double* Rs = new double[Zmax+1]();
+  for (int m=0;m<Zmax;m++)
+    Rs[m+1] = get_radii_2(m+1);
+
+  becke_weight_nc(mu_order,natoms,Rs,gc,gs,grid1,wt1,atno,coords);
+
+  delete [] Rs;
+  return;
+}
+
 #pragma acc routine seq
 float get_3c_bw(float r1, float r2, float r3, float a12, float a13, float a23, float a21, float a31, float a32, float oR12, float oR13, float oR23)
 {
+  int mu_order = 3;
+
   float mu12 = (r1-r2)*oR12;
   float mu13 = (r1-r3)*oR13;
   float mu23 = (r2-r3)*oR23;
@@ -579,12 +828,12 @@ float get_3c_bw(float r1, float r2, float r3, float a12, float a13, float a23, f
   float nu23 =  mu23 + a23*omm23;
   float nu32 = -mu23 + a32*omm23;
 
-  float f12 = bf3(nu12);
-  float f21 = bf3(nu21);
-  float f13 = bf3(nu13);
-  float f31 = bf3(nu31);
-  float f23 = bf3(nu23);
-  float f32 = bf3(nu32);
+  float f12 = bf3(mu_order,nu12);
+  float f21 = bf3(mu_order,nu21);
+  float f13 = bf3(mu_order,nu13);
+  float f31 = bf3(mu_order,nu31);
+  float f23 = bf3(mu_order,nu23);
+  float f32 = bf3(mu_order,nu32);
 
   float norm = f12*f13 + f21*f23 + f31*f32 + 1.e-10f;
   float s1 = f12*f13/norm;
@@ -592,7 +841,7 @@ float get_3c_bw(float r1, float r2, float r3, float a12, float a13, float a23, f
   return s1;
 }
 
-void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2, float* grid3, float* wt3, 
+void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2, float* grid3, float* wt3,
                      int Z1, int Z2, int Z3, float A2, float B2, float C2, float A3, float B3, float C3)
 {
   float A23 = A3-A2; float B23 = B3-B2; float C23 = C3-C2;
@@ -650,6 +899,8 @@ void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
 void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
                      int Z1, int Z2, float A2, float B2, float C2)
 {
+  int mu_order = 3;
+
  //first center is at 0,0,0 and second at A2,B2,C2
   float R  = sqrtf(A2*A2+B2*B2+C2*C2);
   const float oR = 1./R;
@@ -669,8 +920,8 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
     float nu1 =  mu + a1*omm2;
     float nu2 = -mu + a2*omm2;
 
-    float f1 = bf3(nu1);
-    float f2 = bf3(nu2);
+    float f1 = bf3(mu_order,nu1);
+    float f2 = bf3(mu_order,nu2);
 
     float norm = f1 + f2 + 1.e-10f;
     float s1 = f1/norm;
@@ -689,8 +940,8 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
     float nu1 =  mu + a2*omm2;
     float nu2 = -mu + a1*omm2;
 
-    float f1 = bf3(nu1);
-    float f2 = bf3(nu2);
+    float f1 = bf3(mu_order,nu1);
+    float f2 = bf3(mu_order,nu2);
 
     float norm = f1 + f2 + 1.e-10f;
     float s1 = f1/norm;
@@ -702,9 +953,11 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
   return;
 }
 
-void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* wt2, 
+void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* wt2,
                      double zeta1, double zeta2, double A2, double B2, double C2)
 {
+  int mu_order = 3;
+
  //first center is at 0,0,0 and second at A2,B2,C2
   double R  = sqrt(A2*A2+B2*B2+C2*C2);
   const double oR = 1./R;
@@ -724,8 +977,8 @@ void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* 
     double nu1 =  mu + a1*omm2;
     double nu2 = -mu + a2*omm2;
 
-    double f1 = bf3d(nu1);
-    double f2 = bf3d(nu2);
+    double f1 = bf3d(mu_order,nu1);
+    double f2 = bf3d(mu_order,nu2);
 
     double norm = f1 + f2 + 1.e-10f;
     double s1 = f1/norm;
@@ -744,8 +997,8 @@ void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* 
     double nu1 =  mu + a2*omm2;
     double nu2 = -mu + a1*omm2;
 
-    double f1 = bf3d(nu1);
-    double f2 = bf3d(nu2);
+    double f1 = bf3d(mu_order,nu1);
+    double f2 = bf3d(mu_order,nu2);
 
     double norm = f1 + f2 + 1.e-10f;
     double s1 = f1/norm;
@@ -799,7 +1052,6 @@ void test_2c_becke()
     }
 
     becke_weight_2c(gs,grid1,wt1,grid2,wt2,Z1,Z2,A12,B12,C12);
-    
 
     if (0)
     {
@@ -865,10 +1117,10 @@ float becke_a(float alpha, int Z1, int Z2)
   return a;
 }
 
-float becke_a(int Z1, int Z2)
+#pragma acc routine seq
+__attribute__((noinline))
+float becke_a(float x)
 {
-  float x = get_radii_2(Z1)/get_radii_2(Z2);
-
   float u = (x-1.f)/(x+1.f);
   float a = u/(u*u-1.f);
 
@@ -877,10 +1129,26 @@ float becke_a(int Z1, int Z2)
   return a;
 }
 
-double becke_ad(int Z1, int Z2)
+float becke_a(int Z1, int Z2)
 {
-  double x = get_radii_2(Z1)/get_radii_2(Z2);
+  float x = get_radii_2(Z1)/get_radii_2(Z2);
 
+  return becke_a(x);
+}
+
+#pragma acc routine seq
+__attribute__((noinline))
+float becke_ar(float r1, float r2)
+{
+  float x = r1/r2;
+
+  return becke_a(x);
+}
+
+#pragma acc routine seq
+__attribute__((noinline))
+double becke_ad(double x)
+{
   double u = (x-1.)/(x+1.);
   double a = u/(u*u-1.);
 
@@ -890,17 +1158,29 @@ double becke_ad(int Z1, int Z2)
 }
 
 #pragma acc routine seq
-float bf3(float f1)
+__attribute__((noinline))
+double becke_ad(int Z1, int Z2)
 {
-  //default is order 3
-  #define ORDER4 0
+  double x = get_radii_2(Z1)/get_radii_2(Z2);
 
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
- #if ORDER4
-  f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
- #endif
+  return becke_ad(x);
+}
+
+#pragma acc routine seq
+__attribute__((noinline))
+double becke_ard(double r1, double r2)
+{
+  double x = r1/r2;
+
+  return becke_ad(x);
+}
+
+#pragma acc routine seq
+__attribute__((noinline))
+float bf3(int mu_order, float f1)
+{
+  for (int n=0;n<mu_order;n++)
+    f1 = 1.5f*f1 - 0.5f*f1*f1*f1;
   f1 = 0.5f*(1.f-f1);
   f1 = f1*f1;
 
@@ -908,17 +1188,11 @@ float bf3(float f1)
 }
 
 #pragma acc routine seq
-double bf3d(double f1)
+__attribute__((noinline))
+double bf3d(int mu_order, double f1)
 {
-  //default is order 3
-  #define ORDER4 0
-
-  f1 = 1.5*f1 - 0.5*f1*f1*f1;
-  f1 = 1.5*f1 - 0.5*f1*f1*f1;
-  f1 = 1.5*f1 - 0.5*f1*f1*f1;
- #if ORDER4
-  f1 = 1.5*f1 - 0.5*f1*f1*f1;
- #endif
+  for (int n=0;n<mu_order;n++)
+    f1 = 1.5*f1 - 0.5*f1*f1*f1;
   f1 = 0.5*(1.-f1);
   f1 = f1*f1;
 
@@ -926,8 +1200,10 @@ double bf3d(double f1)
 }
 
 //all-float version
-void get_becke_grid_full(float alpha, int natoms, int* atno, float* coords, int nrad, int nang, float* ang_g, float* ang_w, const int gc, float* grid, float* wt)
+void get_becke_grid_full(int mu_order, float alpha, int natoms, int* atno, float* coords, int nrad, int nang, float* ang_g, float* ang_w, const int gc, float* grid, float* wt)
 {
+  if (mu_order!=3) printf("\n WARNING: testing mu_order in get_becke_grid_full (float) \n");
+
   int gs = nrad*nang;
   int gsa = gs*natoms;
   int gsc = gc*gs;
@@ -989,7 +1265,7 @@ void get_becke_grid_full(float alpha, int natoms, int* atno, float* coords, int 
   if (alpha!=0.)
     atomic_domain_cell_wt(-1,alpha,beta,natoms,gc,gs,grid,wt,atno,coords);
   else
-    becke_weight_nc(natoms,gc,gs,grid,wt,atno,coords);
+    becke_weight_nc(mu_order,natoms,gc,gs,grid,wt,atno,coords);
 
   //distance from center (arbitrary center)
   #pragma acc parallel loop present(grid[0:gsac])
@@ -1005,6 +1281,12 @@ void get_becke_grid_full(float alpha, int natoms, int* atno, float* coords, int 
   return;
 }
 
+void get_becke_grid_full(float alpha, int natoms, int* atno, float* coords, int nrad, int nang, float* ang_g, float* ang_w, const int gc, float* grid, float* wt)
+{
+  int mu_order = 3;
+  return get_becke_grid_full(mu_order,alpha,natoms,atno,coords,nrad,nang,ang_g,ang_w,gc,grid,wt);
+}
+
 void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, float* ang_g, float* ang_w, const int gc, float* grid, float* wt)
 {
   float coordsf[3*natoms];
@@ -1015,18 +1297,21 @@ void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int na
   return;
 }
 
-void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt)
+void get_becke_grid_full(int mu_order, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt)
 {
+  if (mu_order!=3) printf("\n WARNING: testing mu_order in get_becke_grid_full (double) \n");
+
   int gs = nrad*nang;
   int gsa = gs*natoms;
   int gsc = gc*gs;
   int gsac = gsc*natoms;
 
+  double r1[nrad]; double w1[nrad];
+  #pragma acc enter data create(r1[0:nrad],w1[0:nrad])
+
   for (int n=0;n<natoms;n++)
   {
-    double r1[nrad]; double w1[nrad];
     int Z1 = atno[n];
-    #pragma acc enter data create(r1[0:nrad],w1[0:nrad])
     get_murak_grid(nrad,r1,w1,Z1,3);
 
     #pragma acc parallel loop present(r1[0:nrad],w1[0:nrad],ang_g[0:3*nang],ang_w[0:nang],grid[0:gsac],wt[0:gsa])
@@ -1058,11 +1343,12 @@ void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int na
       grid1[gc*m+2] += C0;
     }
 
-    #pragma acc exit data delete(r1[0:nrad],w1[0:nrad])
   } //loop n over natoms
 
+  #pragma acc exit data delete(r1[0:nrad],w1[0:nrad])
+
   #pragma acc update self(grid[0:gsac],wt[0:gsa])
-  becke_weight_nc(natoms,gc,gs,grid,wt,atno,coords);
+  becke_weight_nc(mu_order,natoms,gc,gs,grid,wt,atno,coords);
 
   //distance from center (arbitrary center)
   #pragma acc parallel loop present(grid[0:gsac])
@@ -1078,8 +1364,16 @@ void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int na
   return;
 }
 
+void get_becke_grid_full(int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt)
+{
+  int mu_order = 3;
+  return get_becke_grid_full(mu_order,natoms,atno,coords,nrad,nang,ang_g,ang_w,gc,grid,wt);
+}
+
 void get_becke_grid_sparse(double rmax, int natoms, int* atno, double* coords, int nrad, int nang, double* ang_g, double* ang_w, const int gc, double* grid, double* wt)
 {
+  int mu_order = 3;
+
   int gs = nrad*nang;
   int gsa = gs*natoms;
   int gsc = gc*gs;
@@ -1126,7 +1420,7 @@ void get_becke_grid_sparse(double rmax, int natoms, int* atno, double* coords, i
   } //loop n over natoms
 
   #pragma acc update self(grid[0:gsac],wt[0:gsa])
-  becke_weight_nc(natoms,gc,gs,grid,wt,atno,coords);
+  becke_weight_nc(mu_order,natoms,gc,gs,grid,wt,atno,coords);
 
   //distance from center (arbitrary center)
   #pragma acc parallel loop present(grid[0:gsac])
@@ -1183,198 +1477,6 @@ void add_r1_to_grid4(int gs, float* grid1, float A2, float B2, float C2)
   return;
 }
 
-//CPMZ this ftn doesn't handle vxcs(GGA) part yet
-//CPMZ deprecating soon
-#if 0
-void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool need_wt, int gsa, float* grid, float* wt, double* vxc, double* vxcs, double* fxc, int prl)
-{
-  if (!gbasis)
-  { printf("\n ERROR shouldn't be here in compute_fxc (Gaussian basis version) \n"); exit(-1); }
-
-  if (prl>1) printf("  compute_fxc: Gaussian basis \n");
-
-  //int gsa = gs*natoms;
-  int gsa6 = gsa*6;
-
-  int N = basis.size();
-  int N2 = N*N;
-  int* n2i = new int[natoms];
-  int imaxN = get_imax_n2i(natoms,N,basis,n2i);
-
-  int iN = imaxN;
-  float** val1 = new float*[iN];
-  float** val2 = new float*[iN];
-  for (int i=0;i<iN;i++)
-    val1[i] = new float[gsa];
-  for (int i=0;i<iN;i++)
-    val2[i] = new float[gsa];
-
-  float* val0 = new float[gsa];
-
-  float* grid1 = new float[gsa6];
-  float* grid2 = new float[gsa6];
-
-  #pragma acc enter data create(grid1[0:gsa6],grid2[0:gsa6])
-  #pragma acc enter data create(val0[0:gsa],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
-
-  for (int j=0;j<N2;j++)
-    fxc[j] = 0.;
-
-  const int ig = 10; //first index to exp in Gaussian basis
-
-  for (int m=0;m<natoms;m++)
-  {
-   //working on this block of the matrix
-    int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
-
-    float Z1 = (float)atno[m];
-    double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
-
-    copy_grid(gsa,grid1,grid);
-    recenter_grid_zero(gsa,grid1,-A1,-B1,-C1);
-
-    //#pragma acc update self(grid1[0:gsa6])
-
-    #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
-    for (int i1=0;i1<s2-s1;i1++)
-    for (int j=0;j<gsa;j++)
-      val1[i1][j] = 0.f;
-
-    for (int i1=s1;i1<s2;i1++)
-    {
-      int ii1 = i1-s1;
-
-      vector<double> basis1 = basis[i1];
-      int l1 = basis1[1]; int m1 = basis1[2]; int ng = basis1[3];
-      int in = ig + ng; //index to find norm
-
-      float* valm = val1[ii1];
-      for (int j=0;j<ng;j++)
-      {
-        double zeta1 = basis1[ig+j]; double norm1 = basis1[in+j];
-
-        eval_gh(gsa,grid1,val0,l1,m1,norm1,zeta1); //overwrites val0
-
-       #pragma acc parallel loop present(val0[0:gsa],valm[0:gsa])
-        for (int k=0;k<gsa;k++)
-          valm[k] += val0[k];
-      }
-    }
-
-   //compute all
-    for (int i1=s1;i1<s2;i1++)
-    {
-      float* valm = val1[i1-s1];
-
-      for (int i2=s1;i2<s2;i2++)
-      {
-        float* valn = val1[i2-s1];
-
-        double f1 = 0.;
-        if (need_wt)
-       #pragma acc parallel loop present(vxc[0:gsa],valm[0:gsa],valn[0:gsa],wt[0:gsa]) reduction(+:f1)
-        for (int j=0;j<gsa;j++)
-          f1 += vxc[j]*valm[j]*valn[j]*wt[j];
-        else
-       #pragma acc parallel loop present(vxc[0:gsa],valm[0:gsa],valn[0:gsa]) reduction(+:f1)
-        for (int j=0;j<gsa;j++)
-          f1 += vxc[j]*valm[j]*valn[j];
-
-        fxc[i1*N+i2] = f1;
-      }
-    }
-
-   //second atom
-    for (int n=m+1;n<natoms;n++)
-    {
-      int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
-
-      float Z2 = (float)atno[m];
-      double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
-
-      #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
-      for (int i2=0;i2<s4-s3;i2++)
-      for (int j=0;j<gsa;j++)
-        val2[i2][j] = 0.f;
-
-      copy_grid(gsa,grid2,grid);
-      recenter_grid_zero(gsa,grid2,-A2,-B2,-C2);
-
-      //#pragma acc update self(grid2[0:gsa6])
-
-      for (int i2=s3;i2<s4;i2++)
-      {
-        int ii2 = i2-s3;
-
-        vector<double> basis2 = basis[i2];
-        int l2 = basis2[1]; int m2 = basis2[2]; int ng = basis2[3];
-        int in = ig + ng; //index to find norm
-
-        float* valn = val2[ii2];
-        for (int j=0;j<ng;j++)
-        {
-          double zeta2 = basis2[ig+j]; double norm2 = basis2[in+j];
-
-          eval_gh(gsa,grid2,val0,l2,m2,norm2,zeta2);
-
-         #pragma acc parallel loop present(val0[0:gsa],valn[0:gsa])
-          for (int k=0;k<gsa;k++)
-            valn[k] += val0[k];
-        }
-      }
-
-     //two-atom Pao elements added to grid
-      for (int i1=s1;i1<s2;i1++)
-      {
-        float* valn = val1[i1-s1];
-
-        for (int i2=s3;i2<s4;i2++)
-        {
-          float* valm = val2[i2-s3];
-
-          double f1 = 0.;
-          if (need_wt)
-         #pragma acc parallel loop present(vxc[0:gsa],valm[0:gsa],valn[0:gsa],wt[0:gsa]) reduction(+:f1)
-          for (int j=0;j<gsa;j++)
-            f1 += vxc[j]*valm[j]*valn[j]*wt[j];
-          else
-         #pragma acc parallel loop present(vxc[0:gsa],valm[0:gsa],valn[0:gsa]) reduction(+:f1)
-          for (int j=0;j<gsa;j++)
-            f1 += vxc[j]*valm[j]*valn[j];
-
-          fxc[i1*N+i2] = fxc[i2*N+i1] = f1;
-        }
-      }
-    } //loop n over second atom
-  }
-
-  #pragma acc update device(fxc[0:N2])
-
-  if (prl>2)
-  {
-    printf("\n fxc: \n");
-    print_square(N,fxc);
-  }
-
-  #pragma acc exit data delete(grid1[0:gsa6],grid2[0:gsa6])
-  #pragma acc exit data delete(val0[0:gsa],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
-
-  delete [] grid1;
-  delete [] grid2;
-  delete [] n2i;
-
-  delete [] val0;
-  for (int i=0;i<iN;i++)
-    delete [] val1[i];
-  for (int i=0;i<iN;i++)
-    delete [] val2[i];
-  delete [] val1;
-  delete [] val2;
-
-  return;
-}
-#endif
-
 //borrowed from Slater version
 void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, bool need_wt, bool gga,
                  double* Pao, int gs, double* grid, double* wt, double* vxc, double* vxcs, double* fxc, int prl)
@@ -1387,6 +1489,10 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
     printf("\n ERROR: gga functionals require Pao in compute_fxc \n");
     exit(1);
   }
+  if (gga)
+    printf("\n WARNING: need to debug compute_fxcd (gbasis) \n");
+  if (need_wt && gga)
+    printf("\n ERROR: cannot use need_wt with gga in compute_fxcd \n\n");
 
   int gs3 = 3*gs;
   int gs6 = 6*gs;
@@ -1453,7 +1559,6 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gs,grid1,grid);
@@ -1489,14 +1594,11 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
         for (int k=0;k<gs;k++)
           valm[k] += val0[k];
 
-    	if (gga)
-        {
-          eval_pd_gh(gs,grid1,val0g,l1+1,l1,m1,norm1,zeta1);
+        eval_pd_gh(gs,grid1,val0g,l1+1,l1,m1,norm1,zeta1);
 
-         #pragma acc parallel loop present(val0g[0:gs3],valmg[0:gs3])
-          for (int k=0;k<gs3;k++)
-            valmg[k] += val0g[k];
-        }
+       #pragma acc parallel loop present(val0g[0:gs3],valmg[0:gs3])
+        for (int k=0;k<gs3;k++)
+          valmg[k] += val0g[k];
       }
     }
 
@@ -1512,6 +1614,7 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
         double* valm = val1[ii2];
         double* valpm = val1p[ii2];
 
+       //CPMZ check this
         double d1 = 4.*Paon[i1*N+i2];
 
        #pragma acc parallel loop present(grho[0:gs3],valn[0:gs],valpn[0:gs3],valm[0:gs],valpm[0:gs3])
@@ -1528,7 +1631,7 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -1564,14 +1667,11 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
           for (int k=0;k<gs;k++)
             valn[k] += val0[k];
 
-          if (gga)
-          {
-            eval_pd_gh(gs,grid2,val0g,l2+1,l2,m2,norm2,zeta2);
+          eval_pd_gh(gs,grid2,val0g,l2+1,l2,m2,norm2,zeta2);
 
-           #pragma acc parallel loop present(val0g[0:gs3],valng[0:gs3])
-            for (int k=0;k<gs3;k++)
-              valng[k] += val0g[k];
-          }
+         #pragma acc parallel loop present(val0g[0:gs3],valng[0:gs3])
+          for (int k=0;k<gs3;k++)
+            valng[k] += val0g[k];
         }
       }
 
@@ -1587,6 +1687,7 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
           double* valm = val2[ii2];
           double* valpm = val2p[ii2];
 
+         //CPMZ check this
           double d1 = 4.*Paon[i1*N+i2];
 
          #pragma acc parallel loop present(grho[0:gs3],valn[0:gs],valpn[0:gs3],valm[0:gs],valpm[0:gs3])
@@ -1617,7 +1718,6 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gs,grid1,grid);
@@ -1642,7 +1742,6 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
       int l1 = basis1[1]; int m1 = basis1[2]; int ng = basis1[3];
       int in = ig + ng; //index to find norm
 
-      //printf("  (1) basis %i has %2i terms \n",i1,ng);
       double* valm = val1[ii1];
       double* valmg = NULL; if (gga) valmg = val1p[ii1];
       for (int j=0;j<ng;j++)
@@ -1713,7 +1812,7 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
      #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -1924,7 +2023,6 @@ void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vect
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gs,grid1,grid);
@@ -1999,7 +2097,7 @@ void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vect
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -2088,7 +2186,6 @@ void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vect
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gs,grid1,grid);
@@ -2184,7 +2281,7 @@ void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vect
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
      #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -2695,7 +2792,6 @@ void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vect
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
@@ -2782,7 +2878,7 @@ void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vect
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
@@ -3024,7 +3120,6 @@ void compute_lap_hessg(bool gbasis, int natoms, int* atno, double* coords, vecto
      //working on this block of the matrix
       int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-      double Z1 = (double)atno[m];
       double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
       if (lowmem)
@@ -3123,7 +3218,6 @@ void compute_lap_hessg(bool gbasis, int natoms, int* atno, double* coords, vecto
       {
         int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-        double Z2 = (double)atno[m];
         double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
         #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsaa])
@@ -3347,7 +3441,6 @@ void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords, vector<ve
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    double Z1 = (double)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
@@ -3434,7 +3527,6 @@ void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords, vector<ve
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      double Z2 = (double)atno[m];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
@@ -3650,7 +3742,6 @@ void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > 
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
@@ -3767,7 +3858,7 @@ void compute_rho(int natoms, int* atno, double* coords, vector<vector<double> > 
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
@@ -4033,7 +4124,6 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    double Z1 = (double)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
@@ -4115,7 +4205,6 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      double Z2 = (double)atno[m];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
@@ -4368,7 +4457,6 @@ void compute_lap_hess(int natoms, int* atno, double* coords, vector<vector<doubl
   {
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    double Z1 = (double)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
@@ -4513,7 +4601,6 @@ void compute_lap_hess(int natoms, int* atno, double* coords, vector<vector<doubl
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      double Z2 = (double)atno[m];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
@@ -6077,7 +6164,7 @@ void compute_fxc(int natoms, int* atno, double* coords, vector<vector<double> > 
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
+    //float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gs,grid1,grid);
@@ -6132,7 +6219,7 @@ void compute_fxc(int natoms, int* atno, double* coords, vector<vector<double> > 
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -6312,7 +6399,7 @@ void compute_fxc(int natoms, int* atno, double* coords, vector<vector<double> > 
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
      #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -6578,7 +6665,7 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    double Z1 = (double)atno[m];
+    //double Z1 = (double)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gs,grid1,grid);
@@ -6633,7 +6720,6 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      double Z2 = (double)atno[m];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -6702,7 +6788,7 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    double Z1 = (double)atno[m];
+    //double Z1 = (double)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gs,grid1,grid);
@@ -6793,7 +6879,6 @@ void compute_fxcd(int natoms, int* atno, double* coords, vector<vector<double> >
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      double Z2 = (double)atno[m];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gs])
@@ -7023,7 +7108,6 @@ void compute_dft_grad(int natoms, int* atno, double* coords, vector<vector<doubl
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
@@ -7099,7 +7183,7 @@ void compute_dft_grad(int natoms, int* atno, double* coords, vector<vector<doubl
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
 
-      float Z2 = (float)atno[m];
+      //float Z2 = (float)atno[n];
       double A2 = coords[3*n+0]; double B2 = coords[3*n+1]; double C2 = coords[3*n+2];
 
       #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
@@ -7515,4 +7599,61 @@ void test_becke_weight(int natoms, int* atno, double* coords, vector<vector<doub
 
   return;
 }
+
+
+
+
+
+ #if 0
+  for (int i=0;i<natoms;i++)
+  {
+    fp[i*natoms+i] = 1.;
+
+   // #pragma acc parallel loop collapse(2) present(Ra[0:nat2],aij[0:nat2],fp[0:nat2],coords[0:3*natoms],grid1[0:gc*gsa],wt1[0:gsa])
+    for (int j=0;j<natoms;j++)
+    {
+      float a12 = aij[i*natoms+j];
+      //float a21 = aij[j*natoms+i];
+      float oR12 = 1./Ra[i*natoms+j];
+
+      float dx1 = x-coords[3*i+0]; float dy1 = y-coords[3*i+1]; float dz1 = z-coords[3*i+2];
+      float dx2 = x-coords[3*j+0]; float dy2 = y-coords[3*j+1]; float dz2 = z-coords[3*j+2];
+      float r1 = sqrtf(dx1*dx1+dy1*dy1+dz1*dz1);
+      float r2 = sqrtf(dx2*dx2+dy2*dy2+dz2*dz2);
+
+      float mu12 = (r1-r2)*oR12;
+      float omm12 = 1.-mu12*mu12;
+      float nu12 =  mu12 + a12*omm12;
+      //float nu21 = -mu12 + a21*omm12;
+      float f12 = bf3(mu_order,nu12);
+      //float f21 = bf3(mu_order,nu21);
+
+      fp[i*natoms+j] = f12;
+      //fp[j*natoms+i] = f21;
+    }
+
+    float s1;
+    {
+      float s0 = 1.;
+     #pragma acc loop reduction(*:s0)
+      for (int j=0;j<natoms;j++)
+        s0 *= fp[wa*natoms+j];
+      s1 = s0;
+    }
+
+    float norm = 1.e-15;
+   #pragma acc loop reduction(+:norm)
+    for (int i=0;i<natoms;i++)
+    {
+      float s0 = 1.;
+     #pragma acc loop reduction(*:s0)
+      for (int j=0;j<natoms;j++)
+        s0 *= fp[i*natoms+j];
+      norm += s0;
+    }
+
+    wt1[n] *= s1/norm;
+
+  }
+ #endif
 
