@@ -557,6 +557,7 @@ void gen_4c_overlap_m4(double* ovlp4, size_t N,
                     int natm, int nbas, int nenv,
                     int* atm, int* bas, double* env)
 {
+  #ifdef COMPILE_CINTW_4C
   size_t N2 = N*N;
   size_t Npairs = N*(N+1)/2;
   CINTOpt *no_opt = NULL;
@@ -738,7 +739,12 @@ void gen_4c_overlap_m4(double* ovlp4, size_t N,
  #if USE_PARA_4C
   delete [] shell_offset;
  #endif
-
+  
+  #else
+    printf("\n\n\n ERROR: this SlaterGPU is not set up for 4c center integrals gbasis \n");
+    exit(-1);
+  #endif
+  
   return;
 }
 
@@ -747,6 +753,7 @@ void gen_4c_overlap(double* ovlp4, size_t N,
                     int natm, int nbas, int nenv,
                     int* atm, int* bas, double* env)
 {
+ #ifdef COMPILE_CINTW_4C
   size_t N2 = N*N;
   size_t idxi = 0, idxj = 0, idxk = 0, idxl = 0;
   size_t di, dj, dk, dl;
@@ -857,6 +864,10 @@ void gen_4c_overlap(double* ovlp4, size_t N,
 
   delete [] buf;
 
+  #else
+    printf("\n\n\n ERROR: this SlaterGPU is not set up for 4c center integrals gbasis \n");
+    exit(-1);
+  #endif
   return;
 }
 
