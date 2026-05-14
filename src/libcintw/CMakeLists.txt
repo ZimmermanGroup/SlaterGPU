@@ -18,6 +18,9 @@ set(CINTW_COMP_FLAGS ${CMAKE_CXX_FLAGS}
 add_definitions("-w")
 
 target_compile_options(cintw PRIVATE ${CINTW_COMP_FLAGS})
+if(COMPILE_CINTW_4C)
+    target_compile_definitions(cintw PRIVATE COMPILE_CINTW_4C)
+endif()
 target_include_directories(cintw PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
     "${LIBCINT_PATH}/include"
