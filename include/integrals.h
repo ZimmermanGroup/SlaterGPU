@@ -78,7 +78,8 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
 void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* En, double* pVp, int prl);
 void compute_Enp_para(int ngpu, int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, float* En, float* pVp, int prl);
 
-//electric fields in x,y,z (centered at origin)
+//electric fields in x,y,z (centered at origin) and confining potential
+void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl);
 void compute_Exyz(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, int nrad, int nang, double* ang_g, double* ang_w, double* S, double* E, int prl);
 
 void compute_ST(int natoms, int* atno, float* coords, vector<vector<double> > &basis, int nrad, int nang, double* ang_g0, double* ang_w0, double* S, double* T, int prl);
@@ -151,6 +152,7 @@ int get_imax_n2ip(int Nmax, int natoms, int N, vector<vector<double> >& basis, v
 
 int find_center_of_grid(float Z1, int nrad);
 void get_angular_grid(int size_ang, double* ang_g, double* ang_w);
+void get_angular_grid(int size_ang, float* ang_g, float* ang_w);
 void acc_assign(int size, float* vec, float v1);
 void acc_assign(int size, double* vec, double v1);
 void acc_assign(int tid, int size, double* vec, double v1);

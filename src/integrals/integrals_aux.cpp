@@ -609,6 +609,24 @@ void get_angular_grid(int size_ang, double* ang_g, double* ang_w)
   return;
 }
 
+void get_angular_grid(int size_ang, float* ang_g, float* ang_w)
+{
+  double* ang_gd = new double[3*size_ang];
+  double* ang_wd = new double[size_ang];
+
+  get_angular_grid(size_ang,ang_gd,ang_wd);
+
+  for (int j=0;j<3*size_ang;j++)
+    ang_g[j] = ang_gd[j];
+  for (int j=0;j<size_ang;j++)
+    ang_w[j] = ang_wd[j];
+
+  delete [] ang_gd;
+  delete [] ang_wd;
+
+  return;
+}
+
 void rgrid_one_atom(int nrad, int Z1, float* r1)
 {
   float w1[nrad];
@@ -1531,6 +1549,7 @@ vector<vector<double> > setup_integrals_gsgpu(vector<vector<double> >& basis_aux
   env = inp.get_env();
 
   map< int, basis_t > basmap = inp.basmap;
+  map< int, basis_t > basmap_ri = inp.basmap_ri;
 
   vector<vector<double> > basis;
   for (int n=0;n<natoms;n++)
@@ -1607,12 +1626,43 @@ vector<vector<double> > setup_integrals_gsgpu(vector<vector<double> >& basis_aux
     }
   }
 
- //just to make basis_aux's size correct
   basis_aux.clear();
-  for (int i=0;i<Naux;i++)
+  for (int n=0;n<natoms;n++)
   {
-    vector<double> b1; b1.push_back(1);
-    basis_aux.push_back(b1);
+    int i1 = atno[n];
+    basis_t basis1 = basmap_ri[i1];
+    int Z = basis1.nuc;
+    int nshell = basis1.shells.size();
+
+    for (int j=0;j<nshell;j++)
+    {
+      int size1 = basis1.exps[j].size();
+      int l1 = basis1.shells[j];
+      int lmin = -l1; int lmax = l1;
+
+      for (int m=lmin;m<=lmax;m++)
+      {
+        //int m1 = get_gauss_m(l1,m);
+        vector<double> b1; for (int p=0;p<10;p++) b1.push_back(0);
+        b1[0] = l1+1; b1[1] = l1; b1[2] = m;
+       //using b1[3]==b1[4] to store # of gaussians
+        b1[3] = b1[4] = size1;
+        b1[5] = coords[3*n+0]; b1[6] = coords[3*n+1]; b1[7] = coords[3*n+2];
+        b1[8] = Z; b1[9] = n;
+
+       //zeta then normalization coeffs
+        for (int k=0;k<size1;k++)
+          b1.push_back(basis1.exps[j][k]);
+        for (int k=0;k<size1;k++)
+        {
+          double norm1 = get_gto_norm(l1,basis1.exps[j][k])*basis1.coef[j][k];
+          if (l1>0) norm1 *= norm_sh(l1,m)/n0;
+          b1.push_back(norm1);
+        }
+
+        basis_aux.push_back(b1);
+      }
+    }
   }
 
   return basis;

@@ -32,6 +32,12 @@ endif()
 
 set(DO_GTO ${DO_GTO})
 
+set(COMPILE_CINTW_4C OFF)
+if("$ENV{COMPILE_CINTW_4C}" STREQUAL "ON")
+    set(COMPILE_CINTW_4C ON)
+endif()
+message(STATUS "COMPILE_CINTW_4C: ${COMPILE_CINTW_4C}")
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
