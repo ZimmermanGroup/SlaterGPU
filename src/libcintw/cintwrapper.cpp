@@ -753,7 +753,7 @@ void gen_4c_overlap(double* ovlp4, size_t N,
                     int natm, int nbas, int nenv,
                     int* atm, int* bas, double* env)
 {
- #ifdef COMPILE_CINTW_4C
+  #ifdef COMPILE_CINTW_4C
   size_t N2 = N*N;
   size_t idxi = 0, idxj = 0, idxk = 0, idxl = 0;
   size_t di, dj, dk, dl;
