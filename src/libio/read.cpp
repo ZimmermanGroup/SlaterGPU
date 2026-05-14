@@ -2796,37 +2796,69 @@ int get_bsize_jellium(double ztr, int l1, int auto_ri)
   int bmax = 1;
   if (l1==0)
   {
-    if (ztr>200. && auto_ri>4)
-      bmax = 33;
-    else if (ztr>20.)
-      bmax = 21;
+    if (ztr>20.)
+    {
+      if (auto_ri == 6)
+      bmax = 31;
+      else if (ztr>200. && auto_ri>4)
+        bmax = 33;
+      else
+        bmax = 21;
+    }
     else
       bmax = 17;
   }
   if (l1==1)
   {
-    if (ztr>200. && auto_ri>4)
-      bmax = 29;
-    else if (ztr>20.)
-      bmax = 19;
+    if (ztr>20.)
+    {
+      if (auto_ri == 6)
+        bmax = 27;
+      else if (ztr>200. && auto_ri>4)
+        bmax = 29;
+      else
+        bmax = 19;
+    }
     else
       bmax = 15;
   }
   if (l1==2)
   {
-    if (ztr>10. && auto_ri>4)
+    if (auto_ri == 6)
+      bmax = 15;
+    else if (ztr>10. && auto_ri>4)
       bmax = 12;
     else
       bmax = 9;
   }
   if (l1==3)
-    bmax = 7;
+  {
+    if (auto_ri == 6)
+      bmax = 9;
+    else
+      bmax = 7;
+  }
   if (l1==4)
-    bmax = 5;
+  {
+    if (auto_ri == 6)
+      bmax = 7;
+    else
+      bmax = 5;
+  }
   if (l1==5)
-    bmax = 3;
+  {
+    if (auto_ri == 6)
+      bmax = 5;
+    else
+      bmax = 3;
+  }
   if (l1==6)
-    bmax = 1;
+  {
+    if (auto_ri == 6)
+      bmax = 3;
+    else
+      bmax = 1;
+  }
 
   return bmax;
 }
