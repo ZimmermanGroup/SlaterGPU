@@ -16,7 +16,9 @@
 #include "prosph.h"
 #include "quad.h"
 #include "jellium_ints.h"
-
+#include <fstream>
+#include <iomanip>
+#include "becke.h"
 
 using namespace std;
 

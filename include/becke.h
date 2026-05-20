@@ -38,6 +38,10 @@ void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> >
 void compute_rhod(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);
 void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, float* grid, double* rho, double* drho, int prl);
 void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* rho, double* drho, int prl);
+void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords,
+                   vector<vector<double> > &basis, double* Pao,
+                   int nrad, int gsa, double* grid,
+                   double* rho, double* drho, double* Td, int prl);
 void compute_lap_hessg(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* lapl, double* hess, int prl);
 
 
