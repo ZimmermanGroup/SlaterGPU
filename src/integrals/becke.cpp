@@ -3749,7 +3749,7 @@ void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords,
 
         if (Td!=NULL)
         {
-          double d12h = 0.5*d12;
+          double d12h = d12;
 
           #pragma acc parallel loop present(Td[0:gsa],valmg[0:gsa3],valng[0:gsa3])
           for (int j=0;j<gsa;j++)
