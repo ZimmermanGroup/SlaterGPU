@@ -22,7 +22,11 @@ if("$ENV{USE_ACC}" STREQUAL "OFF")
     set(USE_ACC OFF)
 endif()
 message(STATUS "USE_ACC: ${USE_ACC}")
-set(USE_MPI True)
+# NOTE: SlaterGPU contains no MPI code (no MPI_* calls, no <mpi.h>, no target
+# links MPI::*). MPI is owned entirely by the ZEST/XCtera layers above, which
+# find and link it themselves. So there is intentionally no find_package(MPI)
+# or USE_MPI flag here — keeping the layer MPI-agnostic is what lets a
+# USE_MPI=OFF stack configure without MPI present. See ZEST#92.
 set(USE_OMP True)
 set(RED_DOUBLE True)
 
@@ -47,9 +51,6 @@ endif()
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
-if(USE_MPI)
-    find_package(MPI     REQUIRED)
-endif()
 if (USE_OMP)
     find_package(OpenMP  REQUIRED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
