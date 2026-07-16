@@ -47,6 +47,7 @@ int get_gs1(int nrad, int nang, float* gridf, double Rc)
 
 void reweight_core_jellium(int tid, const double beta, const double Rc, int gs, double* grid, double* wt)
 {
+  (void)tid;
   if (beta<=0. || Rc<=0. || gs<1) return;
 
   int gs6 = 6*gs;

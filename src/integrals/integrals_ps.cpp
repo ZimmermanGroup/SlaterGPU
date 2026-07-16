@@ -1155,7 +1155,9 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
   //if (nomp>1) { printf(" WARNING: cannot run compute_2c_ps in parallel \n"); nomp = 1; }
 
   bool dy = do_yukawa;
-  double jellium_reweight_beta = read_float("CORE2C");
+  double jellium_reweight_beta = read_float("JELLIUM_REWEIGHT_BETA");
+  if (jellium_reweight_beta<=0.)
+    jellium_reweight_beta = read_float("CORE2C");
   if (jellium_reweight_beta<0.) jellium_reweight_beta = 0.;
   int jellium = read_int("JELLIUM");
   double Rc_jellium = read_float("RC");
