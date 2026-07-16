@@ -53,9 +53,7 @@ void reweight_core_jellium(int tid, const double beta, const double Rc, int gs, 
   double Rc2 = Rc*Rc;
   double alpha = 2./Rc2;
 
-  printf("   reweight_core_jellium beta/Rc: %8.5f %8.5f \n",beta,Rc);
-
- #pragma acc parallel loop present(grid[0:gs6],wt[0:gs]) //async(tid+1)
+ #pragma acc parallel loop present(grid[0:gs6],wt[0:gs])
   for (int j=0;j<gs;j++)
   {
     double x = grid[6*j+0];

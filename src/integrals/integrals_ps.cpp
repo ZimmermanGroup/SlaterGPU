@@ -1155,13 +1155,13 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
   //if (nomp>1) { printf(" WARNING: cannot run compute_2c_ps in parallel \n"); nomp = 1; }
 
   bool dy = do_yukawa;
-  double rw_jcore = read_float("CORE2C");
-  if (rw_jcore<0.) rw_jcore = 0.;
+  double jellium_reweight_beta = read_float("CORE2C");
+  if (jellium_reweight_beta<0.) jellium_reweight_beta = 0.;
   int jellium = read_int("JELLIUM");
   double Rc_jellium = read_float("RC");
-  bool do_reweight_jellium = (jellium>0 && rw_jcore>0. && Rc_jellium>0.);
+  bool do_reweight_jellium = (jellium>0 && jellium_reweight_beta>0. && Rc_jellium>0.);
   if (do_reweight_jellium)
-    printf("   enabling jellium reweight in compute_2c_ps. beta/Rc: %8.5f %8.5f \n",rw_jcore,Rc_jellium);
+    printf("   enabling jellium reweight in compute_2c_ps. beta/Rc: %8.5f %8.5f \n",jellium_reweight_beta,Rc_jellium);
 
   int N = basis.size();
   int N2 = N*N;
@@ -1295,7 +1295,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
     {
       generate_ps_quad_grid(tid,cfn,wb,nbatch,Z1,1,coordn,quad_order,quad_order,nmu,nnu,nphi,grid,wt);
       if (do_reweight_jellium)
-        reweight_core_jellium(tid,rw_jcore,Rc_jellium,gs,grid,wt);
+        reweight_core_jellium(tid,jellium_reweight_beta,Rc_jellium,gs,grid,wt);
 
       int sp1 = 0; int sp2 = 0;
       int s1 = n2ip[m][sp1]; int s2 = n2ip[m][sp1+1];
