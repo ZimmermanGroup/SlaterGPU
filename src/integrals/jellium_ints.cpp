@@ -45,6 +45,30 @@ int get_gs1(int nrad, int nang, float* gridf, double Rc)
   return gs1;
 }
 
+void reweight_core_jellium(int tid, const double beta, const double Rc, int gs, double* grid, double* wt)
+{
+  if (beta<=0. || Rc<=0. || gs<1) return;
+
+  int gs6 = 6*gs;
+  double Rc2 = Rc*Rc;
+  double alpha = 2./Rc2;
+
+  printf("   reweight_core_jellium beta/Rc: %8.5f %8.5f \n",beta,Rc);
+
+ #pragma acc parallel loop present(grid[0:gs6],wt[0:gs]) //async(tid+1)
+  for (int j=0;j<gs;j++)
+  {
+    double x = grid[6*j+0];
+    double y = grid[6*j+1];
+    double z = grid[6*j+2];
+    double r2 = x*x+y*y+z*z;
+
+    wt[j] *= 1.+beta*exp(-alpha*r2);
+  }
+
+  return;
+}
+
 void symmetrize_diatomic(int N1, int N, double* jCA, int* aol, int* aom)
 {
   //separates xy DOF from z

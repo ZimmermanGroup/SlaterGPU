@@ -137,6 +137,8 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
 void compute_4c_ol_ps(int nbatch_min, int natoms, int* atno, double* coords, vector<vector<double> > &basis, int quad_order, int quad_r_order, int nmu, int nnu, int nphi, double* ol, int prl);
 /////////////////////////////////////////
 
+void reweight_core_jellium(int tid, const double beta, const double Rc, int gs, double* grid, double* wt);
+
 void get_inr_1s(int nrad, double zeta, double* r, double* inr);
 void get_inr_1s_f(int nrad, float zeta, float* r, float* inr);
 void get_inr_2s_f(int nrad, float zeta, float* r, float* inr);
