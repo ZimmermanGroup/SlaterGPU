@@ -24,11 +24,13 @@ using namespace std;
 
 bool BT::DO_CART = true;
 
-int binom(int n, int k) {
+int binom(int n, int k)
+{
   return (tgamma(n+1))/(tgamma(n+1-k)*tgamma(k+1));
 }
 
-int calc_di(int i, int *bas) {
+int calc_di(int i, int *bas)
+{
   int idx_i = 0;
   for (int j = 0; j < i; j++) {
     idx_i += CINTcgto_cart(j, bas);
@@ -268,7 +270,8 @@ void get_overlap_ri(double * overlap, int Naux,
 
 void get_hcore(double *hcore, double *En, double *T, int N,
                int natm, int nbas, int nenv,
-               int *atm, int *bas, double *env) {
+               int *atm, int *bas, double *env)
+{
   int idx_i = 0;
   int di, dj;
   int shls[2];
@@ -739,12 +742,12 @@ void gen_4c_overlap_m4(double* ovlp4, size_t N,
  #if USE_PARA_4C
   delete [] shell_offset;
  #endif
-  
+
   #else
     printf("\n\n\n ERROR: this SlaterGPU is not set up for 4c center integrals gbasis \n");
     exit(-1);
   #endif
-  
+
   return;
 }
 
@@ -871,36 +874,69 @@ void gen_4c_overlap(double* ovlp4, size_t N,
   return;
 }
 
-void gen_eri(double **eri, int N,
-             int natm, int nbas, int nenv,
-             int *atm, int *bas, double *env)
+void gen_eri_4b(double** eri, int N1, int N2, int N3, int N,
+             int natm, int nbas1, int nbas2, int nbas3, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp)
 {
-  //int N2 = N*N;
+  int N4 = N-N1-N2-N3;
+  int nbas12 = nbas1+nbas2;
+  int nbas13 = nbas12+nbas3;
+  if (nomp<1) nomp = 1;
+  if (nomp>nbas3) nomp = nbas3;
 
   int idxi = 0;
   int idxj = 0;
-  int idxk = 0;
-  int idxl = 0;
-  int di = 0;
-  int dj = 0;
-  int dk = 0;
-  int dl = 0;
-  CINTOpt *no_opt = NULL;
+  //int idxk = 0;
+  CINTOpt* no_opt = NULL;
+
+ //buffer size
+  int mdi = 0; int mdj = 0; int mdk = 0; int mdl = 0;
+  for (int i=0;i<nbas1;i++)
+  {
+    int di = CINTcgto_cart(i,bas);
+    if (di>mdi) mdi = di;
+  }
+  for (int j=nbas1;j<nbas12;j++)
+  {
+    int dj = CINTcgto_cart(j,bas);
+    if (dj>mdj) mdj = dj;
+  }
+  for (int k=nbas12;k<nbas13;k++)
+  {
+    int dk = CINTcgto_cart(k,bas);
+    if (dk>mdk) mdk = dk;
+  }
+  for (int l=nbas13;l<nbas;l++)
+  {
+    int dl = CINTcgto_cart(l,bas);
+    if (dl>mdl) mdl = dl;
+  }
+
+  int sizeb = mdi*mdj*mdk*mdl;
+  double* bufall = new double[sizeb*nomp];
   if (BT::DO_CART)
   {
-    for (int i = 0; i < nbas; i++)
+    for (int i=0;i<nbas1;i++)
     {
-      di = CINTcgto_cart(i,bas);
-      for (int j = 0; j < nbas; j++)
+      int di = CINTcgto_cart(i,bas);
+      for (int j=nbas1;j<nbas12;j++)
       {
-        dj = CINTcgto_cart(j,bas);
-        for (int k = 0; k < nbas; k++)
+        int dj = CINTcgto_cart(j,bas);
+       #pragma omp parallel for num_threads(nomp)
+        for (int k=nbas12;k<nbas13;k++)
         {
-          dk = CINTcgto_cart(k,bas);
-          for (int l = 0; l < nbas; l++)
+          //int tid = 0;
+          int tid = omp_get_thread_num();
+          double* buf = &bufall[sizeb*tid];
+
+          int idxk = 0;
+          for (int k1=nbas12;k1<k;k1++) idxk += CINTcgto_cart(k1,bas);
+          int idxl = 0;
+
+          int dk = CINTcgto_cart(k,bas);
+          for (int l=nbas13;l<nbas;l++)
           {
-            dl = CINTcgto_cart(l,bas);
-            double * buf = new double[di*dj*dk*dl];
+            int dl = CINTcgto_cart(l,bas);
             int shls[4];
             shls[0] = i;
             shls[1] = j;
@@ -908,24 +944,187 @@ void gen_eri(double **eri, int N,
             shls[3] = l;
             cint2e_cart(buf, shls, atm, natm, bas, nbas, env, no_opt);
 
-            for (int l1 = 0; l1 < dl; l1++) {
-              for (int k1 = 0; k1 < dk; k1++) {
-                for (int j1 = 0; j1 < dj; j1++) {
-                  for (int i1 = 0; i1 < di; i1++) {
+            for (int l1=0;l1<dl;l1++)
+            {
+              int ol = l1 + idxl;
+              for (int k1=0;k1<dk;k1++)
+              {
+                int ok = k1 + idxk;
+                for (int j1=0;j1<dj;j1++)
+                {
+                  int oj = j1 + idxj;
+                  for (int i1=0;i1<di;i1++)
+                  {
                     int oi = i1 + idxi;
-                    int oj = j1 + idxj;
-                    int ok = k1 + idxk;
-                    int ol = l1 + idxl;
-                    int ij = oi * N + oj;
-                    int kl = ok * N + ol;
+                    int ij = oi * N2 + oj;
+                    int kl = ok * N4 + ol;
                     int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
                     // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
-                    eri[ij][kl] = eri[kl][ij] = buf[bdx];
+                    eri[ij][kl] = buf[bdx];
                   } // for i1
                 } // for j1
               } // for k1
             } // for l1
-            delete [] buf;
+            idxl += dl;
+          } // for l
+          idxl = 0;
+          //idxk += dk;
+        } // for k
+        //idxk = 0;
+        idxj += dj;
+      } // for j
+      idxj = 0;
+      idxi += di;
+    } // for i
+  } // if BT::DO_CART
+  else
+  {
+    for (int i=0;i<nbas1;i++)
+    {
+      int di = CINTcgto_spheric(i,bas);
+      for (int j=nbas1;j<nbas12;j++)
+      {
+        int dj = CINTcgto_spheric(j,bas);
+       #pragma omp parallel for num_threads(nomp)
+        for (int k=nbas12;k<nbas13;k++)
+        {
+         //CPMZ need shell offsets
+          //int tid = 0;
+          int tid = omp_get_thread_num();
+          double* buf = &bufall[sizeb*tid];
+
+          int idxk = 0;
+          for (int k1=nbas12;k1<k;k1++) idxk += CINTcgto_spheric(k1,bas);
+
+          int idxl = 0;
+          int dk = CINTcgto_spheric(k,bas);
+          for (int l=nbas13;l<nbas;l++)
+          {
+            int dl = CINTcgto_spheric(l,bas);
+            int shls[4];
+            shls[0] = i;
+            shls[1] = j;
+            shls[2] = k;
+            shls[3] = l;
+            cint2e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (int l1=0;l1<dl;l1++)
+            {
+              int ol = l1 + idxl;
+              for (int k1=0;k1<dk;k1++)
+              {
+                int ok = k1 + idxk;
+                for (int j1=0;j1<dj;j1++)
+                {
+                  int oj = j1 + idxj;
+                  for (int i1=0;i1<di;i1++)
+                  {
+                    int oi = i1 + idxi;
+                    int ij = oi * N2 + oj;
+                    int kl = ok * N4 + ol;
+                    int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
+                    // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
+                    eri[ij][kl] = buf[bdx];
+                  } // for i1
+                } // for j1
+              } // for k1
+            } // for l1
+            idxl += dl;
+          } // for l
+          idxl = 0;
+          //idxk += dk;
+        } // for k
+        //idxk = 0;
+        idxj += dj;
+      } // for j
+      idxj = 0;
+      idxi += di;
+    } // for i
+  } // else
+
+  delete [] bufall;
+
+  return;
+}
+
+void gen_eri_2b(double** eri, int N1, int N,
+             int natm, int nbas1, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp)
+{
+  int N2 = N-N1;
+  if (nomp<1) nomp = 1;
+
+  int idxi = 0;
+  int idxj = 0;
+  int idxk = 0;
+  CINTOpt* no_opt = NULL;
+
+ //buffer size
+  int mdi = 0; int mdk = 0;
+  for (int i=0;i<nbas1;i++)
+  {
+    int di = CINTcgto_cart(i,bas);
+    if (di>mdi) mdi = di;
+  }
+  for (int k=nbas1;k<nbas;k++)
+  {
+    int dk = CINTcgto_cart(k,bas);
+    if (dk>mdk) mdk = dk;
+  }
+
+  int sizeb = mdi*mdi*mdk*mdk;
+  double* bufall = new double[sizeb*nomp];
+  if (BT::DO_CART)
+  {
+    for (int i=0;i<nbas1;i++)
+    {
+      int di = CINTcgto_cart(i,bas);
+      for (int j=0;j<nbas1;j++)
+      {
+        int dj = CINTcgto_cart(j,bas);
+       #pragma omp parallel for num_threads(nomp)
+        for (int k=nbas1;k<nbas;k++)
+        {
+          //int tid = 0;
+          int tid = omp_get_thread_num();
+          double* buf = &bufall[sizeb*tid];
+
+          int idxk = 0;
+          for (int k1=nbas1;k1<k;k1++) idxk += CINTcgto_cart(k1,bas);
+
+          int idxl = 0;
+          int dk = CINTcgto_cart(k,bas);
+          for (int l=nbas1;l<nbas;l++)
+          {
+            int dl = CINTcgto_cart(l,bas);
+            int shls[4];
+            shls[0] = i;
+            shls[1] = j;
+            shls[2] = k;
+            shls[3] = l;
+            cint2e_cart(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (int l1=0;l1<dl;l1++)
+            {
+              int ol = l1 + idxl;
+              for (int k1=0;k1<dk;k1++)
+              {
+                int ok = k1 + idxk;
+                for (int j1=0;j1<dj;j1++)
+                {
+                  int oj = j1 + idxj;
+                  for (int i1=0;i1<di;i1++)
+                  {
+                    int oi = i1 + idxi;
+                    int ij = oi * N1 + oj;
+                    int kl = ok * N2 + ol;
+                    int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
+                    // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
+                    eri[ij][kl] = buf[bdx];
+                  } // for i1
+                } // for j1
+              } // for k1
+            } // for l1
             idxl += dl;
           } // for l
           idxl = 0;
@@ -940,19 +1139,27 @@ void gen_eri(double **eri, int N,
   } // if BT::DO_CART
   else
   {
-    for (int i = 0; i < nbas; i++)
+    for (int i=0;i<nbas1;i++)
     {
-      di = CINTcgto_spheric(i,bas);
-      for (int j = 0; j < nbas; j++)
+      int di = CINTcgto_spheric(i,bas);
+      for (int j=0;j<nbas1;j++)
       {
-        dj = CINTcgto_spheric(j,bas);
-        for (int k = 0; k < nbas; k++)
+        int dj = CINTcgto_spheric(j,bas);
+       #pragma omp parallel for num_threads(nomp)
+        for (int k=nbas1;k<nbas;k++)
         {
-          dk = CINTcgto_spheric(k,bas);
-          for (int l = 0; l < nbas; l++)
+          //int tid = 0;
+          int tid = omp_get_thread_num();
+          double* buf = &bufall[sizeb*tid];
+
+          int idxk = 0;
+          for (int k1=nbas1;k1<k;k1++) idxk += CINTcgto_spheric(k1,bas);
+
+          int idxl = 0;
+          int dk = CINTcgto_spheric(k,bas);
+          for (int l=nbas1;l<nbas;l++)
           {
-            dl = CINTcgto_spheric(l,bas);
-            double * buf = new double[di*dj*dk*dl];
+            int dl = CINTcgto_spheric(l,bas);
             int shls[4];
             shls[0] = i;
             shls[1] = j;
@@ -960,24 +1167,27 @@ void gen_eri(double **eri, int N,
             shls[3] = l;
             cint2e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
 
-            for (int l1 = 0; l1 < dl; l1++) {
-              for (int k1 = 0; k1 < dk; k1++) {
-                for (int j1 = 0; j1 < dj; j1++) {
-                  for (int i1 = 0; i1 < di; i1++) {
+            for (int l1=0;l1<dl;l1++)
+            {
+              int ol = l1 + idxl;
+              for (int k1=0;k1<dk;k1++)
+              {
+                int ok = k1 + idxk;
+                for (int j1=0;j1<dj;j1++)
+                {
+                  int oj = j1 + idxj;
+                  for (int i1=0;i1<di;i1++)
+                  {
                     int oi = i1 + idxi;
-                    int oj = j1 + idxj;
-                    int ok = k1 + idxk;
-                    int ol = l1 + idxl;
-                    int ij = oi * N + oj;
-                    int kl = ok * N + ol;
+                    int ij = oi * N1 + oj;
+                    int kl = ok * N2 + ol;
                     int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
                     // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
-                    eri[ij][kl] = eri[kl][ij] = buf[bdx];
+                    eri[ij][kl] = buf[bdx];
                   } // for i1
                 } // for j1
               } // for k1
             } // for l1
-            delete [] buf;
             idxl += dl;
           } // for l
           idxl = 0;
@@ -991,12 +1201,245 @@ void gen_eri(double **eri, int N,
     } // for i
   } // else
 
+  delete [] bufall;
+
   return;
 }
 
-void gen_jMOI_gto(double **eri, int N,
+void gen_eri_2(double** eri, int N,
+             int natm, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp)
+{
+  CINTOpt* no_opt = NULL;
+  if (nomp<1) nomp = 1;
+
+  if (BT::DO_CART)
+  { printf("\n ERROR: gen_eri_2 does not support Cartesian GTOs \n"); exit(-1); }
+
+  int mdi = 0;
+  for (int i=0;i<nbas;i++)
+  {
+    int di = CINTcgto_cart(i,bas);
+    if (di>mdi) mdi = di;
+  }
+
+  int sbuf = mdi*mdi*mdi*mdi;
+  double* bufall = new double[sbuf*nomp];
+
+  vector<int> nf(nbas);
+  vector<int> offs(nbas);
+  int cum = 0;
+  for (int i=0;i<nbas;i++)
+  {
+    nf[i] = CINTcgto_spheric(i, bas);
+    offs[i] = cum; cum += nf[i];
+  }
+
+  //unique shell pairs
+  struct SP { int i, j; };
+  vector<SP> pairs;
+  pairs.reserve(nbas*(nbas+1)/2);
+  for (int i=0;i<nbas;i++)
+  for (int j=0;j<=i;j++)
+    pairs.push_back({i, j});
+  int npair = (int)pairs.size();
+
+  if (nomp>npair) nomp = npair;
+
+  int shls[4];
+  #pragma omp parallel for num_threads(nomp) schedule(dynamic) private(shls)
+  for (int p=0;p<npair;p++)
+  {
+    int tid = omp_get_thread_num();
+    double* buf = &bufall[tid*sbuf];
+
+    int i = pairs[p].i, j = pairs[p].j;
+    int di = nf[i], dj = nf[j], idxi = offs[i], idxj = offs[j];
+
+    for (int q=0;q<=p;q++) // ket pair index <= bra pair index -> bra-ket swap folded in
+    {
+      int k = pairs[q].i; int l = pairs[q].j;
+      int dk = nf[k]; int dl = nf[l]; int idxk = offs[k]; int idxl = offs[l];
+
+      shls[0] = i; shls[1] = j; shls[2] = k; shls[3] = l;
+      cint2e_sph(buf,shls,atm,natm,bas,nbas,env,no_opt);
+
+      for (int l1=0;l1<dl;l1++)
+      for (int k1=0;k1<dk;k1++)
+      for (int j1=0;j1<dj;j1++)
+      for (int i1=0;i1<di;i1++)
+      {
+        int oi = i1+idxi; int oj = j1+idxj; int ok = k1+idxk; int ol = l1+idxl;
+        int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+        double val = buf[bdx];
+
+        int ij = oi*N+oj; int ji = oj*N+oi;
+        int kl = ok*N+ol; int lk = ol*N+ok;
+        eri[ij][kl]=val; eri[ji][kl]=val; eri[ij][lk]=val; eri[ji][lk]=val;
+        eri[kl][ij]=val; eri[kl][ji]=val; eri[lk][ij]=val; eri[lk][ji]=val;
+      }
+    }
+  }
+
+  delete [] bufall;
+  return;
+}
+
+void gen_eri(double** eri, int N,
+             int natm, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp)
+{
+  CINTOpt* no_opt = NULL;
+  if (nomp<1) nomp = 1;
+
+  int mdi = 0;
+  for (int i=0;i<nbas;i++)
+  {
+    int di = CINTcgto_cart(i,bas);
+    if (di>mdi) mdi = di;
+  }
+
+  int sbuf = mdi*mdi*mdi*mdi;
+  double* bufall = new double[sbuf*nomp];
+
+  if (BT::DO_CART)
+  {
+    int shls[4];
+    int idxi = 0;
+    for (int i=0;i<nbas;i++)
+    {
+      int di = CINTcgto_cart(i,bas);
+
+     #pragma omp parallel for num_threads(nomp) private(shls)
+      for (int j=0;j<nbas;j++)
+      {
+        int tid = omp_get_thread_num();
+        double* buf = &bufall[tid*sbuf];
+
+        int idxj = 0; for (int j1=0;j1<j;j1++) idxj += CINTcgto_cart(j1,bas);
+
+        int dj = CINTcgto_cart(j,bas);
+        int idxk = 0;
+        for (int k=0;k<nbas;k++)
+        {
+          int dk = CINTcgto_cart(k,bas);
+          int idxl = 0;
+          for (int l=0;l<nbas;l++)
+          {
+            int dl = CINTcgto_cart(l,bas);
+            shls[0] = i;
+            shls[1] = j;
+            shls[2] = k;
+            shls[3] = l;
+            cint2e_cart(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (int l1=0;l1<dl;l1++)
+            for (int k1=0;k1<dk;k1++)
+            for (int j1=0;j1<dj;j1++)
+            for (int i1=0;i1<di;i1++)
+            {
+              int oi = i1 + idxi;
+              int oj = j1 + idxj;
+              int ok = k1 + idxk;
+              int ol = l1 + idxl;
+              int ij = oi * N + oj;
+              int kl = ok * N + ol;
+              int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
+              // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
+              eri[ij][kl] = buf[bdx];
+              //eri[ij][kl] = eri[kl][ij] = buf[bdx];
+
+            } // for l1k1j1l1
+            idxl += dl;
+          } // for l
+          idxl = 0;
+          idxk += dk;
+        } // for k
+        idxk = 0;
+        //idxj += dj;
+      } // for j
+      //idxj = 0;
+      idxi += di;
+    } // for i
+  } // if BT::DO_CART
+  else
+  {
+    int shls[4];
+    int idxi = 0;
+    for (int i=0;i<nbas;i++)
+    {
+      int di = CINTcgto_spheric(i,bas);
+     #pragma omp parallel for num_threads(nomp) private(shls)
+      for (int j=0;j<nbas;j++)
+      {
+        int tid = omp_get_thread_num();
+        double* buf = &bufall[tid*sbuf];
+
+        int idxj = 0; for (int j1=0;j1<j;j1++) idxj += CINTcgto_spheric(j1,bas);
+
+        int dj = CINTcgto_spheric(j,bas);
+
+        int idxk = 0;
+        for (int k=0;k<nbas;k++)
+        {
+          int dk = CINTcgto_spheric(k,bas);
+
+          int idxl = 0;
+          for (int l=0;l<nbas;l++)
+          {
+            int dl = CINTcgto_spheric(l,bas);
+            shls[0] = i;
+            shls[1] = j;
+            shls[2] = k;
+            shls[3] = l;
+            cint2e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+            for (int l1=0;l1<dl;l1++)
+            for (int k1=0;k1<dk;k1++)
+            for (int j1=0;j1<dj;j1++)
+            for (int i1=0;i1<di;i1++)
+            {
+              int oi = i1 + idxi;
+              int oj = j1 + idxj;
+              int ok = k1 + idxk;
+              int ol = l1 + idxl;
+              int ij = oi * N + oj;
+              int kl = ok * N + ol;
+              int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*(di) + i1;
+              // printf("oi %2d oj %2d ok %2d ol %2d ij %6d kl %6d\n",oi, oj, ok, ol,ij,kl);
+              eri[ij][kl] = buf[bdx];
+              //eri[ij][kl] = eri[kl][ij] = buf[bdx];
+
+            } // for l1k1j1i1
+            idxl += dl;
+          } // for l
+          idxl = 0;
+          idxk += dk;
+        } // for k
+        idxk = 0;
+        //idxj += dj;
+      } // for j
+      //idxj = 0;
+      idxi += di;
+    } // for i
+  } // else
+
+  delete [] bufall;
+
+  return;
+}
+
+void gen_eri(double** eri, int N,
+             int natm, int nbas, int nenv,
+             int* atm, int* bas, double* env)
+{
+  return gen_eri(eri,N,natm,nbas,nenv,atm,bas,env,1);
+}
+
+void gen_jMOI_gto(double** eri, int N,
                   int natm, int nbas, int nenv,
-                  int *atm, int *bas, double *env) {
+                  int *atm, int *bas, double *env)
+{
   int N2 = N*N;
 
   int idxi = 0;
@@ -1008,7 +1451,8 @@ void gen_jMOI_gto(double **eri, int N,
   int dk = 0;
   int dl = 0;
   CINTOpt *no_opt = NULL;
-  if (BT::DO_CART) {
+  if (BT::DO_CART)
+  {
     for (int i = 0; i < nbas; i++) {
       di = CINTcgto_cart(i,bas);
       for (int j = 0; j < nbas; j++) {
@@ -1057,7 +1501,8 @@ void gen_jMOI_gto(double **eri, int N,
       idxi += di;
     } // for i
   } // if BT::DO_CART
-  else {
+  else
+  {
     for (int i = 0; i < nbas; i++) {
       di = CINTcgto_spheric(i,bas);
       for (int j = 0; j < nbas; j++) {
@@ -1301,17 +1746,21 @@ void gen_eri_3c(double *eri, int N, int Naux,
 
 void gen_eri_2c(double *eri, int Naux,
                 int natm, int nbas, int nenv, int nbas_ri,
-                int *atm, int *bas, double *env) {
+                int *atm, int *bas, double *env)
+{
   int Naux2 = Naux * Naux;
   int idxmu = 0;
   int idxnu = 0;
   int dmu = 0;
   int dnu = 0;
   CINTOpt *no_opt = NULL;
-  if (BT::DO_CART) {
-    for (int mu = 0; mu < nbas_ri; mu++) {
+  if (BT::DO_CART)
+  {
+    for (int mu = 0; mu < nbas_ri; mu++)
+    {
       dmu = CINTcgto_cart(mu+nbas,bas);
-      for (int nu = 0; nu <= mu; nu++) {
+      for (int nu = 0; nu <= mu; nu++)
+      {
         dnu = CINTcgto_cart(nu+nbas,bas);
         double *buf = new double[dmu * dnu];
         int shls[4];
@@ -1320,8 +1769,10 @@ void gen_eri_2c(double *eri, int Naux,
         shls[2] = nu + nbas;
         shls[3] = nbas + nbas_ri;
         cint2e_cart(buf, shls, atm, natm, bas, nbas + nbas_ri + 1, env, no_opt);
-        for (int mu1 = 0; mu1 < dmu; mu1++) {
-          for (int nu1 = 0; nu1 < dnu; nu1++) {
+        for (int mu1 = 0; mu1 < dmu; mu1++)
+        {
+          for (int nu1 = 0; nu1 < dnu; nu1++)
+          {
             int omu = mu1 + idxmu;
             int onu = nu1 + idxnu;
             int bdx = nu1 * dmu + mu1;
