@@ -1670,8 +1670,10 @@ vector<vector<double> > setup_integrals_gsgpu(vector<vector<double> >& basis_aux
 
 void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas_ri, int* atm, int* bas, double* env, double* S, double* T, double* jH1, double* A, double* C, int prl)
 {
-  get_overlap(S, N, natm, nbas, nenv, atm, bas, env);
-  get_hcore(jH1, N, natm, nbas, nenv, atm, bas, env);
+  if (S!=NULL)
+    get_overlap(S, N, natm, nbas, nenv, atm, bas, env);
+  if (jH1!=NULL)
+    get_hcore(jH1, N, natm, nbas, nenv, atm, bas, env);
   if (T!=NULL)
     get_tcore(T, N, natm, nbas, nenv, atm, bas, env);
 
@@ -1688,7 +1690,7 @@ void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas
     gen_eri_2c(A, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
     gen_eri_3c(C, N, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
   }
-  else
+  else if (prl>0)
   {
     printf("  no auxiliary basis \n");
   }
@@ -1740,7 +1742,7 @@ void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas
     gen_eri_2c(A, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
     gen_eri_3c(C, N, Naux, natm, nbas, nenv, nbas_ri, atm, bas, env);
   }
-  else
+  else if (prl>0)
   {
     printf("  no auxiliary basis \n");
   }
