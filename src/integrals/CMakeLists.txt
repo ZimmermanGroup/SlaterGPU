@@ -60,6 +60,9 @@ if(USE_ACC)
     target_compile_options(SlaterGPU PRIVATE
         ${SLATER_COMP_FLAGS} -DUSE_ACC=1 -acc=gpu
         )
+    # PUBLIC: cuda_util.h includes cublas_v2.h/cusolverDn.h when USE_ACC,
+    # so dependents (io, sgpu.exe, consumers) need the headers and libraries too
+    target_link_libraries(SlaterGPU PUBLIC CUDA::cublas CUDA::cusolver)
 else()
     target_compile_options(SlaterGPU PRIVATE
         ${SLATER_COMP_FLAGS} -DUSE_ACC=0

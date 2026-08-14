@@ -56,6 +56,10 @@ if (USE_OMP)
 endif()
 if (USE_ACC)
     find_package(OpenACC REQUIRED)
+    # Provides CUDA::cublas / CUDA::cusolver imported targets (headers + libs),
+    # so the GPU build does not depend on CPATH from the developer's shell
+    # reaching the compiler (see issue #98)
+    find_package(CUDAToolkit REQUIRED)
 endif()
 
 set(CMAKE_CXX_STANDARD 14)
