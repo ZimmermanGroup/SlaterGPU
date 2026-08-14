@@ -8,10 +8,10 @@ find_dependency(MPI REQUIRED)
 find_dependency(BLAS REQUIRED)
 find_dependency(LAPACK REQUIRED)
 
-# Find CUDA if available
-find_package(CUDA QUIET)
-if(CUDA_FOUND)
-    enable_language(CUDA)
+# The GPU build links CUDA::cublas / CUDA::cusolver, which consumers need
+# to resolve from the exported SlaterGPU target
+if(@USE_ACC@)
+    find_dependency(CUDAToolkit REQUIRED)
 endif()
 
 # Include the targets file
