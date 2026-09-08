@@ -9,490 +9,181 @@
 //eval_gh: check factor of sqrt(2)?
 
 
-void eval_vghd(int gsa, double* grid, double* val, int n, int l, int m, double norm, double zt)
+void eval_vghd(int gsa, double* grid, double* val, int n, int l, double norm, double zt)
 {
   int gsa6 = 6*gsa;
-  double nph = l+0.5;
 
   if (l>5) { printf("\n ERROR: l>6 in eval_vgh \n"); exit(-1); }
 
- #if 1
-  double normf = 2.*PI/(2.*l+1.)*norm;
-  double norm1 = pow(zt,-0.5*(2.*l+3.));
-  double norm2 = pow(zt,-1.-0.5*l);
-  double gf1 = 0.5*(2.*l+3.);
-  double gf2 = 1.-0.5*l;
-
-  #pragma acc parallel loop present(grid[0:gsa6],val[0:gsa])
-  for (int j=0;j<gsa;j++)
-  {
-    double r = grid[6*j+3];
-    double zr2 = zt*r*r;
-    double rl1 = pow(r,-l-1.);
-    double rl  = pow(r,l);
-    val[j] = normf*(norm1*rl1*igam(gf1,zr2) + norm2*rl*igamc(gf2,zr2));
-  }
- #endif
-
- #if 0
-  double normf = 0.5*PI*norm/zt;
-  //normf *= 11.136655993664;
- //CPMZ check all of these
- /*
-  if (l==1) normf *= 0.5;
-  if (l==2) normf *= 0.75;
-  if (l==3) normf *= 1.875;
-  if (l==4) normf *= 6.5625;
-  if (l==5) normf *= 29.53125;
-  if (l==6) normf *= 162.421875;
- */
+  double nph = l+0.5;
+  double normf = 0.25*PI*PI*norm/zt;
+  //double normf = 0.5*norm/zt; //this norm gives A matrix same as eri_2c
+  normf *= tgamma(nph);
 
  #pragma acc parallel loop present(grid[0:gsa6],val[0:gsa])
   for (int j=0;j<gsa;j++)
   {
     double r = grid[6*j+3];
     double zr2 = zt*r*r;
-    //double rl = pow(r,l);
 
     double Fn = pow(zr2,-nph)*igam(nph,zr2);
     val[j] = normf*Fn;
   }
- #endif
 
   return;
 }
 
-#if 0
-void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int No, int M, int natoms, int* atno, double* coords, int gs, int gsb, vector<vector<double> >& basis,
-                    double* Pao, double* Pmo, double* jCA, float* grid, float* gridb, float* wt, float* wtb, float* rho, float* vxch, int prl)
+//CPMZ update this to work with MO basis
+void gen_4cj_overlap(double* ol4j, int nrad, int nang, double* ang_g, double* ang_w,
+                     int natoms, int* atno, double* coords, vector<vector<double> > basis, int prl)
 {
-  #define OUTER_DIVIDE 1
+  if (prl>-1) printf(" TESTING: gen_4cj_overlap \n");
 
-  int ngpu = acc_get_num_devices(acc_device_nvidia);
-  if (ngpu<1) ngpu = 1;
-
-  printf("\n creating xc hole potential in Gaussian basis (ngpu: %i) \n",ngpu);
-  fflush(stdout);
-
-  if (Nc>0)
-  {
-    printf("\n ERROR: Nc must be zero \n");
-    exit(1);
-  }
+  int gs = nrad*nang;
+  int gsa = gs*natoms;
+  int gsa3 = gsa*3;
+  int gsa6 = gsa*6;
 
   int N = basis.size();
   int N2 = N*N;
-
-  int M2 = M*M;
-  int M3 = M*M2;
-  int M4 = M2*M2;
-
-  float* Pmof = new float[N2];
-  for (int m=0;m<N2;m++)
-    Pmof[m] = Pmo[m];
-
-  if (M<8 && prl>-2)
-  {
-    printf("\n jCA: \n");
-    print_square(N,jCA);
-    printf("\n Pao: \n");
-    print_square(N,Pao);
-    printf("\n Pmo: \n");
-    print_square(N,Pmo);
-    print_rdm(M,rdm);
-  }
-
-  if (!full_rdm)
-  {
-   //removes one operation from within loop
-    for (int p=0;p<M;p++)
-    for (int q=0;q<M;q++)
-    for (int r=0;r<M;r++)
-    for (int s=0;s<M;s++)
-      rdm[p*M3+q*M2+r*M+s] -= Pmo[p*N+q]*Pmo[r*N+s];
-  }
-
-  float* rdmf = new float[M4];
-  for (int m=0;m<M4;m++)
-    rdmf[m] = rdm[m];
-
-  int gsa = natoms*gs;
-  int gsa6 = 6*gsa;
-  int gsba = natoms*gsb;
-  int gsba6 = 6*gsba;
+  int N3 = N2*N;
+  int N4 = N3*N;
 
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
 
   int iN = N;
-
- //tmp arrays for summing over contracted Gaussians
-  float* val0 = new float[gsa];
-  float* val0b = new float[gsba];
-
- // 1 --> AO
- // 2 --> MO
-  float** val1 = new float*[iN];
+  double* val0 = new double[gsa];
+  double* val0p = new double[gsa3];
+  double** val1  = new double*[iN];
+  double** val1p = new double*[iN];
   for (int i=0;i<iN;i++)
-    val1[i] = new float[gsa];
-  float** val2 = new float*[iN];
+    val1[i]  = new double[gsa];
   for (int i=0;i<iN;i++)
-    val2[i] = new float[gsa];
+    val1p[i] = new double[gsa3];
 
-  float** val1b = new float*[iN];
-  for (int i=0;i<iN;i++)
-    val1b[i] = new float[gsba];
-  float** val2b = new float*[iN];
-  for (int i=0;i<iN;i++)
-    val2b[i] = new float[gsba];
+  double* grid = new double[gsa6];
+  double* wt = new double[gsa];
+  double* grid1 = new double[gsa6];
+  #pragma acc enter data create(grid[0:gsa6],wt[0:gsa],grid1[0:gsa6])
 
-  float* grid1 = new float[gsa6];
-  float* grid1b = new float[gsba6];
+  #pragma acc enter data copyin(ang_g[0:3*nang],ang_w[0:nang])
+  get_becke_grid_full(natoms,atno,coords,nrad,nang,ang_g,ang_w,6,grid,wt);
+  #pragma acc exit data delete(ang_g[0:3*nang],ang_w[0:nang])
 
-  float* vxcht = new float[gsa];
-  float* rdm2 = new float[M2];
+  #pragma acc enter data create(val0[0:gsa],val1[0:iN][0:gsa])
+  #pragma acc enter data create(val0p[0:gsa3],val1p[0:iN][0:gsa3])
 
-  #pragma omp parallel for schedule(static) num_threads(ngpu)
-  for (int g=0;g<ngpu;g++)
-  {
-    acc_set_device_num(g,acc_device_nvidia);
+  for (size_t j=0;j<N2*N2;j++)
+    ol4j[j] = 0.;
 
-    if (g>0)
-    {
-      #pragma acc enter data create(grid[0:gsa6])
-    }
-    #pragma acc enter data create(vxcht[0:gsa])
+  #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gsa;j++)
+    val1[i1][j] = 0.;
 
-    #pragma acc enter data copyin(rdmf[0:M4],Pmof[0:N2])
-    #pragma acc enter data create(rdm2[0:M2])
+  #pragma acc parallel loop collapse(2) present(val1p[0:iN][0:gsa3])
+  for (int i1=0;i1<N;i1++)
+  for (int j=0;j<gsa3;j++)
+    val1p[i1][j] = 0.;
 
-    #pragma acc enter data copyin(jCA[0:N2],Pmo[0:N2])
-    #pragma acc enter data create(val0[0:gsa],val0b[0:gsba],val1[0:iN][0:gsa],val2[0:iN][0:gsa],val1b[0:iN][0:gsba],val2b[0:iN][0:gsba])
-
-    if (g==0)
-    {
-      #pragma acc enter data create(grid1[0:gsa6],grid1b[0:gsba6])
-    }
-
-    #pragma acc parallel loop present(vxcht[0:gsa])
-    for (int j=0;j<gsa;j++)
-      vxcht[j] = 0.;
-  }
-  acc_set_device_num(0,acc_device_nvidia);
-
-
-  const int ig = 10; //first index to exp in Gaussian basis
+  const int ig = 10;
 
   for (int m=0;m<natoms;m++)
   {
    //working on this block of the matrix
     int s1 = 0; if (m>0) s1 = n2i[m-1]; int s2 = n2i[m];
 
-    float Z1 = (float)atno[m];
     double A1 = coords[3*m+0]; double B1 = coords[3*m+1]; double C1 = coords[3*m+2];
 
     copy_grid(gsa,grid1,grid);
     recenter_grid_zero(gsa,grid1,-A1,-B1,-C1);
-    copy_grid(gsba,grid1b,gridb);
-    recenter_grid_zero(gsba,grid1b,-A1,-B1,-C1);
-
-    #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa])
-    for (int i1=s1;i1<s2;i1++)
-    for (int j=0;j<gsa;j++)
-      val1[i1][j] = 0.f;
-
-    #pragma acc parallel loop collapse(2) present(val1b[0:iN][0:gsba])
-    for (int i1=s1;i1<s2;i1++)
-    for (int j=0;j<gsba;j++)
-      val1b[i1][j] = 0.f;
 
     for (int i1=s1;i1<s2;i1++)
     {
-      int ii1 = i1;
-
       vector<double> basis1 = basis[i1];
       int l1 = basis1[1]; int m1 = basis1[2]; int ng = basis1[3];
       int in = ig + ng; //index to find norm
 
-      float* valm = val1[ii1];
-      float* valn = val1b[ii1];
+      double* valm = val1[i1];
+      double* valmp = val1p[i1];
       for (int j=0;j<ng;j++)
       {
         double zeta1 = basis1[ig+j]; double norm1 = basis1[in+j];
 
-        eval_gh(gsa,grid1,val0,l1,m1,norm1,zeta1);
+        eval_ghd(gsa,grid1,val0,l1,m1,norm1,zeta1);
 
-        #pragma acc parallel loop present(val0[0:gsa],valm[0:gsa])
+       #pragma acc parallel loop present(val0[0:gsa],valm[0:gsa])
         for (int k=0;k<gsa;k++)
           valm[k] += val0[k];
 
-        eval_gh(gsba,grid1b,val0b,l1,m1,norm1,zeta1);
+        eval_pd_gh(gsa,grid1,val0p,l1+1,l1,m1,norm1,zeta1);
 
-        #pragma acc parallel loop present(val0b[0:gsba],valn[0:gsba])
-        for (int k=0;k<gsba;k++)
-          valn[k] += val0b[k];
+       #pragma acc parallel loop present(val0p[0:gsa3],valmp[0:gsa3])
+        for (int k=0;k<gsa3;k++)
+          valmp[k] += val0p[k];
       }
-    }
-  }
 
+    } //loop i1 over basis
+  } //loop m over natoms
 
- #if OUTER_DIVIDE
- //need rho
-  #pragma acc parallel loop present(rho[0:gsa])
-  for (int j=0;j<gsa;j++)
-    rho[j] = RHO_ZERO;
-
+ //compute all
   for (int i1=0;i1<N;i1++)
+  for (int i2=0;i2<N;i2++)
   {
-    int ii1 = i1;
-    float* valn = val1[ii1];
+    double* valm = val1[i1];
+    double* valnp = val1p[i2];
+    if (i2==0 && N>20 && i1%2) printf(" . ");
 
-    for (int i2=0;i2<N;i2++)
+    for (int i3=0;i3<N;i3++)
+    for (int i4=0;i4<N;i4++)
     {
-      float d1 = Pao[i1*N+i2];
+      int ind = i1*N3+i2*N2+i3*N+i4;
 
-      int ii2 = i2;
-      float* valm = val1[ii2];
+      double* valp = val1[i3];
+      double* valqp = val1p[i4];
 
-      #pragma acc parallel loop present(rho[0:gsa],valm[0:gsa],valn[0:gsa])
+      double vtx = 0.; double vty = 0.; double vtz = 0.;
+     #pragma acc parallel loop present(valm[0:gsa],valnp[0:gsa3],valp[0:gsa],valqp[0:gsa3]) reduction(+:vtx,vty,vtz)
       for (int j=0;j<gsa;j++)
-        rho[j] += d1*valn[j]*valm[j];
-    }
-  }
- #endif
-
- //AO-->MO
-  #pragma acc parallel loop collapse(2) present(val2[0:iN][0:gsa])
-  for (int i1=0;i1<N;i1++)
-  for (int j=0;j<gsa;j++)
-    val2[i1][j] = 0.f;
-  #pragma acc parallel loop collapse(2) present(val2b[0:iN][0:gsba])
-  for (int i1=0;i1<N;i1++)
-  for (int j=0;j<gsba;j++)
-    val2b[i1][j] = 0.f;
-
-  #pragma acc parallel loop collapse(2) present(val1[0:iN][0:gsa],val2[0:iN][0:gsa],jCA[0:N2])
-  for (int i1=0;i1<N;i1++)
-  for (int j=0;j<gsa;j++)
-  {
-    float v2 = 0.f;
-    #pragma acc loop reduction(+:v2)
-    for (int k=0;k<N;k++)
-      v2 += jCA[k*N+i1]*val1[k][j];
-    val2[i1][j] = v2;
-  }
-  #pragma acc parallel loop collapse(2) present(val1b[0:iN][0:gsba],val2b[0:iN][0:gsba],jCA[0:N2])
-  for (int i1=0;i1<N;i1++)
-  for (int j=0;j<gsba;j++)
-  {
-    float v2 = 0.f;
-    #pragma acc loop reduction(+:v2)
-    for (int k=0;k<N;k++)
-      v2 += jCA[k*N+i1]*val1b[k][j];
-    val2b[i1][j] = v2;
-  }
-
-  #if USE_ACC
-  copy_to_all_gpu(ngpu,gsa6,grid,0);
-  for (int i1=0;i1<N;i1++)
-    copy_to_all_gpu(ngpu,gsa,val2[i1],0);
-  for (int i1=0;i1<N;i1++)
-    copy_to_all_gpu(ngpu,gsba,val2b[i1],0);
-  #endif
-
-
-  int gdiv = gsba/ngpu+1;
-  double den = 0.;
-  #pragma omp parallel for schedule(static) num_threads(ngpu) reduction(+:den)
-  for (int g=0;g<ngpu;g++)
-  {
-    acc_set_device_num(g,acc_device_nvidia);
-    int s1 = g*gdiv;
-    int s2 = (g+1)*gdiv; if (g==ngpu-1) s2 = gsba;
-
-    if (prl>1) printf("  s1/2: %6i %6i \n",s1,s2);
-    for (int j=s1;j<s2;j++)
-    {
-      float x1 = gridb[6*j+0]; float y1 = gridb[6*j+1]; float z1 = gridb[6*j+2];
-      float wt1 = wtb[j];
-
-      #pragma acc parallel loop present(rdm2[0:M2])
-      for (int m=0;m<M2;m++)
-        rdm2[m] = 0.f;
-
-      float dtt = 0.f;
-      #pragma acc parallel loop collapse(2) present(rdm2[0:M2],rdmf[0:M4],Pmof[0:N2],val2b[0:iN][0:gsba]) reduction(+:dtt)
-      for (int r=0;r<M;r++)
-      for (int s=0;s<M;s++)
       {
-        float dt = 0.f;
-        //float p1 = Pmof[r*N+s];
+        double v10 = valm[j]*valp[j];
+        double v1x = valnp[3*j+0]*valqp[3*j+0];
+        double v1y = valnp[3*j+1]*valqp[3*j+1];
+        double v1z = valnp[3*j+2]*valqp[3*j+2];
 
-        #pragma acc loop collapse(2) reduction(+:dt)
-        for (int p=0;p<M;p++)
-        for (int q=0;q<M;q++)
-        {
-          float d0 = rdmf[p*M3+q*M2+r*M+s];
-          d0 *= val2b[p][j]*val2b[q][j];
-          dt += d0;
-        }
-        rdm2[r*M+s] = dt;
-        dtt += dt;
+        vtx += v10*v1x;
+        vty += v10*v1y;
+        vtz += v10*v1z;
       }
 
-      double d1b = 0.;
-      #pragma acc parallel loop collapse(2) present(Pmof[0:N2],val2b[0:iN][0:gsba]) reduction(+:d1b)
-      for (int p=0;p<N;p++)
-      for (int q=0;q<N;q++)
-      {
-        float d0 = Pmof[p*N+q];
-        d0 *= val2b[p][j]*val2b[q][j];
-
-        d1b += d0;
-      }
-      den += d1b*wt1;
-
-      //if (fabs(dtt)>1.e-8 && fabs(d1b)>1.e-8)
-      #pragma acc parallel loop present(vxcht[0:gsa],Pmo[0:N2],Pmof[0:N2],rdm2[0:M2],grid[0:gsa6],val2[0:iN][0:gsa],val2b[0:iN][0:gsba])
-      for (int k=0;k<gsa;k++)
-      {
-        float x12 = grid[6*k+0]-x1; float y12 = grid[6*k+1]-y1; float z12 = grid[6*k+2]-z1;
-
-        float rn = sqrtf(x12*x12+y12*y12+z12*z12)+RDEN;
-        float or1 = 1.f/rn;
-
-       #if !OUTER_DIVIDE
-        double d1 = RHO_ZERO;
-        #pragma acc loop collapse(2) reduction(+:d1)
-        for (int p=0;p<N;p++)
-        for (int q=0;q<N;q++)
-        {
-          float d0 = Pmof[p*N+q];
-          d0 *= val2[p][k]*val2[q][k];
-
-          d1 += d0;
-        }
-       #endif
-
-        double d2 = 0.;
-        //if (fabs(d1)>1.e-8)
-        #pragma acc loop collapse(2) reduction(+:d2)
-        for (int r=0;r<M;r++)
-        for (int s=0;s<M;s++)
-        {
-          float d0 = rdm2[r*M+s];
-          d0 *= val2[r][k]*val2[s][k];
-          d2 += d0;
-        }
-       #if !OUTER_DIVIDE
-        d2 /= d1;
-       #endif
-
-        vxcht[k] += d2*wt1*or1;
-
-      } //loop k (on gpu)
-    } //loop j
-
-  } //loop g (omp)
-
-  for (int j=0;j<gsa;j++)
-    vxch[j] = 0.;
-  //int gdiv2 = gsa/ngpu+1;
-  for (int g=0;g<ngpu;g++)
-  {
-    acc_set_device_num(g,acc_device_nvidia);
-    #pragma acc update self(vxcht[0:gsa])
-
-    //#pragma omp parallel for schedule(static,gdiv2) num_threads(ngpu)
-    for (int k=0;k<gsa;k++)
-      vxch[k] += vxcht[k];
-  }
-  acc_set_device_num(0,acc_device_nvidia);
-  #pragma acc update device(vxch[0:gsa])
-
-  double Pao_den = 0.;
- #if OUTER_DIVIDE
-  #pragma acc parallel loop present(rho[0:gsa],wt[0:gsa]) reduction(+:Pao_den)
-  for (int k=0;k<gsa;k++)
-    Pao_den += rho[k]*wt[k];
-
-  #pragma acc parallel loop present(vxch[0:gsa],rho[0:gsa])
-  for (int k=0;k<gsa;k++)
-    vxch[k] /= rho[k];
-
-  #pragma acc update self(vxch[0:gsa])
- #endif
-
-
-  printf("\n");
-  printf("  total den (Pmo/Pao): %9.6f %9.6f \n",den,Pao_den);
-
-
-  if (full_rdm)
-    printf("\n vxch(full): \n");
-  else
-    printf("\n vxch: \n");
-  for (int n=0;n<natoms;n++)
-  {
-    for (int m=0;m<gs;m+=pr_inc)
-      printf(" %8.5f",vxch[n*gs+m]);
-    printf("\n");
-  }
-  printf("\n");
-
- //cleanup
-  #pragma omp parallel for schedule(static) num_threads(ngpu)
-  for (int g=0;g<ngpu;g++)
-  {
-    acc_set_device_num(g,acc_device_nvidia);
-
-    if (g>0)
-    {
-      #pragma acc exit data delete(grid[0:gsa6])
-    }
-    #pragma acc exit data delete(vxcht[0:gsa])
-    #pragma acc exit data delete(rdmf[0:M4])
-    #pragma acc exit data delete(rdm2[0:M2],Pmof[0:N2])
-    #pragma acc exit data delete(jCA[0:N2],Pmo[0:N2])
-    #pragma acc exit data delete(val0[0:gsa],val0b[0:gsba],val1[0:iN][0:gsa],val2[0:iN][0:gsa],val1b[0:iN][0:gsba],val2b[0:iN][0:gsba])
-    if (g==0)
-    {
-      #pragma acc exit data delete(grid1[0:gsa6],grid1b[0:gsba6])
+      ol4j[ind] = vtx;
+      ol4j[N4+ind] = vty;
+      ol4j[2*N4+ind] = vtz;
     }
   }
 
-  delete [] n2i;
+  #pragma acc exit data delete(grid[0:gsa6],wt[0:gsa],grid1[0:gsa6])
+  #pragma acc exit data delete(val0[0:gsa],val1[0:iN][0:gsa])
+  #pragma acc exit data delete(val0p[0:gsa3],val1p[0:iN][0:gsa3])
 
+  delete [] grid;
+  delete [] wt;
   delete [] grid1;
-  delete [] grid1b;
-
-  delete [] val0;
-  delete [] val0b;
+  delete [] n2i;
 
   for (int i=0;i<iN;i++)
     delete [] val1[i];
   delete [] val1;
-
   for (int i=0;i<iN;i++)
-    delete [] val2[i];
-  delete [] val2;
+    delete [] val1p[i];
+  delete [] val1p;
 
-  for (int i=0;i<iN;i++)
-    delete [] val1b[i];
-  delete [] val1b;
-
-  for (int i=0;i<iN;i++)
-    delete [] val2b[i];
-  delete [] val2b;
-
-  delete [] Pmof;
-  delete [] vxcht;
-
-  delete [] rdmf;
+  delete [] val0;
+  delete [] val0p;
 
   return;
 }
-#endif
 
 void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, double* coords, vector<vector<double> > basis,
                    double* Pao, double* gfao, int gs, double* grid, double* wt,
@@ -561,10 +252,10 @@ void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, dou
   double* grid2 = new double[gsa6];
 
   #pragma acc enter data create(grid1[0:gsa6],grid2[0:gsa6])
-  #pragma acc enter data create(val0[0:gsa],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
+  #pragma acc enter data create(val0[0:gsa],val0p[0:gsa3],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
   if (need_g)
   {
-    #pragma acc enter data create(val0p[0:gsa3],val1p[0:iN][0:gsa3],val2p[0:iN][0:gsa3])
+    #pragma acc enter data create(val1p[0:iN][0:gsa3],val2p[0:iN][0:gsa3])
   }
   if (need_L)
   {
@@ -820,6 +511,7 @@ void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, dou
   }
 
   if (prl>0 || calc_rho)
+  if (rho!=NULL)
   {
     double dtot = 0.;
    #pragma acc parallel loop present(rho[0:gsa],wt[0:gsa])
@@ -879,10 +571,10 @@ void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, dou
     gfao[j] *= 0.5;
 
   #pragma acc exit data delete(grid1[0:gsa6],grid2[0:gsa6])
-  #pragma acc exit data delete(val0[0:gsa],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
+  #pragma acc exit data delete(val0[0:gsa],val0p[0:gsa3],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
   if (need_g)
   {
-    #pragma acc exit data delete(val0p[0:gsa3],val1p[0:iN][0:gsa3],val2p[0:iN][0:gsa3])
+    #pragma acc exit data delete(val1p[0:iN][0:gsa3],val2p[0:iN][0:gsa3])
   }
   if (need_L)
   {

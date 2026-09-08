@@ -27,7 +27,7 @@ void becke_weight_3c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
 void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
                      int Z1, int Z2, float A2, float B2, float C2);
 void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* wt2,
-                     double zeta1, double zeta2, double A2, double B2, double C2);
+                     bool is_Z, double zeta1, double zeta2, double A2, double B2, double C2);
 
 float becke_ar(float r1, float r2);
 double becke_ard(double r1, double r2);

@@ -954,7 +954,7 @@ void becke_weight_2c(int gs, float* grid1, float* wt1, float* grid2, float* wt2,
 }
 
 void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* wt2,
-                     double zeta1, double zeta2, double A2, double B2, double C2)
+                     bool is_Z, double zeta1, double zeta2, double A2, double B2, double C2)
 {
   int mu_order = 3;
 
@@ -962,8 +962,19 @@ void becke_weight_2d(int gs, double* grid1, double* wt1, double* grid2, double* 
   double R  = sqrt(A2*A2+B2*B2+C2*C2);
   const double oR = 1./R;
 
-  const double a1 = becke_a_zeta(zeta1,zeta2);
-  const double a2 = becke_a_zeta(zeta2,zeta1);
+  double a1 = 0.;
+  double a2 = 0.;
+  if (is_Z)
+  {
+   //not actually zeta input, but Z input to this ftn
+    a1 = becke_a(zeta1,zeta2);
+    a2 = becke_a(zeta2,zeta1);
+  }
+  else
+  {
+    a1 = becke_a_zeta(zeta1,zeta2);
+    a2 = becke_a_zeta(zeta2,zeta1);
+  }
 
   //printf(" a1/2: %8.5f %8.5f \n",a1,a2);
 
@@ -5219,9 +5230,6 @@ void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vec
   int gs2 = gsa;
 
   if (sgs_basis) { printf("\n ERROR: compute_rho for SGS basis does not support drho \n"); exit(-1); }
-
-  if (gbasis)
-    printf("  TESTING: compute_delt for gbasis \n");
 
   int N = basis.size();
   int N2 = N*N;
