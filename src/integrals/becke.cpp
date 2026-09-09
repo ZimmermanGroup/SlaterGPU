@@ -5384,6 +5384,29 @@ void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<
   double Z1 = 1.;
   generate_central_grid_2d(-1,1,gridb,wtb,Z1,nrad,nang,ang_g,ang_w);
 
+  static int save_secondary_grid = read_int("SAVE_SECONDARY_GRID");
+  if (save_secondary_grid)
+  {
+    #pragma acc update self(gridb[0:gsb6],wtb[0:gsb])
+
+    vector<vector<double>> gw;
+    gw.reserve(gsb);
+
+    for (int j=0; j<gsb; j++)
+    {
+      double x = gridb[6*j+0];
+      double y = gridb[6*j+1];
+      double z = gridb[6*j+2];
+      double w = wtb[j];
+
+      vector<double> row = {x, y, z, w};
+      gw.push_back(row);
+    }
+
+    save_xyzv(gw, "SECONDARY_GRID_WTS.csv");
+    save_secondary_grid = 0;
+  }
+
   const double den = 1.e-8; //make sure small terms don't blow up
   #pragma acc parallel loop present(gridb[0:gsb6])
   for (int m=0;m<gsb;m++)
