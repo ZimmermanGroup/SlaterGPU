@@ -15,7 +15,8 @@
 
 #define ROOTEIGHTPI 5.013256549262001
 
-CINTPrep::CINTPrep(bool doing_ri) {
+CINTPrep::CINTPrep(bool doing_ri)
+{
   atm = NULL;
   bas = NULL;
   env = NULL;
@@ -32,7 +33,8 @@ CINTPrep::CINTPrep(bool doing_ri) {
   nenv_ri = 0;
 }
 
-CINTPrep::~CINTPrep() {
+CINTPrep::~CINTPrep()
+{
   if (atm != NULL) {
     delete [] atm;
   }
@@ -49,37 +51,44 @@ double get_gto_norm(int shl1, double zeta1)
   return CINTgto_norm(shl1, zeta1)/ROOTEIGHTPI;
 }
 
-int CINTPrep::get_var_dim() {
+int CINTPrep::get_var_dim()
+{
   return var_dim;
 }
 
-int CINTPrep::get_nbas() {
+int CINTPrep::get_nbas()
+{
   return nbas;
 }
 
-int CINTPrep::get_nenv() {
+int CINTPrep::get_nenv()
+{
   return nenv;
 }
 
-int *CINTPrep::get_atm() {
+int *CINTPrep::get_atm()
+{
   int *tmp = atm;
   atm = NULL;
   return tmp;
 }
 
-int *CINTPrep::get_bas() {
+int *CINTPrep::get_bas()
+{
   int *tmp = bas;
   bas = NULL;
   return tmp;
 }
 
-double *CINTPrep::get_env() {
+double *CINTPrep::get_env()
+{
   double *tmp = env;
   env = NULL;
   return tmp;
 }
 
-void CINTPrep::set_atm(int *&atm_in) {
+void CINTPrep::set_atm(int *&atm_in)
+{
   if (atm != NULL) {
     delete [] atm;
   }
@@ -87,7 +96,8 @@ void CINTPrep::set_atm(int *&atm_in) {
   atm_in = NULL;
 }
 
-void CINTPrep::set_bas(int *&bas_in) {
+void CINTPrep::set_bas(int *&bas_in)
+{
   if (bas != NULL) {
     delete [] bas;
   }
@@ -95,7 +105,8 @@ void CINTPrep::set_bas(int *&bas_in) {
   bas_in = NULL;
 }
 
-void CINTPrep::set_env(double *&env_in) {
+void CINTPrep::set_env(double *&env_in)
+{
   if (env != NULL) {
     delete [] env;
   }
@@ -104,38 +115,42 @@ void CINTPrep::set_env(double *&env_in) {
 }
 
 //RI methods
-int CINTPrep::get_var_dim_ri() {
+int CINTPrep::get_var_dim_ri()
+{
   return var_dim_ri;
 }
 
-int CINTPrep::get_nbas_ri() {
+int CINTPrep::get_nbas_ri()
+{
   return nbas_ri;
 }
 
-int CINTPrep::get_nenv_ri() {
+int CINTPrep::get_nenv_ri()
+{
   return nenv_ri;
 }
 //end ri methods
 
-void CINTPrep::copy_atoms(vector< int > &atoms_copy) {
+void CINTPrep::copy_atoms(vector< int > &atoms_copy)
+{
   vector< int >().swap(atoms_copy);
   int size = atoms.size();
   atoms_copy.reserve(size);
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < size; i++)
     atoms_copy.push_back(atoms[i]);
-  }
 }
 
-void CINTPrep::copy_coord(vector< double > &coord_copy) {
+void CINTPrep::copy_coord(vector< double > &coord_copy)
+{
   vector< double >().swap(coord_copy);
   int size = coord.size();
   coord_copy.reserve(size);
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < size; i++)
     coord_copy.push_back(coord[i]);
-  }
 }
 
-void CINTPrep::assign_coords(int natoms, int *atomlist, double *coords, bool in_bohr) {
+void CINTPrep::assign_coords(int natoms, int *atomlist, double *coords, bool in_bohr)
+{
   vector< double >().swap(coord);
   vector< int >().swap(atoms);
   atoms.reserve(natoms);
@@ -143,15 +158,14 @@ void CINTPrep::assign_coords(int natoms, int *atomlist, double *coords, bool in_
 
   double scale = (in_bohr) ? 1. : ANG2BOHR;
 
-  for (int i = 0; i < natoms; i++) {
+  for (int i = 0; i < natoms; i++)
     atoms.push_back(atomlist[i]);
-  }
-  for (int i = 0; i < natoms * 3; i++) {
+  for (int i = 0; i < natoms * 3; i++)
     coord.push_back(coords[i]*scale);
-  }
 }
 
-void CINTPrep::assign_coords(int natoms, int *atomlist, float *coords, bool in_bohr) {
+void CINTPrep::assign_coords(int natoms, int *atomlist, float *coords, bool in_bohr)
+{
   vector< double >().swap(coord);
   vector< int >().swap(atoms);
   atoms.reserve(natoms);
@@ -159,24 +173,22 @@ void CINTPrep::assign_coords(int natoms, int *atomlist, float *coords, bool in_b
 
   double scale = (in_bohr) ? 1. : ANG2BOHR;
 
-  for (int i = 0; i < natoms; i++) {
+  for (int i = 0; i < natoms; i++)
     atoms.push_back(atomlist[i]);
-  }
-  for (int i = 0; i < natoms * 3; i++) {
+  for (int i = 0; i < natoms * 3; i++)
     coord.push_back(coords[i]*scale);
-  }
 }
 
-void CINTPrep::read_xyz(string inpxyz) {
+void CINTPrep::read_xyz(string inpxyz)
+{
   xyzfile = inpxyz;
   ifstream inpfile(xyzfile.c_str());
   vector< double >().swap(coord);
   vector< int >().swap(atoms);
   int natoms;
 
-  if (inpfile.fail()) {
+  if (inpfile.fail())
     printf("ERROR: could not open %s\n", xyzfile.c_str());
-  }
   printf("Reading coordinates from: %s\n", xyzfile.c_str());
 
   string line;
@@ -199,7 +211,8 @@ void CINTPrep::read_xyz(string inpxyz) {
   atoms.reserve(natoms);
   coord.reserve(natoms*3);
 
-  for (int i = 0; i < natoms; i++) {
+  for (int i = 0; i < natoms; i++)
+  {
     string symbol;
     int atomic_num;
     double x, y, z;
@@ -233,7 +246,8 @@ void CINTPrep::read_xyz(string inpxyz) {
   return;
 }
 
-void CINTPrep::read_bas(string inpbas) {
+void CINTPrep::read_bas(string inpbas)
+{
   if (basmap.size() > 0) {
     basmap.clear();
   }
@@ -254,12 +268,14 @@ void CINTPrep::read_bas(string inpbas) {
   string line;
   istringstream iss;
 
-  while (getline(inpfile, line)) {
+  while (getline(inpfile, line))
+  {
     lines.push_back(line);
   }
 
   int i = 0;
-  while (i < lines.size()) {
+  while (i < lines.size())
+  {
     if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);})
         && lines[i].c_str()[0] != '*') {
       iss.str(lines[i]);
@@ -274,11 +290,13 @@ void CINTPrep::read_bas(string inpbas) {
       i++;
 
       int atom_num = elem_2_int.at(atom_symbol);
-      if (present_atoms.count(atom_num)) {
+      if (present_atoms.count(atom_num))
+      {
         present_atoms.erase(atom_num);
         basis_t basis;
         basis.nuc = atom_num;
-        while (i < lines.size()) {
+        while (i < lines.size())
+        {
           if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);})
               && lines[i].c_str()[0] != '*') {
             iss.str(lines[i]);
@@ -379,7 +397,8 @@ void CINTPrep::read_bas(string inpbas) {
   }
 }
 
-bool CINTPrep::read_bas_ri(string auxbas) {
+bool CINTPrep::read_bas_ri(string auxbas)
+{
   if (basmap_ri.size() > 0) {
     basmap_ri.clear();
   }
@@ -403,9 +422,11 @@ bool CINTPrep::read_bas_ri(string auxbas) {
   }
 
   int i = 0;
-  while (i < lines.size()) {
-    if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);}) 
-        && lines[i].c_str()[0] != '*') {
+  while (i < lines.size())
+  {
+    if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);})
+        && lines[i].c_str()[0] != '*')
+    {
       iss.str(lines[i]);
       string atom_symbol;
       iss >> atom_symbol;
@@ -417,13 +438,16 @@ bool CINTPrep::read_bas_ri(string auxbas) {
       i++;
 
       int atom_num = elem_2_int.at(atom_symbol);
-      if (present_atoms.count(atom_num)) {
+      if (present_atoms.count(atom_num))
+      {
         present_atoms.erase(atom_num);
         basis_t basis;
         basis.nuc = atom_num;
-        while (i < lines.size()) {
-          if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);}) 
-              && lines[i].c_str()[0] != '*') {
+        while (i < lines.size())
+        {
+          if (!all_of(lines[i].begin(), lines[i].end(), [](char c) {return isspace(c);})
+              && lines[i].c_str()[0] != '*')
+          {
             iss.str(lines[i]);
             string ang;
             int n_prim;
@@ -500,10 +524,13 @@ bool CINTPrep::read_bas_ri(string auxbas) {
 
         basmap_ri[atom_num] = basis;
       } // if present_atoms.count
-      else {
-        while (i < lines.size()) {
+      else
+      {
+        while (i < lines.size())
+        {
           i++;
-          if (lines[i].c_str()[0] == '*') {
+          if (lines[i].c_str()[0] == '*')
+          {
             i++;
             break;
           } // if lines[i]
@@ -512,7 +539,8 @@ bool CINTPrep::read_bas_ri(string auxbas) {
 
       iss.clear();
     }
-    else {
+    else
+    {
       i++;
     }
   } // while i < lines.size (outer)
@@ -520,13 +548,12 @@ bool CINTPrep::read_bas_ri(string auxbas) {
   {
     printf("  did not find an auxiliary basis set \n");
     return 0;
-    //printf("ERROR: Missing basis set for some atoms\n");
-    //exit(1);
   }
   return 1;
 }
 
-void CINTPrep::prep_env() {
+void CINTPrep::prep_env()
+{
   if (atm != NULL) {
     delete [] atm;
   }
@@ -543,18 +570,23 @@ void CINTPrep::prep_env() {
   int offset = PTR_ENV_START;
   var_dim = 0;
 
-  for (int i = 0; i < natm; i++) {
+  for (int i = 0; i < natm; i++)
+  {
     int nshls = basmap.at(atoms[i]).shells.size();
-    for (int j = 0; j < nshls; j++) {
+    for (int j = 0; j < nshls; j++)
+    {
       nbas++;
     } // for j
   } // for i
 
   nbas_ri = 0;
-  if (do_ri) {
-    for (int i = 0; i < natm; i++) {
+  if (do_ri)
+  {
+    for (int i = 0; i < natm; i++)
+    {
       int nshls = basmap_ri.at(atoms[i]).shells.size();
-      for (int j = 0; j < nshls; j++) {
+      for (int j = 0; j < nshls; j++)
+      {
         nbas_ri++;
       } // for j
     } // for i
@@ -568,7 +600,8 @@ void CINTPrep::prep_env() {
   bas = new int[nbas_all * BAS_SLOTS]();
   atm = new int[natm * ATM_SLOTS]();
 
-  for (int i = 0; i < natm; i++) {
+  for (int i = 0; i < natm; i++)
+  {
     int atom_num = atoms[i];
     atm[i * ATM_SLOTS + 0] = atom_num;
     atm[i * ATM_SLOTS + 1] = offset;
@@ -578,11 +611,13 @@ void CINTPrep::prep_env() {
   } // for i
 
   int bas_num = 0;
-  for (int i = 0; i < natm; i++) {
+  for (int i = 0; i < natm; i++)
+  {
     int atom_num = atoms[i];
 
     int N_at = 0;
-    for (int j = 0; j < basmap.at(atom_num).shells.size(); j++) {
+    for (int j = 0; j < basmap.at(atom_num).shells.size(); j++)
+    {
       int nshls = basmap.at(atom_num).shells[j];
       int nprim = basmap.at(atom_num).exps[j].size();
       bas[ATOM_OF  +BAS_SLOTS*bas_num] = i;
@@ -602,10 +637,13 @@ void CINTPrep::prep_env() {
 
   } // for i
 
-  if (do_ri) {
-    for (int i = 0; i < natm; i++) {
+  if (do_ri)
+  {
+    for (int i = 0; i < natm; i++)
+    {
       int atom_num = atoms[i];
-      for (int j = 0; j < basmap_ri.at(atom_num).shells.size(); j++) {
+      for (int j = 0; j < basmap_ri.at(atom_num).shells.size(); j++)
+      {
         int nshls = basmap_ri.at(atom_num).shells[j];
         int nprim = basmap_ri.at(atom_num).exps[j].size();
         bas[ATOM_OF  +BAS_SLOTS*bas_num] = i;
@@ -631,38 +669,38 @@ void CINTPrep::prep_env() {
   nenv = offset;
   env = new double[nenv]();
   offset = PTR_ENV_START;
-  for (int i = 0; i < natm*3; i++) {
+  for (int i=0;i<natm*3;i++)
     env[offset++] = coord[i];
-  }
 
-  for (int i = 0; i < natm; i++) {
+  for (int i = 0; i < natm; i++)
+  {
     int atom_num = atoms[i];
-    for (int j = 0; j < basmap.at(atom_num).shells.size(); j++) {
+    for (int j = 0; j < basmap.at(atom_num).shells.size(); j++)
+    {
       int nexp = basmap.at(atom_num).exps[j].size();
       int ncof = basmap.at(atom_num).coef[j].size();
       int shll = basmap.at(atom_num).shells[j];
-      for (int k = 0; k < nexp; k++) {
+      for (int k = 0; k < nexp; k++)
         env[offset+k] = basmap.at(atom_num).exps[j][k];
-      } // for k
-      for (int k = 0; k < ncof; k++) {
+      for (int k = 0; k < ncof; k++)
         env[offset + nexp + k] = basmap.at(atom_num).coef[j][k] * CINTgto_norm(shll, env[offset+k]);
-      } // for k
       offset += nexp + ncof;
     } // for j
   } // for i
-  if (do_ri) {
-    for (int i = 0; i < natm; i++) {
+  if (do_ri)
+  {
+    for (int i = 0; i < natm; i++)
+    {
       int atom_num = atoms[i];
-      for (int j = 0; j < basmap_ri.at(atom_num).shells.size(); j++) {
+      for (int j = 0; j < basmap_ri.at(atom_num).shells.size(); j++)
+      {
         int nexp = basmap_ri.at(atom_num).exps[j].size();
         int ncof = basmap_ri.at(atom_num).coef[j].size();
         int shll = basmap_ri.at(atom_num).shells[j];
-        for (int k = 0; k < nexp; k++) {
+        for (int k = 0; k < nexp; k++)
           env[offset+k] = basmap_ri.at(atom_num).exps[j][k];
-        } // for k
-        for (int k = 0; k < ncof; k++) {
+        for (int k = 0; k < ncof; k++)
           env[offset + nexp + k] = basmap_ri.at(atom_num).coef[j][k] * CINTgto_norm(shll, env[offset+k]);
-        } // for k
         offset += nexp + ncof;
       } // for j
     } // for i

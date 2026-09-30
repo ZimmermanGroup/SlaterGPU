@@ -494,7 +494,7 @@ void trans(double* Bt, double* B, int m, int n)
   return;
 }
 
-int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHandle_t& cu_hdl)
+int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHandle_t& cu_hdl, int prl)
 {
   int s2 = size*size;
 
@@ -513,28 +513,32 @@ int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHa
 
   diagonalize_cusolver(size,size,B,Beigen,cu_hdl);
 
- #if 1
-  #pragma acc update self(Beigen[0:size])
-  printf(" mat_root_inv_stable eigenvalues:");
-  for (int i=0;i<std::min(10,size);i++)
-  if (fabs(Beigen[i])<1e10)
-    printf(" %5.2e",Beigen[i]);
-  else
-    printf(" large");
-  printf("\n");
- #endif
-
   int nsmall = 0;
  #pragma acc parallel loop present(Beigen[0:size]) reduction(+:nsmall)
   for (int i=0;i<size;i++)
   if (Beigen[i]<delta)
-  {
-    Beigen[i] = 1.e20;
     nsmall++;
-  }
-  printf("  found %i small eigen \n",nsmall);
 
-  if (nsmall>0)
+  if (prl>1)
+  {
+    #pragma acc update self(Beigen[0:size])
+    printf(" mat_root_inv_stable eigenvalues:");
+    for (int i=0;i<std::max(nsmall,std::min(10,size));i++)
+    if (fabs(Beigen[i])<1e10)
+      printf(" %5.2e",Beigen[i]);
+    else
+      printf(" large");
+    printf("\n");
+  }
+
+ #pragma acc parallel loop present(Beigen[0:size])
+  for (int i=0;i<nsmall;i++)
+    Beigen[i] = 1.e40;
+
+  if (prl>0)
+    printf("  found %i small eigen \n",nsmall);
+
+  if (prl>0 && nsmall>0)
   {
     printf(" lowest vector:");
     #pragma acc update self(B[0:s2])
@@ -578,6 +582,11 @@ int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHa
   delete [] tmp;
 
   return nsmall;
+}
+
+int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHandle_t& cu_hdl)
+{
+  return mat_root_inv_stable_cusolver(A,size,delta,cu_hdl,1);
 }
 
 int mat_root_inv_cusolver(double* A, int size, cusolverDnHandle_t& cu_hdl)

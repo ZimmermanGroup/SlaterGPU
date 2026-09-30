@@ -4357,7 +4357,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
 
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
-  printf("  iN: %i \n",imaxN);
+  //printf("  iN: %i \n",imaxN);
 
   const int ig = 10;
 
@@ -4484,6 +4484,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
    //if (natoms>1) { printf("  WARNING: testing >1 atom in compute_Exyz \n"); }
 
    //complete but needs testing
+    if (1)
     for (int n=m+1;n<natoms;n++)
     {
       int s3 = 0; if (n>0) s3 = n2i[n-1]; int s4 = n2i[n];
@@ -4505,7 +4506,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
 
        //optimize this
         //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
-        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,1,Z1,Z2,A12,B12,C12);
 
         copy_grid(gs,grid2n,grid2m);
         recenter_grid(gs,grid2n,-A12,-B12,-C12);      //grid 2 centered on atom 1
@@ -4517,7 +4518,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
         add_r1_to_grid(gs,grid2m,0.,0.,0.);
 
         for (int i1=s1;i1<s2;i1++)
-        for (int i2=s1;i2<=i1;i2++)
+        for (int i2=s3;i2<s4;i2++)
         {
           vector<double> basis1 = basis[i1];
           int n1 = basis1[0]; int l1 = basis1[1]; int m1 = basis1[2]; int ng1 = basis1[3];
@@ -4595,7 +4596,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
         recenter_grid(gs,grid2m,A12,B12,C12);
 
        //optimize this
-        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,0,zeta1,zeta2,A12,B12,C12);
         //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
 
         copy_grid(gs,grid2n,grid2m);
@@ -4865,7 +4866,7 @@ void compute_Sd(int natoms, int* atno, float* coords, vector<vector<double> > &b
         recenter_grid(gs,grid2m,A12,B12,C12);
 
        //optimize this
-        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,zeta1,zeta2,A12,B12,C12);
+        becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,0,zeta1,zeta2,A12,B12,C12);
         //becke_weight_2d(gs,grid1m,wt1,grid2m,wt2,Z1,Z2,A12,B12,C12);
 
         copy_grid(gs,grid2n,grid2m);
@@ -5544,7 +5545,7 @@ void compute_all_2c_v2d(bool do_overlap, int natoms, int* atno, float* coords, v
 
       acc_copy(gs,wtt1,wt1);
       //becke_weight_2c(gs,grid1,wtt1,grid2,wt2,zeta1,zeta2,A12,B12,C12);
-      becke_weight_2d(gs,grid1,wtt1,grid2,wt2,Z1,Z2,A12,B12,C12);
+      becke_weight_2d(gs,grid1,wtt1,grid2,wt2,1,Z1,Z2,A12,B12,C12);
 
       //eliminate_small_wt(estart,gs,wtt1);
       //eliminate_small_wt(estart,gs,wt2);

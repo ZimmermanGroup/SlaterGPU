@@ -34,6 +34,19 @@ extern void dsyevx_(
     int* iwork, int* IFAIL,
     int* info );
 
+extern void dsygvx_(
+    int* itype, char* jobz, char* range, char* uplo,
+    int* n,
+    double* A, int* lda,
+    double* B, int* ldb,
+    double* vl, double* vu, int* il, int* iu,
+    double* abstol, int* m,
+    double* W,
+    double* Z, int* ldz,
+    double* work, int* lwork,
+    int* iwork, int* IFAIL,
+    int* info );
+
 extern void dgetrf_(int* M, int* N, double* A, int* LDA, int* IPIV, int* INFO);
 
 extern void dgetri_(int* N, double* A, int* LDA, int* IPIV, double* WORK, int* LWORK, int* INFO);
@@ -42,6 +55,11 @@ extern void dgetri_(int* N, double* A, int* LDA, int* IPIV, double* WORK, int* L
 extern "C" {
     void dgesv_(int* n, int* nrhs, double* a, int* lda, int* ipiv,
                 double* b, int* ldb, int* info);
+}
+
+extern "C" {
+    void dgels_(char* trans, int* m, int* n, int* nrhs, double* a, int* lda,
+                double* b, int* ldb, double* work, int* lwork, int* info);
 }
 
 void print_square(int N, double* A);
@@ -58,6 +76,31 @@ double randomf(double a, double b)
   return randn;
 }
 
+void solve_axeb_ls(int m, int n, double* A, double* b)
+{
+  //int m = rows;    // number of rows
+  //int n = cols;    // number of columns
+  int nrhs = 1;
+  int lwork = -1;
+  int info;
+
+ // A is m*n (column-major), b is max(m,n)
+ // b must be allocated to max(m,n) to hold the solution in-place
+  int size = (int){m>n ? m:n};
+  //double b[m > n ? m : n];
+
+  double work_query;
+  dgels_("T", &m, &n, &nrhs, A, &m, b, &size, &work_query, &lwork, &info);
+
+  lwork = (int)work_query;
+  double* work = new double[lwork];
+  dgels_("T", &m, &n, &nrhs, A, &m, b, &size, work, &lwork, &info);
+
+  delete [] work;
+
+  return;
+}
+
 void solve_axeb(int dim, double* A, double* b)
 {
   int info;
@@ -66,6 +109,35 @@ void solve_axeb(int dim, double* A, double* b)
   dgesv_(&dim,&one,A,&dim,z,b,&dim,&info);
 
   return;
+}
+
+double determinant(int N, double* A)
+{
+  int* ipiv = new int[N];
+  int LDA = N;
+  int info = 0;
+
+  dgetrf_(&N,&N,A,&LDA,ipiv,&info);
+
+  if (info<0)
+    printf(" dgetrf failed \n");
+
+  double det = 1.0;
+  if (info==0)
+  {
+    for (int i=0;i<N;i++)
+    {
+      det *= A[i*N+i];
+      if (i+1<N && ipiv[i]!=i+1)
+        det *= -1.0; // row swap flips sign
+    }
+  }
+  else
+    det = 0.; //singular
+
+  delete [] ipiv;
+
+  return det;
 }
 
 void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta)
@@ -270,6 +342,63 @@ int la_diagR(int size, double* A, double* eigen, double* eigeni)
   return 0;
 }
 
+//overwrites A+S
+void la_diag_gen(int neig, int s1, double* A, double* S, double* Ae)
+{
+  int s1a = s1;
+  int LDA = s1;
+  int LDB = s1;
+
+  int itype = 1;  // A*x = lambda*S*x
+
+  char jobz = 'V';
+  char range = 'I';
+  if (neig==s1)
+    range = 'A';
+  char uplo = 'u';
+
+  int il = 1;
+  int iu = neig;
+
+ //abstol not necessarily zero. see LAPACK manual
+  double abstol = 0.;
+  double vl = 1.; double vu = -1.;
+  int neval = s1;
+
+  double* EVec = new double[LDA*s1];
+
+  int LenWork = 32*s1; //LWORK >= max(1,8*N)
+  double* Work = new double[LenWork];
+
+  int LenIWork = 10*s1; //IWORK needs 5*N min
+  int* IWork = new int[LenIWork];
+  int* IFail = new int[s1];
+
+  int Info = 0;
+
+  dsygvx_(&itype,&jobz,&range,&uplo,&s1a,A,&LDA,S,&LDB,&vl,&vu,&il,&iu,&abstol,
+       &neval,Ae,EVec,&LDA,Work,&LenWork,IWork,IFail,&Info);
+
+  if (Info!=0)
+  {
+    if (Info > s1)
+      printf(" ERROR: S matrix not positive definite (leading minor %i), Info = %i \n",Info-s1,Info);
+    else
+      printf(" la_diag_gen Info = %d\n",Info);
+  }
+
+  for (int i=0;i<s1;i++)
+  for (int j=0;j<s1;j++)
+    A[i*s1+j] = EVec[i*s1+j];
+
+  delete [] EVec;
+  delete [] Work;
+  delete [] IWork;
+  delete [] IFail;
+
+  return;
+}
+
 void la_diag(int neig, int s1, double* A, double* Ae)
 {
   #define USE_DSYEVX 1
@@ -347,6 +476,7 @@ void la_diag(int neig, int s1, double* A, double* Ae)
   delete [] IWork;
   delete [] IFail;
 
+  return;
 }
 
 void test_diag()
@@ -1101,10 +1231,10 @@ void mat_times_mat_bt_cpu(double* C, double* A, double* B, int N)
   int LDA = N;
   int LDB = N;
   int LDC = N;
-   
+
   double ALPHA = 1.0;
   double BETA = 0.0;
-  
+
  //C := alpha*op( A )*op( B ) + beta*C (op means A or B, possibly transposed)
  //CBlas version
   //cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasTrans,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC);

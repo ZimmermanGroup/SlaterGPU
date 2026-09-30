@@ -64,9 +64,23 @@ vector<string> split1(const string &s, char delim)
   return tokens;
 }
 
-string read_basis_text(string aname)
+vector<string> split2(const string &s, char delim)
 {
-  string filename = "basis";
+  stringstream ss(s);
+  string item;
+  vector<string> tokens1;
+  while ((bool)getline(ss, item, delim))
+    tokens1.push_back(item);
+
+  vector<string> tokens2;
+  for (const string& t : tokens1)
+    if (!t.empty()) tokens2.push_back(t);
+
+  return tokens2;
+}
+
+string read_basis_text(string filename, string aname)
+{
   ifstream infile;
   infile.open(filename.c_str());
   if (!infile)
@@ -103,6 +117,12 @@ string read_basis_text(string aname)
   infile.close();
 
   return text;
+}
+
+string read_basis_text(string aname)
+{
+  string filename = "basis";
+  return read_basis_text(filename,aname);
 }
 
 double read_float(string filename)
@@ -1853,18 +1873,19 @@ bool read_MOI_from_file(int Mm, int M3, double** MOI, string filename, int prl)
       wi++;
     }
   }
-  
+
   // Verify that the expected number of rows were read
-  if (wi == Mm) { 
-    if (prl > 1) printf("   found all lines of MOI \n"); 
+  if (wi==Mm)
+  {
+    if (prl > 1) printf("   found all lines of MOI \n");
   }
   else printf(" MOI missing lines \n");
-  
+
   infile.close();
   return true;
 }
 
-double nuclear_repulsion(int natoms, int* atno, double* coords)
+double nuclear_repulsion(int natoms, double* atno, double* coords)
 {
   double Enn = 0;
 
@@ -1877,6 +1898,19 @@ double nuclear_repulsion(int natoms, int* atno, double* coords)
     double zz = atno[n]*atno[m];
     Enn += zz/sqrt(x12*x12+y12*y12+z12*z12);
   }
+
+  return Enn;
+}
+
+double nuclear_repulsion(int natoms, int* atno, double* coords)
+{
+  double* atnod = new double[natoms];
+  for (int n=0;n<natoms;n++)
+    atnod[n] = atno[n];
+
+  double Enn = nuclear_repulsion(natoms,atnod,coords);
+
+  delete [] atnod;
 
   return Enn;
 }
@@ -2547,10 +2581,10 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
   while (!infile.eof())
   {
     (bool)getline(infile, line);
-    vector<string> tok_line_raw = split1(line, ' ');
-    vector<string> tok_line;
-    for (const string& t : tok_line_raw)
-      if (!t.empty()) tok_line.push_back(t);
+    vector<string> tok_line = split2(line, ' ');
+  //  vector<string> tok_line;
+  //  for (const string& t : tok_line_raw)
+  //    if (!t.empty()) tok_line.push_back(t);
 
     //cout << " 2READ: " << line << endl;
     if (tok_line.size()>3)
@@ -2654,6 +2688,92 @@ int read_input(string filename, bool gbasis, vector<vector<double> >& basis, vec
 
   return natoms;
 }
+
+int read_geoms(int& ngeom1, int natoms, vector<double*>& coords, int prl)
+{
+  string filename = "GEOMS";
+  int N3 = 3*natoms;
+
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+  {
+    printf("  couldn't open file: %s \n",filename.c_str());
+    return 0;
+  }
+
+  string line;
+  bool found = (bool)getline(infile, line);
+  vector<string> tok_line = split2(line,' ');
+  if (tok_line.size()<1)
+  {
+    printf("  missing info in %s first line \n",filename.c_str());
+    return 0;
+  }
+
+  int ngeom = stoi(tok_line[0]);
+  if (tok_line.size()>1)
+    ngeom1 = stoi(tok_line[1]);
+  else
+    ngeom1 = ngeom;
+
+  if (prl>1)
+    printf(" looking for %i (%i) geometries with %i atoms \n",ngeom,ngeom1,natoms);
+  if (ngeom<1)
+  {
+    infile.close();
+    return 0;
+  }
+
+  {
+    for (int n=0;n<coords.size();n++)
+      delete [] coords[n];
+    coords.clear();
+  }
+
+  int wa = 0;
+  int wg = 0;
+  double* coords1 = new double[N3]();
+  while (!infile.eof())
+  {
+    (bool)getline(infile, line);
+    vector<string> tok_line = split2(line,' ');
+
+    if (tok_line.size()<4) { printf("\n ERROR: bad geometry \n"); exit(-1); }
+
+    coords1[3*wa+0] = stod(tok_line[1])*A2B;
+    coords1[3*wa+1] = stod(tok_line[2])*A2B;
+    coords1[3*wa+2] = stod(tok_line[3])*A2B;
+
+    wa++;
+    if (wa==natoms)
+    {
+      coords.push_back(coords1);
+      wa = 0; wg++;
+      if (wg==ngeom) break;
+
+      coords1 = new double[N3]();
+    }
+  }
+  if (wg<ngeom)
+    delete [] coords1;
+
+  infile.close();
+
+  if (prl>0)
+  {
+    printf(" geometries: \n");
+    for (int n=0;n<ngeom;n++)
+    {
+      for (int i=0;i<natoms;i++)
+        printf("  %8.5f %8.5f %8.5f \n",coords[n][3*i+0],coords[n][3*i+1],coords[n][3*i+2]);
+      printf("\n");
+    }
+  }
+
+  return ngeom;
+}
+
 
 void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int prl)
 {
