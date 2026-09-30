@@ -4242,7 +4242,7 @@ void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, do
   int gs6 = 6*gs;
   int N2 = N*N;
 
-  const double a = 11.; //33, 66 also viable?
+  const double a = 500.; //33, 66 also viable?
 
   double valx = 0.; double valy = 0.; double valz = 0.;
   #pragma acc parallel loop present(val1m[0:gs],val2m[0:gs],grid1m[0:gs6]) reduction(+:valx,valy,valz)
@@ -4281,7 +4281,7 @@ void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, 
   int gs6 = 6*gs;
   int N2 = N*N;
 
-  const double a = 11.;
+  const double a = 500.;
 
   double valx = 0.; double valy = 0.; double valz = 0.;
   #pragma acc parallel loop present(val1m[0:gs],val1n[0:gs],val2m[0:gs],val2n[0:gs],grid1m[0:gs6],grid2n[0:gs6]) reduction(+:valx,valy,valz)

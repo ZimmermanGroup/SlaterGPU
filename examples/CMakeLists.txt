@@ -12,24 +12,16 @@ set(TEST_COMP_FLAGS ${CMAKE_CXX_FLAGS})
 
 # CUDA/GPU dependencies - only when USE_ACC is enabled
 if(USE_ACC)
-    enable_language(CUDA)
-    find_package(CUDA REQUIRED)
-    find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-    
-    target_link_options(sgpu.exe PRIVATE 
+    target_link_options(sgpu.exe PRIVATE
         -acc=gpu
         )
-    set(TEST_COMP_FLAGS ${TEST_COMP_FLAGS} 
+    set(TEST_COMP_FLAGS ${TEST_COMP_FLAGS}
         -DUSE_ACC=1 -acc=gpu
         )
-    
-    # GPU-specific link libraries
-    set(GPU_LIBRARIES 
-        "${CUDART_LIBRARY}" 
-        "${CUDA_LIBRARIES}" 
-        "${CUDA_TOOLKIT_ROOT_DIR}/../../math_libs/lib64/libcublas.so" 
-        "${CUDA_TOOLKIT_ROOT_DIR}/../../math_libs/lib64/libcusolver.so"
-        )
+
+    # GPU-specific link libraries; cuBLAS/cuSolver come transitively from
+    # the SlaterGPU target (CUDA::cublas / CUDA::cusolver)
+    set(GPU_LIBRARIES CUDA::cudart)
 else()
     # CPU-only mode
     set(GPU_LIBRARIES "")
