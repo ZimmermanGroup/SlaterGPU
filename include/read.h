@@ -26,6 +26,7 @@ string SSTRF(float x);
 string SSTRF2(double x);
 
 vector<string> split1(const string &s, char delim);
+vector<string> split2(const string &s, char delim);
 
 int check_file(string filename);
 
@@ -33,6 +34,8 @@ int initialize(bool gbasis, vector<vector<double> >& basis, vector<vector<double
 bool get_secondary_basis(string name, int natoms, int* atno, double* coords, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int prl);
 void create_basis_aux(int natoms, vector<vector<double> >& basis_std, vector<vector<double> >& basis_aux);
 string read_basis_text(string aname);
+string read_basis_text(string filename, string aname);
+int read_geoms(int& ngeom1, int natoms, vector<double*>& coords, int prl);
 void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<double> >& basis_aux, int prl);
 int read_rotate(int N, double* jCA);
 double read_float(string filename);
@@ -92,6 +95,10 @@ int read_rect(int N, int M, double* C, string filename);
 bool read_MOI_from_file(int Mm, int M3, double** MOI, string filename, int prl);
 
 bool check_PS();
+
+double nuclear_repulsion(int natoms, double* atno, double* coords);
+double nuclear_repulsion(int natoms, int* atno, double* coords);
+
 
 string get_aname(int Z);
 

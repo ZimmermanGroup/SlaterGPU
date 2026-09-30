@@ -21,7 +21,7 @@ void eval_p_gh(int gs, float* grid, float* val, int n1, int l1, int m1, float no
 void eval_pd_gh(int gs, double* grid, double* val, int n1, int l1, int m1, double norm1, double zeta1);
 
 //Gaussian single-center potentials
-void eval_vghd(int gsa, double* grid, double* val, int n, int l, int m, double norm, double zt);
+void eval_vghd(int gsa, double* grid, double* val, int n, int l, double norm, double zt);
 
 void eval_hess_ghd(int gs, double* grid, double* val, int n1, int l1, int m1, double norm1, double zeta1);
 int eval_gh_full(int gs, float* grid, float** val1, int i1, int natoms, int nbas, int nenv, int N, int* atm, int* bas, double* env);
@@ -35,5 +35,7 @@ void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, dou
 //void integrate_hole_para_gh(double* rdm, bool full_rdm, bool hfx_on, int Nc, int No, int M, int natoms, int* atno, double* coords, int gs, int gsb, vector<vector<double> >& basis,
 //                    double* Pao, double* Pmo, double* jCA, float* grid, float* gridb, float* wt, float* wtb, float* rho, float* vxch, int prl);
 
+void gen_4cj_overlap(double* ol4j, int nrad, int nang, double* ang_g, double* ang_w,
+                     int natoms, int* atno, double* coords, vector<vector<double> > basis, int prl);
 
 #endif
