@@ -35,6 +35,56 @@ void get_ztm_lm(int s1, int s2, vector<vector<double> >& basis, double& ztm, int
   return;
 }
 
+//Coulomb potentials of basis ftns s1..s2-1 into val[(i-s1)*gs]
+// val must be pre-initialized identically for all ftns (e.g. to wt)
+// the radial part only depends on n,l,zeta, so it is evaluated once per shell
+// and copied to the other m components before the angular part is applied
+void eval_inr_r12_shells(int tid, int gs, double* grid, double* val, vector<vector<double> >& basis, int s1, int s2)
+{
+  int nf = s2-s1;
+  if (nf<1) return;
+  int nfgs = nf*gs;
+
+  vector<int> first(nf);
+  for (int i1=s1;i1<s2;i1++)
+  {
+    int ii1 = i1-s1;
+    first[ii1] = ii1;
+    for (int j1=s1;j1<i1;j1++)
+    if (basis[j1][0]==basis[i1][0] && basis[j1][1]==basis[i1][1] && basis[j1][3]==basis[i1][3])
+    {
+      first[ii1] = j1-s1;
+      break;
+    }
+  }
+
+  for (int i1=s1;i1<s2;i1++)
+  {
+    int ii1 = i1-s1;
+    if (first[ii1]!=ii1) continue;
+    int n1 = basis[i1][0]; int l1 = basis[i1][1]; double zeta1 = basis[i1][3];
+    eval_inr_r12(tid,gs,grid,&val[ii1*gs],n1,l1,zeta1);
+  }
+
+  for (int ii1=0;ii1<nf;ii1++)
+  {
+    int if1 = first[ii1];
+    if (if1==ii1) continue;
+   #pragma acc parallel loop present(val[0:nfgs])
+    for (int j=0;j<gs;j++)
+      val[ii1*gs+j] = val[if1*gs+j];
+  }
+
+  for (int i1=s1;i1<s2;i1++)
+  {
+    int ii1 = i1-s1;
+    int n1 = basis[i1][0]; int l1 = basis[i1][1]; int m1 = basis[i1][2];
+    eval_sh_3rd(tid,gs,grid,&val[ii1*gs],n1,l1,m1);
+  }
+
+  return;
+}
+
 void reduce_3cenp(int tid, double Z3, int s1, int s2, int s3, int s4, int N, int iN, int gs, double* grid, double* valS1, double* valS2, double* valt, double* wt, double* pVp1)
 {
   int gs3 = 3*gs;
@@ -1329,6 +1379,9 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
         eval_shd(tid,gs,grid,&valS1[ii1*gs],n1,l1,m1,zeta1);
       }
 
+      if (!do_overlap && !dy)
+        eval_inr_r12_shells(tid,gs,grid,valV2,basis,s3,s4);
+      else
       for (int i2=s3;i2<s4;i2++)
       {
         int ii2 = i2-s3;
@@ -1342,10 +1395,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
         else
         {
          //V
-          if (dy)
-            eval_inr_yukawa(gs,grid,&valV2[ii2*gs],n2,l2,zeta2,gamma);
-          else
-            eval_inr_r12(tid,gs,grid,&valV2[ii2*gs],n2,l2,zeta2);
+          eval_inr_yukawa(gs,grid,&valV2[ii2*gs],n2,l2,zeta2,gamma);
           eval_sh_3rd(tid,gs,grid,&valV2[ii2*gs],n2,l2,m2);
         }
       } //loop i2 evaluate
@@ -1409,6 +1459,9 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
        //second center
         recenter_grid_zero(tid,gs,grid,-A12,-B12,-C12);
 
+        if (!do_overlap && !dy)
+          eval_inr_r12_shells(tid,gs,grid,valV2,basis,s3,s4);
+        else
         for (int i2=s3;i2<s4;i2++)
         {
           int ii2 = i2-s3;
@@ -1422,10 +1475,7 @@ void compute_2c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
           else
           {
            //V
-            if (dy)
-              eval_inr_yukawa(gs,grid,&valV2[ii2*gs],n2,l2,zeta2,gamma);
-            else
-              eval_inr_r12(tid,gs,grid,&valV2[ii2*gs],n2,l2,zeta2);
+            eval_inr_yukawa(gs,grid,&valV2[ii2*gs],n2,l2,zeta2,gamma);
             eval_sh_3rd(tid,gs,grid,&valV2[ii2*gs],n2,l2,m2);
           }
         }
@@ -1630,6 +1680,9 @@ void eval_s12v3(int tid, bool dol, bool dy, double gamma, int s1, int s2, int s3
     eval_shd(tid,gs,grid,&val2[ii2*gs],n2,l2,m2,zeta2);
   }
 
+  if (!dol && !dy)
+    eval_inr_r12_shells(tid,gs,grid,val3,basis_aux,s5,s6);
+  else
   for (int i3=s5;i3<s6;i3++)
   {
     int ii3 = i3-s5;
@@ -1641,10 +1694,7 @@ void eval_s12v3(int tid, bool dol, bool dy, double gamma, int s1, int s2, int s3
     else
     {
      //V
-      if (dy)
-        eval_inr_yukawa(gs,grid,&val3[ii3*gs],n3,l3,zeta3,gamma);
-      else
-        eval_inr_r12(tid,gs,grid,&val3[ii3*gs],n3,l3,zeta3);
+      eval_inr_yukawa(gs,grid,&val3[ii3*gs],n3,l3,zeta3,gamma);
       eval_sh_3rd(tid,gs,grid,&val3[ii3*gs],n3,l3,m3);
     }
   }
@@ -1687,7 +1737,9 @@ void eval_s12v3_2(int tid, bool dol, bool dy, double gamma, int s1, int s2, int 
   if (type==3)
     recenter_grid_zero(tid,gs,grid,A12-A13,B12-B13,C12-C13);
 
-  if (val3!=NULL)
+  if (val3!=NULL && !dol && !dy)
+    eval_inr_r12_shells(tid,gs,grid,val3,basis_aux,s5,s6);
+  else if (val3!=NULL)
   for (int i3=s5;i3<s6;i3++)
   {
     int ii3 = i3-s5;
@@ -1699,10 +1751,7 @@ void eval_s12v3_2(int tid, bool dol, bool dy, double gamma, int s1, int s2, int 
     else
     {
      //V
-      if (dy)
-        eval_inr_yukawa(gs,grid,&val3[ii3*gs],n3,l3,zeta3,gamma);
-      else
-        eval_inr_r12(tid,gs,grid,&val3[ii3*gs],n3,l3,zeta3);
+      eval_inr_yukawa(gs,grid,&val3[ii3*gs],n3,l3,zeta3,gamma);
       eval_sh_3rd(tid,gs,grid,&val3[ii3*gs],n3,l3,m3);
     }
   }
