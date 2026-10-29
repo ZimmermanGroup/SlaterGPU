@@ -43,9 +43,9 @@ double igam(double aa, double xx);
 #pragma acc routine seq
 double igamc(double aa, double xx);
 #pragma acc routine seq
-double igam_lg(double aa, double xx, double lga);
+double igam_lg(double aa, double xx, double lga, double lx);
 #pragma acc routine seq
-double igamc_lg(double aa, double xx, double lga);
+double igamc_lg(double aa, double xx, double lga, double lx);
 #pragma acc routine seq
 double igamn(int a, double x);
 
