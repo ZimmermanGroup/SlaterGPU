@@ -5230,12 +5230,12 @@ void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vec
 
   double norm[N];
   for (int i=0;i<N;i++)
-    norm[i] = basis[i][4];
+    norm[i] = basis[i][4]; // this contains the number of primitives in each shell for gbasis and NOT the norm
   double* Paon = new double[N2];
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
     Paon[i*N+j] = gbasis? Pao[i*N+j] : Pao[i*N+j]*norm[i]*norm[j];
-
+                  //The norm only needs to get multiplied for non-gbasis functions
   if (prl>1)
   {
     printf("\n Paon: \n");
