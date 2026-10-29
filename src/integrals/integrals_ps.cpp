@@ -58,13 +58,15 @@ void eval_inr_r12_shells(int tid, int gs, double* grid, double* val, vector<vect
     }
   }
 
+  vector<int> sn; vector<int> sl; vector<double> sz; vector<int> sidx;
   for (int i1=s1;i1<s2;i1++)
   {
     int ii1 = i1-s1;
     if (first[ii1]!=ii1) continue;
-    int n1 = basis[i1][0]; int l1 = basis[i1][1]; double zeta1 = basis[i1][3];
-    eval_inr_r12(tid,gs,grid,&val[ii1*gs],n1,l1,zeta1);
+    sn.push_back(basis[i1][0]); sl.push_back(basis[i1][1]); sz.push_back(basis[i1][3]);
+    sidx.push_back(ii1);
   }
+  eval_inr_r12_batch(tid,gs,nf,grid,val,sn.size(),sn.data(),sl.data(),sz.data(),sidx.data());
 
   for (int ii1=0;ii1<nf;ii1++)
   {
