@@ -4253,10 +4253,13 @@ void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, do
     double y = grid1m[6*j+1]+B1;
     double z = grid1m[6*j+2]+C1;
 
-   //wave centered at zero
+   /*//wave centered at zero
     double xs = x/(1.+exp(x*x/a));
     double ys = y/(1.+exp(y*y/a));
-    double zs = z/(1.+exp(z*z/a));
+    double zs = z/(1.+exp(z*z/a));*/
+    double xs = x;
+    double ys = y;
+    double zs = z;
 
    //confining potential
     double r = sqrt(x*x+y*y+z*z);
