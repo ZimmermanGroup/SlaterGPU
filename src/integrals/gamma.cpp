@@ -310,6 +310,100 @@ double igamc(double aa, double xx) {
   return ans * ax;
 }
 
+//igam/igamc with lgamma(a) precomputed by the caller
+#pragma acc routine seq
+double igam_lg(double aa, double xx, double lga) {
+  double a = aa;
+  double x = xx;
+
+  // x,a <= 0 should never happen for our code
+
+  // x > 1 and x > a should be dealt with outside
+  // this function.
+  if (x > 1. && x > a) {
+    return 1. - igamc_lg(a,x,lga);
+  }
+
+  double ax = a * log(x) - x - lga;
+  if (ax < -MAXLOG) {
+    return 0.;
+  }
+  ax = exp(ax);
+
+  double r = a;
+  double c = 1.;
+  double ans = 1.;
+
+  while (c/ans > MACHEP) {
+  // for (int i = 0; i < 15; i++) {
+    r += 1.0;
+    c *= x/r;
+    ans += c;
+  }
+  return ans * ax / a;
+}
+
+#pragma acc routine seq
+double igamc_lg(double aa, double xx, double lga) {
+  double a = aa;
+  double x = xx;
+  double t, yc, pk, qk, r;
+  t = 1.;
+  // x,a <= 0 should never happen for our code
+
+  // x < 1 and x < a should be dealt with outside
+  // this function.
+  if (x < 1. || x < a) {
+    return 1. - igam_lg(a,x,lga);
+  }
+
+  double ax = a * log(x) - x - lga;
+  if (ax < -MAXLOG) {
+    return 0.;
+  }
+  ax = exp(ax);
+
+  double y = 1.0 - a;
+  double z = x + y + 1.;
+  double c = 0.;
+  double pkm2 = 1.;
+  double qkm2 = x;
+  double pkm1 = x + 1;
+  double qkm1 = z*x;
+  double ans = pkm1 / qkm1;
+
+  while (t > MACHEP) {
+  // for (int i = 0; i < 15; i++) {
+    c += 1.;
+    y += 1.;
+    z += 2.;
+    yc = y*c;
+    pk = pkm1 * z - pkm2 * yc;
+    qk = qkm1 * z - qkm2 * yc;
+
+    if (qk != 0) {
+      r = pk / qk;
+      t = fabs((ans - r) / r);
+      ans = r;
+    }
+    else {
+      t = 1.;
+    }
+
+    pkm2 = pkm1;
+    pkm1 = pk;
+    qkm2 = qkm1;
+    qkm1 = qk;
+    if (fabs(pk) > BIG) {
+      pkm2 *= MACHEP;
+      pkm1 *= MACHEP;
+      qkm2 *= MACHEP;
+      qkm1 *= MACHEP;
+    } // if fabs(pk)
+  } // while t > MACHEP
+  return ans * ax;
+}
+
 double dvinr_gam(int n, int l, double r, double z) {
   double ans = pow(r,(double)(-l-2));
   ans *= pow(z,(double)(-l-n-2));
@@ -353,6 +447,27 @@ double vinr_gam(int n, int l, double r, double z) {
 
   double g1 = igam(n-l+1,rz) * (double)lnf;
   double g2 = igam(n+l+2,rz) * (double)lnf2;
+  ans *= rzl * (lnf - g1) + g2;
+
+  if (std::isnan(ans) || std::isinf(ans)) {
+    ans = 0.;
+  }
+
+  return ans;
+}
+
+//vinr_gam with per-shell constants precomputed by the caller:
+// pz = pow(z,-l-n-2), lnf = (n-l)!, lnf2 = (n+l+1)!,
+// lga1 = lgamma(n-l+1), lga2 = lgamma(n+l+2)
+#pragma acc routine seq
+double vinr_gam_sc(int n, int l, double r, double z, double pz, double lnf, double lnf2, double lga1, double lga2) {
+  double ans = pow(r,(double)(-l-1));
+  ans *= pz;
+  double rz = r*z;
+  double rzl = pow(rz,(double)(2*l+1));
+
+  double g1 = igam_lg(n-l+1,rz,lga1) * lnf;
+  double g2 = igam_lg(n+l+2,rz,lga2) * lnf2;
   ans *= rzl * (lnf - g1) + g2;
 
   if (std::isnan(ans) || std::isinf(ans)) {
