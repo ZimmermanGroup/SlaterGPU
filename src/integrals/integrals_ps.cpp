@@ -2174,6 +2174,10 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
     int Nmax = iNa;
     double mem0 = gsh*iN*2. + gsh*7. + 1.*nmu*nnu*nphi + 1.*gs6 + 1.*N2 + N2b;
     double mem1 = 8.*(2.*gsh*iN + mem0 + 3.*gs6 + 2.*gsh + 1.*Nmax*gsh);
+   #if USE_ACC
+    //P and R buffers of the DGEMM reduction in reduce_3c1b
+    mem1 += 8.*(1.*iN*iN*get_rchunk(iN*iN,gsh) + 1.*iN*iN*Nmax);
+   #endif
 
     //bool check1 = nmu%nb==0;
     //bool check2 = ((nmu*nnu*nphi-8)*qos + 8*nsg*qosh)%nb==0;
