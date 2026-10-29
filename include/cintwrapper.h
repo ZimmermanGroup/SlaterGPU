@@ -141,9 +141,25 @@ void gen_4c_overlap(double* ovlp4, size_t N,
                     int natm, int nbas, int nenv,
                     int* atm, int* bas, double* env);
 
-void gen_eri(double **eri, int N,
+void gen_eri_4b(double** eri, int N1, int N2, int N3, int N,
+             int natm, int nbas1, int nbas2, int nbas3, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp);
+
+void gen_eri_2b(double** eri, int N1, int N,
+             int natm, int nbas1, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp);
+
+void gen_eri(double** eri, int N,
              int natm, int nbas, int nenv,
-             int *atm, int *bas, double *env);
+             int* atm, int* bas, double* env);
+
+void gen_eri(double** eri, int N,
+             int natm, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp);
+
+void gen_eri_2(double** eri, int N,
+             int natm, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp);
 
 void gen_jMOI_gto(double **eri, int N,
                   int natm, int nbas, int nenv,

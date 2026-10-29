@@ -4,7 +4,8 @@
  * Parameters and function signature for libcint.
  */
 
-#define CINT_VERSION    4.4.0
+#define CINT_VERSION            "6.1.3"
+#define CINT_SOVERSION          6
 
 /* #undef I8 */
 #ifdef I8
@@ -49,9 +50,8 @@
 #define PTR_COORD       1
 #define NUC_MOD_OF      2
 #define PTR_ZETA        3
-#define PTR_FRAC_CHARGE 3
-#define RESERVE_ATMLOT1 4
-#define RESERVE_ATMLOT2 5
+#define PTR_FRAC_CHARGE 4
+#define RESERVE_ATMSLOT 5
 #define ATM_SLOTS       6
 
 
@@ -150,6 +150,78 @@ typedef struct {
     double **log_max_coeff;
     PairData **pairdata;  // NULL indicates not-initialized, NO_VALUE can be skipped
 } CINTOpt;
+
+// Add this macro def to make pyscf compatible with both v4 and v5
+#define HAVE_DEFINED_CINTENVVARS_H
+typedef struct {
+        FINT *atm;
+        FINT *bas;
+        double *env;
+        FINT *shls;
+        FINT natm;
+        FINT nbas;
+
+        FINT i_l;
+        FINT j_l;
+        FINT k_l;
+        FINT l_l;
+        FINT nfi;  // number of cartesian components
+        FINT nfj;
+        // in int1e_grids, the grids_offset and the number of grids
+        union {FINT nfk; FINT grids_offset;};
+        union {FINT nfl; FINT ngrids;};
+        FINT nf;  // = nfi*nfj*nfk*nfl;
+        FINT rys_order; // = nrys_roots for regular ERIs. can be nrys_roots/2 for SR ERIs
+        FINT x_ctr[4];
+
+        FINT gbits;
+        FINT ncomp_e1; // = 1 if spin free, = 4 when spin included, it
+        FINT ncomp_e2; // corresponds to POSX,POSY,POSZ,POS1, see cint.h
+        FINT ncomp_tensor; // e.g. = 3 for gradients
+
+        /* values may diff based on the g0_2d4d algorithm */
+        FINT li_ceil; // power of x, == i_l if nabla is involved, otherwise == i_l
+        FINT lj_ceil;
+        FINT lk_ceil;
+        FINT ll_ceil;
+        FINT g_stride_i; // nrys_roots * shift of (i++,k,l,j)
+        FINT g_stride_k; // nrys_roots * shift of (i,k++,l,j)
+        FINT g_stride_l; // nrys_roots * shift of (i,k,l++,j)
+        FINT g_stride_j; // nrys_roots * shift of (i,k,l,j++)
+        FINT nrys_roots;
+        FINT g_size;  // ref to cint2e.c g = malloc(sizeof(double)*g_size)
+
+        FINT g2d_ijmax;
+        FINT g2d_klmax;
+        double common_factor;
+        double expcutoff;
+        double rirj[3]; // diff by sign in different g0_2d4d algorithm
+        double rkrl[3];
+        double *rx_in_rijrx;
+        double *rx_in_rklrx;
+
+        double *ri;
+        double *rj;
+        double *rk;
+        // in int2e or int3c2e, the coordinates of the fourth shell
+        // in int1e_grids, the pointer for the grids coordinates
+        union {double *rl; double *grids;};
+
+        FINT (*f_g0_2e)();
+        void (*f_g0_2d4d)();
+        void (*f_gout)();
+        CINTOpt *opt;
+
+        /* values are assigned during calculation */
+        int *idx;
+        double ai[1];
+        double aj[1];
+        double ak[1];
+        double al[1];
+        double fac[1];
+        double rij[3];
+        double rkl[3];
+} CINTEnvVars;
 #endif
 
 FINT CINTlen_cart(const FINT l);

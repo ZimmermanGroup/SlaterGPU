@@ -2,6 +2,7 @@ set(IO_SOURCES
     read.cpp
     write.cpp
     print.cpp
+    molden.cpp
     )
 
 add_library(io SHARED "${IO_SOURCES}")

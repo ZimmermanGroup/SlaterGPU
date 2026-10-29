@@ -22,6 +22,7 @@ void diagonalize_cusolver(int Ne, int N, double* A, double* Ae, cusolverDnHandle
 
 int mat_root_inv_cusolver(double* A, int size, cusolverDnHandle_t& cu_hdl);
 int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHandle_t& cu_hdl);
+int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHandle_t& cu_hdl, int prl);
 
 void solve_axeb_gpu(int dim, double* A, double* b, cusolverDnHandle_t& cusolverH);
 

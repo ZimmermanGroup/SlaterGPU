@@ -23,11 +23,15 @@ using namespace std;
 double randomf(double a, double b);
 
 void solve_axeb(int dim, double* A, double* b);
+void solve_axeb_ls(int m, int n, double* A, double* b);
+
+double determinant(int N, double* A);
 
 void expmat_complex_cpu(int N, double* theta, double* thetai, double* etheta);
 void expmat_cpu(int N, double *theta, double *etheta);
 
 int la_diagR(int neig, double* A, double* eigen, double* eigeni);
+void la_diag_gen(int neig, int s1, double* A, double* S, double* Ae);
 void la_diag(int neig, int s1, double* A, double* Ae);
 int invert_stable_cpu(double* A, int size, double delta);
 int invert_stable_cpu(double* A, int size, double delta, int prl);

@@ -3,8 +3,11 @@
 include(CMakeFindDependencyMacro)
 
 # Find required dependencies
+# NOTE: no find_dependency(MPI) — SlaterGPU uses no MPI itself. Re-requiring it
+# here would force every consumer to locate MPI at find_package(SlaterGPU) time,
+# which blocks a USE_MPI=OFF stack. Consumers that use MPI (ZEST/XCtera) find it
+# themselves. See ZEST#92.
 find_dependency(OpenMP REQUIRED)
-find_dependency(MPI REQUIRED)
 find_dependency(BLAS REQUIRED)
 find_dependency(LAPACK REQUIRED)
 

@@ -51,6 +51,7 @@ void write_square_clean(int N, double* A, string fname, double thresh, int prl);
 
 void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname);
 void write_molden(bool gbasis, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname);
+void write_molden_g(int btype, int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname);
 void write_molden_g(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, double* eig, string fname);
 //void write_molden_vcf(int natoms, int* atno, double* coords, vector<vector<vcf> > &vcfs, string fname);
 void write_molden_ss(int natoms, int* atno, double* coords, vector<vector<double> > &basis, double* jCA, int No, string fname);
