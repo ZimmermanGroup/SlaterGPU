@@ -2334,8 +2334,9 @@ void compute_3c_ps(bool do_overlap, bool do_yukawa, double gamma, int nbatch_min
         int s3b = s1; int s4b = s2;
         //printf("     mn: %i %i   s12: %2i %2i s34: %2i %2i s56: %2i %2i \n",m,n,s1,s2,s3,s4,s5,s6);
 
-        init_s12v3  (tid,dy,s1,s2,s3b,s4b,s5,s6,iN,iNa,gs,              valS1,valS2,valV3,wt);
-        eval_s12v3_2(tid,dol,dy,gamma,s1,s2,s3b,s4b,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,valV3,2,A12,B12,C12,0.,0.,0.);
+       //v3 is on the same atom/grid as above, so valV3 is reused (NULL skips its init/eval)
+        init_s12v3  (tid,dy,s1,s2,s3b,s4b,s5,s6,iN,iNa,gs,              valS1,valS2,NULL,wt);
+        eval_s12v3_2(tid,dol,dy,gamma,s1,s2,s3b,s4b,s5,s6,gs,grid,basis,basis_aux,valS1,valS2,NULL,2,A12,B12,C12,0.,0.,0.);
 
         reduce_3c1b(tid,s5,s6,s1,s2,s3b,s4b,gs,valV3,valS1,valS2,N,Naux,iN,iNa,NULL,Cp);
         acc_wait_all();
