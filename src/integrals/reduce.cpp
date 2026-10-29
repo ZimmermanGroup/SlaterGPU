@@ -1,4 +1,9 @@
 #include "integrals.h"
+#include "read.h"
+#if USE_ACC
+#include <openacc.h>
+#include <cublas_v2.h>
+#endif
 
 
 void reduce_4c_1d(int s1, int s2, int s3, int s4, int gs, int gsp, int M, float* grid1, float* grid2, float** val1a, float** val2a, float** val3a, float** val4a, float* wt1, float* wt2, float* gt)
@@ -1238,9 +1243,140 @@ void reduce_3c1(int s1, int s2, int s3, int s4, int gs, float** val1, float** va
   return;
 }
 
+#if USE_ACC
+//chunk length (grid pts) for the DGEMM form of the 3c reduction.
+// default is 64K pts. file RCHUNK overrides it with the MB allowed for P (np x chunk)
+int get_rchunk(int np, int gs)
+{
+  static int rchunk_mb = -1;
+  if (rchunk_mb<0)
+  {
+    rchunk_mb = read_int("RCHUNK");
+    if (rchunk_mb>0) printf("   reduce_3c1b: P buffer limited to %i MB (RCHUNK) \n",rchunk_mb);
+  }
+
+  long kc = 65536;
+  if (rchunk_mb>0) kc = (rchunk_mb*1024l*1024l/8)/np;
+  if (kc>gs) kc = gs;
+  if (kc<1) kc = 1;
+  return (int)kc;
+}
+
+//Ct[ii1*N2+i2*N+i3] += sum_g val1[ii1][g]*val2[ii2][g]*val3[ii3][g]
+// over i1 in s1..s2 (aux), i2 in s3..s4, i3 in s5..s6
+// P[(ii2,ii3)][g] = val2*val3 is formed for a chunk of grid pts and contracted
+// with val1 by DGEMM into R(np x na), which is added to Ct at the end
+// symm: val2 and val3 hold the same ftns on the same grid (s3..s4 == s5..s6),
+//  so only ii2<=ii3 pairs are formed and the result is mirrored into Ct
+void reduce_3c1b_gemm(int tid, bool symm, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* val1, double* val2, double* val3, int N, int imaxN, int imaxNa, double* Ct)
+{
+  const int MAXG = 16;
+  static cublasHandle_t handle[MAXG];
+  static bool have_handle[MAXG] = { 0 };
+  static double* Pd[MAXG] = { 0 };
+  static size_t Psize[MAXG] = { 0 };
+  static double* Rd[MAXG] = { 0 };
+  static size_t Rsize[MAXG] = { 0 };
+  static int* PLd[MAXG] = { 0 };
+  static size_t PLsize[MAXG] = { 0 };
+
+  int N2 = N*N;
+  int N2b = N2*imaxNa;
+  int na = s2-s1; int n2 = s4-s3; int n3 = s6-s5;
+  if (symm && (n2!=n3 || s3!=s5)) symm = 0;
+
+ //pair list (ii2,ii3)
+  vector<int> pl;
+  for (int ii2=0;ii2<n2;ii2++)
+  for (int ii3=(symm ? ii2 : 0);ii3<n3;ii3++)
+  { pl.push_back(ii2); pl.push_back(ii3); }
+  int np = pl.size()/2;
+  int npa = np*na;
+  if (npa<1) return;
+
+  int q = tid+1;
+  int kc = get_rchunk(np,gs);
+
+  if (!have_handle[tid])
+  {
+    cublasCreate(&handle[tid]);
+    have_handle[tid] = 1;
+  }
+  cublasSetStream(handle[tid],(cudaStream_t)acc_get_cuda_stream(q));
+
+  size_t needP = (size_t)np*kc;
+  if (needP>Psize[tid])
+  {
+    if (Pd[tid]!=NULL) acc_free(Pd[tid]);
+    Pd[tid] = (double*)acc_malloc(needP*sizeof(double));
+    Psize[tid] = needP;
+  }
+  if ((size_t)npa>Rsize[tid])
+  {
+    if (Rd[tid]!=NULL) acc_free(Rd[tid]);
+    Rd[tid] = (double*)acc_malloc(npa*sizeof(double));
+    Rsize[tid] = npa;
+  }
+  if ((size_t)2*np>PLsize[tid])
+  {
+    if (PLd[tid]!=NULL) acc_free(PLd[tid]);
+    PLd[tid] = (int*)acc_malloc(2*np*sizeof(int));
+    PLsize[tid] = 2*np;
+  }
+  double* P = Pd[tid];
+  double* R = Rd[tid];
+  int* PL = PLd[tid];
+  acc_memcpy_to_device_async(PL,pl.data(),2*np*sizeof(int),q);
+
+  double* v1d = (double*)acc_deviceptr(val1);
+  double* v2d = (double*)acc_deviceptr(val2);
+  double* v3d = (double*)acc_deviceptr(val3);
+
+  #pragma acc parallel loop deviceptr(R) async(q)
+  for (int j=0;j<npa;j++)
+    R[j] = 0.;
+
+  double one = 1.;
+  for (int g0=0;g0<gs;g0+=kc)
+  {
+    int k = kc; if (g0+k>gs) k = gs-g0;
+
+   //P is k x np, column-major
+    #pragma acc parallel loop collapse(2) deviceptr(P,v2d,v3d,PL) async(q)
+    for (int p=0;p<np;p++)
+    for (int g=0;g<k;g++)
+    {
+      int ii2 = PL[2*p]; int ii3 = PL[2*p+1];
+      P[p*k+g] = v2d[ii2*gs+g0+g] * v3d[ii3*gs+g0+g];
+    }
+
+   //R(np x na) += P^T * V, V = val1 chunk (k x na, ld gs)
+    cublasDgemm(handle[tid],CUBLAS_OP_T,CUBLAS_OP_N,np,na,k,&one,P,k,v1d+g0,gs,&one,R,np);
+  }
+
+  #pragma acc parallel loop collapse(2) deviceptr(R,PL) present(Ct[0:N2b]) async(q)
+  for (int ii1=0;ii1<na;ii1++)
+  for (int p=0;p<np;p++)
+  {
+    int ii2 = PL[2*p]; int ii3 = PL[2*p+1];
+    double v = R[ii1*np+p];
+    Ct[ii1*N2+(s3+ii2)*N+(s5+ii3)] += v;
+    if (symm && ii2!=ii3)
+      Ct[ii1*N2+(s3+ii3)*N+(s5+ii2)] += v;
+  }
+
+  #pragma acc wait(q)
+
+  return;
+}
+#endif
+
 //fully double precision
 void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, double* val2, double* val3, int N, int Naux, int imaxN, int imaxNa, double* C, double* Ct)
 {
+#if USE_ACC
+  reduce_3c1b_gemm(tid,1,s1,s2,s3,s4,s3,s4,gs,val1,val2,val3,N,imaxN,imaxNa,Ct);
+#else
   int N2 = N*N;
   int N2a = N2*Naux;
   int N2b = N2*imaxNa;
@@ -1270,12 +1406,18 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int gs, double* val1, 
   } //i1,i2,i3
 
 
+#endif
+
   return;
 }
 
 //fully double precision
 void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int gs, double* val1, double* val2, double* val3, int N, int Naux, int imaxN, int imaxNa, double* C, double* Ct)
 {
+#if USE_ACC
+  //PS callers only pass equal ranges when both are on the same atom and grid
+  reduce_3c1b_gemm(tid,s3==s5 && s4==s6,s1,s2,s3,s4,s5,s6,gs,val1,val2,val3,N,imaxN,imaxNa,Ct);
+#else
   int N2 = N*N;
   int N2a = N2*Naux;
   int N2b = N2*imaxNa;
@@ -1302,6 +1444,8 @@ void reduce_3c1b(int tid, int s1, int s2, int s3, int s4, int s5, int s6, int gs
 
     Ct[ii1*N2+i2*N+i3] += val;
   } //i1,i2,i3
+
+#endif
 
   return;
 }
