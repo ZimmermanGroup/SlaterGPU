@@ -5234,7 +5234,7 @@ void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vec
   double* Paon = new double[N2];
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Paon[i*N+j] = Pao[i*N+j]*norm[i]*norm[j];
+    Paon[i*N+j] = gbasis? Pao[i*N+j] : Pao[i*N+j]*norm[i]*norm[j];
 
   if (prl>1)
   {
@@ -5336,12 +5336,12 @@ void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<
 
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Pao1n[i*N+j] = Pao[i*N+j]*norm[i]*norm[j];
+    Pao1n[i*N+j] = gbasis? Pao[i*N+j] : Pao[i*N+j]*norm[i]*norm[j];
 
   if (get_paodt)
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Pao2n[i*N+j] = Paodt[i*N+j]*norm[i]*norm[j];
+    Pao2n[i*N+j] = gbasis?Paodt[i*N+j] : Paodt[i*N+j]*norm[i]*norm[j];
 
   //int nang = gsa/nrad;
  //no support for sgs basis
