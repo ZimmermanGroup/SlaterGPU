@@ -1153,7 +1153,7 @@ void get_6fp3d(int tid, int gs, double* grid, double* val, double zeta)
     double x = grid[6*i];
     double y = grid[6*i+1];
     double r = grid[6*i+3];
-    double ezr = r*r*r*exp(-zeta*r);
+    double ezr = r*r*exp(-zeta*r);
     val[i] *= (x*x-3.*y*y)*x*ezr;
   }
 }
