@@ -310,9 +310,9 @@ double igamc(double aa, double xx) {
   return ans * ax;
 }
 
-//igam/igamc with lgamma(a) precomputed by the caller
+//igam/igamc with lgamma(a) and log(x) precomputed by the caller
 #pragma acc routine seq
-double igam_lg(double aa, double xx, double lga) {
+double igam_lg(double aa, double xx, double lga, double lx) {
   double a = aa;
   double x = xx;
 
@@ -321,10 +321,10 @@ double igam_lg(double aa, double xx, double lga) {
   // x > 1 and x > a should be dealt with outside
   // this function.
   if (x > 1. && x > a) {
-    return 1. - igamc_lg(a,x,lga);
+    return 1. - igamc_lg(a,x,lga,lx);
   }
 
-  double ax = a * log(x) - x - lga;
+  double ax = a * lx - x - lga;
   if (ax < -MAXLOG) {
     return 0.;
   }
@@ -344,7 +344,7 @@ double igam_lg(double aa, double xx, double lga) {
 }
 
 #pragma acc routine seq
-double igamc_lg(double aa, double xx, double lga) {
+double igamc_lg(double aa, double xx, double lga, double lx) {
   double a = aa;
   double x = xx;
   double t, yc, pk, qk, r;
@@ -354,10 +354,10 @@ double igamc_lg(double aa, double xx, double lga) {
   // x < 1 and x < a should be dealt with outside
   // this function.
   if (x < 1. || x < a) {
-    return 1. - igam_lg(a,x,lga);
+    return 1. - igam_lg(a,x,lga,lx);
   }
 
-  double ax = a * log(x) - x - lga;
+  double ax = a * lx - x - lga;
   if (ax < -MAXLOG) {
     return 0.;
   }
@@ -465,9 +465,10 @@ double vinr_gam_sc(int n, int l, double r, double z, double pz, double lnf, doub
   ans *= pz;
   double rz = r*z;
   double rzl = pow(rz,(double)(2*l+1));
+  double lrz = log(rz);
 
-  double g1 = igam_lg(n-l+1,rz,lga1) * lnf;
-  double g2 = igam_lg(n+l+2,rz,lga2) * lnf2;
+  double g1 = igam_lg(n-l+1,rz,lga1,lrz) * lnf;
+  double g2 = igam_lg(n+l+2,rz,lga2,lrz) * lnf2;
   ans *= rzl * (lnf - g1) + g2;
 
   if (std::isnan(ans) || std::isinf(ans)) {
