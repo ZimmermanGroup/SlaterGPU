@@ -14,7 +14,7 @@
 #include <cctype>
 
 #define ROOTEIGHTPI 5.013256549262001
-
+#define ROOTFOURPI 3.544907701811032
 CINTPrep::CINTPrep(bool doing_ri)
 {
   atm = NULL;
@@ -48,7 +48,9 @@ CINTPrep::~CINTPrep()
 
 double get_gto_norm(int shl1, double zeta1)
 {
-  return CINTgto_norm(shl1, zeta1)/ROOTEIGHTPI;
+  //return CINTgto_norm(shl1, zeta1)/ROOTEIGHTPI;
+  return CINTgto_norm(shl1, zeta1)/ROOTFOURPI; //This is the correct normalization for GTOs
+  //This also removes the multiplicative factor of 2 and 4 in compute_rhodg() for rho and delrho respectively
 }
 
 int CINTPrep::get_var_dim()

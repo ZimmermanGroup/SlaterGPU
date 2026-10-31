@@ -2972,16 +2972,12 @@ void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vect
     } //loop n over second atom
   }
 
-  #pragma acc parallel loop present(rho[0:gsa])
-  for (int j=0;j<gsa;j++)
-    rho[j] *= 2.;
 
  //delrho dot delrho
- //not sure why 4*
   if (need_grad)
   #pragma acc parallel loop present(drho[0:gsa],delt[0:gsa3])
   for (int m=0;m<gsa;m++)
-    drho[m] = 4.*(delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2]);
+    drho[m] = delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2];
 
   if (prl>2)
   {
@@ -3619,16 +3615,12 @@ void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords, vector<ve
     } //loop n over second atom
   }
 
-  #pragma acc parallel loop present(rho[0:gsa])
-  for (int j=0;j<gsa;j++)
-    rho[j] *= 2.;
 
  //delrho dot delrho
- //not sure why 4*
   if (need_grad)
   #pragma acc parallel loop present(drho[0:gsa],delt[0:gsa3])
   for (int m=0;m<gsa;m++)
-    drho[m] = 4.*(delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2]);
+    drho[m] = delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2];
 
   if (prl>2)
   {
