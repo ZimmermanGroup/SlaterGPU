@@ -2972,16 +2972,12 @@ void compute_rho(bool gbasis, int natoms, int* atno, double* coords, vector<vect
     } //loop n over second atom
   }
 
-  #pragma acc parallel loop present(rho[0:gsa])
-  for (int j=0;j<gsa;j++)
-    rho[j] *= 2.;
 
  //delrho dot delrho
- //not sure why 4*
   if (need_grad)
   #pragma acc parallel loop present(drho[0:gsa],delt[0:gsa3])
   for (int m=0;m<gsa;m++)
-    drho[m] = 4.*(delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2]);
+    drho[m] = delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2];
 
   if (prl>2)
   {
@@ -3619,16 +3615,12 @@ void compute_rhodg(bool gbasis, int natoms, int* atno, double* coords, vector<ve
     } //loop n over second atom
   }
 
-  #pragma acc parallel loop present(rho[0:gsa])
-  for (int j=0;j<gsa;j++)
-    rho[j] *= 2.;
 
  //delrho dot delrho
- //not sure why 4*
   if (need_grad)
   #pragma acc parallel loop present(drho[0:gsa],delt[0:gsa3])
   for (int m=0;m<gsa;m++)
-    drho[m] = 4.*(delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2]);
+    drho[m] = delt[3*m+0]*delt[3*m+0]+delt[3*m+1]*delt[3*m+1]+delt[3*m+2]*delt[3*m+2];
 
   if (prl>2)
   {
@@ -5238,12 +5230,12 @@ void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vec
 
   double norm[N];
   for (int i=0;i<N;i++)
-    norm[i] = basis[i][4];
+    norm[i] = basis[i][4]; // this contains the number of primitives in each shell for gbasis and NOT the norm
   double* Paon = new double[N2];
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Paon[i*N+j] = Pao[i*N+j]*norm[i]*norm[j];
-
+    Paon[i*N+j] = gbasis? Pao[i*N+j] : Pao[i*N+j]*norm[i]*norm[j];
+                  //The norm only needs to get multiplied for non-gbasis functions
   if (prl>1)
   {
     printf("\n Paon: \n");
@@ -5344,12 +5336,12 @@ void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<
 
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Pao1n[i*N+j] = Pao[i*N+j]*norm[i]*norm[j];
+    Pao1n[i*N+j] = gbasis? Pao[i*N+j] : Pao[i*N+j]*norm[i]*norm[j];
 
   if (get_paodt)
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Pao2n[i*N+j] = Paodt[i*N+j]*norm[i]*norm[j];
+    Pao2n[i*N+j] = gbasis?Paodt[i*N+j] : Paodt[i*N+j]*norm[i]*norm[j];
 
   //int nang = gsa/nrad;
  //no support for sgs basis
@@ -5391,6 +5383,29 @@ void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<
  //create inner grid
   double Z1 = 1.;
   generate_central_grid_2d(-1,1,gridb,wtb,Z1,nrad,nang,ang_g,ang_w);
+
+  static int save_secondary_grid = read_int("SAVE_SECONDARY_GRID");
+  if (save_secondary_grid)
+  {
+    #pragma acc update self(gridb[0:gsb6],wtb[0:gsb])
+
+    vector<vector<double>> gw;
+    gw.reserve(gsb);
+
+    for (int j=0; j<gsb; j++)
+    {
+      double x = gridb[6*j+0];
+      double y = gridb[6*j+1];
+      double z = gridb[6*j+2];
+      double w = wtb[j];
+
+      vector<double> row = {x, y, z, w};
+      gw.push_back(row);
+    }
+
+    save_xyzv(gw, "SECONDARY_GRID_WTS.csv");
+    save_secondary_grid = 0;
+  }
 
   const double den = 1.e-8; //make sure small terms don't blow up
   #pragma acc parallel loop present(gridb[0:gsb6])

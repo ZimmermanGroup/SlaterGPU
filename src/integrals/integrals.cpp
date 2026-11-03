@@ -4237,7 +4237,7 @@ void compute_Enp(int natoms, int* atno, float* coords, vector<vector<double> > &
   return;
 }
 
-void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, double* grid1m, double A1, double B1, double C1, double rconf, double pconf, double* E)
+void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, double* grid1m, double A1, double B1, double C1, double rconf, double pconf, bool damped, double* E)
 {
   int gs6 = 6*gs;
   int N2 = N*N;
@@ -4253,10 +4253,15 @@ void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, do
     double y = grid1m[6*j+1]+B1;
     double z = grid1m[6*j+2]+C1;
 
-   //wave centered at zero
-    double xs = x/(1.+exp(x*x/a));
-    double ys = y/(1.+exp(y*y/a));
-    double zs = z/(1.+exp(z*z/a));
+    double xs = x;
+    double ys = y;
+    double zs = z;
+    if (damped)
+    {
+      xs = x/(1.+exp(x*x/a));
+      ys = y/(1.+exp(y*y/a));
+      zs = z/(1.+exp(z*z/a));
+    }
 
    //confining potential
     double r = sqrt(x*x+y*y+z*z);
@@ -4276,7 +4281,7 @@ void reduce_Exyz(int i1, int i2, int N, int gs, double* val1m, double* val2m, do
   return;
 }
 
-void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, double* val2m, double* val2n, double* grid1m, double* grid2n, double A1, double B1, double C1, double A2, double B2, double C2, double rconf, double pconf, double* E)
+void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, double* val2m, double* val2n, double* grid1m, double* grid2n, double A1, double B1, double C1, double A2, double B2, double C2, double rconf, double pconf, bool damped, double* E)
 {
   int gs6 = 6*gs;
   int N2 = N*N;
@@ -4294,13 +4299,21 @@ void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, 
     double y2 = grid2n[6*j+1]+B2;
     double z2 = grid2n[6*j+2]+C2;
 
-   //wave centered at zero
-    double xs1 = x1/(1.+exp(x1*x1/a));
-    double ys1 = y1/(1.+exp(y1*y1/a));
-    double zs1 = z1/(1.+exp(z1*z1/a));
-    double xs2 = x2/(1.+exp(x2*x2/a));
-    double ys2 = y2/(1.+exp(y2*y2/a));
-    double zs2 = z2/(1.+exp(z2*z2/a));
+    double xs1 = x1;
+    double ys1 = y1;
+    double zs1 = z1;
+    double xs2 = x2;
+    double ys2 = y2;
+    double zs2 = z2;
+    if (damped)
+    {
+      xs1 = x1/(1.+exp(x1*x1/a));
+      ys1 = y1/(1.+exp(y1*y1/a));
+      zs1 = z1/(1.+exp(z1*z1/a));
+      xs2 = x2/(1.+exp(x2*x2/a));
+      ys2 = y2/(1.+exp(y2*y2/a));
+      zs2 = z2/(1.+exp(z2*z2/a));
+    }
 
     double r1 = sqrt(x1*x1+y1*y1+z1*z1);
     double r2 = sqrt(x2*x2+y2*y2+z2*z2);
@@ -4312,7 +4325,7 @@ void reduce_Exyz_2(int i1, int i2, int N, int gs, double* val1m, double* val1n, 
     valz += val1m[j]*val2m[j]*zs1 + val1n[j]*val2n[j]*zs2;
   }
 
-  #pragma acc serial present(E[0:N2])
+  #pragma acc serial present(E[0:3*N2])
   {
     E[i1*N+i2]      = E[i2*N+i1] = valx;
     E[N2+i1*N+i2]   = E[N2+i2*N+i1] = valy;
@@ -4332,7 +4345,14 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
   int N2 = N*N;
 
   printf("  compute_E. nrad/ang: %3i %3i \n",nrad,nang);
-
+  int field_mode = read_int("EFIELD_DAMPED");
+  if (field_mode!=0 && field_mode!=1)
+  {
+    fprintf(stderr,"ERROR: EFIELD_DAMPED must be 0 (uniform) or 1 (damped)\n");
+    exit(1);
+  }
+  bool damped = (field_mode==1);
+  
   int gs = nrad*nang;
   int gs6 = 6*gs;
 
@@ -4444,7 +4464,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
         for (int j=0;j<gs;j++)
           val1m[j] *= wt1[j];
 
-        reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,rconf,pconf,E);
+        reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,rconf,pconf,damped,E);
 
       } //i1,i2 over gbasis
     }
@@ -4476,7 +4496,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
       eval_shd(ii1,gs,grid1m,val1m,n1,l1,m1,zeta1); //basis 1
       eval_shd(ii1,gs,grid1m,val2m,n2,l2,m2,zeta2); //basis 2
 
-      reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,rconf,pconf,E);
+      reduce_Exyz(i1,i2,N,gs,val1m,val2m,grid1m,A1,B1,C1,rconf,pconf,damped,E);
 
     } //pairs of basis on single atoms
 
@@ -4571,7 +4591,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
             val1n[j] *= wt2[j];
           }
 
-          reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,rconf,pconf,E);
+          reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,rconf,pconf,damped,E);
         } //i1,i2 over gbasis
       }
 
@@ -4624,7 +4644,7 @@ void compute_Exyz(double rconf, double pconf, int natoms, int* atno, double* coo
         eval_shd(ii1,gs,grid1n,val2m,n2,l2,m2,zeta2); //basis 2 on center 1
         eval_shd(ii1,gs,grid2n,val2n,n2,l2,m2,zeta2); //basis 2 on center 2
 
-        reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,rconf,pconf,E);
+        reduce_Exyz_2(i1,i2,N,gs,val1m,val1n,val2m,val2n,grid1m,grid2n,A1,B1,C1,A2,B2,C2,rconf,pconf,damped,E);
 
       } //loop i1,i2
 

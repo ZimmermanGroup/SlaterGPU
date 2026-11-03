@@ -945,23 +945,23 @@ void get_p_6dz2d(int tid, int gs, double* grid, double* val, double zeta)
 
 void get_p_7dxyd(int tid, int gs, double* grid, double* val, double zeta)
 {
- #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)                 
-  for (int i=0;i<gs;i++)                                                                  
+ #pragma acc parallel loop independent present(grid[0:6*gs],val[0:3*gs]) //async(tid+1)
+  for (int i=0;i<gs;i++)
   {
-    double x = grid[6*i];  
-    double y = grid[6*i+1]; 
-    double z = grid[6*i+2]; 
-    double r = grid[6*i+3]; 
+    double x = grid[6*i];
+    double y = grid[6*i+1];
+    double z = grid[6*i+2];
+    double r = grid[6*i+3];
     double zr = zeta*r;
     double ezr = exp(-zr);
-    double ezor = ezr/r; 
+    double ezor = ezr/r;
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double r2 = r*r;
     double f1 = 5.-zr;
 
     val[3*i]   *= y*r2*ezr*(y2 + z2 + x2*f1);
     val[3*i+1] *= x*r2*ezr*(x2 + z2 + y2*f1);
-    val[3*i+2] *= x*y*z*r2*(4.*r-zeta*r2)*ezr;
+    val[3*i+2] *= x*y*z*r2*(4.-zr)*ezr;
   }
   return;
 }
@@ -982,7 +982,7 @@ void get_p_7dxzd(int tid, int gs, double* grid, double* val, double zeta)
     double r2 = r*r;
 
     val[3*i]   *= z*r2*(y2 + z2 + x2*(5.-zr))*ezr;
-    val[3*i+1] *= x*y*z*r2*(4.*r - zeta*r2)*ezr;
+    val[3*i+1] *= x*y*z*r2*(4. - zr)*ezr;
     val[3*i+2] *= x*r2*(x2 + y2 + z2*(5.-zr))*ezr;
   }
   return;
@@ -1003,7 +1003,7 @@ void get_p_7dyzd(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double r2 = r*r;
 
-    val[3*i]   *= x*y*z*r2*(4.*r-zeta*r2)*ezr;
+    val[3*i]   *= x*y*z*r2*(4.-zr)*ezr;
     val[3*i+1] *= z*r2*(x2 + z2 + y2*(5.-zr))*ezr;
     val[3*i+2] *= y*r2*(x2 + y2 + z2*(5.-zr))*ezr;
   }
@@ -1231,11 +1231,11 @@ void get_p_5fm3d(int tid, int gs, double* grid, double* val, double zeta)
     double z2 = z*z;
     double zr = zeta*r;
     double ezor = exp(-zr)/r;
-    double zty2m3x2 = (y2-3.*x2)*zeta;
+    double y2m3x2 = (y2-3.*x2);
 
     val[3*i]   *= x*y*ezor*(6.*z2 + x2*(9.-3.*zr) + y2*(5.+zr));
     val[3*i+1] *= ezor*(3.*x2*x2 - 3.*y2*z2 + y2*y2*(zr-4.) + 3.*x2*(z2+y2*(1.-zr)));
-    val[3*i+2] *= y*z*ezor*zty2m3x2*(zr-1.);
+    val[3*i+2] *= y*z*ezor*y2m3x2*(zr-1.);
   }
   return;
 }
@@ -1393,7 +1393,7 @@ void get_p_6fm3d(int tid, int gs, double* grid, double* val, double zeta)
     double ezr = exp(-zr);
 
     val[3*i]   *= x*y*(6.*z2 - 3.*x2*(zr-4.) + y2*(4+zr))*ezr;
-    val[3*i+1] *= (3.*x2*x2 - 3.*y2*z2 + y2*y2*(zr-5.) + 3.*x2*(z2+y*(2.-zr)))*ezr;
+    val[3*i+1] *= (3.*x2*x2 - 3.*y2*z2 + y2*y2*(zr-5.) + 3.*x2*(z2+y2*(2.-zr)))*ezr;
     val[3*i+2] *= y*z*(y2-3.*x2)*(zr-2.)*ezr;
   }
   return;
@@ -1456,7 +1456,7 @@ void get_p_6f0d(int tid, int gs, double* grid, double* val, double zeta)
     double f1 = zeta*(3.*y2-2.*z2)*r;
     double f2 = -2.*(6.*y2+z2) + 3.*x2*(zr-4.);
 
-    val[3*i]   *= x*y*(f1 + f2)*ezr;
+    val[3*i]   *= x*z*(f1 + f2)*ezr;
     val[3*i+1] *= y*z*(f1 + f2)*ezr;
     val[3*i+2] *= (-3.*x2*x2 - 3.*y2*y2 - 2.*z2*z2*(zr-5.) + 3.*y2*z2*(zr-1.) - 3.*x2*(2.*y2+z2*(1.-zr)))*ezr;
   }
@@ -1518,7 +1518,7 @@ void get_p_6fp3d(int tid, int gs, double* grid, double* val, double zeta)
     double ezr = exp(-zr);
 
     val[3*i]   *= (-3.*y2*(y2+z2) + x2*x2*(5.-zr) + 3.*x2*(z2+y2*(zr-2.)))*ezr;
-    val[3*i+1] *= x*y*(-6.*z2+3.*y2*(zr-4.) + x2*(4.+zr))*ezr;
+    val[3*i+1] *= x*y*(-6.*z2+3.*y2*(zr-4.) - x2*(4.+zr))*ezr;
     val[3*i+2] *= x*z*(x2-3.*y2)*(2.-zr)*ezr;
   }
   return;
@@ -1560,9 +1560,9 @@ void get_p_7fm2d(int tid, int gs, double* grid, double* val, double zeta)
     double zr = zeta*r;
     double ezr = exp(-zr);
 
-    val[3*i]   *= y*z*(-zeta*x2*r2+r*(4*x2+y2+z2))*ezr;
-    val[3*i+1] *= x*z*(-zeta*y2*r2+r*(4*x2+y2+z2))*ezr;
-    val[3*i+2] *= x*y*(-zeta*z2*r2+r*(4*x2+y2+z2))*ezr;
+    val[3*i]   *= y*z*(-zeta*x2*r2+r*(4.*x2+y2+z2))*ezr;
+    val[3*i+1] *= x*z*(-zeta*y2*r2+r*(x2+4.*y2+z2))*ezr;
+    val[3*i+2] *= x*y*(-zeta*z2*r2+r*(x2+y2+4.*z2))*ezr;
   }
   return;
 }
@@ -1648,7 +1648,7 @@ void get_p_7fp2d(int tid, int gs, double* grid, double* val, double zeta)
     double zr = zeta*r;
     double ezr = exp(-zr);
 
-    val[3*i]   *= x*z*((-5*x2+y2-2*z2)*r+zeta*(x-y)*(x+y)*r2)*ezr;
+    val[3*i]   *= -x*z*((-5*x2+y2-2*z2)*r+zeta*(x-y)*(x+y)*r2)*ezr;
     val[3*i+1] *= y*z*((x2-5*y2-2*z2)*r-zeta*(x-y)*(x+y)*r2)*ezr;
     val[3*i+2] *= (x-y)*(x+y)*(-zeta*z2*r2+r*(x2+y2+4*z2))*ezr;
   }
@@ -1672,8 +1672,8 @@ void get_p_7fp3d(int tid, int gs, double* grid, double* val, double zeta)
     double x23y2 = x2-3.*y2;
 
     val[3*i]   *= (-zeta*x2*x23y2*r2+3*r*(2*x4+x2*(-3*y2+z2)-y2*(y2+z2)))*ezr;
-    val[3*i+1] *= x*y*(zeta*x23y2*r2+3*r*(x2+5*y2+2*z2))*ezr;
-    val[3*i+2] *= x*x23y2*z*(-3*r+zeta*r2)*ezr;
+    val[3*i+1] *= -x*y*(zeta*x23y2*r2+3*r*(x2+5*y2+2*z2))*ezr;
+    val[3*i+2] *= -x*x23y2*z*(-3*r+zeta*r2)*ezr;
   }
   return;
 }
@@ -2094,11 +2094,11 @@ void get_p_7gm4d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= -y*(y4+y2*z2+x4*(-5.+zr)-x2*(3.*z2+y2*zr))*ezor;
-    val[3*i+1] *= x*(x4-3*y2*z2+y4*(-5.+zr)+x2*(z2-y2*zr))*ezor;
-    val[3*i+2] *=-x*(x-y)*y*(x+y)*z*(-2.+zr)*ezor;
+    val[3*i]   *= -y*(y4+y2*z2+x4*(-5.+zr)-x2*(3.*z2+y2*zr))*ezr;
+    val[3*i+1] *= x*(x4-3*y2*z2+y4*(-5.+zr)+x2*(z2-y2*zr))*ezr;
+    val[3*i+2] *=-x*(x-y)*y*(x+y)*z*(-2.+zr)*ezr;
   }
   return;
 }
@@ -2115,11 +2115,11 @@ void get_p_7gm3d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= x*y*z*(6.*z2-3.*x2*(-4.+zr)+y2*(4.+zr))*ezor;
-    val[3*i+1] *= z*(3.*x4-3.*y2*z2+y4*(-5.+zr)+3*x2*(z2+y2*(2.-zr)))*ezor;
-    val[3*i+2] *= -y*(-3.*x2+y2)*(x2+y2+z2*(3.-zr))*ezor;
+    val[3*i]   *= x*y*z*(6.*z2-3.*x2*(-4.+zr)+y2*(4.+zr))*ezr;
+    val[3*i+1] *= z*(3.*x4-3.*y2*z2+y4*(-5.+zr)+3*x2*(z2+y2*(2.-zr)))*ezr;
+    val[3*i+2] *= -y*(-3.*x2+y2)*(x2+y2+z2*(3.-zr))*ezr;
   }
   return;
 }
@@ -2136,11 +2136,11 @@ void get_p_7gm2d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= y*(-((y2-6*z2)*(y2+z2))+x4*(-5+zr)+x2*(3*z2*(5-2*zr)+y2*(-6+zr)))*ezor;
-    val[3*i+1] *= x*(-x4+6*z2+3*y2*z2*(5-2*zr)+y4*(-5+zr)+x2*(5*z2+y2*(-6+zr)))*ezor;
-    val[3*i+2] *= x*y*z*(10*y2+24*z2+(y2-6*z2)*zr+x2*(10+zr))*ezor;
+    val[3*i]   *= y*(-((y2-6*z2)*(y2+z2))+x4*(-5+zr)+x2*(3*z2*(5-2*zr)+y2*(-6+zr)))*ezr;
+    val[3*i+1] *= x*(-x4+6*z4+3*y2*z2*(5-2*zr)+y4*(-5+zr)+x2*(5*z2+y2*(-6+zr)))*ezr;
+    val[3*i+2] *= x*y*z*(10*y2+24*z2+(y2-6*z2)*zr+x2*(10+zr))*ezr;
   }
   return;
 }
@@ -2157,11 +2157,11 @@ void get_p_7gm1d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= x*y*z*(2*(-6*y2+z2)+(3*y2-4*z2)*zr+3*x2*(-4+zr))*ezor;
-    val[3*i+1] *= z*(-3*x4+4*z2+y2*z2*(3-4*zr)+3*y4*(-5+zr)+x2*(z2+3*y2*(-6+zr)))*ezor;
-    val[3*i+2] *= -y*(3*x4+3*y4+4*z2*(-5+zr)-3*y2*z2*(1+zr)+x2*(6*y2-3*z2*(1+zr)))*ezor;
+    val[3*i]   *= x*y*z*(2*(-6*y2+z2)+(3*y2-4*z2)*zr+3*x2*(-4+zr))*ezr;
+    val[3*i+1] *= z*(-3*x4+4*z4+y2*z2*(3-4*zr)+3*y4*(-5+zr)+x2*(z2+3*y2*(-6+zr)))*ezr;
+    val[3*i+2] *= -y*(3*x4+3*y4+4*z4*(-5+zr)-3*y2*z2*(1+zr)+x2*(6*y2-3*z2*(1+zr)))*ezr;
   }
   return;
 }
@@ -2178,11 +2178,11 @@ void get_p_7g0d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= -x*(12*y2*z2*(7-2*zr)+3*x4*(-6+zr)+3*y4*(-6+zr)+8*z4*(4+zr)+6*x2*(2*z2*(7-2*zr)+y2*(-6+zr)))*ezor;
-    val[3*i+1] *= -y*(12*y2*z2*(7-2*zr)+3*x4*(-6+zr)+3*y4*(-6+zr)+8*z4*(4+zr)+6*x2*(2*z2*(7-2*zr)+y2*(-6+zr)))*ezor;
-    val[3*i+2] *= -z*(8*y2*z2*(8-3*zr)+8*z4*(-6+zr)+3*x4*(14+zr)+3*y4*(14+zr)+x2*(8*z2*(8-3*zr)+6*y2*(14+zr)))*ezor;
+    val[3*i]   *= -x*(12*y2*z2*(7-2*zr)+3*x4*(-6+zr)+3*y4*(-6+zr)+8*z4*(4+zr)+6*x2*(2*z2*(7-2*zr)+y2*(-6+zr)))*ezr;
+    val[3*i+1] *= -y*(12*y2*z2*(7-2*zr)+3*x4*(-6+zr)+3*y4*(-6+zr)+8*z4*(4+zr)+6*x2*(2*z2*(7-2*zr)+y2*(-6+zr)))*ezr;
+    val[3*i+2] *= -z*(8*y2*z2*(8-3*zr)+8*z4*(-6+zr)+3*x4*(14+zr)+3*y4*(14+zr)+x2*(8*z2*(8-3*zr)+6*y2*(14+zr)))*ezr;
   }
   return;
 }
@@ -2199,11 +2199,11 @@ void get_p_7gp1d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *=  z*(-3.*y4+y2*z2+4.*z4+3.*x4*(-5.+zr)+x2*(z2*(3.-4.*zr)+3.*y2*(-6.+zr)))*ezor;
-    val[3*i+1] *= x*y*z*(2.*(-6.*y2+z2)+(3.*y2-4.*z2)*zr+3.*x2*(-4.+zr))*ezor;
-    val[3*i+2] *= -x*(3.*x4+3.*y4+4*z4*(-5.+zr)-3.*y2*z2*(1.+zr)+x2*(6.*y2-3.*z2*(1.+zr)))*ezor;
+    val[3*i]   *=  z*(-3.*y4+y2*z2+4.*z4+3.*x4*(-5.+zr)+x2*(z2*(3.-4.*zr)+3.*y2*(-6.+zr)))*ezr;
+    val[3*i+1] *= x*y*z*(2.*(-6.*y2+z2)+(3.*y2-4.*z2)*zr+3.*x2*(-4.+zr))*ezr;
+    val[3*i+2] *= -x*(3.*x4+3.*y4+4*z4*(-5.+zr)-3.*y2*z2*(1.+zr)+x2*(6.*y2-3.*z2*(1.+zr)))*ezr;
   }
   return;
 }
@@ -2220,11 +2220,11 @@ void get_p_7gp2d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= x*(12.*z4+6.*y2*z2*zr+y4*(2.-zr)+x4*(-6.+zr)+x2*(-4.*y2+2*z2*(10.-3*zr)))*ezor;
-    val[3*i+1] *= y*(-12.*z4+y4*(6.-zr)+x4*(-2.+zr)+2.*y2*z2*(-10.+3.*zr)+x2*(4.*y2-6.*z2*zr))*ezor;
-    val[3*i+2] *= (x-y)*(x+y)*z*(10.*y2+24*z2+(y2-6.*z2)*zr+x2*(10.+zr))*ezor;
+    val[3*i]   *= x*(12.*z4+6.*y2*z2*zr+y4*(2.-zr)+x4*(-6.+zr)+x2*(-4.*y2+2*z2*(10.-3*zr)))*ezr;
+    val[3*i+1] *= y*(-12.*z4+y4*(6.-zr)+x4*(-2.+zr)+2.*y2*z2*(-10.+3.*zr)+x2*(4.*y2-6.*z2*zr))*ezr;
+    val[3*i+2] *= (x-y)*(x+y)*z*(10.*y2+24*z2+(y2-6.*z2)*zr+x2*(10.+zr))*ezr;
   }
   return;
 }
@@ -2241,11 +2241,11 @@ void get_p_7gp3d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= z*(-3.*y2*(y2+z2)+x4*(5.-zr)+3.*x2*(z2+y2*(-2.+zr)))*ezor;
-    val[3*i+1] *= -x*y*z*(6.*z2-3.*y2*(-4.+zr)+x2*(4.+zr))*ezor;
-    val[3*i+2] *= x*(x2-3.*y2)*(x2+y2+z2*(3.-zr))*ezor;
+    val[3*i]   *= z*(-3.*y2*(y2+z2)+x4*(5.-zr)+3.*x2*(z2+y2*(-2.+zr)))*ezr;
+    val[3*i+1] *= -x*y*z*(6.*z2-3.*y2*(-4.+zr)+x2*(4.+zr))*ezr;
+    val[3*i+2] *= x*(x2-3.*y2)*(x2+y2+z2*(3.-zr))*ezr;
   }
   return;
 }
@@ -2262,11 +2262,11 @@ void get_p_7gp4d(int tid, int gs, double* grid, double* val, double zeta)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
     double zr = zeta*r;
-    double ezor = exp(-zr)/r;
+    double ezr = exp(-zr);
 
-    val[3*i]   *= -x*(12.*y2*z2+x4*(-6.+zr)+y4*(10.+zr)+x2*(-4.*z2+y2*(20.-6.*zr)))*ezor;
-    val[3*i+1] *= -y*(-4.*y2*z2+y4*(-6.+zr)+x4*(10.+zr)+x2*(12.*z2+y2*(20.-6.*zr)))*ezor;
-    val[3*i+2] *= -(x4-6.*x2*y2+y4)*z*(-2.+zr)*ezor;
+    val[3*i]   *= -x*(12.*y2*z2+x4*(-6.+zr)+y4*(10.+zr)+x2*(-4.*z2+y2*(20.-6.*zr)))*ezr;
+    val[3*i+1] *= -y*(-4.*y2*z2+y4*(-6.+zr)+x4*(10.+zr)+x2*(12.*z2+y2*(20.-6.*zr)))*ezr;
+    val[3*i+2] *= -(x4-6.*x2*y2+y4)*z*(-2.+zr)*ezr;
   }
   return;
 }
@@ -2289,7 +2289,7 @@ void get_p_6hm5d(int tid, int gs, double* grid, double* val, double zeta)
 
     val[3*i]   *= x*y*(20.*(y2-x2)-(10.*x2*y2-5.*x4-y4)*zeta/r) * ezr;
     val[3*i+1] *= (y2*(20.*x2-4.*y2)+(-5.*x4+10.*x2*y2-y4) - y2*(-5.*x4+10.*x2*y2-y4)*zeta/r) * ezr;
-    val[3*i+2] *= y*z*(-5.*x4+10.*x2*y2-y4)*zeta/r * ezr;
+    val[3*i+2] *= -y*z*(-5.*x4+10.*x2*y2-y4)*zeta/r * ezr;
     //val[3*i]   *= -x*y*(zeta*f1 + 20.*(y2-x2)*r)*ezor;
     //val[3*i+1] *= (-zeta*y2*f1 + 5.*(x4-6.*x2*y2+y4)*r)*ezor;
     //val[3*i+2] *= -y*z*f1*ezor;
@@ -2313,7 +2313,7 @@ void get_p_6hm4d(int tid, int gs, double* grid, double* val, double zeta)
     //double f0 = (x-y)*(x+y);
 
     val[3*i]   *= (-2.*x2*y*z + y*z*(y2-x2) - x2*y*z*(y2-x2)*zeta/r) * ezr;
-    val[3*i+1] *= ( 2.*x2*y*z + x*z*(y2-x2) - x*y2*z*(y2-x2)*zeta/r) * ezr;
+    val[3*i+1] *= ( 2.*x*y2*z + x*z*(y2-x2) - x*y2*z*(y2-x2)*zeta/r) * ezr;
     val[3*i+2] *= (x*y*(y2-x2) - x*y*(y2-x2)*z2*zeta/r) * ezr;
     //val[3*i]   *= y*z*(zeta*x2*f0 + (y2-3.*x2)*r)*ezor;
     //val[3*i+1] *= x*z*(zeta*y2*f0 + (3.*y2-x2)*r)*ezor;
@@ -2389,12 +2389,9 @@ void get_p_6hm1d(int tid, int gs, double* grid, double* val, double zeta)
     double f0 = 28.*z2-4.*r2;
     double f1 = (-21.*z4 + 14.*z2*r2 - r4)*zeta/r;
 
-    val[3*i]   *= (x*f0 - x*f1) * ezr;
-    val[3*i+1] *= (y*f0 - y*f1) * ezr;
-    val[3*i+2] *= (-56.*z*z2 + 24.*z*r2 - z*f1) * ezr;
-    //val[3*i]   *= x*x*(zeta*f0-4.*(x2-3.*y2)*r)*ezor;
-    //val[3*i+1] *= y*z*(zeta*f0+4.*(3.*x2-y2)*r)*ezor;
-    //val[3*i+2] *= f0*(-zeta*z2+r)*ezor;
+    val[3*i]   *= x*y*(f0-f1) * ezr;
+    val[3*i+1] *= ((-21.*z4 + 14.*z2*r2 - r4) + y2*(f0-f1)) * ezr;
+    val[3*i+2] *= y*z*(-56.*z2 + 24.*r2 - f1) * ezr;
   }
   return;
 }
@@ -2416,12 +2413,9 @@ void get_p_6h0d(int tid, int gs, double* grid, double* val, double zeta)
     double f1 = 112.*z2 - 80.*r2;
     double f2 = (63.*z4 - 70.*z2*r2 + 15.*r4)*zeta/r;
 
-    val[3*i]   *= (x*f0 - x*f2)*ezr;
-    val[3*i+1] *= (y*f0 - y*f2)*ezr;
-    val[3*i+2] *= (z*f1 - z*f2)*ezr;
-    //val[3*i]   *= y*z*(-zeta*x2*f0 + (2.*x2+f0)*r)*ezor;
-    //val[3*i+1] *= x*z*(-zeta*y2*f0 + (2.*y2+f0)*r)*ezor;
-    //val[3*i+2] *= x*y*(-zeta*z2*f0 + (-4.*z2+f0)*r)*ezor;
+    val[3*i]   *= x*z*(f0-f2)*ezr;
+    val[3*i+1] *= y*z*(f0-f2)*ezr;
+    val[3*i+2] *= ((63.*z4 - 70.*z2*r2 + 15.*r4) + z2*(f1-f2))*ezr;
   }
   return;
 }
@@ -2443,12 +2437,9 @@ void get_p_6hp1d(int tid, int gs, double* grid, double* val, double zeta)
     double f1 = -56.*z2 + 24.*r2;
     double f2 = (-21.*z4 + 14.*z2*r2 - r4)*zeta/r;
 
-    val[3*i]   *= (x*f0 - x*f2)*ezr;
-    val[3*i+1] *= (y*f0 - y*f2)*ezr;
-    val[3*i+2] *= (z*f1 - z*f2)*ezr;
-    //val[3*i]   *= (-zeta*x2*f1*f0 + r*(5.*x4-3.*y2*(y2-8.*z2)-6.*x2*(y2+4.*z2)))*ezor;
-    //val[3*i+1] *= -x*y*(zeta*f1*f0 + 4.*r*(x2+3.*(y2-4.*z2)))*ezor;
-    //val[3*i+2] *= -x*z*f1*(zeta*f0+16.*r)*ezor;
+    val[3*i]   *= ((-21.*z4 + 14.*z2*r2 - r4) + x2*(f0-f2))*ezr;
+    val[3*i+1] *= x*y*(f0-f2)*ezr;
+    val[3*i+2] *= x*z*(f1-f2)*ezr;
   }
   return;
 }
@@ -2470,12 +2461,9 @@ void get_p_6hp2d(int tid, int gs, double* grid, double* val, double zeta)
     double f1 = (3.*z2 - r2);
     double f2 = z*f0*f1*zeta/r;
 
-    val[3*i]   *= (-2.*x*f0 - (x-y)*z*f1 - (x+y)*z*f1 + x*f2)*ezr;
-    val[3*i+1] *= (-2.*y*f0 - (x-y)*z*f1 + (x+y)*z*f1 + y*f2)*ezr;
-    val[3*i+2] *= (f0*z2 - f0*f1 + z*f2)*ezr;
-    //val[3*i]   *= -x*y*(-4.*(f0-6.*z2)*r + zeta*(f1-12.*f0*z2+8.*z4))*ezor;
-    //val[3*i+1] *= (zeta*y2*(-f1+12.*f0*z2-8.*z4) + r*(x4+6.*x2*y2+5.*y4-12.*(x2+3.*y2)*z2+8.*z4))*ezor;
-    //val[3*i+2] *= -y*z*((24.*f0-32.*z2)*r + zeta*(f1-12.*f0*z2+8.*z4))*ezor;
+    val[3*i]   *= (2.*x*z*(f1-f0) - x*f2)*ezr;
+    val[3*i+1] *= (-2.*y*z*(f1+f0) - y*f2)*ezr;
+    val[3*i+2] *= (f0*(f1+4.*z2) - z*f2)*ezr;
   }
   return;
 }
@@ -2937,7 +2925,7 @@ void get_dp_gm2d(int tid, int gs, double* grid, double* val)
     double xyr = x*y*rm2;
     double f1 = xyr*f0*rm2;
 
-    val[3*i+0] *= -4.*x*f1 + 2.*x*xyr*rm2 + y*f0*rm2;
+    val[3*i+0] *= -4.*x*f1 - 2.*x*xyr*rm2 + y*f0*rm2;
     val[3*i+1] *= -4.*y*f1 - 2.*y*xyr*rm2 + x*f0*rm2;
     val[3*i+2] *= -4.*z*f1 + 12.*xyr*z*rm2;
   }
@@ -2963,12 +2951,8 @@ void get_dp_gm1d(int tid, int gs, double* grid, double* val)
     double yzr = y*z*rm2;
     double f1 = 4.*yzr*f0*rm2;
 
-    //val[3*i+0] *= -x*f1 - 6.*x*yz*rm4;
-    //val[3*i+1] *= -y*f1 - 6.*y*yz*rm4 + z*f0*rm4;
-    //val[3*i+2] *= -z*f1 + 8.*z*yz*rm4 + y*f0*rm4;
-
     val[3*i+0] *= 2.*x*yzr*(3.*x2r+3.*y2r-11.*z2r)*rm2;
-    val[3*i+1] *= z*(-3.*(-x2r*x2r+y2r*y2r) + z2r*(x2r-21.*y2r+4.*z2r))*rm2;
+    val[3*i+1] *= z*(3.*(-x2r*x2r+y2r*y2r) + z2r*(x2r-21.*y2r+4.*z2r))*rm2;
     val[3*i+2] *= y*(-3.*x2y2r*x2y2r + 21.*x2y2r*z2r - 4.*z2r*z2r)*rm2;
   }
   return;
@@ -3191,7 +3175,7 @@ void get_dp_hm1d(int tid, int gs, double* grid, double* val)
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
 
     val[3*i+0] *= x*y*((x2+y2)*(x2+y2)-40*(x2+y2)*z2+64.*z4)*rm7;
-    val[3*i+1] *= -x2*(x2+y2)*(x2+y2)+(11.*x2-29.*y2)*(x2+y2)*z2+4.*(x2+17.*y2)*z4-8.*z4*z2*rm7;
+    val[3*i+1] *= (-x2*(x2+y2)*(x2+y2)+(11.*x2-29.*y2)*(x2+y2)*z2+4.*(x2+17.*y2)*z4-8.*z4*z2)*rm7;
     val[3*i+2] *= y*z*(29.*(x2+y2)*(x2+y2)-68.*(x2+y2)*z2+8.*z4)*rm7;
   }
   return;
@@ -3230,7 +3214,7 @@ void get_dp_hp1d(int tid, int gs, double* grid, double* val)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
 
-    val[3*i+0] *= -y2*(x2+y2)*(x2+y2)+(x2+y2)*(-29.*x2+11.*y2)*z2+4.*(17.*x2+y2)*z4-8.*z4*z2*rm7;
+    val[3*i+0] *= (-y2*(x2+y2)*(x2+y2)+(x2+y2)*(-29.*x2+11.*y2)*z2+4.*(17.*x2+y2)*z4-8.*z4*z2)*rm7;
     val[3*i+1] *= x*y*((x2+y2)*(x2+y2)-40*(x2+y2)*z2+64.*z4)*rm7;
     val[3*i+2] *= x*z*(29.*(x2+y2)*(x2+y2)-68.*(x2+y2)*z2+8.*z4)*rm7;
   }
@@ -3270,7 +3254,7 @@ void get_dp_hp3d(int tid, int gs, double* grid, double* val)
     double x2 = x*x; double y2 = y*y; double z2 = z*z;
     double x4 = x2*x2; double y4 = y2*y2; double z4 = z2*z2;
 
-    val[3*i+0] *= 9.*x4*y2+6.*x2*y4-3.*y4*y2+21*(x4-6.*x2*y2+y4)*z2+24.*(-x2+y2)*z4*rm7;
+    val[3*i+0] *= (9.*x4*y2+6.*x2*y4-3.*y4*y2+21*(x4-6.*x2*y2+y4)*z2+24.*(-x2+y2)*z4)*rm7;
     val[3*i+1] *= 3.*x*y*(-3.*x4-2*x2*y2+y4+28.*(x-y)*(x+y)*z2+16.*z4)*rm7;
     val[3*i+2] *= -3.*x*(x2-3.*y2)*z*(7.*(x2+y2)-8.*z2)*rm7;
   }
@@ -3677,11 +3661,11 @@ void eval_pd(int tid, int gs, double* grid, double* val, int n1, int l1, int m1,
     else if (l1==1)
     {
       if (m1==1)
-        get_p_6pxd(tid,gs,grid,val,zeta1);
+        get_p_7pxd(tid,gs,grid,val,zeta1);
       else if (m1==-1)
-        get_p_6pyd(tid,gs,grid,val,zeta1);
+        get_p_7pyd(tid,gs,grid,val,zeta1);
       else
-        get_p_6pzd(tid,gs,grid,val,zeta1);
+        get_p_7pzd(tid,gs,grid,val,zeta1);
     }
     else if (l1==2)
     {
