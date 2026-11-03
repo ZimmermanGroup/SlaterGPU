@@ -1,0 +1,137 @@
+--- a/src/integrals/grid_util.cpp
++++ b/src/integrals/grid_util.cpp
+@@ -30,8 +30,46 @@
+     fprintf(stderr,"Density integrals must be positive. CI=%g KS=%g\n",ne_ci,ne_ks);
+     std::exit(EXIT_FAILURE);
+   }
+ 
++  // For KL and Jeffreys ONLY, discard grid points where BOTH electronic
++  // densities are extremely small. Floating-point underflow in Gaussian
++  // tails otherwise gives spurious infinite KL due to rho_CI>0,rho_KS=0
++  // (or vice versa). Renormalize the retained shapes to unit integral.
++  // Default 1e-14 e/bohr^3. Optional KL_RHO_CUTOFF input for sensitivity tests.
++  double rho_cutoff = read_float("KL_RHO_CUTOFF");
++  if (rho_cutoff == 0.) rho_cutoff = 1.e-14;
++  if (!std::isfinite(rho_cutoff) || rho_cutoff <= 0.)
++  {
++    fprintf(stderr, "KL_RHO_CUTOFF must be positive and finite.\n");
++    std::exit(EXIT_FAILURE);
++  }
++  double dropped_ci = 0., dropped_ks = 0.;
++  int dropped_points = 0;
++  for (int j=0; j<gsa; ++j)
++  {
++    const double w = wt[j];
++    if (w == 0.) continue;
++    const double a = std::max(0.,rho1[j]);
++    const double b = std::max(0.,rho2[j]);
++    if (std::max(a,b) < rho_cutoff)
++    {
++      dropped_ci += w*a;
++      dropped_ks += w*b;
++      ++dropped_points;
++    }
++  }
++  const double ne_ci_kl = ne_ci-dropped_ci;
++  const double ne_ks_kl = ne_ks-dropped_ks;
++  if (!(ne_ci_kl > 0.) || !(ne_ks_kl > 0.))
++  {
++    fprintf(stderr, "KL tail cutoff eliminated all density.\n");
++    std::exit(EXIT_FAILURE);
++  }
++  // Warn when tail removal is not negligible relative to the target density.
++  if (dropped_ci/ne_ci > 1.e-8 || dropped_ks/ne_ks > 1.e-8)
++    fprintf(stderr, "WARNING: KL cutoff removed non-negligible density; test cutoff convergence.\n");
++
+   // KL is directional; Jeffreys is the sum of both KL directions.
+   // JS distance and Hellinger distance are symmetric and bounded [0,1].
+   double kl_ci_ks = 0., kl_ks_ci = 0.;
+   double j_div = 0., js_div = 0., hellinger_sq = 0., tv = 0.;
+@@ -47,41 +85,57 @@
+ 
+     tv += 0.5*w*std::abs(p-q);
+     const double root_difference = std::sqrt(p)-std::sqrt(q);
+     hellinger_sq += 0.5*w*root_difference*root_difference;
+-    // Numerically stable, nonnegative Jensen-Shannon integrand.
++    // Jensen-Shannon is bounded and is evaluated on the FULL grid.
+     if (p > 0.0 && q > 0.0)
+     {
+       const double t = (p-q)/(p+q);
+       const double t2 = t*t;
+       const double f = (std::abs(t) < 1.e-3)
+         ? t2*(1.0 + t2/6.0 + t2*t2/15.0)
+         : (1.0+t)*std::log1p(t) + (1.0-t)*std::log1p(-t);
+       js_div += 0.5*w*m*f;
++    }
++    else
++      js_div += w*m*std::log(2.0);
+ 
+-      // KL/Jeffreys: use log1p near equality to avoid cancellation,
+-      // log differences otherwise to avoid overflow in p/q.
+-      const double lratio = (p > 0.5*q && p < 2.0*q)
+-        ? std::log1p((p-q)/q) : (std::log(p)-std::log(q));
+-      kl_ci_ks += w*p*lratio;
+-      kl_ks_ci -= w*q*lratio;
+-      j_div += w*(p-q)*lratio;
+-    }
+-    else if (p > 0.0)
++    // KL/Jeffreys: work on the retained, re-normalized shape functions.
++    // Crucially, skipping the tail without re-normalizing could yield
++    // negative directional KL values, despite KL being nonnegative.
++    const double a = std::max(0.,rho1[j]);
++    const double b = std::max(0.,rho2[j]);
++    if (std::max(a,b) >= rho_cutoff)
+     {
+-      singular_ci_ks = true;
+-      js_div += w*m*std::log(2.0);
+-    }
+-    else if (q > 0.0)
+-    {
+-      singular_ks_ci = true;
+-      js_div += w*m*std::log(2.0);
++      const double pk = a/ne_ci_kl;
++      const double qk = b/ne_ks_kl;
++      if (pk > 0.0 && qk > 0.0)
++      {
++        const double lratio = (pk > 0.5*qk && pk < 2.0*qk)
++          ? std::log1p((pk-qk)/qk) : (std::log(pk)-std::log(qk));
++        kl_ci_ks += w*pk*lratio;
++        kl_ks_ci -= w*qk*lratio;
++        j_div += w*(pk-qk)*lratio;  // nonnegative pointwise
++      }
++      else if (pk > 0.0) singular_ci_ks = true;
++      else if (qk > 0.0) singular_ks_ci = true;
+     }
+   }
+   if (singular_ci_ks) kl_ci_ks = std::numeric_limits<double>::infinity();
+   if (singular_ks_ci) kl_ks_ci = std::numeric_limits<double>::infinity();
+   if (singular_ci_ks || singular_ks_ci)
+     j_div = std::numeric_limits<double>::infinity();
++
++  // The normalized KL integrals must be >=0, apart from tiny roundoff.
++  if (std::isfinite(kl_ci_ks) && std::isfinite(kl_ks_ci) &&
++      (kl_ci_ks < -1.e-12 || kl_ks_ci < -1.e-12 || j_div < -1.e-12))
++  {
++    fprintf(stderr, "Invalid negative KL/Jeffreys: KL1=%g KL2=%g J=%g\n",
++            kl_ci_ks,kl_ks_ci,j_div);
++    std::exit(EXIT_FAILURE);
++  }
++  if (std::isfinite(kl_ci_ks)) kl_ci_ks = std::max(0.,kl_ci_ks);
++  if (std::isfinite(kl_ks_ci)) kl_ks_ci = std::max(0.,kl_ks_ci);
+ 
+   const double js_dist = std::sqrt(std::max(0.0,js_div)/std::log(2.0));
+   const double hellinger = std::sqrt(std::max(0.0,hellinger_sq));
+   const double rel_l2 = diff2/std::sqrt(norm2_ci);
+@@ -90,9 +144,11 @@
+   const double j_electron_scaled = j_div*ne_ci;
+   const double l2_per_e = diff2/ne_ci;
+   const double l1_per_e = diff1/ne_ci;
+ 
+-  printf("\n XC100 density integrals: CI=% .12e KS=% .12e\n",ne_ci,ne_ks);
++  printf("\n XC100 KL tail cutoff=% .3e dropped CI=% .12e KS=% .12e (%d points)\n",
++         rho_cutoff,dropped_ci,dropped_ks,dropped_points);
++  printf(" XC100 density integrals: CI=% .12e KS=% .12e\n",ne_ci,ne_ks);
+   printf(" XC100 L1/Ne(CI)=% .12e L2/Ne(CI)=% .12e relative_L2=% .12e\n",
+          l1_per_e,l2_per_e,rel_l2);
+   printf(" XC100 shape L1=% .12e TV=% .12e Hellinger=% .12e\n",
+          2.0*tv,tv,hellinger);
