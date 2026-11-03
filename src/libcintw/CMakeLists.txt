@@ -21,11 +21,15 @@ target_compile_options(cintw PRIVATE ${CINTW_COMP_FLAGS})
 if(COMPILE_CINTW_4C)
     target_compile_definitions(cintw PRIVATE COMPILE_CINTW_4C)
 endif()
+# Put the linked libcint's headers ahead of SlaterGPU/include so that the
+# vendored cint.h does not shadow the cint.h that ships with the libcint we
+# actually link against. A version/ABI skew between the two (e.g. I8 vs int
+# FINT, or BAS_SLOTS drift) would otherwise corrupt integrals silently.
 target_include_directories(cintw PRIVATE
-    "${CMAKE_SOURCE_DIR}/include"
     "${LIBCINT_PATH}/include"
-    "$ENV{BLAS_INCLUDE_DIR}"
     "$ENV{PREFIX}/include" # include pixi dependencies
+    "${CMAKE_SOURCE_DIR}/include"
+    "$ENV{BLAS_INCLUDE_DIR}"
     )
 
 # Link against custom libcint if LIBCINT_PATH is set (manual build)
