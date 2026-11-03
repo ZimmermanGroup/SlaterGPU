@@ -1908,6 +1908,59 @@ void eval_inr_r12(int tid, int gs, double* grid, double* val, int n1, int l1, do
   return;
 }
 
+//eval_inr_r12 over ns shells. shell s has n/l/zeta sn[s]/sl[s]/sz[s] and multiplies
+// val[sidx[s]*gs:...] (val holds nv ftns). per-shell constants of vinr_gam are computed
+// in one parallel launch; everything runs on queue tid+1 with a single wait at the end
+void eval_inr_r12_batch(int tid, int gs, int nv, double* grid, double* val, int ns, int* sn, int* sl, double* sz, int* sidx)
+{
+  if (ns<1) return;
+  int nvgs = nv*gs;
+  int ns5 = 5*ns;
+  int q = tid+1;
+
+  double* sc = new double[ns5];
+
+  #pragma acc enter data copyin(sn[0:ns],sl[0:ns],sz[0:ns]) create(sc[0:ns5]) async(q)
+
+ //pz = pow(z,-l-n-2), (n-l)!, (n+l+1)!, lgamma(n-l+1), lgamma(n+l+2)
+  #pragma acc parallel loop present(sn[0:ns],sl[0:ns],sz[0:ns],sc[0:ns5]) async(q)
+  for (int s=0;s<ns;s++)
+  {
+    int n1 = sn[s]; int l1 = sl[s]; double zeta1 = sz[s];
+    int lnf = 1;
+    for (int i=1;i<n1-l1+1;i++)
+      lnf *= i;
+    int lnf2 = lnf;
+    for (int i=n1-l1+1;i<n1+l1+2;i++)
+      lnf2 *= i;
+    sc[5*s+0] = pow(zeta1,(double)(-l1-n1-2));
+    sc[5*s+1] = (double)lnf;
+    sc[5*s+2] = (double)lnf2;
+    sc[5*s+3] = lgamma((double)(n1-l1+1));
+    sc[5*s+4] = lgamma((double)(n1+l1+2));
+  }
+
+  for (int s=0;s<ns;s++)
+  {
+    int n1 = sn[s]; int l1 = sl[s]; double zeta1 = sz[s];
+    int is = sidx[s];
+
+    #pragma acc parallel loop independent present(grid[0:6*gs],val[0:nvgs],sc[0:ns5]) async(q)
+    for (int i=0;i<gs;i++)
+    {
+      double v1d = vinr_gam_sc(n1,l1,grid[6*i+3],zeta1,sc[5*s+0],sc[5*s+1],sc[5*s+2],sc[5*s+3],sc[5*s+4]);
+      val[is*gs+i] *= v1d;
+    }
+  }
+
+  #pragma acc exit data delete(sn[0:ns],sl[0:ns],sz[0:ns],sc[0:ns5]) async(q)
+  #pragma acc wait(q)
+
+  delete [] sc;
+
+  return;
+}
+
 void eval_inr_r12(int gs, float* grid, float* val, int n1, int l1, float zeta1)
 {
 #if USE_GAM

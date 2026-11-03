@@ -43,12 +43,18 @@ double igam(double aa, double xx);
 #pragma acc routine seq
 double igamc(double aa, double xx);
 #pragma acc routine seq
+double igam_lg(double aa, double xx, double lga, double lx);
+#pragma acc routine seq
+double igamc_lg(double aa, double xx, double lga, double lx);
+#pragma acc routine seq
 double igamn(int a, double x);
 
 #pragma acc routine seq
 float vinr_gamf(int n, int l, float r, float z);
 #pragma acc routine seq
 double vinr_gam(int n, int l, double r, double z);
+#pragma acc routine seq
+double vinr_gam_sc(int n, int l, double r, double z, double pz, double lnf, double lnf2, double lga1, double lga2);
 
 #pragma acc routine seq
 float dvinr_gamf(int n, int l, float r, float z);
