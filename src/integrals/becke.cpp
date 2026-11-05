@@ -1626,7 +1626,7 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
         double* valpm = val1p[ii2];
 
        //CPMZ check this
-        double d1 = 4.*Paon[i1*N+i2];
+        double d1 = 2.*Paon[i1*N+i2];
 
        #pragma acc parallel loop present(grho[0:gs3],valn[0:gs],valpn[0:gs3],valm[0:gs],valpm[0:gs3])
         for (int j=0;j<gs;j++)
@@ -1815,7 +1815,7 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
           valt += vxcs[j]*(valx*grx+valy*gry+valz*grz);
         }
 
-        fxc[i1*N+i2] = 2.*valt;
+        fxc[i1*N+i2] = valt;
       }
     }
 
@@ -1909,7 +1909,7 @@ void compute_fxcd(bool gbasis, int natoms, int* atno, double* coords, vector<vec
             valt += vxcs[j]*(valx*grx+valy*gry+valz*grz);
           }
 
-          fxc[i1*N+i2] = fxc[i2*N+i1] = 2.*valt;
+          fxc[i1*N+i2] = fxc[i2*N+i1] = valt;
 
         } //loop i2
       } //loop i1
@@ -2092,7 +2092,7 @@ void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vect
         float* valm = val1[ii2];
         float* valpm = val1p[ii2];
 
-        double d1 = 4.*Paon[i1*N+i2];
+        double d1 = 2.*Paon[i1*N+i2];
 
        #pragma acc parallel loop present(grho[0:gs3],valn[0:gs],valpn[0:gs3],valm[0:gs],valpm[0:gs3])
         for (int j=0;j<gs;j++)
@@ -2284,7 +2284,7 @@ void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vect
           valt += vxcs[j]*(valx*grx+valy*gry+valz*grz);
         }
 
-        fxc[i1*N+i2] = 2.*valt;
+        fxc[i1*N+i2] = valt;
       }
     }
 
@@ -2378,7 +2378,7 @@ void compute_fxc(bool gbasis, int natoms, int* atno, double* coords, vector<vect
             valt += vxcs[j]*(valx*grx+valy*gry+valz*grz);
           }
 
-          fxc[i1*N+i2] = fxc[i2*N+i1] = 2.*valt;
+          fxc[i1*N+i2] = fxc[i2*N+i1] = valt;
 
         } //loop i2
       } //loop i1

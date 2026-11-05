@@ -211,13 +211,6 @@ void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, dou
     print_square(N,Pao);
   }
 
- //normalization convention
-  for (int j=0;j<N2;j++)
-    Pao[j] *= 2.;
-  if (need_gf)
-  for (int j=0;j<N2;j++)
-    gfao[j] *= 2.;
-
   int* n2i = new int[natoms];
   int imaxN = get_imax_n2i(natoms,N,basis,n2i);
 
@@ -562,13 +555,6 @@ void wf_to_grid_gh(bool divide_by_rho, bool calc_rho, int natoms, int* atno, dou
     printf("\n Td: \n");
     print_vec(gsa,grid,Td);
   }
-
- //revert normalization convention
-  for (int j=0;j<N2;j++)
-    Pao[j] *= 0.5;
-  if (need_gf)
-  for (int j=0;j<N2;j++)
-    gfao[j] *= 0.5;
 
   #pragma acc exit data delete(grid1[0:gsa6],grid2[0:gsa6])
   #pragma acc exit data delete(val0[0:gsa],val0p[0:gsa3],val1[0:iN][0:gsa],val2[0:iN][0:gsa])
