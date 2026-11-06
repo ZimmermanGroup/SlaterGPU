@@ -4,7 +4,10 @@ Library for numerically computing Slater-type orbital integrals.
 For running on GPU, OpenACC is required. A compatible compiler should be used.
 Testing has been done with NVHPC SDK version 24.9. A wrapper
 library for Libcint (https://github.com/sunqm/libcint) is also
-provided for Gaussian integrals. It should be noted that version 5.3.0 of libcint is required at the moment.
+provided for Gaussian integrals. pixi builds libcint from upstream source with
+the 4-center 1-electron overlap integrals enabled (`-DWITH_4C1E=ON`); see
+`recipes/libcint/pixi.toml`. For a manual libcint install, set `LIBCINT_PATH`
+to its prefix, and set `COMPILE_CINTW_4C=OFF` if it was built without 4c1e.
 
 This library uses the resolution
 of the identity (RI) approximation. Thus, auxiliary and main

@@ -54,8 +54,15 @@ slatergpu = {path = "."}
 cmake = "4.0.3.*"
 ninja = "1.13.*"
 
+# libcint is built from source with WITH_4C1E=ON (see recipes/libcint/pixi.toml).
+# It is listed in run-dependencies too because pixi-build packages don't
+# declare run exports (#89); without it, downstream environments could
+# resolve conda-forge's libcint, which lacks the cint4c1e_* symbols.
 [package.host-dependencies]
-libcint = "5.3.0.*"
+libcint = { path = "recipes/libcint" }
+
+[package.run-dependencies]
+libcint = { path = "recipes/libcint" }
 
 [feature.pytest.dependencies]
 pytest = ">=8.3.3,<9"

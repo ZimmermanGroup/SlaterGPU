@@ -1,0 +1,36 @@
+# libcint built from upstream source with the 4-center 1-electron overlap
+# integrals (cint4c1e_*) enabled. conda-forge's libcint package is built
+# without WITH_4C1E, so SlaterGPU builds its own copy here and lists it in
+# both host- and run-dependencies (see ../../pixi.toml).
+#
+# The other -DWITH_* flags mirror the conda-forge feedstock's build.sh so we
+# don't lose integrals that the conda-forge package provides:
+# https://github.com/conda-forge/libcint-feedstock/blob/main/recipe/build.sh
+#
+# libcint >= 5.5.0 sizes the 4c1e cache with enough slack that the
+# heap overflow seen in 5.3.0 (#82) no longer occurs, so no patch is needed.
+
+[package]
+name = "libcint"
+version = "6.2.1"
+
+[package.build.backend]
+name = "pixi-build-cmake"
+# Same cap as SlaterGPU's own backend (#105)
+version = ">=0.3.6,<=0.3.11"
+
+[package.build.source]
+git = "https://github.com/sunqm/libcint.git"
+tag = "v6.2.1"
+
+[package.build.config]
+compilers = ["c"]
+extra-args = [
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DCMAKE_INSTALL_LIBDIR=lib",
+    "-DBUILD_SHARED_LIBS=ON",
+    "-DWITH_4C1E=ON",
+    "-DWITH_F12=ON",
+    "-DWITH_RANGE_COULOMB=ON",
+    "-DWITH_COULOMB_ERF=ON",
+]
