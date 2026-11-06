@@ -6,7 +6,7 @@ requires-pixi = ">=0.60.0,<0.71"
 
 [package]
 name = "slatergpu"
-version = "0.1.14"
+version = "0.1.15"
 
 [package.build.backend]
 name = "pixi-build-cmake"
