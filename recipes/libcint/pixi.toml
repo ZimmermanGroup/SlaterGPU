@@ -1,4 +1,4 @@
-# libcint built from upstream source with the 4-center 1-electron overlap
+# libcint built from source with the 4-center 1-electron overlap
 # integrals (cint4c1e_*) enabled. conda-forge's libcint package is built
 # without WITH_4C1E, so SlaterGPU builds its own copy here and lists it in
 # both host- and run-dependencies (see ../../pixi.toml).
@@ -7,8 +7,11 @@
 # don't lose integrals that the conda-forge package provides:
 # https://github.com/conda-forge/libcint-feedstock/blob/main/recipe/build.sh
 #
-# libcint >= 5.5.0 sizes the 4c1e cache with enough slack that the
-# heap overflow seen in 5.3.0 (#82) no longer occurs, so no patch is needed.
+# Source: upstream v6.2.1 plus one commit fixing a heap overflow in the 4c1e
+# cache size (#82), on the fix-4c1e-cache-size branch of the ZimmermanGroup
+# fork. pixi-build can't apply patch files to a git source yet
+# (https://github.com/prefix-dev/pixi/issues/6918), so the fix lives on that
+# branch. Once it's merged upstream, point this back at sunqm/libcint by tag.
 
 [package]
 name = "libcint"
@@ -20,8 +23,8 @@ name = "pixi-build-cmake"
 version = ">=0.3.6,<=0.3.11"
 
 [package.build.source]
-git = "https://github.com/sunqm/libcint.git"
-tag = "v6.2.1"
+git = "https://github.com/ZimmermanGroup/libcint.git"
+rev = "2f9146fa1fb33bdeeb9d3bca7dbc28a8b208f1b0"
 
 [package.build.config]
 compilers = ["c"]

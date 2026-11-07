@@ -322,9 +322,9 @@ packages:
   depends:
   - libgcc >=16
   package_build_source:
-    git: https://github.com/sunqm/libcint
-    tag: v6.2.1
-    rev: ab88a545c5799f45a2bcc720551eda2c43039f0f
+    git: https://github.com/zimmermangroup/libcint
+    explicit_rev: true
+    rev: 2f9146fa1fb33bdeeb9d3bca7dbc28a8b208f1b0
 - conda: recipes/libcint
   name: libcint
   version: 6.2.1
@@ -335,9 +335,9 @@ packages:
   depends:
   - libgcc >=16
   package_build_source:
-    git: https://github.com/sunqm/libcint
-    tag: v6.2.1
-    rev: ab88a545c5799f45a2bcc720551eda2c43039f0f
+    git: https://github.com/zimmermangroup/libcint
+    explicit_rev: true
+    rev: 2f9146fa1fb33bdeeb9d3bca7dbc28a8b208f1b0
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libexpat-2.7.3-hecca717_0.conda
   sha256: 1e1b08f6211629cbc2efe7a5bca5953f8f6b3cae0eeb04ca4dacee1bd4e2db2f
   md5: 8b09ae86839581147ef2e5c5e229d164
