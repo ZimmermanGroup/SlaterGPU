@@ -47,6 +47,12 @@ target_include_directories(SlaterGPU PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
+if(DO_GTO)
+    # integrals.h -> cintwrapper.h -> cint_funcs.h -> cint.h (from libcint)
+    target_include_directories(SlaterGPU PUBLIC
+        $<BUILD_INTERFACE:${LIBCINT_INCLUDE_DIR}>
+        )
+endif()
 
 add_definitions("-w")
 
