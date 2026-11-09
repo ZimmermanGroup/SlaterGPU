@@ -36,9 +36,27 @@ endif()
 
 set(DO_GTO ${DO_GTO})
 
-set(COMPILE_CINTW_4C OFF)
-if("$ENV{COMPILE_CINTW_4C}" STREQUAL "ON")
-    set(COMPILE_CINTW_4C ON)
+if(DO_GTO)
+    # libcint's own headers (cint.h, cint_funcs.h) and library. LIBCINT_PATH
+    # points at a manual install; otherwise the pixi environment is searched.
+    set(LIBCINT_PATH $ENV{LIBCINT_PATH})
+    find_path(LIBCINT_INCLUDE_DIR cint.h
+        HINTS ${LIBCINT_PATH}/include
+        REQUIRED)
+    find_library(LIBCINT_LIBRARY cint
+        HINTS ${LIBCINT_PATH}/lib ${LIBCINT_PATH}/lib64
+        REQUIRED)
+    message(STATUS "libcint headers: ${LIBCINT_INCLUDE_DIR}")
+    message(STATUS "libcint library: ${LIBCINT_LIBRARY}")
+endif()
+
+# gen_4c_overlap / gen_4c_overlap_m4 need libcint built with WITH_4C1E=ON,
+# which recipes/libcint provides. Set COMPILE_CINTW_4C=OFF in the environment
+# when linking a libcint without 4c1e (e.g. a manual LIBCINT_PATH build);
+# the functions then return zeros.
+set(COMPILE_CINTW_4C ON)
+if("$ENV{COMPILE_CINTW_4C}" STREQUAL "OFF")
+    set(COMPILE_CINTW_4C OFF)
 endif()
 message(STATUS "COMPILE_CINTW_4C: ${COMPILE_CINTW_4C}")
 
