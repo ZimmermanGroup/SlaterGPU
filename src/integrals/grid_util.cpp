@@ -307,33 +307,36 @@ void save_grid_rho(bool gbasis, int natoms, int* atno, double* coords, int nrad,
   int N2 = N*N;
 
   double* Pao = new double[N2];
-  bool found = read_square(N,Pao,"Pao_ci");
+  bool found = read_square(N,Pao,"Paoks");
   if (!found) read_square(N,Pao,"Pao");
-  if (!found) { printf("  couldn't find Pao or Pao_ci file \n"); return; }
+  if (!found) { printf("  couldn't find Pao or Paoks file \n"); return; }
 
-  double* rho = new double[gsa];
+  double* rho  = new double[gsa];
+  double* drho = new double[gsa];
+  double* Td   = new double[gsa];
   double* grid = new double[gsa6];
   float* gridf = new float[gsa6];
   double* wt = new double[gsa];
 
   printf("\n gbasis: %i natoms: %i nrad: %3i nang: %4i gsa: %4i \n",(int)gbasis,natoms,nrad,nang,gsa);
 
-  #pragma acc enter data create(rho[0:gsa])
+  #pragma acc enter data create(rho[0:gsa],drho[0:gsa],Td[0:gsa])
   #pragma acc enter data create(grid[0:gsa6],wt[0:gsa],gridf[0:gsa6])
   #pragma acc enter data copyin(coords[0:3*natoms],ang_g[0:3*nang],ang_w[0:nang])
 
   get_becke_grid_full(natoms,atno,coords,nrad,nang,ang_g,ang_w,6,grid,wt);
   if (gbasis)
   {
-    //for (int j=0;j<gsa6;j++) gridf[j] = grid[j];
-    //#pragma acc update device(gridf[0:gsa6])
-
-    compute_rhodg(1,natoms,atno,coords,basis,Pao,nrad,gsa,grid,rho,NULL,1);
+    compute_rhodg(1,natoms,atno,coords,basis,Pao,
+                nrad,gsa,grid,rho,drho,Td,1);
   }
   else
-    compute_rhod(natoms,atno,coords,basis,Pao,nrad,gsa,grid,rho,NULL,NULL,1);
+  {
+    compute_rhod(natoms,atno,coords,basis,Pao,
+                nrad,gsa,grid,rho,drho,Td,1);
+  }
 
-  #pragma acc update self(rho[0:gsa],grid[0:gsa6],wt[0:gsa])
+  #pragma acc update self(rho[0:gsa],drho[0:gsa],Td[0:gsa],grid[0:gsa6],wt[0:gsa])
 
   if (natoms==1)
   {
@@ -349,14 +352,23 @@ void save_grid_rho(bool gbasis, int natoms, int* atno, double* coords, int nrad,
     dent += rho[j]*wt[j];
   printf("\n total e-s: %8.5f \n",dent);
 
-  printf("\n  writing RHO_WF to disk \n");
-  write_vector(gsa,rho,"RHO_WF");
+  printf("\n  writing RHO to disk \n");
+  write_vector(gsa,rho,"RHO");
+
+  printf("\n  writing DRHO to disk \n");
+  write_vector(gsa,drho,"DRHO");
+
+  printf("\n  writing TD to disk \n");
+  write_vector(gsa,Td,"TD");
+
   printf("\n  writing GRID_WTS to disk \n");
   write_grid(natoms,nrad,nang,grid,wt);
 
-  #pragma acc exit data delete(rho[0:gsa],grid[0:gsa6],wt[0:gsa],gridf[0:gsa],coords[0:3*natoms],ang_g[0:3*nang],ang_w[0:nang])
+  #pragma acc exit data delete(rho[0:gsa],drho[0:gsa],Td[0:gsa],grid[0:gsa6],wt[0:gsa],gridf[0:gsa],coords[0:3*natoms],ang_g[0:3*nang],ang_w[0:nang])
 
   delete [] rho;
+  delete [] drho;
+  delete [] Td;
   delete [] grid;
   delete [] gridf;
   delete [] wt;
