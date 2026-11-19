@@ -1,5 +1,3 @@
-//Vaibhav needs to fix this
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -45,11 +43,85 @@ void print_square_complex(int N, cuDoubleComplex* A)
  #endif
 }
 
+#if 0
+//redundant with solve_axeb_gpu?
+void solve_axeb_cusolver(int dim, double* A, double* b, cusolverDnHandle_t& cu_hdl)
+{
+  // CUDA and cuSOLVER both use zero for success.
+  auto check = [](int status, const char* operation)
+  {
+    if (status!=0)
+    {
+      fprintf(stderr, "%s failed: status/info = %d\n",
+                   operation, status);
+      exit(1);
+    }
+  };
+
+  if (dim<1) return;
+
+  int Lwork = 0;
+
+  #pragma acc host_data use_device(A)
+  {
+    check(cusolverDnDgetrf_bufferSize(
+              cu_hdl, dim, dim, A, dim, &Lwork),
+          "Dgetrf_bufferSize");
+  }
+
+  double* work = new double[Lwork];
+  int* ipiv = new int[dim];
+  int* info = new int[1];
+
+  #pragma acc enter data create(work[0:Lwork],ipiv[0:dim],info[0:1])
+
+  // Factor A with partial pivoting.
+  #pragma acc host_data use_device(A, work, ipiv, info)
+  {
+    check(
+      cusolverDnDgetrf(cu_hdl, dim, dim, A, dim, work, ipiv, info),
+      "Dgetrf");
+  }
+
+  check(cudaDeviceSynchronize(), "Dgetrf synchronization");
+
+  #pragma acc update self(info[0:1])
+  int info_host = info[0];
+
+  // Solve only if the factorization succeeded.
+  if (info_host==0)
+  {
+    #pragma acc host_data use_device(A, b, ipiv, info)
+    {
+      check(
+        cusolverDnDgetrs(cu_hdl, CUBLAS_OP_N, dim, 1, A, dim, ipiv, b, dim, info),
+        "Dgetrs");
+    }
+
+    check(cudaDeviceSynchronize(), "Dgetrs synchronization");
+
+    #pragma acc update self(info[0:1])
+    info_host = info[0];
+  }
+
+  #pragma acc exit data delete(work[0:Lwork],ipiv[0:dim],info[0:1])
+
+  delete [] work;
+  delete [] ipiv;
+  delete [] info;
+
+  // Positive info from getrf indicates a zero pivot.
+  check(info_host, "LU factorization/solve");
+
+  return;
+}
+#endif
+
 //void expmat_complex(int N, double* theta1, double* theta1i, double* U, cusolverDnHandle_t cu_hdl, cublasHandle_t cublasH)
 double expmat_complex(int N, double* theta1, double* theta1i, double* jCA, double* U, cusolverDnHandle_t cu_hdl, cublasHandle_t cublasH)
 {
   double ss = 0.;
- 
+
   #if !USE_ACC
     printf("\n ERROR: there is no CPU implementation for expmat_complex \n"); exit(-1);
     return 0.;
@@ -379,10 +451,10 @@ void mat_times_mat(double* C, double* A, double* B, int M, int N, int K)
  // for (int i=0;i<MN;i++)
  //   C[i] = 0.;
 
- #pragma acc parallel loop present(A[0:MK],B[0:NK],C[0:MN])
+ #pragma acc parallel loop collapse(2) present(A[0:MK],B[0:NK],C[0:MN])
   for (int i=0;i<M;i++)
   {
-   #pragma acc loop
+   //#pragma acc loop
     for (int j=0;j<N;j++)
     {
       double val = 0.;
@@ -499,11 +571,10 @@ int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHa
   int s2 = size*size;
 
   double* B = new double[s2];
-  double* Bi = new double[s2];
   double* Beigen = new double[size];
   double* tmp = new double[s2]();
 
-  #pragma acc enter data create(B[0:s2],Bi[0:s2],Beigen[0:size],tmp[0:s2])
+  #pragma acc enter data create(B[0:s2],Beigen[0:size],tmp[0:s2])
 
   #pragma acc serial present(B[0:s2],A[0:s2],Beigen[0:size])
   {
@@ -523,7 +594,7 @@ int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHa
   {
     #pragma acc update self(Beigen[0:size])
     printf(" mat_root_inv_stable eigenvalues:");
-    for (int i=0;i<std::max(nsmall,std::min(10,size));i++)
+    for (int i=0;i<max(nsmall,min(10,size));i++)
     if (fabs(Beigen[i])<1e10)
       printf(" %5.2e",Beigen[i]);
     else
@@ -561,24 +632,27 @@ int mat_root_inv_stable_cusolver(double* A, int size, double delta, cusolverDnHa
   }
 
 
- #pragma acc serial present(Bi[0:s2],B[0:s2])
-  trans(Bi,B,size,size);
+ //#pragma acc serial present(Bi[0:s2],B[0:s2])
+ // trans(Bi,B,size,size);
 
  #pragma acc parallel loop present(tmp[0:s2])
   for (int i=0;i<s2;i++) tmp[i] = 0.;
 
- #pragma acc parallel loop present(tmp[0:s2],Bi[0:s2],Beigen[0:size])
+ #pragma acc parallel loop present(Beigen[0:size])
   for (int i=0;i<size;i++)
- #pragma acc loop
+    Beigen[i] = sqrt(Beigen[i]);
+
+ //improved this loop
+ #pragma acc parallel loop collapse(2) present(tmp[0:s2],B[0:s2],Beigen[0:size])
+  for (int i=0;i<size;i++)
   for (int j=0;j<size;j++)
-    tmp[i*size+j] += Bi[i*size+j] / sqrt(Beigen[j]);
+    tmp[i*size+j] = B[j*size+i] / Beigen[j];
   mat_times_mat(A,tmp,B,size);
 
-  #pragma acc exit data delete(B[0:s2],Bi[0:s2],Beigen[0:size],tmp[0:s2])
+  #pragma acc exit data delete(B[0:s2],Beigen[0:size],tmp[0:s2])
 
   delete [] B;
   delete [] Beigen;
-  delete [] Bi;
   delete [] tmp;
 
   return nsmall;
@@ -611,7 +685,7 @@ int mat_root_inv_cusolver(double* A, int size, cusolverDnHandle_t& cu_hdl)
  #if 1
   #pragma acc update self(Beigen[0:size])
   printf(" mat_root_inv eigenvalues:");
-  for (int i=0;i<std::min(10,size);i++)
+  for (int i=0;i<min(10,size);i++)
   if (fabs(Beigen[i])<1e8)
     printf(" %5.2e",Beigen[i]);
   else
@@ -704,7 +778,7 @@ void diagonalize_cusolver(int Ne, int N, double* A, double* Ae, cusolverDnHandle
   cusolverEigRange_t rtype = CUSOLVER_EIG_RANGE_I;
   double vl = 0; double vu = 0;
   int il = 1;
-  int iu = std::min(N,Ne);
+  int iu = min(N,Ne);
   int nf;
 
   int Lwork = 1;
@@ -775,10 +849,10 @@ int invert_eigen_cusolver(int size, double* A, double eig_max, cusolverDnHandle_
   printf(" invert_eigen eigenvalues:");
   if (size>8)
   {
-    for (int i=0;i<std::min(4,size);i++)
+    for (int i=0;i<min(4,size);i++)
       printf(" %6.2f",Ae[i]);
     printf(" ...");
-    for (int i=std::max(0,size-4);i<size;i++)
+    for (int i=max(0,size-4);i<size;i++)
       printf(" %6.2f",Ae[i]);
   }
   else
@@ -847,7 +921,7 @@ int invert_stable_cusolver_2(int size, double* A, double delta, cusolverDnHandle
  #if 1
   #pragma acc update self(Ae[0:size])
   printf(" invert_stable eigenvalues:");
-  for (int i=0;i<std::min(10,size);i++)
+  for (int i=0;i<min(10,size);i++)
     printf(" %5.2e",Ae[i]);
   printf("\n");
  #endif
@@ -893,7 +967,7 @@ int invert_stable_cusolver_2(int size, double* A, double delta, cusolverDnHandle
   return 0;
 }
 
-int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl)
+int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl, int prl)
 {
   int s2 = size*size;
 
@@ -940,13 +1014,14 @@ int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t
 
   delete [] vals;
  #endif
- #if 1
-  #pragma acc update self(Ae[0:size])
-  printf(" invert_stable eigenvalues:");
-  for (int i=0;i<std::min(10,size);i++)
-    printf(" %5.2e",Ae[i]);
-  printf("\n");
- #endif
+  if (prl>0)
+  {
+    #pragma acc update self(Ae[0:size])
+    printf(" invert_stable eigenvalues:");
+    for (int i=0;i<min(10,size);i++)
+      printf(" %5.2e",Ae[i]);
+    printf("\n");
+  }
 
   int nsmall = 0;
  #pragma acc parallel loop independent present(Ae[0:size]) reduction(+:nsmall)
@@ -957,7 +1032,8 @@ int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t
     nsmall++;
   }
 
-  printf("  found %i small eigen \n",nsmall);
+  if (prl>0)
+    printf("  found %i small eigen \n",nsmall);
 
  #pragma acc parallel loop present(tmp[0:s2])
   for (int i=0;i<s2;i++)
@@ -978,6 +1054,16 @@ int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t
   delete [] tmp;
 
   return 0;
+}
+
+int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl)
+{
+  return invert_stable_cusolver(size,A,delta,cu_hdl,1);
+}
+
+int invert_stable_cusolver_q(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl)
+{
+  return invert_stable_cusolver(size,A,delta,cu_hdl,0);
 }
 
 int invert_cusolver(int N, float* A, cusolverDnHandle_t& cu_hdl)
@@ -1028,7 +1114,7 @@ int invert_cusolver(int N, float* A, cusolverDnHandle_t& cu_hdl)
   #pragma acc update self(Ae[0:N])
 
   printf("  debug invert. eigenval:");
-  for (int i=0;i<std::min(10,N);i++)
+  for (int i=0;i<min(10,N);i++)
     printf(" %10.8f",Ae[i]);
   printf("\n");
 
@@ -1118,7 +1204,7 @@ int invert_cusolver(int N, double* A, cusolverDnHandle_t& cu_hdl)
     reset = 1;
 
   printf("\n debug invert. eigenval:");
-  for (int i=0;i<std::min(10,N);i++)
+  for (int i=0;i<min(10,N);i++)
     printf(" %10.8f",Ae[i]);
   printf("\n");
 

@@ -8,6 +8,9 @@
 //#include "vxc.h"
 #include "gauss.h"
 
+//speed of light
+#define ALPHAFSC 137.035999177
+
 #define pr_inc 5
 
 void generate_central_grid_2(float* grid1, float* wt1, float Z1, int nrad, int nang, float* ang_g, float* ang_w);
@@ -5230,12 +5233,17 @@ void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vec
 
   double norm[N];
   for (int i=0;i<N;i++)
-    norm[i] = basis[i][4]; // this contains the number of primitives in each shell for gbasis and NOT the norm
+    norm[i] = basis[i][4]; //not the norm for gbasis
   double* Paon = new double[N2];
+  if (gbasis)
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Paon[i*N+j] = gbasis? Pao[i*N+j] : Pao[i*N+j]*norm[i]*norm[j];
-                  //The norm only needs to get multiplied for non-gbasis functions
+    Paon[i*N+j] = Pao[i*N+j];
+  if (!gbasis)
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+    Paon[i*N+j] = Pao[i*N+j]*norm[i]*norm[j];
+
   if (prl>1)
   {
     printf("\n Paon: \n");
@@ -5290,14 +5298,23 @@ void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vec
   return;
 }
 
-//speed of light
-#define ALPHAFSC 137.035999177
+#include "bfield_gaussian_batch.inc"
 
 //nrad/nang are for secondary grid, gsa for primary grid
 //this function does not include the relativistic time contribution
 void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, double* Pao, double* Paodt,
                      int nrad, int nang, double* ang_g, double* ang_w, int gsa, double* grid, double* B, int prl)
 {
+#if USE_ACC
+  if (gbasis)
+  {
+    const double* p[1]={Pao};
+    const double* pd[1]={Paodt};
+    compute_B_field_frames(natoms,atno,coords,gbasis,basis,1,p,pd,nrad,nang,
+        ang_g,ang_w,gsa,grid,B,false,prl);
+    return;
+  }
+#endif
  //grid should be on cpu
  //B will be on cpu and not gpu
  //ang_g and ang_w on gpu
@@ -5334,14 +5351,26 @@ void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<
   if (get_paodt)
     Pao2n = new double[N2];
 
+  if (gbasis)
   for (int i=0;i<N;i++)
   for (int j=0;j<N;j++)
-    Pao1n[i*N+j] = gbasis? Pao[i*N+j] : Pao[i*N+j]*norm[i]*norm[j];
+    Pao1n[i*N+j] = Pao[i*N+j];
+  if (!gbasis)
+  for (int i=0;i<N;i++)
+  for (int j=0;j<N;j++)
+    Pao1n[i*N+j] = Pao[i*N+j]*norm[i]*norm[j];
 
   if (get_paodt)
-  for (int i=0;i<N;i++)
-  for (int j=0;j<N;j++)
-    Pao2n[i*N+j] = gbasis?Paodt[i*N+j] : Paodt[i*N+j]*norm[i]*norm[j];
+  {
+    if (gbasis)
+    for (int i=0;i<N;i++)
+    for (int j=0;j<N;j++)
+      Pao2n[i*N+j] = Paodt[i*N+j];
+    if (!gbasis)
+    for (int i=0;i<N;i++)
+    for (int j=0;j<N;j++)
+      Pao2n[i*N+j] = Paodt[i*N+j]*norm[i]*norm[j];
+  }
 
   //int nang = gsa/nrad;
  //no support for sgs basis

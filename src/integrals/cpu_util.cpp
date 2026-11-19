@@ -76,6 +76,157 @@ double randomf(double a, double b)
   return randn;
 }
 
+void solve_axeb_ls_rowmajor(int m, int n, int nrhs, const double* A, double* B, double lambda)
+{
+  if (lambda<0.) lambda = 0.;
+
+  // Augmented problem:
+  //   [ A        ] X     ~= [ B ]
+  //   [ sqrt(lambda) I ]    [ 0 ]
+  const int m_aug = m + n;
+
+  double* A_aug = new double[m_aug*n]();
+  for (int i=0;i<m;i++)
+  for (int k=0;k<n;k++)
+    A_aug[i*n+k] = A[i*n+k];
+
+  // Append sqrt(lambda) * I.
+  //const double alpha = sqrt(lambda);
+  const double alpha = lambda;
+  for (int k=0;k<n;k++)
+    A_aug[(m+k)*n+k] = alpha;
+
+  char trans = 'T';
+  int lapack_m = n;
+  int lapack_n = m_aug;
+  int lda = n;
+  int ldb = max(m_aug, n); // equal to m_aug here
+  int info = 0;
+
+  double* Bt = new double[ldb*nrhs]();
+
+  // Copy [B; 0] into column-major LAPACK RHS storage.
+  for (int i=0;i<m;i++)
+  for (int j=0;j<nrhs;j++)
+    Bt[j*ldb+i] = B[i*nrhs+j];
+
+  // Workspace query.
+  int lwork = -1;
+  double work_query = 0.0;
+
+  dgels_(&trans, &lapack_m, &lapack_n, &nrhs, A_aug, &lda, Bt, &ldb, &work_query, &lwork, &info);
+
+  if (info != 0)
+  {
+    printf("DGELS workspace query failed: info=%d \n",info);
+    return;
+  }
+
+  lwork = max(1, (int)work_query);
+  double* work = new double[lwork]();
+
+  dgels_(&trans, &lapack_m, &lapack_n, &nrhs, A_aug, &lda, Bt, &ldb, work, &lwork, &info);
+
+  if (info != 0)
+  {
+    printf("WARNING: regularized DGELS returned info=%d \n",info);
+    return;
+  }
+
+  // First n entries of each RHS contain the solution.
+  for (int i=0;i<n;i++)
+  for (int j=0;j<nrhs;j++)
+    B[i*nrhs+j] = Bt[j*ldb+i];
+
+  delete [] A_aug;
+  delete [] Bt;
+  delete [] work;
+
+  return;
+}
+
+void solve_axeb_ls_rowmajor(int m, int n, int nrhs, double* A, double* B)
+{
+  int info = 0;
+  int lwork = -1;
+  double work_query = 0.;
+
+  // Row-major A(m×n) has the same memory layout as column-major A^T(n×m).
+  // Calling DGELS with TRANS='T' therefore solves A*x = B.
+  char trans = 'T';
+
+  // With TRANS='T', DGELS sees a column-major n×m matrix.
+  int lapack_m = n;
+  int lapack_n = m;
+  int lda = n;
+  int ldb = max(m, n);
+
+  double* Bt = new double[ldb * nrhs]();
+
+  // Convert row-major B to LAPACK column-major storage.
+  for (int i=0;i<m;i++)
+  for (int j=0;j<nrhs;j++)
+    Bt[j*ldb+i] = B[i*nrhs+j];
+
+  dgels_(&trans, &lapack_m, &lapack_n, &nrhs, A, &lda, Bt, &ldb, &work_query, &lwork, &info);
+
+  if (info!=0)
+  {
+    printf("DGELS workspace query failed: info=%d\n", info);
+    delete[] Bt;
+    return;
+  }
+
+  lwork = max(1,(int)work_query);
+  double* work = new double[lwork];
+
+  dgels_(&trans, &lapack_m, &lapack_n, &nrhs, A, &lda, Bt, &ldb, work, &lwork, &info);
+
+  if (info!=0)
+    printf("WARNING: solve_axeb_ls_rowmajor: DGELS info=%d \n", info);
+
+  // The first n entries of each RHS contain the solution.
+  for (int i=0;i<n;i++)
+  for (int j=0;j<nrhs;j++)
+    B[i*nrhs+j] = Bt[j*ldb+i];
+
+  delete [] Bt;
+  delete [] work;
+
+  return;
+}
+
+void solve_axeb_ls_rowmajor(int n, int nrhs, double* A, double* B)
+{
+  int m = n;
+  int info = 0;
+  int lwork = -1;
+  double work_query;
+
+  double* Bt = new double[n*nrhs];
+  for (int p=0;p<n;p++)
+  for (int q=0;q<nrhs;q++)
+    Bt[p+q*n] = B[p*nrhs+q];
+
+  dgels_("T",&m,&n,&nrhs,A,&m,Bt,&n,&work_query,&lwork,&info);
+  lwork = (int)work_query;
+  double* work = new double[lwork];
+
+  dgels_("T",&m,&n,&nrhs,A,&m,Bt,&n,work,&lwork,&info);
+
+  if (info!=0)
+    printf("\n WARNING: solve_axeb_ls_rowmajor: dgels_ info=%d -- may not be full rank \n",info);
+
+  for (int p=0;p<n;p++)
+  for (int q=0;q<nrhs;q++)
+    B[p*nrhs+q] = Bt[p+q*n];
+
+  delete [] Bt;
+  delete [] work;
+
+  return;
+}
+
 void solve_axeb_ls(int m, int n, double* A, double* b)
 {
   //int m = rows;    // number of rows
@@ -735,7 +886,7 @@ int invert_cpu(double* A, int size, int mode)
     int nzf = 0;
     for (int i=0;i<size;i++)
     {
-      if (std::isnan(A2e[i]))
+      if (isnan(A2e[i]))
         nf++;
       if (A2e[i]<icut)
         nzf++;

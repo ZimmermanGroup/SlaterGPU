@@ -1710,7 +1710,7 @@ void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas
     for (int m=0;m<N2;m++)
     {
       for (int n=0;n<Naux;n++)
-        printf(" %8.5f",C[m*Naux+n]);
+        printf(" %8.5f",C[(size_t)m*Naux+n]);
       printf("\n");
     }
   }
@@ -1762,7 +1762,7 @@ void compute_integrals_g(int natm, int nbas, int nenv, int N, int Naux, int nbas
     for (int m=0;m<N2;m++)
     {
       for (int n=0;n<Naux;n++)
-        printf(" %8.5f",C[m*Naux+n]);
+        printf(" %8.5f",C[(size_t)m*Naux+n]);
       printf("\n");
     }
   }
