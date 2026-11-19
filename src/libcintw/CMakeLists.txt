@@ -2,6 +2,7 @@ set(CINT_SOURCES
     cintprep.cpp
     cintwrapper.cpp
     gto_grid.cpp
+    soc.cpp
     )
 
 find_package(BLAS REQUIRED)

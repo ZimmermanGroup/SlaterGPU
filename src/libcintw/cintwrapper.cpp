@@ -154,6 +154,124 @@ void get_vri(double** val, int gs, int N,
   return;
 }
 
+void get_position_squared_integrals(double* x2, double* y2, double* z2,
+                                    int N, int natm, int nbas, int nenv, int* atm, int* bas, double* env)
+{
+  (void)nenv;
+
+  int N2 = N*N;
+  fill(x2,x2+N2,0.);
+  fill(y2,y2+N2,0.);
+  fill(z2,z2+N2,0.);
+
+  int shls[2];
+  int idx_i = 0;
+
+  for (int i=0;i<nbas;i++)
+  {
+    shls[0] = i;
+    const int di = BT::DO_CART ? CINTcgto_cart(i, bas) : CINTcgto_spheric(i, bas);
+
+    int idx_j = 0;
+    for (int j=0;j<=i;j++)
+    {
+      shls[1] = j;
+      const int dj = BT::DO_CART ? CINTcgto_cart(j, bas) : CINTcgto_spheric(j, bas);
+      const int block_size = di * dj;
+
+      // xx, xy, xz, yx, yy, yz, zx, zy, zz
+      vector<double> buf(9*block_size,0.);
+      if (BT::DO_CART)
+        cint1e_rr_cart(buf.data(),shls,atm,natm,bas,nbas,env);
+      else
+        cint1e_rr_sph(buf.data(),shls,atm,natm,bas,nbas,env);
+
+      for (int j1=0;j1<dj;j1++)
+      {
+        for (int i1=0;i1<di;i1++)
+        {
+          const int oi = idx_i + i1;
+          const int oj = idx_j + j1;
+          const int ij = j1 * di + i1;
+
+          // Diagonal components of r_alpha r_beta:
+          const double x2ij = buf[ij]; // xx
+          const double y2ij = buf[4*block_size+ij]; // yy
+          const double z2ij = buf[8*block_size+ij]; // zz
+
+          x2[oi*N+oj] = x2ij;
+          y2[oi*N+oj] = y2ij;
+          z2[oi*N+oj] = z2ij;
+          x2[oj*N+oi] = x2ij;
+          y2[oj*N+oi] = y2ij;
+          z2[oj*N+oi] = z2ij;
+        }
+      }
+      idx_j += dj;
+    }
+    idx_i += di;
+  }
+
+}
+
+void get_position_integrals(double* rx, double* ry, double* rz,
+                            int N, int natm, int nbas, int nenv, int* atm, int* bas, double* env)
+{
+  int N2 = N*N;
+  fill(rx,rx+N2,0.);
+  fill(ry,ry+N2,0.);
+  fill(rz,rz+N2,0.);
+
+  int shls[2];
+  int idx_i = 0;
+
+  for (int i=0;i<nbas;i++)
+  {
+    shls[0] = i;
+    const int di = BT::DO_CART ? CINTcgto_cart(i, bas) : CINTcgto_spheric(i, bas);
+    int idx_j = 0;
+
+    for (int j=0;j<=i;j++)
+    {
+      shls[1] = j;
+      const int dj = BT::DO_CART ? CINTcgto_cart(j, bas) : CINTcgto_spheric(j, bas);
+
+      // Three components: x, y, and z.
+      vector<double> buf(3*di*dj,0.);
+
+      if (BT::DO_CART)
+        cint1e_r_cart(buf.data(),shls,atm,natm,bas,nbas,env);
+      else
+        cint1e_r_sph(buf.data(),shls,atm,natm,bas,nbas,env);
+
+      const int block_size = di*dj;
+      for (int j1=0;j1<dj;j1++)
+      {
+        for (int i1=0;i1<di;i1++)
+        {
+          const int oi = idx_i + i1;
+          const int oj = idx_j + j1;
+          const int ij = j1 * di + i1;
+
+          const double xij = buf[ij];
+          const double yij = buf[block_size+ij];
+          const double zij = buf[2*block_size+ij];
+
+          rx[oi*N+oj] = xij;
+          ry[oi*N+oj] = yij;
+          rz[oi*N+oj] = zij;
+
+          rx[oj*N+oi] = xij;
+          ry[oj*N+oi] = yij;
+          rz[oj*N+oi] = zij;
+        }
+      }
+      idx_j += dj;
+    }
+    idx_i += di;
+  }
+}
+
 void get_overlap(double * overlap, int N,
                  int natm, int nbas, int nenv,
                  int *atm, int* bas, double *env) {
@@ -575,6 +693,7 @@ void gen_4c_overlap_m4(double* ovlp4, size_t N,
   if (nbas<nomp) nomp = nbas;
 
   printf("  gen_4c_overlap on %i threads \n",nomp);
+  if (nbas<1) { printf("\n ERROR: no basis functions \n"); exit(-1); }
  #endif
 
 
@@ -988,8 +1107,6 @@ void gen_eri_4b(double** eri, int N1, int N2, int N3, int N,
        #pragma omp parallel for num_threads(nomp)
         for (int k=nbas12;k<nbas13;k++)
         {
-         //CPMZ need shell offsets
-          //int tid = 0;
           int tid = omp_get_thread_num();
           double* buf = &bufall[sizeb*tid];
 
@@ -1045,6 +1162,88 @@ void gen_eri_4b(double** eri, int N1, int N2, int N3, int N,
   delete [] bufall;
 
   return;
+}
+
+double con_eri_4b(double* Pao1, double* Pao2, int N1, int N2, int N3, int N,
+             int natm, int nbas1, int nbas2, int nbas3, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp)
+{
+  int N4 = N-N1-N2-N3;
+  int nbas12 = nbas1+nbas2;
+  int nbas13 = nbas12+nbas3;
+  int nbas4  = nbas-nbas13;
+  if (nomp<1) nomp = 1;
+  CINTOpt* no_opt = NULL;
+
+  if (BT::DO_CART)
+  {
+    printf("\n ERROR: con_eri_4b does not support CART functions \n");
+    exit(-1);
+  }
+
+  // dims/offsets per block, computed once
+  auto build = [&](int base, int n, vector<int>& nf, vector<int>& off)
+  {
+    nf.resize(n); off.resize(n);
+    int cum=0;
+    for (int a=0;a<n;a++){ nf[a] = CINTcgto_spheric(base+a,bas); off[a] = cum; cum += nf[a]; }
+  };
+  vector<int> nfi,offi,nfj,offj,nfk,offk,nfl,offl;
+  build(0,       nbas1, nfi, offi);
+  build(nbas1,   nbas2, nfj, offj);
+  build(nbas12,  nbas3, nfk, offk);
+  build(nbas13,  nbas4, nfl, offl);
+
+  int mdi = *max_element(nfi.begin(),nfi.end());
+  int mdj = *max_element(nfj.begin(),nfj.end());
+  int mdk = *max_element(nfk.begin(),nfk.end());
+  int mdl = *max_element(nfl.begin(),nfl.end());
+  int sizeb = mdi*mdj*mdk*mdl;
+  double* bufall = new double[sizeb*nomp];
+
+  double vtot = 0.;
+
+ #pragma omp parallel for collapse(4) num_threads(nomp) schedule(dynamic) reduction(+:vtot)
+  for (int ii=0;ii<nbas1;ii++)
+  for (int jj=0;jj<nbas2;jj++)
+  for (int kk=0;kk<nbas3;kk++)
+  for (int ll=0;ll<nbas4;ll++)
+  {
+    int tid = omp_get_thread_num();
+    double* buf = &bufall[sizeb*tid];
+
+    int i=ii, j=nbas1+jj, k=nbas12+kk, l=nbas13+ll;
+    int di=nfi[ii], dj=nfj[jj], dk=nfk[kk], dl=nfl[ll];
+    int idxi=offi[ii], idxj=offj[jj], idxk=offk[kk], idxl=offl[ll];
+
+    int shls[4] = {i,j,k,l};
+    cint2e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+    double v1 = 0.;
+    for (int l1=0;l1<dl;l1++)
+    {
+      int ol = l1+idxl;
+      for (int k1=0;k1<dk;k1++)
+      {
+        int ok = k1+idxk;
+        double pkl = Pao2[ok*N4+ol];
+        for (int j1=0;j1<dj;j1++)
+        {
+          int oj = j1+idxj;
+          for (int i1=0;i1<di;i1++)
+          {
+            int oi = i1+idxi;
+            int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+            v1 += buf[bdx]*Pao1[oi*N2+oj]*pkl;
+          }
+        }
+      }
+    }
+    vtot += v1;
+  }
+
+  delete [] bufall;
+  return vtot;
 }
 
 void gen_eri_2b(double** eri, int N1, int N,
@@ -1203,6 +1402,198 @@ void gen_eri_2b(double** eri, int N1, int N,
 
   delete [] bufall;
 
+  return;
+}
+
+double con_eri_2b(double* Pao1, double* Pao2, int N1, int N,
+             int natm, int nbas1, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp)
+{
+  int N2 = N-N1;
+  if (nomp<1) nomp = 1;
+  CINTOpt* no_opt = NULL;
+
+  if (BT::DO_CART)
+  {
+    printf("\n ERROR: con_eri_2b does not support CART functions \n");
+    exit(-1);
+  }
+
+  // shell dims / offsets, precomputed once (was recomputed O(nbas) per k before)
+  vector<int> nf1(nbas1), offs1(nbas1);
+  { int cum=0; for (int i=0;i<nbas1;i++) { nf1[i] = CINTcgto_spheric(i,bas); offs1[i] = cum; cum += nf1[i]; } }
+
+  int nbas2 = nbas-nbas1;
+  vector<int> nf2(nbas2), offs2(nbas2);
+  { int cum=0; for (int kk=0;kk<nbas2;kk++) { nf2[kk] = CINTcgto_spheric(nbas1+kk,bas); offs2[kk] = cum; cum += nf2[kk]; } }
+
+  int mdi=0; for (int i=0;i<nbas1;i++) if (nf1[i]>mdi) mdi = nf1[i];
+  int mdk=0; for (int kk=0;kk<nbas2;kk++) if (nf2[kk]>mdk) mdk = nf2[kk];
+  int sizeb = mdi*mdi*mdk*mdk;
+  double* bufall = new double[sizeb*nomp];
+
+  // unique shell pairs per block, with degeneracy factor (1 diagonal, 2 off-diagonal)
+  struct SP { int a,b; double fac; };
+  vector<SP> pairs1; pairs1.reserve(nbas1*(nbas1+1)/2);
+  for (int i=0;i<nbas1;i++) for (int j=0;j<=i;j++) pairs1.push_back({i,j,(i==j)?1.0:2.0});
+
+  vector<SP> pairs2; pairs2.reserve(nbas2*(nbas2+1)/2);
+  for (int k=0;k<nbas2;k++) for (int l=0;l<=k;l++) pairs2.push_back({k,l,(k==l)?1.0:2.0});
+
+  int np1 = (int)pairs1.size(), np2 = (int)pairs2.size();
+  double vtot = 0.;
+
+ #pragma omp parallel for num_threads(nomp) collapse(2) schedule(dynamic) reduction(+:vtot)
+  for (int p=0;p<np1;p++)
+  for (int q=0;q<np2;q++)
+  {
+    int tid = omp_get_thread_num();
+    double* buf = &bufall[sizeb*tid];
+
+    int i = pairs1[p].a, j = pairs1[p].b; double fij = pairs1[p].fac;
+    int di = nf1[i], dj = nf1[j], idxi = offs1[i], idxj = offs1[j];
+
+    int kk = pairs2[q].a, ll = pairs2[q].b; double fkl = pairs2[q].fac;
+    int dk = nf2[kk], dl = nf2[ll], idxk = offs2[kk], idxl = offs2[ll];
+    int k = nbas1+kk, l = nbas1+ll;
+
+    int shls[4] = {i,j,k,l};
+
+    //could screen wrt Pao1,Pao2 here (Schwarz-type bound using fij*fkl)
+    cint2e_sph(buf, shls, atm, natm, bas, nbas, env, no_opt);
+
+    double v1 = 0.;
+    for (int l1=0;l1<dl;l1++)
+    {
+      int ol = l1+idxl;
+      for (int k1=0;k1<dk;k1++)
+      {
+        int ok = k1+idxk;
+        double pkl = Pao2[ok*N2+ol];
+        for (int j1=0;j1<dj;j1++)
+        {
+          int oj = j1+idxj;
+          for (int i1=0;i1<di;i1++)
+          {
+            int oi = i1+idxi;
+            int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+            v1 += buf[bdx]*Pao1[oi*N1+oj]*pkl;
+          }
+        }
+      }
+    }
+    vtot += fij*fkl*v1;
+  }
+
+  delete [] bufall;
+  return vtot;
+}
+
+void gen_ven_matrix_direct(double* V, bool clearV, double Z1, double* Pao,
+                            int Nn, int Ne, int Nt,
+                            int natoms, int nbas1, int nbas, int nenv,
+                            int* atm, int* bas, double* env, int nomp)
+{
+  int Nn2 = Nn*Nn;
+  if (clearV)
+  for (int p=0;p<Nn2;p++)
+    V[p] = 0.;
+
+  CINTOpt* no_opt = NULL;
+  if (nomp<1) nomp = 1;
+
+  if (BT::DO_CART)
+  { printf("\n ERROR: gen_ven_matrix_direct does not support Cartesian GTOs \n"); exit(-1); }
+
+  int mdi = 0;
+  for (int i=0;i<nbas;i++)
+  {
+    int di = CINTcgto_cart(i,bas);
+    if (di>mdi) mdi = di;
+  }
+  int sbuf = mdi*mdi*mdi*mdi;
+
+  vector<int> nf(nbas);
+  vector<int> offs(nbas);
+  int cum = 0;
+  for (int i=0;i<nbas;i++)
+  {
+    nf[i] = CINTcgto_spheric(i, bas);
+    offs[i] = cum; cum += nf[i];
+  }
+  if (cum!=Nt || Nt!=Nn+Ne)
+  {
+    printf("\n ERROR: gen_ven_matrix_direct AO count mismatch: shells sum to %d, Nt=%d, Nn+Ne=%d \n",cum,Nt,Nn+Ne);
+    exit(-1);
+  }
+  bool aligned = (nbas1<nbas ? offs[nbas1]==Nn : cum==Nn);
+  if (!aligned)
+  {
+    printf("\n ERROR: gen_ven_matrix_direct nuclear/electron block boundary doesn't align with shells \n");
+    exit(-1);
+  }
+
+  //unique nuclear-nuclear bra shell pairs (i>=j), nuclear-block shells only
+  struct SP { int i, j; };
+  vector<SP> bra_pairs;
+  bra_pairs.reserve(nbas1*(nbas1+1)/2);
+  for (int i=0;i<nbas1;i++)
+  for (int j=0;j<=i;j++)
+    bra_pairs.push_back({i,j});
+  int nbra = (int)bra_pairs.size();
+
+  if (nomp>nbra && nbra>0) nomp = nbra;
+  if (nomp<1) nomp = 1;
+
+  double* bufall = new double[(size_t)sbuf*nomp];
+
+  int shls[4];
+  #pragma omp parallel for num_threads(nomp) schedule(dynamic) private(shls)
+  for (int bp=0;bp<nbra;bp++)
+  {
+    int tid = omp_get_thread_num();
+    double* buf = &bufall[(size_t)tid*sbuf];
+
+    int i = bra_pairs[bp].i, j = bra_pairs[bp].j;
+    int di = nf[i], dj = nf[j], idxi = offs[i], idxj = offs[j];
+    bool fold = (i!=j);   //see gen_ven_direct: only stands in for the
+                           //omitted (j,i) shell pair; a self-paired shell
+                           //already visits both orderings as separate
+                           //(i1,j1) iterations below
+
+    for (int k=nbas1;k<nbas;k++)   //electron shells
+    for (int l=nbas1;l<nbas;l++)   //electron shells, FULL sweep (Pao not
+                                    //assumed symmetric, and no ket symmetry
+                                    //is available here regardless)
+    {
+      int dk = nf[k], dl = nf[l], idxk = offs[k], idxl = offs[l];
+
+      shls[0] = i; shls[1] = j; shls[2] = k; shls[3] = l;
+      cint2e_sph(buf,shls,atm,natoms,bas,nbas,env,no_opt);
+
+      for (int l1=0;l1<dl;l1++)
+      for (int k1=0;k1<dk;k1++)
+      {
+        int r = (k1+idxk)-Nn;   //electron function index
+        int s = (l1+idxl)-Nn;   //electron function index
+        double pd = Pao[r*Ne+s];
+
+        for (int j1=0;j1<dj;j1++)
+        for (int i1=0;i1<di;i1++)
+        {
+          int oi = i1+idxi, oj = j1+idxj;
+          int bdx = l1*(dk*dj*di) + k1*(dj*di) + j1*di + i1;
+          double contrib = -Z1*pd*buf[bdx];
+
+          V[oi*Nn+oj] += contrib;
+          if (fold)
+            V[oj*Nn+oi] += contrib;   //stands in for the (j,i) shell pair
+        }
+      }
+    }
+  }
+
+  delete [] bufall;
   return;
 }
 
@@ -1691,7 +2082,7 @@ void gen_eri_3c(double *eri, int N, int Naux,
                 int ij = oi * N + oj;
                 int ji = oj * N + oi;
                 int bdx = j1 * (di * dmu) + i1 * dmu + mu1;
-                eri[ij*Naux + omu] = eri[ji*Naux + omu]= buf[bdx];
+                eri[(size_t)ij*Naux + omu] = eri[(size_t)ji*Naux + omu]= buf[bdx];
               } // for j1
             } // for i1
           } // for mu1
@@ -1728,7 +2119,7 @@ void gen_eri_3c(double *eri, int N, int Naux,
                 int ij = oi * N + oj;
                 int ji = oj * N + oi;
                 int bdx = j1 * (di * dmu) + i1 * dmu + mu1;
-                eri[ij*Naux + omu] = eri[ji*Naux + omu]= buf[bdx];
+                eri[(size_t)ij*Naux + omu] = eri[(size_t)ji*Naux + omu]= buf[bdx];
               } // for j1
             } // for i1
           } // for mu1
@@ -1857,27 +2248,28 @@ void translate_basis(int nbas, int N, int natm, int* atm, int* bas, double* env,
 }
 
 void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
-                       double *grad, double *GF, double *Pao, double *gQmunu,
-                       double *gRS, int *atm, int *bas, double *env) {
-  int prl = 0;
+                       double* grad, double* GF, double* Pao, double* gQmunu,
+                       double* gRS, int* atm, int* bas, double* env)
+{
+  int prl = 2;
 
-  double * grad_term = new double[3*natm](); // zeroed in each contraction
-  for (int i = 0; i < 3 * natm; i++) {
+  double* grad_term = new double[3*natm](); // zeroed in each contraction
+  for (int i=0;i<3*natm;i++)
     grad[i] = 0.;
-  }
 
   if (prl>0)
     printf("Printing g(S)\n");
   contract_dS(natm, N, nbas, grad_term, GF, atm, bas, env);
-  for (int i = 0; i < 3 * natm; i++) {
+  for (int i=0;i<3*natm;i++)
+  {
     grad_term[i] *= -1.;
     grad[i] += grad_term[i];
   }
   if (prl>0)
-  for (int i = 0; i < natm; i++) {
-    for (int j = 0; j < 3; j++) {
+  for (int i=0;i<natm;i++)
+  {
+    for (int j=0;j<3;j++)
       printf("%12.8f ",grad_term[i*3+j]);
-    }
     printf("\n");
   }
   if (prl>0)
@@ -1885,15 +2277,16 @@ void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
   if (prl>0)
     printf("Printing g(T)\n");
   contract_dK(natm, N, nbas, grad_term, Pao, atm, bas, env);
-  for (int i = 0; i < 3 * natm; i++) {
+  for (int i = 0; i < 3 * natm; i++)
+  {
     grad_term[i] *= -1;
     grad[i] += grad_term[i];
   }
   if (prl>0)
-  for (int i = 0; i < natm; i++) {
-    for (int j = 0; j < 3; j++) {
+  for (int i=0;i<natm;i++)
+  {
+    for (int j=0;j<3;j++)
       printf("%12.8f ",grad_term[i*3+j]);
-    }
     printf("\n");
   }
   if (prl>0)
@@ -1901,15 +2294,16 @@ void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
   if (prl>0)
     printf("Printing g(Vne)\n");
   contract_dVne(natm, N, nbas, grad_term, Pao, atm, bas, env);
-  for (int i = 0; i < 3 * natm; i++) {
+  for (int i = 0; i < 3 * natm; i++)
+  {
     grad_term[i] *= 1.;
     grad[i] += grad_term[i];
   }
   if (prl>0)
-  for (int i = 0; i < natm; i++) {
-    for (int j = 0; j < 3; j++) {
+  for (int i = 0; i < natm; i++)
+  {
+    for (int j = 0; j < 3; j++)
       printf("%12.8f ",grad_term[i*3+j]);
-    }
     printf("\n");
   }
   printf("\n");
@@ -1917,7 +2311,8 @@ void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
   if (prl>0)
     printf("Printing g(PQ)\n");
   contract_d2c2e(natm, N, nbas, Naux, nbas_ri, grad_term, gRS, atm, bas, env);
-  for (int i = 0; i < 3 * natm; i++) {
+  for (int i = 0; i < 3 * natm; i++)
+  {
     grad_term[i] *= 1.;
     grad[i] += grad_term[i];
   }
@@ -1933,49 +2328,52 @@ void compute_g_grad_ri(int natm, int N, int Naux, int nbas, int nbas_ri,
   if (prl>0)
     printf("Printing g(gamma3c)\n");
   contract_d3c2e(natm, N, nbas, Naux, nbas_ri, grad_term, gQmunu, atm, bas, env);
-  for (int i = 0; i < 3 * natm; i++) {
+  for (int i=0;i<3*natm;i++)
+  {
     grad_term[i] *= -2.;
     grad[i] += grad_term[i];
   }
   if (prl>0)
-  for (int i = 0; i < natm; i++) {
-    for (int j = 0; j < 3; j++) {
+  for (int i=0;i<natm;i++)
+  {
+    for (int j=0;j<3;j++)
       printf("%12.8f ",grad_term[i*3+j]);
-    }
     printf("\n");
   }
   if (prl>0)
     printf("\n");
 
   if (prl>0)
-    printf("Printing grad\n");
+    printf("Printing grad \n");
   if (prl>0)
-  for (int i = 0; i < natm; i++) {
-    for (int j = 0; j < 3; j++) {
+  for (int i=0;i<natm;i++)
+  {
+    for (int j=0;j<3;j++)
       printf("%12.8f ",grad[i*3+j]);
-    }
     printf("\n");
   }
   if (prl>0)
     printf("\n");
 
   delete [] grad_term;
+
+  return;
 }
 
-void contract_dS(int natm, int N, int nbas, double *grad_term, double *GF,
-                 int *atm, int *bas, double *env)
+void contract_dS(int natm, int N, int nbas, double* grad_term, double* GF,
+                 int* atm, int* bas, double* env)
 {
   int N2 = N*N;
-  double *jS = new double[3*N2];
+  double* jS = new double[3*N2];
   int idx_i = 0;
-  int *atm_idx = new int[N];
+  int* atm_idx = new int[N];
   int di, dj;
   int shls[2];
 
   for (int i = 0; i < 3*natm; i++)
     grad_term[i] = 0.;
 
-  for (int i = 0; i < nbas; i++)
+  for (int i=0;i<nbas;i++)
   {
     int idx_j = 0;
     shls[0] = i;
@@ -1989,11 +2387,11 @@ void contract_dS(int natm, int N, int nbas, double *grad_term, double *GF,
       double *buf = new double[di*dj*3];
       cint1e_ipovlp_sph(buf,shls,atm,natm,bas,nbas,env);
 
-      for (int x = 0; x < 3; x++)
+      for (int x=0;x<3;x++)
       {
-        for (int j1 = 0; j1 < dj; j1++)
+        for (int j1=0;j1<dj;j1++)
         {
-          for (int i1 = 0; i1 < di; i1++)
+          for (int i1=0;i1<di;i1++)
           {
             int oi = i1 + idx_i;
             int oj = j1 + idx_j;
@@ -2007,12 +2405,12 @@ void contract_dS(int natm, int N, int nbas, double *grad_term, double *GF,
     idx_i += di;
   }// for i
 
-  for (int x = 0; x < 3; x++)
+  for (int x=0;x<3;x++)
   {
-    for (int i = 0; i < N; i++)
+    for (int i=0;i<N;i++)
     {
       int atm_i = atm_idx[i];
-      for (int j = 0; j < N; j++)
+      for (int j=0;j<N;j++)
       {
         int atm_j = atm_idx[j];
         grad_term[atm_i*3 + x] += GF[i*N+j] * jS[x*N2 + i*N+j];
@@ -2027,7 +2425,8 @@ void contract_dS(int natm, int N, int nbas, double *grad_term, double *GF,
 
 
 void contract_dK(int natm, int N, int nbas, double *grad_term, double *Pao,
-                 int *atm, int *bas, double *env) {
+                 int *atm, int *bas, double *env)
+{
   int N2 = N*N;
   double *jK1 = new double[3*N2];
   double *jK2 = new double[3*N2];
@@ -2406,4 +2805,397 @@ void contract_d3c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
   delete [] atm_idx_ri;
   delete [] jERI3c_ip1;
   delete [] jERI3c_ip2;
+}
+
+void get_3center_overlap_sph(double* I, int Nao, int Ng, int natm, int nbas_ao, int nbas_g, int* atm, int* bas, double* env)
+{
+  if (I==nullptr || atm==nullptr || bas==nullptr || env==nullptr)
+    throw invalid_argument("Null pointer in get_3center_overlap_sph");
+
+  const int nbas_total = nbas_ao + nbas_g;
+
+  // Construct AO offsets for both basis spaces.
+  vector<int> ao_offset(nbas_ao + 1, 0);
+  for (int ish=0;ish<nbas_ao;ish++)
+  {
+    ao_offset[ish+1] = ao_offset[ish] + CINTcgto_spheric(ish, bas);
+  }
+
+  vector<int> g_offset(nbas_g + 1, 0);
+  for (int krel=0;krel<nbas_g;krel++)
+  {
+    const int ksh = nbas_ao + krel;
+    g_offset[krel+1] = g_offset[krel] + CINTcgto_spheric(ksh, bas);
+  }
+
+  if (ao_offset[nbas_ao]!=Nao)
+    throw invalid_argument("Nao is inconsistent with the orbital basis");
+
+  if (g_offset[nbas_g]!=Ng)
+    throw invalid_argument("Ng is inconsistent with the g basis");
+
+  fill(I,I+Nao*Nao*Ng,0.);
+
+  // Optional libcint optimizer.
+  //CINTOpt* opt = nullptr;
+  //int3c1e_optimizer(&opt,atm,natm,bas,nbas_total,env);
+
+  int shls[3];
+
+  for (int ish=0;ish<nbas_ao;ish++)
+  {
+    shls[0] = ish;
+
+    const int di = CINTcgto_spheric(ish, bas);
+    const int mu0 = ao_offset[ish];
+
+    // Only calculate the lower shell triangle because
+    // I[mu,nu,n] = I[nu,mu,n].
+    for (int jsh=0;jsh<=ish;jsh++)
+    {
+      shls[1] = jsh;
+
+      const int dj = CINTcgto_spheric(jsh, bas);
+      const int nu0 = ao_offset[jsh];
+
+      for (int krel=0;krel<nbas_g;krel++)
+      {
+        const int ksh = nbas_ao + krel;
+        shls[2] = ksh;
+
+        const int dk = CINTcgto_spheric(ksh, bas);
+        const int n0 = g_offset[krel];
+
+        /*
+         * libcint ordering for a shell block is:
+         *   buf[i + di*(j + dj*k)]
+         * i.e. the first shell index varies fastest.
+         */
+        vector<double> buf(di*dj*dk);
+
+        //const CACHE_SIZE_T rc = int3c1e_sph(buf.data(),nullptr,shls,atm,natm,bas,nbas_total,env,opt,nullptr);
+        const int nonzero = cint3c1e_sph(buf.data(),shls,atm,natm,bas,nbas_total,env);
+
+        /*
+         * A zero return indicates a screened/zero shell block.
+         * The output was initialized to zero, so no copy is needed.
+         */
+        if (nonzero==0)
+          continue;
+
+        for (int k=0;k<dk;k++)
+        {
+          const int n = n0 + k;
+          for (int j=0;j<dj;j++)
+          {
+            const int nu = nu0 + j;
+            for (int i=0;i<di;i++)
+            {
+              const int mu = mu0 + i;
+              const size_t ibuf = i + di*(j+dj*k);
+              const double value = buf[ibuf];
+
+              const size_t out_mun = (mu*Nao+nu)*Ng + n;
+              const size_t out_num = (nu*Nao+mu)*Ng + n;
+
+              I[out_mun] = value;
+              I[out_num] = value;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  //CINTdel_optimizer(&opt);
+  return;
+}
+
+static inline size_t weight_index(int mu, int nu, int n, int Nao, int Naux)
+{
+  return (mu*Nao + nu) * Naux + n;
+}
+
+static inline size_t gradient_index(int atom, int xyz)
+{
+  return 3*atom + xyz;
+}
+
+/*
+ * Contract
+ *   E = sum_{mu,nu,n} W[mu,nu,n] I[mu,nu,n]
+ * and return the explicit center gradient
+ *   gradient[3*A+x] = dE/dR_{A,x}.
+ */
+
+#if 0
+void contract_3center_overlap_gradient(double* gradient, const double* weight, int natoms, int nbas_ao, int nbas_ri, int nao, int naux, int* atm, int* bas, double* env)
+{
+  const int nbas = nbas_ao+nbas_ri;
+  //const int nbas_ri = naux;
+  //const int nbas_ao = nao;
+  const int first_aux_shell = nbas_ao;
+
+  vector<int> ao_offset(nbas_ao+1,0);
+  for (int ish=0;ish<nbas_ao;ish++)
+    ao_offset[ish+1] = ao_offset[ish] + CINTcgto_spheric(ish,bas);
+
+  vector<int> aux_offset(nbas_ri+1,0);
+  for (int krel=0;krel<nbas_ri;krel++)
+  {
+    const int ksh = first_aux_shell + krel;
+    aux_offset[krel+1] = aux_offset[krel] + CINTcgto_spheric(ksh,bas);
+  }
+
+  if (ao_offset[nbas_ao]!=nao)
+    throw invalid_argument("nao is inconsistent with bas");
+
+  fill(gradient,gradient+3*natoms,0.);
+
+  /*
+   * Loop over the full mu,nu shell square.
+   *
+   * This supports a general, nonsymmetric W[mu,nu,n]. If W is known to
+   * be symmetric in mu and nu, this can be reduced to a shell triangle.
+   */
+  for (int ish=0;ish<nbas_ao;ish++)
+  {
+    const int di = CINTcgto_spheric(ish,bas);
+    const int mu0 = ao_offset[ish];
+    const int atom_i = bas[ish * BAS_SLOTS + ATOM_OF];
+
+    for (int jsh=0;jsh<nbas_ao;jsh++)
+    {
+      const int dj = CINTcgto_spheric(jsh,bas);
+      const int nu0 = ao_offset[jsh];
+      const int atom_j = bas[jsh * BAS_SLOTS + ATOM_OF];
+
+      for (int krel=0;krel<nbas_ri;krel++)
+      {
+        const int ksh = first_aux_shell + krel;
+        const int dk = CINTcgto_spheric(ksh,bas);
+        const int n0 = aux_offset[krel];
+        const int atom_k = bas[ksh * BAS_SLOTS + ATOM_OF];
+
+        const size_t block_size = di * dj * dk;
+
+        /*
+         * Libcint derivative components are stored component-major:
+         *   buf[xyz*block_size + i + di*(j + dj*k)]
+         */
+        vector<double> d_i(3*block_size);
+        vector<double> d_j(3*block_size);
+        vector<double> d_k(3*block_size);
+
+        /*
+         * d_i: electronic-coordinate gradient on chi_i.
+         */
+        {
+          int shls[3] = {ish, jsh, ksh};
+
+          const int nonzero = cint3c1e_ip1_sph(d_i.data(),shls,atm,natoms,bas,nbas,env);
+
+          if (!nonzero)
+            fill(d_i.begin(),d_i.end(),0.);
+        }
+
+        /*
+         * d_j: place j first, giving gradient on chi_j.
+         *
+         * Returned dimensions are dj x di x dk, so index it with
+         * j as the first local index and i as the second.
+         */
+        {
+          int shls[3] = { jsh, ish, ksh };
+
+          const int nonzero = cint3c1e_ip1_sph(d_j.data(),shls,atm,natoms,bas,nbas,env);
+
+          if (!nonzero)
+            fill(d_j.begin(), d_j.end(), 0.0);
+        }
+
+        /*
+         * d_k: place k first, giving gradient on g_k.
+         *
+         * Returned dimensions are dk x di x dj.
+         */
+        {
+          int shls[3] = {ksh, ish, jsh};
+
+          const int nonzero = cint3c1e_ip1_sph(d_k.data(),shls,atm,natoms,bas,nbas,env);
+
+          if (!nonzero)
+            fill(d_k.begin(), d_k.end(), 0.0);
+        }
+
+        for (int k=0;k<dk;k++)
+        {
+          const int n = n0 + k;
+          for (int j=0;j<dj;j++)
+          {
+            const int nu = nu0 + j;
+            for (int i=0;i<di;i++)
+            {
+              const int mu = mu0 + i;
+              const double w = weight[weight_index(mu,nu,n,nao,naux)];
+
+              if (w==0.)
+                continue;
+
+              const size_t idx_i = i + di * (j + dj * k);
+              const size_t idx_j = j + dj * (i + di * k);
+              const size_t idx_k = k + dk * (i + di * j);
+
+              for (int xyz=0;xyz<3;xyz++)
+              {
+                /*
+                 * Center derivative:
+                 *
+                 *   d/dR chi(r-R) = -nabla_r chi(r-R).
+                 */
+                gradient[gradient_index(atom_i, xyz)] -= w * d_i[ xyz * block_size + idx_i];
+                gradient[gradient_index(atom_j, xyz)] -= w * d_j[ xyz * block_size + idx_j];
+                gradient[gradient_index(atom_k, xyz)] -= w * d_k[ xyz * block_size + idx_k];
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+#endif
+
+void contract_3center_overlap_gradient(double* gradient, const double* weight,
+                                       int natoms, int nbas_ao, int nbas_ri,
+                                       int nao, int naux,
+                                       int* atm, int* bas, double* env)
+{
+  const int nbas = nbas_ao + nbas_ri;
+  const int first_aux_shell = nbas_ao;
+
+  vector<int> ao_offset(nbas_ao+1,0);
+  for (int ish=0;ish<nbas_ao;ish++)
+    ao_offset[ish+1] = ao_offset[ish] + CINTcgto_spheric(ish,bas);
+
+  vector<int> aux_offset(nbas_ri+1,0);
+  for (int krel=0;krel<nbas_ri;krel++)
+  {
+    const int ksh = first_aux_shell + krel;
+    aux_offset[krel+1] = aux_offset[krel] + CINTcgto_spheric(ksh,bas);
+  }
+
+  if (ao_offset[nbas_ao]!=nao)
+    throw invalid_argument("nao is inconsistent with bas");
+
+  if (aux_offset[nbas_ri]!=naux)
+    throw invalid_argument("naux is inconsistent with bas");
+
+  fill(gradient,gradient+3*natoms,0.);
+
+  /*
+   * Loop over the full mu,nu shell square.
+   * This supports a general, nonsymmetric W[mu,nu,n].
+   */
+  for (int ish=0;ish<nbas_ao;ish++)
+  {
+    const int di = CINTcgto_spheric(ish,bas);
+    const int mu0 = ao_offset[ish];
+    const int atom_i = bas[ish*BAS_SLOTS+ATOM_OF];
+
+    for (int jsh=0;jsh<nbas_ao;jsh++)
+    {
+      const int dj = CINTcgto_spheric(jsh,bas);
+      const int nu0 = ao_offset[jsh];
+      const int atom_j = bas[jsh*BAS_SLOTS+ATOM_OF];
+
+      for (int krel=0;krel<nbas_ri;krel++)
+      {
+        const int ksh = first_aux_shell + krel;
+        const int dk = CINTcgto_spheric(ksh,bas);
+        const int n0 = aux_offset[krel];
+        const int atom_k = bas[ksh*BAS_SLOTS+ATOM_OF];
+
+        const size_t block_size = (size_t)di*dj*dk;
+
+        /*
+         * d_i contains
+         *   <(nabla chi_i) chi_j g_k>
+         * d_j contains
+         *   <(nabla chi_j) chi_i g_k>
+         * The derivative with respect to the auxiliary center is obtained
+         * from translational invariance:
+         *   dI/dR_k = d_i + d_j.
+         */
+        vector<double> d_i(3*block_size,0.);
+        vector<double> d_j(3*block_size,0.);
+
+        {
+          int shls[3] = {ish,jsh,ksh};
+
+          const int nonzero = cint3c1e_ip1_sph(d_i.data(),shls,atm,natoms,bas,nbas,env);
+
+          if (!nonzero)
+            fill(d_i.begin(),d_i.end(),0.);
+        }
+
+        /*
+         * Put j first so that ip1 differentiates chi_j.
+         *
+         * Returned dimensions are dj x di x dk.
+         */
+        {
+          int shls[3] = {jsh,ish,ksh};
+
+          const int nonzero =
+            cint3c1e_ip1_sph(d_j.data(),shls,atm,natoms,bas,nbas,env);
+
+          if (!nonzero)
+            fill(d_j.begin(),d_j.end(),0.);
+        }
+
+        for (int k=0;k<dk;k++)
+        {
+          const int n = n0+k;
+          for (int j=0;j<dj;j++)
+          {
+            const int nu = nu0+j;
+            for (int i=0;i<di;i++)
+            {
+              const int mu = mu0+i;
+              const double w = weight[weight_index(mu,nu,n,nao,naux)];
+
+              if (w==0.)
+                continue;
+
+              const size_t idx_i = i + (size_t)di*(j + (size_t)dj*k);
+              const size_t idx_j = j + (size_t)dj*(i + (size_t)di*k);
+
+              for (int xyz=0;xyz<3;xyz++)
+              {
+                const double gi = d_i[(size_t)xyz*block_size+idx_i];
+                const double gj = d_j[(size_t)xyz*block_size+idx_j];
+
+                /*
+                 * Libcint ip1 gives an electronic-coordinate derivative.
+                 * For a Gaussian centered at R:
+                 *   d/dR chi(r-R) = -nabla_r chi(r-R).
+                 */
+                gradient[gradient_index(atom_i,xyz)] -= w*gi;
+                gradient[gradient_index(atom_j,xyz)] -= w*gj;
+
+                /*
+                 * Translational invariance:
+                 *   dI/dR_i + dI/dR_j + dI/dR_k = 0
+                 * and therefore
+                 *   dI/dR_k = gi + gj.
+                 */
+                gradient[gradient_index(atom_k,xyz)] += w*(gi+gj);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
