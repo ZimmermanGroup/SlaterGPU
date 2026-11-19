@@ -1024,7 +1024,7 @@ void write_rect(int N2, int Naux, double* C, string filename)
     string line = "";
     for (int j=0;j<Naux;j++)
     //if (fabs(C[i*Naux+j])>thresh)
-      line += " " + SSTRF2(C[i*Naux+j]);
+      line += " " + SSTRF2(C[(size_t)i*Naux+j]);
     //else
     //  line += " 0.0";
     outfile << line << endl;

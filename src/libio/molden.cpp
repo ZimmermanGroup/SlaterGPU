@@ -95,15 +95,40 @@ void get_nxyzr(int n1, int l1, int m1, int& nx, int& ny, int& nz, int& nr)
 
 void write_molden_mo_g(ofstream& outfile, vector<vector<double> > &basis, double* jCA, int No, double* eig)
 {
+  const double ethresh = 1.e-5;
+
   int N = basis.size();
+  bool have_eig = 1;
+  if (eig==NULL) have_eig = 0;
+  if (!have_eig)
+  {
+    eig = new double[N];
+    for (int j=0;j<N;j++)
+      eig[j] = 1.;
+  }
+  else
+  {
+    bool nonzero = 0;
+    for (int j=0;j<N/2;j++)
+    if (eig[j]>ethresh)
+    { nonzero = 1; break; }
+    if (!nonzero)
+    {
+      for (int j=0;j<No;j++)
+        eig[j] = 1.;
+      for (int j=No;j<N;j++)
+        eig[j] = 2.*ethresh;
+    }
+  }
 
   outfile << "[MO]" << endl;
   for (int i=0;i<N;i++)
+  if (eig[i]>ethresh)
   {
     int occ = 0; if (i<No) occ = 1;
 
     outfile << "Sym=X" << endl;
-    if (eig!=NULL)
+    if (have_eig)
       outfile << "Ene=" << eig[i] << endl;
     else
       outfile << "Ene=0." << endl;
@@ -188,6 +213,9 @@ void write_molden_mo_g(ofstream& outfile, vector<vector<double> > &basis, double
   else
     outfile << " [5D7F9G] " << endl;
 
+  if (!have_eig)
+    delete [] eig;
+
   return;
 }
 
@@ -233,9 +261,10 @@ void write_molden_g(int btype, int natoms, int* atno, double* coords, vector<vec
     if (basis[j][9]!=i)
     { wb2 = j; break; }
     if (i+1==natoms) wb2 = N;
-    //printf(" wb12: %2i %2i \n",wb1,wb2);
+    //printf(" wb12: %2i %2i \n",wb1,wb2); fflush(stdout);
 
     string b1 = "";
+    if (wb1>-1)
     for (int j=wb1;j<wb2;)
     {
       int l1 = (int)basis[j][1];

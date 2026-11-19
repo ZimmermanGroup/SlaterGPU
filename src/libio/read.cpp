@@ -125,6 +125,34 @@ string read_basis_text(string aname)
   return read_basis_text(filename,aname);
 }
 
+vector<double> read_floats(string filename)
+{
+  ifstream infile;
+  infile.open(filename.c_str());
+  if (!infile)
+    return { };
+
+  vector<double> vals;
+
+  string line;
+  bool success = 1;
+  do
+  {
+    success = (bool)getline(infile, line);
+
+    double val = 0.;
+    if (success)
+      val = atof(line.c_str());
+
+    vals.push_back(val);
+
+  } while (success);
+
+  infile.close();
+
+  return vals;
+}
+
 double read_float(string filename)
 {
   ifstream infile;
@@ -1644,7 +1672,7 @@ void read_SENT(string dirname, int N, double* S, double* T, double* En, int prl)
 bool read_yukawa_potentials(int N, int Naux, double*& Ayd, double*& Cyd)
 {
   int N2 = N*N;
-  int N2a = N2*Naux;
+  size_t N2a = (size_t)N2*Naux;
   int Na2 = Naux*Naux;
 
   bool yukawa_available = check_file("Ay");
@@ -1686,7 +1714,7 @@ void read_Ciap(int N, int Naux, double* Ciap, string filename)
     {
       if (tok_line.size()<Naux+1) { printf(" ERROR: file size wrong in Ciap (%2i vs %2i) \n",tok_line.size(),Naux); exit(1); }
       for (int m=0;m<Naux;m++)
-        Ciap[wi*Naux+m] = atof(tok_line[m+1].c_str());
+        Ciap[(size_t)wi*Naux+m] = atof(tok_line[m+1].c_str());
       wi++;
     }
   }

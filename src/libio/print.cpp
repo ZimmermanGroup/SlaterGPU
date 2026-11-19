@@ -141,6 +141,17 @@ void print_square_ss(int N, double* S)
   }
 }
 
+void print_square_sm3(int N, double* S)
+{
+  for (int n=0;n<N;n++)
+  {
+    printf("  ");
+    for (int m=0;m<N;m++)
+      printf(" %6.3f",S[n*N+m]);
+    printf("\n");
+  }
+}
+
 void print_square_sm(int N, double* S)
 {
   for (int n=0;n<N;n++)
