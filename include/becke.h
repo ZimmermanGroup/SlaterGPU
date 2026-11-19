@@ -61,6 +61,13 @@ void eval_grad_fd(double dx, int gsh, double* fdvals, int gsa, double* valg);
 
 void compute_lap_hess(int natoms, int* atno, double* coords, vector<vector<double> > &basis, int nrad, int gsa, double* grid, double* Pao, double* rhohess, double* hessw, double* lapl, int htype, double* hessp, int prl);
 void compute_delt(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, double* Pao, int nrad, int gsa, double* grid, double* delt, int prl);
+// B is frame-major [frame][observation][xyz]. Device output requires an existing
+// OpenACC mapping and leaves the host mirror unchanged. Geometry tables are tiled.
+void compute_B_field_frames(int natoms, int* atno, double* coords, bool gbasis,
+    vector<vector<double> >& basis, int nframes, const double* const* pao,
+    const double* const* paodt, int nrad, int nang, double* ang_g, double* ang_w,
+    int gsa, double* grid, double* B, bool device_output, int prl);
+
 void compute_B_field(int natoms, int* atno, double* coords, bool gbasis, vector<vector<double> > &basis, double* Pao, double* Paodt,
                      int nrad, int nang, double* ang_g, double* ang_w, int gsa, double* grid, double* B, int prl);
 

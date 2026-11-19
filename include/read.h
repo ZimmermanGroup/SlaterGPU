@@ -40,6 +40,7 @@ void print_basis(int natoms, vector<vector<double> >& basis, vector<vector<doubl
 int read_rotate(int N, double* jCA);
 double read_float(string filename);
 double read_float_2(string filename);
+vector<double> read_floats(string filename);
 int read_int(string filename);
 int read_int_2(string filename);
 int read_int_3(string filename);

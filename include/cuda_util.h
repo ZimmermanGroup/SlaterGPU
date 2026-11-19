@@ -12,8 +12,12 @@ typedef void* cublasHandle_t;
 #include <cusolverDn.h>
 #endif
 
+//void solve_axeb_cusolver(int dim, double* A, double* b, cusolverDnHandle_t& cu_hdl);
+
 int invert_eigen_cusolver(int size, double* A, double eig_max, cusolverDnHandle_t& cu_hdl);
+int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl, int prl);
 int invert_stable_cusolver(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl);
+int invert_stable_cusolver_q(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl);
 int invert_stable_cusolver_2(int size, double* A, double delta, cusolverDnHandle_t& cu_hdl);
 int invert_cusolver(int N, float* A, cusolverDnHandle_t& cu_hdl);
 int invert_cusolver(int N, double* A, cusolverDnHandle_t& cu_hdl);

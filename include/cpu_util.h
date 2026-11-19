@@ -24,6 +24,10 @@ double randomf(double a, double b);
 
 void solve_axeb(int dim, double* A, double* b);
 void solve_axeb_ls(int m, int n, double* A, double* b);
+void solve_axeb_ls_rowmajor(int n, int nrhs, double* A, double* B);
+void solve_axeb_ls_rowmajor(int m, int n, int nrhs, double* A, double* B);
+//regularized version
+void solve_axeb_ls_rowmajor(int m, int n, int nrhs, const double* A, double* B, double lambda);
 
 double determinant(int N, double* A);
 

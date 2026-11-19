@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <algorithm>
+
+#include "cint_soc.h"
 
 extern "C" {
   #include "cint_funcs.h"
@@ -13,6 +16,11 @@ extern "C" {
                      int *atm, int natm, int *bas, int nbas, double *env);
   int cint1e_ovlp_cart(double *buf, int *shls,
                      int *atm, int natm, int *bas, int nbas, double *env);
+  int cint1e_r_cart(double *buf, int *shls,
+                     int *atm, int natm, int *bas, int nbas, double *env);
+  int cint1e_rr_cart(double *buf, int *shls,
+                     int *atm, int natm, int *bas, int nbas, double *env);
+
   int cint2e_cart(double *buf, int *shls,
                   int *atm, int natm, int *bas, int nbas, double *env, CINTOpt *no_opt);
   double CINTgto_norm(FINT n, double a);
@@ -26,10 +34,19 @@ extern "C" {
                          int *atm, int natm, int *bas, int nbas, double *env);
   int cint1e_ovlp_sph(double *buf, int *shls,
                           int *atm, int natm, int *bas, int nbas, double *env);
+  int cint1e_r_sph(double *buf, int *shls,
+                          int *atm, int natm, int *bas, int nbas, double *env);
+  int cint1e_rr_sph(double *buf, int *shls,
+                          int *atm, int natm, int *bas, int nbas, double *env);
+
   int cint1e_ovlpip_sph(double *buf, int *shls,
                           int *atm, int natm, int *bas, int nbas, double *env);
   int cint2e_sph(double *buf, int *shls,
                      int *atm, int natm, int *bas, int nbas, double *env, CINTOpt *no_opt);
+
+
+  int cint3c1e_sph(double *buf, int *shls, int *atm, int natm, int *bas, int nbas, double *env);
+  int cint3c1e_ip1_sph(double* buf, int* shls, int* atm, int natm, int* bas, int nbas, double* env);
 
   // gradient integrals
   // < -ih∇ | Vnuc | -ih∇ >
@@ -110,6 +127,12 @@ void get_vri(double** val, int gs, int N,
                  int natm, int nbas, int nbas_ri, int nenv,
                  int* atm, int* bas, double* env);
 
+void get_position_squared_integrals(double* x2, double* y2, double* z2,
+                                    int N, int natm, int nbas, int nenv, int* atm, int* bas, double* env);
+
+void get_position_integrals(double* rx, double* ry, double* rz,
+                            int N, int natm, int nbas, int nenv, int* atm, int* bas, double* env);
+
 void get_overlap(double * overlap, int N,
                  int natm, int nbas, int nenv,
                  int *atm, int* bas, double *env);
@@ -145,9 +168,22 @@ void gen_eri_4b(double** eri, int N1, int N2, int N3, int N,
              int natm, int nbas1, int nbas2, int nbas3, int nbas, int nenv,
              int* atm, int* bas, double* env, int nomp);
 
+double con_eri_4b(double* Pao1, double* Pao2, int N1, int N2, int N3, int N,
+             int natm, int nbas1, int nbas2, int nbas3, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp);
+
 void gen_eri_2b(double** eri, int N1, int N,
              int natm, int nbas1, int nbas, int nenv,
              int* atm, int* bas, double* env, int nomp);
+
+double con_eri_2b(double* Pao1, double* Pao2, int N1, int N,
+             int natm, int nbas1, int nbas, int nenv,
+             int* atm, int* bas, double* env, int nomp);
+
+void gen_ven_matrix_direct(double* V, bool clearV, double Z1, double* Pao,
+                            int Nn, int Ne, int Nt,
+                            int natoms, int nbas1, int nbas, int nenv,
+                            int* atm, int* bas, double* env, int nomp);
 
 void gen_eri(double** eri, int N,
              int natm, int nbas, int nenv,
@@ -202,6 +238,10 @@ void contract_d2c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
 void contract_d3c2e(int natm, int N, int nbas, int Naux, int nbas_ri,
                     double *grad_term, double *gQmunu,
                     int *atm, int *bas, double *env);
+
+void get_3center_overlap_sph(double* I, int Nao, int Ng, int natm, int nbas_ao, int nbas_g, int* atm, int* bas, double* env);
+void contract_3center_overlap_gradient(double* gradient, const double* weight, int natoms, int nbas_ao, int nbas_ri, int nao, int naux, int* atm, int* bas, double* env);
+
 #endif
 
 // Start over the gen_ri_int function
