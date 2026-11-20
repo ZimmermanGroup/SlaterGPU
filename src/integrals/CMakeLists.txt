@@ -52,11 +52,11 @@ if(DO_GTO)
     target_include_directories(SlaterGPU PUBLIC
         $<BUILD_INTERFACE:${LIBCINT_INCLUDE_DIR}>
         )
-    # Installed consumers (ZEST, XCtera) include integrals.h too, so the
+    # Installed downstream consumers include integrals.h too, so the
     # exported target must carry libcint's include path. Under pixi, libcint's
     # headers sit in the same prefix as SlaterGPU's, already covered by
     # ${CMAKE_INSTALL_INCLUDEDIR}. A manual CMake build with LIBCINT_PATH
-    # (e.g. on athena) puts them elsewhere, so export that absolute path.
+    # puts them elsewhere, so export that absolute path.
     get_filename_component(_cint_inc "${LIBCINT_INCLUDE_DIR}" REALPATH)
     get_filename_component(_install_inc
         "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}" REALPATH)
