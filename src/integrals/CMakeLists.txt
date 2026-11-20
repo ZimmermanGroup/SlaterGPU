@@ -52,6 +52,19 @@ if(DO_GTO)
     target_include_directories(SlaterGPU PUBLIC
         $<BUILD_INTERFACE:${LIBCINT_INCLUDE_DIR}>
         )
+    # Installed downstream consumers include integrals.h too, so the
+    # exported target must carry libcint's include path. Under pixi, libcint's
+    # headers sit in the same prefix as SlaterGPU's, already covered by
+    # ${CMAKE_INSTALL_INCLUDEDIR}. A manual CMake build with LIBCINT_PATH
+    # puts them elsewhere, so export that absolute path.
+    get_filename_component(_cint_inc "${LIBCINT_INCLUDE_DIR}" REALPATH)
+    get_filename_component(_install_inc
+        "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}" REALPATH)
+    if(NOT _cint_inc STREQUAL _install_inc)
+        target_include_directories(SlaterGPU PUBLIC
+            $<INSTALL_INTERFACE:${LIBCINT_INCLUDE_DIR}>
+            )
+    endif()
 endif()
 
 add_definitions("-w")
